@@ -1,0 +1,74 @@
+[
+  {
+    "id": "T1",
+    "description": "Extract the document outline as a JSON heading tree",
+    "input_files": ["bench/inputs/t1_mixed_headings.md"],
+    "expected_output": "bench/expected/t1_outline.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "basic",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "T2",
+    "description": "Insert a new section after the third top-level block",
+    "input_files": ["bench/inputs/t2_insert_target.md"],
+    "expected_output": "bench/expected/t2_inserted.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  },
+  {
+    "id": "T3",
+    "description": "Replace the second occurrence of a duplicate-named section",
+    "input_files": ["bench/inputs/t3_duplicate_sections.md"],
+    "expected_output": "bench/expected/t3_replaced.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  },
+  {
+    "id": "T4",
+    "description": "Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables",
+    "input_files": ["bench/inputs/t4_word_replace.md"],
+    "expected_output": "bench/expected/t4_replaced.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
