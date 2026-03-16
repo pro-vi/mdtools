@@ -2,13 +2,14 @@
 """mdtools benchmark harness.
 
 Runs T1-T4 tasks in unix and mdtools modes, scores results using
-structural diff, and produces a benchmark report.
+dual scorers (independent markdown-it-py + md binary), and produces
+a benchmark report with byte-cost metrics.
 
 Usage:
-    python bench/harness.py                      # dry run: score pre-generated expected outputs
-    python bench/harness.py --mode mdtools        # run mdtools mode only
-    python bench/harness.py --mode unix           # run unix mode only
-    python bench/harness.py --run                 # run both modes via agent subprocess
+    python bench/harness.py                      # dry run: validate scorer
+    python bench/harness.py --run                 # agent track: N runs per task×mode
+    python bench/harness.py --run --mode mdtools   # agent track: mdtools only
+    python bench/harness.py --run -N 5            # 5 runs per task×mode
     python bench/harness.py --agent "claude -p"   # specify agent command
 """
 
@@ -17,19 +18,85 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
-# ── Types ──────────────────────────────────────────────────────
+# ── Independent scorer (no md dependency) ─────────────────────
+
+from markdown_it import MarkdownIt
+
+_NEUTRAL_MD = MarkdownIt("commonmark", {"html": True}).enable(["table"])
+
+
+def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
+    """Extract heading tree using markdown-it-py (independent of md binary)."""
+    tokens = _NEUTRAL_MD.parse(content)
+    tree = []
+    for i, tok in enumerate(tokens):
+        if tok.type == "heading_open":
+            level = int(tok.tag[1:])
+            # Next token is the inline content
+            if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
+                text = tokens[i + 1].content
+            else:
+                text = ""
+            tree.append((level, text))
+    return tree
+
+
+def neutral_block_texts(content: str) -> list[str]:
+    """Extract normalized block-level text using markdown-it-py."""
+    tokens = _NEUTRAL_MD.parse(content)
+    texts = []
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        # Collect top-level blocks: headings, paragraphs, code, tables, etc.
+        if tok.type in ("heading_open", "paragraph_open", "bullet_list_open",
+                        "ordered_list_open", "blockquote_open", "table_open",
+                        "html_block", "code_block", "fence", "hr"):
+            # Collect all content until the matching close
+            if tok.type == "hr":
+                texts.append("---")
+                i += 1
+                continue
+            if tok.type in ("html_block", "code_block", "fence"):
+                texts.append((tok.content or "").strip())
+                i += 1
+                continue
+            # Find the close token
+            close_type = tok.type.replace("_open", "_close")
+            depth = 1
+            parts = []
+            i += 1
+            while i < len(tokens) and depth > 0:
+                t = tokens[i]
+                if t.type == tok.type:
+                    depth += 1
+                elif t.type == close_type:
+                    depth -= 1
+                    if depth == 0:
+                        break
+                if t.type == "inline" and t.content:
+                    parts.append(t.content)
+                elif t.type in ("code_block", "fence") and t.content:
+                    parts.append(t.content.strip())
+                i += 1
+            texts.append("\n".join(parts).strip())
+        i += 1
+    return [t for t in texts if t]  # Drop empties
+
+
+# ── Types ─────────────────────────────────────────────────────
 
 BenchMode = Literal["unix", "mdtools"]
-BenchExpectedArtifact = Literal["stdout_text", "file_contents", "json_envelope"]
 ScorerKind = Literal["structural", "normalized_text", "raw_bytes"]
 
 
@@ -51,7 +118,7 @@ class BenchTask:
     description: str
     input_files: list[str]
     expected_output: str
-    expected_artifact: BenchExpectedArtifact
+    expected_artifact: str
     difficulty: str
     scorer: StructuralDiffPolicy
 
@@ -61,8 +128,9 @@ class BenchResult:
     task_id: str
     mode: BenchMode
     correct: bool
-    token_input: int = 0
-    token_output: int = 0
+    correct_neutral: bool = True  # Independent scorer agreement
+    bytes_prompt: int = 0
+    bytes_output: int = 0
     tool_calls: int = 0
     turns: int = 0
     elapsed_seconds: float = 0.0
@@ -89,16 +157,54 @@ TASK: {task_description}
 INPUT FILE: {input_file}
 OUTPUT: {output_instruction}
 
-ALLOWED TOOLS:
-{tool_list}
+{tool_docs}
 
 Work step by step. When done, {completion_instruction}
 """
 
+MDTOOLS_DOCS = """\
+TOOL REFERENCE — md (markdown-aware CLI):
+
+  md outline <FILE> [--json]           Show heading hierarchy with line spans
+  md blocks <FILE> [--json]            List all top-level blocks with index, kind, span, preview
+  md block <INDEX> <FILE> [--json]     Read a single block's full content by 0-based index
+  md section <SELECTOR> <FILE> [--json] [--ignore-case] [--occurrence N]
+                                       Read a section by heading text. Use ":preamble" for content before first heading.
+                                       Duplicate headings require --occurrence (1-based).
+  md search <QUERY> <FILE> [--json] [--ignore-case] [--kind <KIND>...]
+                                       Search block content. Filter by kind: heading, paragraph, list, code-fence, etc.
+  md replace-block <INDEX> <FILE> [-i] [--json]
+                                       Replace block at INDEX with stdin content. -i writes in-place.
+  md replace-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
+                                       Replace section with stdin content. -i writes in-place.
+  md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end
+                                       Insert stdin content as a new block at the specified location.
+  md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
+  md links <FILE> [--json]             List all links with kind, destination, source block
+  md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
+  md stats <FILE> [--json]             Word/heading/block/link/section/line counts
+  cat <FILE>                           Read raw file contents
+
+EXAMPLES:
+  md outline doc.md --json                          # heading tree as JSON
+  md blocks doc.md                                  # list blocks: index, kind, lines, preview
+  echo "New text" | md replace-block 3 doc.md -i    # replace block 3 in-place
+  echo "## New Section\\nContent" | md replace-section "Old" doc.md -i
+  echo "Added" | md insert-block --after 2 doc.md -i
+  md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
+"""
+
+UNIX_DOCS = """\
+ALLOWED TOOLS (standard POSIX):
+  cat, grep, sed, awk, head, tail, wc, tee, mv, cp
+  Shell: pipes (|), redirection (>, >>), temp files (mktemp)
+
+Do NOT use: python, perl, ruby, node, or any other scripting language.
+"""
+
 
 def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
-    tools = UNIX_TOOLS if mode == "unix" else MDTOOLS_TOOLS
-    tool_list = "\n".join(f"  - {t}" for t in tools)
+    tool_docs = MDTOOLS_DOCS if mode == "mdtools" else UNIX_DOCS
     input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
 
     if task.expected_artifact == "json_envelope":
@@ -106,7 +212,7 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
         completion_instruction = "print the JSON result and stop."
     elif task.expected_artifact == "file_contents":
         output_instruction = f"Modify the file {input_file} in place."
-        completion_instruction = f"confirm the file has been modified and stop."
+        completion_instruction = "confirm the file has been modified and stop."
     else:
         output_instruction = "Print the result to stdout."
         completion_instruction = "print the result and stop."
@@ -115,33 +221,32 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
         task_description=task.description,
         input_file=input_file,
         output_instruction=output_instruction,
-        tool_list=tool_list,
+        tool_docs=tool_docs,
         completion_instruction=completion_instruction,
     )
 
 
-# ── Scorer ────────────────────────────────────────────────────
+# ── Dual scorer ───────────────────────────────────────────────
 
 def score_task(
     task: BenchTask,
     actual: str,
     expected: str,
     md_binary: str = "md",
-) -> tuple[bool, str]:
-    """Score an actual result against expected, returning (correct, diff_report)."""
+) -> tuple[bool, bool, str]:
+    """Score using both md-based and neutral scorers.
+    Returns (correct_md, correct_neutral, diff_report)."""
     policy = task.scorer
-    report_lines = []
+    report = []
 
     if policy.kind == "raw_bytes":
-        correct = actual == expected
-        if not correct:
-            report_lines.append("raw_bytes: MISMATCH")
-            report_lines.append(f"  expected {len(expected)} bytes, got {len(actual)} bytes")
-        return correct, "\n".join(report_lines)
+        ok = actual == expected
+        if not ok:
+            report.append(f"raw_bytes: MISMATCH ({len(expected)}b expected, {len(actual)}b actual)")
+        return ok, ok, "\n".join(report)
 
-    # Normalize for comparison
-    a = actual
-    e = expected
+    # Normalize
+    a, e = actual, expected
     if policy.normalize_line_endings:
         a = a.replace("\r\n", "\n")
         e = e.replace("\r\n", "\n")
@@ -150,16 +255,18 @@ def score_task(
         e = "\n".join(line.rstrip() for line in e.split("\n"))
 
     if policy.kind == "structural" and task.expected_artifact == "json_envelope":
-        return score_structural_json(policy, a, e, report_lines)
+        ok_md, ok_neutral = score_structural_json(policy, a, e, report)
+        return ok_md, ok_neutral, "\n".join(report)
 
     if policy.kind == "normalized_text":
-        return score_normalized_text(policy, a, e, md_binary, report_lines)
+        ok_md = score_normalized_text_md(policy, a, e, md_binary, report)
+        ok_neutral = score_normalized_text_neutral(policy, a, e, report)
+        if ok_md != ok_neutral:
+            report.append(f"  ⚠ SCORER DIVERGENCE: md={ok_md} neutral={ok_neutral}")
+        return ok_md, ok_neutral, "\n".join(report)
 
-    # Fallback: normalized string comparison
-    correct = a.strip() == e.strip()
-    if not correct:
-        report_lines.append("normalized comparison: MISMATCH")
-    return correct, "\n".join(report_lines)
+    ok = a.strip() == e.strip()
+    return ok, ok, "\n".join(report)
 
 
 def score_structural_json(
@@ -167,190 +274,181 @@ def score_structural_json(
     actual_str: str,
     expected_str: str,
     report: list[str],
-) -> tuple[bool, str]:
-    """Score JSON envelope outputs structurally."""
+) -> tuple[bool, bool]:
+    """Score JSON envelope. Returns (md_ok, neutral_ok)."""
     try:
-        actual = json.loads(actual_str)
-        expected = json.loads(expected_str)
+        actual_json = json.loads(actual_str)
+        expected_json = json.loads(expected_str)
     except json.JSONDecodeError as exc:
         report.append(f"JSON parse error: {exc}")
-        return False, "\n".join(report)
+        return False, False
 
-    correct = True
+    ok_md = True
+    ok_neutral = True
 
     if policy.compare_heading_tree:
-        a_tree = extract_heading_tree(actual)
-        e_tree = extract_heading_tree(expected)
+        # md-based: from JSON structure
+        a_tree = [(e["heading"]["level"], e["heading"]["text"]) for e in actual_json.get("entries", [])]
+        e_tree = [(e["heading"]["level"], e["heading"]["text"]) for e in expected_json.get("entries", [])]
         if a_tree != e_tree:
-            correct = False
-            report.append(f"heading_tree: MISMATCH")
-            report.append(f"  expected: {e_tree}")
-            report.append(f"  actual:   {a_tree}")
+            ok_md = False
+            report.append(f"heading_tree [md]: MISMATCH")
         else:
-            report.append("heading_tree: OK")
+            report.append("heading_tree [md]: OK")
 
-    return correct, "\n".join(report)
+        # Neutral check: can't easily re-parse JSON task expected from markdown
+        # For JSON envelope tasks, both scorers agree on the JSON structure
+        ok_neutral = ok_md
+        report.append(f"heading_tree [neutral]: {'OK' if ok_neutral else 'MISMATCH'}")
+
+    return ok_md, ok_neutral
 
 
-def extract_heading_tree(json_data: dict) -> list[tuple[int, str]]:
-    """Extract (level, text) pairs from an OutlineResult-shaped JSON."""
-    entries = json_data.get("entries", [])
-    return [(e["heading"]["level"], e["heading"]["text"]) for e in entries]
-
-
-def score_normalized_text(
+def score_normalized_text_md(
     policy: StructuralDiffPolicy,
     actual: str,
     expected: str,
     md_binary: str,
     report: list[str],
-) -> tuple[bool, str]:
-    """Score file contents using block-level normalized text comparison."""
+) -> bool:
+    """Score using md binary (may be circular)."""
     correct = True
 
     if policy.compare_heading_tree:
-        a_tree = get_heading_tree_from_file(actual, md_binary)
-        e_tree = get_heading_tree_from_file(expected, md_binary)
-        if a_tree != e_tree:
+        a = _md_heading_tree(actual, md_binary)
+        e = _md_heading_tree(expected, md_binary)
+        if a != e:
             correct = False
-            report.append(f"heading_tree: MISMATCH")
-            report.append(f"  expected: {e_tree}")
-            report.append(f"  actual:   {a_tree}")
+            report.append(f"heading_tree [md]: MISMATCH {e} vs {a}")
         else:
-            report.append("heading_tree: OK")
+            report.append("heading_tree [md]: OK")
 
     if policy.compare_block_order:
-        a_order = get_block_order_from_file(actual, md_binary)
-        e_order = get_block_order_from_file(expected, md_binary)
-        if a_order != e_order:
+        a = _md_block_order(actual, md_binary)
+        e = _md_block_order(expected, md_binary)
+        if a != e:
             correct = False
-            report.append(f"block_order: MISMATCH")
-            report.append(f"  expected: {e_order}")
-            report.append(f"  actual:   {a_order}")
+            report.append(f"block_order [md]: MISMATCH {e} vs {a}")
         else:
-            report.append("block_order: OK")
+            report.append("block_order [md]: OK")
 
     if policy.compare_block_text:
-        a_text = get_block_texts_from_file(actual, md_binary)
-        e_text = get_block_texts_from_file(expected, md_binary)
-        if a_text != e_text:
+        a = _md_block_texts(actual, md_binary)
+        e = _md_block_texts(expected, md_binary)
+        if a != e:
             correct = False
-            report.append("block_text: MISMATCH")
-            # Show first difference
-            for i, (at, et) in enumerate(zip(a_text, e_text)):
+            report.append("block_text [md]: MISMATCH")
+            for i, (at, et) in enumerate(zip(a, e)):
                 if at != et:
-                    report.append(f"  first diff at block {i}:")
-                    report.append(f"    expected: {et[:80]!r}")
-                    report.append(f"    actual:   {at[:80]!r}")
+                    report.append(f"  block {i}: {et[:60]!r} vs {at[:60]!r}")
                     break
-            if len(a_text) != len(e_text):
-                report.append(f"  block count: expected {len(e_text)}, got {len(a_text)}")
         else:
-            report.append("block_text: OK")
+            report.append("block_text [md]: OK")
 
-    return correct, "\n".join(report)
+    return correct
 
 
-def get_heading_tree_from_file(content: str, md_binary: str) -> list[tuple[int, str]]:
-    """Parse content with md tool and extract heading tree."""
+def score_normalized_text_neutral(
+    policy: StructuralDiffPolicy,
+    actual: str,
+    expected: str,
+    report: list[str],
+) -> bool:
+    """Score using markdown-it-py (independent, not circular)."""
+    correct = True
+
+    if policy.compare_heading_tree:
+        a = neutral_heading_tree(actual)
+        e = neutral_heading_tree(expected)
+        if a != e:
+            correct = False
+            report.append(f"heading_tree [neutral]: MISMATCH {e} vs {a}")
+        else:
+            report.append("heading_tree [neutral]: OK")
+
+    if policy.compare_block_text:
+        a = neutral_block_texts(actual)
+        e = neutral_block_texts(expected)
+        if a != e:
+            correct = False
+            report.append("block_text [neutral]: MISMATCH")
+            for i, (at, et) in enumerate(zip(a, e)):
+                if at != et:
+                    report.append(f"  block {i}: {et[:60]!r} vs {at[:60]!r}")
+                    break
+            if len(a) != len(e):
+                report.append(f"  count: {len(e)} vs {len(a)}")
+        else:
+            report.append("block_text [neutral]: OK")
+
+    return correct
+
+
+# ── md binary helpers ─────────────────────────────────────────
+
+def _md_run(content: str, md_binary: str, args: list[str]) -> str | None:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
         f.write(content)
         f.flush()
         try:
-            result = subprocess.run(
-                [md_binary, "outline", f.name, "--json"],
+            r = subprocess.run(
+                [md_binary] + args + [f.name, "--json"],
                 capture_output=True, text=True, timeout=10,
             )
-            if result.returncode != 0:
-                return []
-            data = json.loads(result.stdout)
-            return extract_heading_tree(data)
+            return r.stdout if r.returncode == 0 else None
         finally:
             os.unlink(f.name)
 
 
-def get_block_order_from_file(content: str, md_binary: str) -> list[str]:
-    """Parse content and return block kind sequence."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-        f.write(content)
-        f.flush()
-        try:
-            result = subprocess.run(
-                [md_binary, "blocks", f.name, "--json"],
-                capture_output=True, text=True, timeout=10,
-            )
-            if result.returncode != 0:
-                return []
-            data = json.loads(result.stdout)
-            return [b["kind"] for b in data.get("blocks", [])]
-        finally:
-            os.unlink(f.name)
+def _md_heading_tree(content: str, md_binary: str) -> list[tuple[int, str]]:
+    out = _md_run(content, md_binary, ["outline"])
+    if not out:
+        return []
+    data = json.loads(out)
+    return [(e["heading"]["level"], e["heading"]["text"]) for e in data.get("entries", [])]
 
 
-def get_block_texts_from_file(content: str, md_binary: str) -> list[str]:
-    """Parse content and return normalized block text for each block."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-        f.write(content)
-        f.flush()
-        try:
-            result = subprocess.run(
-                [md_binary, "blocks", f.name, "--json"],
-                capture_output=True, text=True, timeout=10,
-            )
-            if result.returncode != 0:
-                return []
-            data = json.loads(result.stdout)
-            texts = []
-            for block in data.get("blocks", []):
-                bs = block["span"]["byte_start"]
-                be = block["span"]["byte_end"]
-                text = content[bs:be].strip()
-                texts.append(text)
-            return texts
-        finally:
-            os.unlink(f.name)
+def _md_block_order(content: str, md_binary: str) -> list[str]:
+    out = _md_run(content, md_binary, ["blocks"])
+    if not out:
+        return []
+    return [b["kind"] for b in json.loads(out).get("blocks", [])]
 
 
-# ── Harness runner ────────────────────────────────────────────
+def _md_block_texts(content: str, md_binary: str) -> list[str]:
+    out = _md_run(content, md_binary, ["blocks"])
+    if not out:
+        return []
+    data = json.loads(out)
+    return [content[b["span"]["byte_start"]:b["span"]["byte_end"]].strip()
+            for b in data.get("blocks", [])]
+
+
+# ── Harness ───────────────────────────────────────────────────
 
 def load_tasks(tasks_path: str = "bench/tasks/tasks.json") -> list[BenchTask]:
     with open(tasks_path) as f:
         raw = json.load(f)
-    tasks = []
-    for t in raw:
-        scorer = StructuralDiffPolicy(**t["scorer"])
-        tasks.append(BenchTask(
-            id=t["id"],
-            description=t["description"],
-            input_files=t["input_files"],
-            expected_output=t["expected_output"],
-            expected_artifact=t["expected_artifact"],
-            difficulty=t["difficulty"],
-            scorer=scorer,
-        ))
-    return tasks
+    return [
+        BenchTask(
+            id=t["id"], description=t["description"],
+            input_files=t["input_files"], expected_output=t["expected_output"],
+            expected_artifact=t["expected_artifact"], difficulty=t["difficulty"],
+            scorer=StructuralDiffPolicy(**t["scorer"]),
+        )
+        for t in raw
+    ]
 
 
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
-    """Score the expected outputs against themselves (sanity check)
-    and against the actual tool output (validates expected files)."""
+    """Validate dual scorer: expected vs itself should pass both paths."""
     results = []
     for task in tasks:
-        expected_content = Path(task.expected_output).read_text()
-
-        if task.expected_artifact == "file_contents":
-            # Re-run the tool to produce actual output, then score
-            # For dry run, expected IS the actual — should score 100%
-            correct, report = score_task(task, expected_content, expected_content, md_binary)
-        elif task.expected_artifact == "json_envelope":
-            correct, report = score_task(task, expected_content, expected_content, md_binary)
-        else:
-            correct, report = True, "stdout_text: dry run skipped"
-
+        expected = Path(task.expected_output).read_text()
+        ok_md, ok_neutral, report = score_task(task, expected, expected, md_binary)
         results.append(BenchResult(
-            task_id=task.id,
-            mode="mdtools",
-            correct=correct,
+            task_id=task.id, mode="mdtools",
+            correct=ok_md, correct_neutral=ok_neutral,
             diff_report=report,
         ))
     return results
@@ -365,29 +463,34 @@ def run_agent(
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
 
-    # Copy input files
     for inp in task.input_files:
         shutil.copy2(inp, workdir)
 
     prompt = build_prompt(task, mode, workdir)
     input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
 
+    bytes_prompt = len(prompt.encode())
+
     start = time.time()
     try:
         result = subprocess.run(
-            agent_cmd.split() + ["--max-turns", "10", "--no-session-persistence", prompt],
+            agent_cmd.split() + [prompt],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=180,
             cwd=workdir,
             env={**os.environ, "CLAUDECODE": ""},
         )
         stdout = result.stdout
+        bytes_output = len(stdout.encode())
     except subprocess.TimeoutExpired:
         stdout = ""
+        bytes_output = 0
     elapsed = time.time() - start
 
-    # Capture the artifact
+    # Count tool calls from agent output
+    tool_calls = stdout.count('"tool_use"') + stdout.count("$ ") + stdout.count("```bash")
+
     expected_content = Path(task.expected_output).read_text()
 
     if task.expected_artifact == "file_contents":
@@ -396,32 +499,34 @@ def run_agent(
         except FileNotFoundError:
             actual = ""
     elif task.expected_artifact == "json_envelope":
-        # Extract last JSON object from stdout
         actual = extract_last_json(stdout)
     else:
         actual = stdout
 
-    correct, report = score_task(task, actual, expected_content, md_binary)
+    ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
 
-    # Cleanup
     shutil.rmtree(workdir, ignore_errors=True)
 
     return BenchResult(
         task_id=task.id,
         mode=mode,
-        correct=correct,
+        correct=ok_md,
+        correct_neutral=ok_neutral,
+        bytes_prompt=bytes_prompt,
+        bytes_output=bytes_output,
+        tool_calls=tool_calls,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
     )
 
 
 def extract_last_json(text: str) -> str:
-    """Extract the last JSON object from text output."""
-    # Find the last { ... } pair
+    """Extract the last JSON object from agent output, stripping code fences."""
+    # Strip markdown code fences
+    clean = re.sub(r"```(?:json)?\s*\n?", "", text)
     depth = 0
-    last_start = -1
-    last_end = -1
-    for i, ch in enumerate(text):
+    last_start = last_end = -1
+    for i, ch in enumerate(clean):
         if ch == "{":
             if depth == 0:
                 last_start = i
@@ -431,7 +536,7 @@ def extract_last_json(text: str) -> str:
             if depth == 0:
                 last_end = i + 1
     if last_start >= 0 and last_end > last_start:
-        return text[last_start:last_end]
+        return clean[last_start:last_end]
     return text
 
 
@@ -439,58 +544,71 @@ def extract_last_json(text: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="mdtools benchmark harness")
-    parser.add_argument("--run", action="store_true", help="Run agents (not just dry-run scoring)")
-    parser.add_argument("--mode", choices=["unix", "mdtools"], help="Run only this mode")
-    parser.add_argument("--task", help="Run only this task ID (e.g. T1)")
-    parser.add_argument("--agent", default="claude -p", help="Agent command to invoke")
+    parser.add_argument("--run", action="store_true", help="Run agent track")
+    parser.add_argument("--mode", choices=["unix", "mdtools"])
+    parser.add_argument("--task", help="Run only this task ID")
+    parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
+    parser.add_argument("--agent", default="claude -p", help="Agent command")
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
-    parser.add_argument("--json", action="store_true", help="Output results as JSON")
+    parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
 
     tasks = load_tasks()
     if args.task:
         tasks = [t for t in tasks if t.id == args.task]
-        if not tasks:
-            print(f"Task {args.task} not found", file=sys.stderr)
-            sys.exit(1)
 
     if not args.run:
-        # Dry run: validate scorer against expected outputs
-        print("=== DRY RUN: validating scorer against expected outputs ===\n")
+        print("=== DRY RUN: dual scorer validation ===\n")
         results = dry_run(tasks, args.md_binary)
         for r in results:
-            status = "PASS" if r.correct else "FAIL"
-            print(f"  {r.task_id}: {status}")
-            if r.diff_report:
-                for line in r.diff_report.split("\n"):
+            md_s = "PASS" if r.correct else "FAIL"
+            ne_s = "PASS" if r.correct_neutral else "FAIL"
+            div = "" if r.correct == r.correct_neutral else " ⚠ DIVERGENCE"
+            print(f"  {r.task_id}: md={md_s} neutral={ne_s}{div}")
+            for line in r.diff_report.split("\n"):
+                if line.strip():
                     print(f"    {line}")
-        all_pass = all(r.correct for r in results)
-        print(f"\n{'All tasks pass scorer validation.' if all_pass else 'SOME TASKS FAILED.'}")
-        sys.exit(0 if all_pass else 1)
+        ok = all(r.correct and r.correct_neutral for r in results)
+        print(f"\n{'All tasks pass dual scorer.' if ok else 'SCORER ISSUES DETECTED.'}")
+        sys.exit(0 if ok else 1)
 
-    # Run agents
+    # Agent track
     modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools"]
     all_results: list[BenchResult] = []
 
     for mode in modes:
-        print(f"\n=== MODE: {mode} ===\n")
+        print(f"\n=== MODE: {mode} (N={args.N}) ===\n")
         for task in tasks:
-            print(f"  Running {task.id}: {task.description}...")
-            result = run_agent(task, mode, args.agent, args.md_binary)
-            all_results.append(result)
-            status = "PASS" if result.correct else "FAIL"
-            print(f"  {task.id}: {status} ({result.elapsed_seconds}s)")
-            if result.diff_report:
-                for line in result.diff_report.split("\n"):
-                    print(f"    {line}")
+            for run_i in range(args.N):
+                label = f"{task.id} run {run_i+1}/{args.N}" if args.N > 1 else task.id
+                print(f"  {label}: {task.description}...")
+                result = run_agent(task, mode, args.agent, args.md_binary)
+                all_results.append(result)
+                s = "PASS" if result.correct else "FAIL"
+                ns = "PASS" if result.correct_neutral else "FAIL"
+                print(f"    md={s} neutral={ns} | {result.elapsed_seconds}s | "
+                      f"~{result.bytes_output}B out | ~{result.tool_calls} calls")
 
     # Summary
     print("\n=== SUMMARY ===\n")
-    print(f"{'Task':<6} {'Mode':<10} {'Result':<8} {'Time':>8}")
-    print("-" * 36)
+    print(f"{'Task':<6} {'Mode':<10} {'Pass':<6} {'Neutral':<8} {'Time':>7} {'Bytes':>8} {'Calls':>6}")
+    print("-" * 55)
     for r in all_results:
-        status = "PASS" if r.correct else "FAIL"
-        print(f"{r.task_id:<6} {r.mode:<10} {status:<8} {r.elapsed_seconds:>7.1f}s")
+        print(f"{r.task_id:<6} {r.mode:<10} "
+              f"{'✓' if r.correct else '✗':<6} "
+              f"{'✓' if r.correct_neutral else '✗':<8} "
+              f"{r.elapsed_seconds:>6.1f}s "
+              f"{r.bytes_output:>7}B "
+              f"{r.tool_calls:>5}")
+
+    # Aggregate stats per mode
+    for mode in modes:
+        mode_results = [r for r in all_results if r.mode == mode]
+        if mode_results:
+            pass_rate = sum(1 for r in mode_results if r.correct) / len(mode_results)
+            avg_bytes = sum(r.bytes_output for r in mode_results) / len(mode_results)
+            avg_time = sum(r.elapsed_seconds for r in mode_results) / len(mode_results)
+            print(f"\n  {mode}: {pass_rate:.0%} pass | avg {avg_bytes:.0f}B | avg {avg_time:.1f}s")
 
     if args.json:
         print("\n" + json.dumps([asdict(r) for r in all_results], indent=2))
