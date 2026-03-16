@@ -1,0 +1,22 @@
+# Rust
+/target/
+
+# Python (bench harness)
+__pycache__/
+*.pyc
+.venv/
+
+# Benchmark results
+bench/results/
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Claude
+.claude/
+.journal/
