@@ -20,3 +20,4 @@ bench/results/
 # Claude
 .claude/
 .journal/
+.cocc/
