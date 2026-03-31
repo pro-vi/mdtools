@@ -8,3 +8,4 @@ pub mod section;
 pub mod set;
 pub mod stats;
 pub mod table;
+pub mod tasks;

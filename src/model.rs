@@ -283,6 +283,51 @@ pub struct TableReadResult {
     pub rows: Vec<Vec<String>>,
 }
 
+// --- Task types ---
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "lowercase")]
+#[clap(rename_all = "kebab-case")]
+pub enum TaskStatus {
+    Pending,
+    Done,
+}
+
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pending => write!(f, "pending"),
+            Self::Done => write!(f, "done"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TaskEntry {
+    pub loc: String,
+    pub block_index: u32,
+    pub child_path: Vec<u32>,
+    pub task_index: u32,
+    pub status: TaskStatus,
+    pub depth: u32,
+    pub nearest_heading: Option<String>,
+    pub nearest_heading_block_index: Option<u32>,
+    pub span: SourceSpan,
+    pub summary_text: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TaskFileResult {
+    pub file: String,
+    pub tasks: Vec<TaskEntry>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TasksResult {
+    pub schema_version: String,
+    pub results: Vec<TaskFileResult>,
+}
+
 // --- Mutation types ---
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -291,6 +336,7 @@ pub enum MutationTargetKind {
     Section,
     InsertLocation,
     FrontmatterField,
+    TaskItem,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -300,6 +346,7 @@ pub enum MutationCommandKind {
     InsertBlock,
     DeleteBlock,
     SetFrontmatter,
+    SetTask,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -344,6 +391,16 @@ pub enum MutationTargetRef {
     Section(SectionTargetRef),
     Insert(InsertTargetRef),
     FrontmatterField(FrontmatterFieldTargetRef),
+    TaskItem(TaskItemTargetRef),
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TaskItemTargetRef {
+    pub kind: MutationTargetKind,
+    pub loc: String,
+    pub block_index: u32,
+    pub child_path: Vec<u32>,
+    pub span: SourceSpan,
 }
 
 #[derive(Clone, Debug, Serialize)]

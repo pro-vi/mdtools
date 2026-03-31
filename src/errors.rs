@@ -31,6 +31,9 @@ pub enum DiagnosticCode {
     NoTablesInDocument,
     TableNotATable,
     ColumnNotFound,
+    TaskItemNotFound,
+    NotATaskList,
+    InvalidTaskLoc,
 }
 
 impl DiagnosticCode {
@@ -43,6 +46,8 @@ impl DiagnosticCode {
             | Self::ColumnNotFound => MdExitCode::InvalidInput,
             Self::DuplicateHeadingMatch | Self::FrontmatterFieldConflict => MdExitCode::Conflict,
             Self::NoTablesInDocument | Self::TableNotATable => MdExitCode::NotFound,
+            Self::TaskItemNotFound | Self::NotATaskList => MdExitCode::NotFound,
+            Self::InvalidTaskLoc => MdExitCode::InvalidInput,
         }
     }
 }
@@ -108,6 +113,27 @@ impl CommandError {
         Self::new(
             DiagnosticCode::ColumnNotFound,
             format!("column {:?} not found; available columns: {}", name, headers.join(", ")),
+        )
+    }
+
+    pub fn task_item_not_found(loc: &str) -> Self {
+        Self::new(
+            DiagnosticCode::TaskItemNotFound,
+            format!("task item not found: {}", loc),
+        )
+    }
+
+    pub fn not_a_task_list(block_index: u32) -> Self {
+        Self::new(
+            DiagnosticCode::NotATaskList,
+            format!("block {} has no task items", block_index),
+        )
+    }
+
+    pub fn invalid_task_loc(loc: &str) -> Self {
+        Self::new(
+            DiagnosticCode::InvalidTaskLoc,
+            format!("invalid task loc: {:?} (expected N.N[.N...] format)", loc),
         )
     }
 

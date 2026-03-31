@@ -176,6 +176,17 @@ pub struct BlockInfo {
     pub span: SourceSpan,
     pub heading: Option<HeadingInfo>,
     pub links: Vec<LinkInfo>,
+    pub task_items: Vec<TaskItemInfo>,
+}
+
+pub struct TaskItemInfo {
+    pub child_path: Vec<u32>,
+    pub task_index: u32,
+    pub status: TaskStatus,
+    pub depth: u32,
+    pub span: SourceSpan,
+    pub symbol_byte_offset: u32,
+    pub summary_text: String,
 }
 
 pub struct HeadingInfo {
@@ -287,6 +298,7 @@ impl ParsedDocument {
                     });
 
                     let links = collect_links(node, &line_index, &source);
+                    let task_items = collect_all_task_items(node, &line_index);
 
                     blocks.push(BlockInfo {
                         index: block_index,
@@ -294,6 +306,7 @@ impl ParsedDocument {
                         span,
                         heading,
                         links,
+                        task_items,
                     });
                     block_index += 1;
                 }
@@ -337,6 +350,7 @@ impl ParsedDocument {
             });
 
             let links = collect_links(node, &line_index, &source);
+            let task_items = collect_all_task_items(node, &line_index);
 
             blocks.push(BlockInfo {
                 index: block_index,
@@ -344,6 +358,7 @@ impl ParsedDocument {
                 span,
                 heading,
                 links,
+                task_items,
             });
             block_index += 1;
         }
@@ -382,6 +397,142 @@ impl ParsedDocument {
             (true, true) => LineEndingStyle::Mixed,
         }
     }
+}
+
+// --- Task item extraction ---
+
+/// Recursively collect task items from a list node.
+fn collect_task_items<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+    prefix: &[u32],
+    depth: u32,
+) -> Vec<TaskItemInfo> {
+    let mut items = Vec::new();
+    let mut child_counter = 0u32;
+    let mut task_counter = 0u32;
+
+    for child in node.children() {
+        let data = child.data.borrow();
+        match &data.value {
+            NodeValue::TaskItem(task) => {
+                let sp = data.sourcepos;
+                let span = line_index.sourcepos_to_span(sp);
+                let symbol_byte_offset = line_index
+                    .to_byte(task.symbol_sourcepos.start.line, task.symbol_sourcepos.start.column)
+                    .unwrap_or(0) as u32;
+                let status = if task.symbol.is_some() {
+                    TaskStatus::Done
+                } else {
+                    TaskStatus::Pending
+                };
+                drop(data);
+
+                let mut path = prefix.to_vec();
+                path.push(child_counter);
+
+                let summary_text = collect_task_item_text(child);
+
+                items.push(TaskItemInfo {
+                    child_path: path.clone(),
+                    task_index: task_counter,
+                    status,
+                    depth,
+                    span,
+                    symbol_byte_offset,
+                    summary_text,
+                });
+
+                // Recurse into nested lists within this task item
+                for grandchild in child.children() {
+                    let gc_data = grandchild.data.borrow();
+                    if matches!(gc_data.value, NodeValue::List(_)) {
+                        drop(gc_data);
+                        items.extend(collect_task_items(grandchild, line_index, &path, depth + 1));
+                    }
+                }
+
+                task_counter += 1;
+            }
+            NodeValue::Item(_) => {
+                drop(data);
+
+                let mut path = prefix.to_vec();
+                path.push(child_counter);
+
+                // Regular items can contain nested lists with task items
+                for grandchild in child.children() {
+                    let gc_data = grandchild.data.borrow();
+                    if matches!(gc_data.value, NodeValue::List(_)) {
+                        drop(gc_data);
+                        items.extend(collect_task_items(grandchild, line_index, &path, depth + 1));
+                    }
+                }
+            }
+            _ => {
+                drop(data);
+            }
+        }
+        child_counter += 1;
+    }
+
+    items
+}
+
+/// Find all task items under any block node by walking descendants for List nodes.
+/// Handles task lists inside blockquotes, callouts, and other containers.
+fn collect_all_task_items<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+) -> Vec<TaskItemInfo> {
+    let data = node.data.borrow();
+    if matches!(data.value, NodeValue::List(_)) {
+        drop(data);
+        return collect_task_items(node, line_index, &[], 0);
+    }
+    drop(data);
+
+    // Walk children looking for List descendants (e.g. inside BlockQuote).
+    // Use a counter so sibling lists inside the same container get distinct
+    // path prefixes (e.g. first list → prefix [0], second → prefix [1]).
+    let mut items = Vec::new();
+    let mut list_counter = 0u32;
+    find_list_descendants(node, line_index, &mut items, &mut list_counter);
+    items
+}
+
+fn find_list_descendants<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+    out: &mut Vec<TaskItemInfo>,
+    list_counter: &mut u32,
+) {
+    for child in node.children() {
+        let data = child.data.borrow();
+        if matches!(data.value, NodeValue::List(_)) {
+            drop(data);
+            let prefix = [*list_counter];
+            out.extend(collect_task_items(child, line_index, &prefix, 0));
+            *list_counter += 1;
+        } else {
+            drop(data);
+            find_list_descendants(child, line_index, out, list_counter);
+        }
+    }
+}
+
+/// Extract the first paragraph's inline text from a task item node.
+fn collect_task_item_text<'a>(node: &'a AstNode<'a>) -> String {
+    for child in node.children() {
+        let data = child.data.borrow();
+        if matches!(data.value, NodeValue::Paragraph) {
+            drop(data);
+            let mut text = String::new();
+            collect_text_recursive(child, &mut text);
+            return text;
+        }
+    }
+    String::new()
 }
 
 // --- Node projection helpers ---

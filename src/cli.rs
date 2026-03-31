@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, Args};
 use std::path::PathBuf;
 
-use crate::model::BlockKind;
+use crate::model::{BlockKind, TaskStatus};
 
 #[derive(Parser)]
 #[command(name = "md", about = "Markdown-aware CLI for agent operations")]
@@ -29,6 +29,8 @@ pub enum Command {
     Stats(StatsArgs),
     Set(SetArgs),
     Table(TableArgs),
+    Tasks(TasksArgs),
+    SetTask(SetTaskArgs),
 }
 
 #[derive(Args)]
@@ -179,4 +181,25 @@ pub struct TableArgs {
     /// Comma-separated column names or 0-based indices to project
     #[arg(long, value_delimiter = ',')]
     pub select: Vec<String>,
+}
+
+#[derive(Args)]
+pub struct TasksArgs {
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
+    #[arg(long)]
+    pub status: Option<TaskStatus>,
+}
+
+#[derive(Args)]
+pub struct SetTaskArgs {
+    /// Task location from `md tasks` output (e.g., "9.0", "14.4.0")
+    pub loc: String,
+    pub file: PathBuf,
+    #[arg(long)]
+    pub status: TaskStatus,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
 }
