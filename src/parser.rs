@@ -181,7 +181,6 @@ pub struct BlockInfo {
 pub struct HeadingInfo {
     pub level: u8,
     pub text: String,
-    pub setext: bool,
 }
 
 pub struct LinkInfo {
@@ -275,16 +274,16 @@ impl ParsedDocument {
                     let span = line_index.sourcepos_to_span_fixup(sp, is_indented);
 
                     // Extract heading metadata while data is borrowed
-                    let heading_meta = if let NodeValue::Heading(h) = &data.value {
-                        Some((h.level, h.setext))
+                    let heading_level = if let NodeValue::Heading(h) = &data.value {
+                        Some(h.level)
                     } else {
                         None
                     };
                     drop(data);
 
-                    let heading = heading_meta.map(|(level, setext)| {
+                    let heading = heading_level.map(|level| {
                         let text = collect_heading_text(node);
-                        HeadingInfo { level, text, setext }
+                        HeadingInfo { level, text }
                     });
 
                     let links = collect_links(node, &line_index, &source);
@@ -325,16 +324,16 @@ impl ParsedDocument {
             let is_indented = matches!(kind, BlockKind::IndentedCode);
             let span = line_index.sourcepos_to_span_fixup(sp, is_indented);
 
-            let heading_meta = if let NodeValue::Heading(h) = &data.value {
-                Some((h.level, h.setext))
+            let heading_level = if let NodeValue::Heading(h) = &data.value {
+                Some(h.level)
             } else {
                 None
             };
             drop(data);
 
-            let heading = heading_meta.map(|(level, setext)| {
+            let heading = heading_level.map(|level| {
                 let text = collect_heading_text(node);
-                HeadingInfo { level, text, setext }
+                HeadingInfo { level, text }
             });
 
             let links = collect_links(node, &line_index, &source);

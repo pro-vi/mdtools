@@ -17,15 +17,6 @@ impl From<MdExitCode> for ExitCode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ErrorKind {
-    Io,
-    Parse,
-    NotFound,
-    InvalidInput,
-    Conflict,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DiagnosticCode {
     IoOpenFailed,
     ParseFailed,
@@ -43,69 +34,30 @@ pub enum DiagnosticCode {
 }
 
 impl DiagnosticCode {
-    pub fn error_kind(self) -> ErrorKind {
-        match self {
-            Self::IoOpenFailed => ErrorKind::Io,
-            Self::ParseFailed | Self::FrontmatterParseFailed => ErrorKind::Parse,
-            Self::HeadingNotFound | Self::BlockIndexOutOfRange => ErrorKind::NotFound,
-            Self::InvalidSelector | Self::InvalidUtf8OnStdin | Self::InvalidKeyPath
-            | Self::ColumnNotFound => ErrorKind::InvalidInput,
-            Self::DuplicateHeadingMatch | Self::FrontmatterFieldConflict => ErrorKind::Conflict,
-            Self::NoTablesInDocument | Self::TableNotATable => ErrorKind::NotFound,
-        }
-    }
-
     pub fn exit_code(self) -> MdExitCode {
-        match self.error_kind() {
-            ErrorKind::Io => MdExitCode::NotFound,
-            ErrorKind::Parse => MdExitCode::ParseError,
-            ErrorKind::NotFound => MdExitCode::NotFound,
-            ErrorKind::InvalidInput => MdExitCode::InvalidInput,
-            ErrorKind::Conflict => MdExitCode::Conflict,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
         match self {
-            Self::IoOpenFailed => "IoOpenFailed",
-            Self::ParseFailed => "ParseFailed",
-            Self::FrontmatterParseFailed => "FrontmatterParseFailed",
-            Self::HeadingNotFound => "HeadingNotFound",
-            Self::BlockIndexOutOfRange => "BlockIndexOutOfRange",
-            Self::DuplicateHeadingMatch => "DuplicateHeadingMatch",
-            Self::InvalidSelector => "InvalidSelector",
-            Self::InvalidUtf8OnStdin => "InvalidUtf8OnStdin",
-            Self::InvalidKeyPath => "InvalidKeyPath",
-            Self::FrontmatterFieldConflict => "FrontmatterFieldConflict",
-            Self::NoTablesInDocument => "NoTablesInDocument",
-            Self::TableNotATable => "TableNotATable",
-            Self::ColumnNotFound => "ColumnNotFound",
+            Self::IoOpenFailed => MdExitCode::NotFound,
+            Self::ParseFailed | Self::FrontmatterParseFailed => MdExitCode::ParseError,
+            Self::HeadingNotFound | Self::BlockIndexOutOfRange => MdExitCode::NotFound,
+            Self::InvalidSelector | Self::InvalidUtf8OnStdin | Self::InvalidKeyPath
+            | Self::ColumnNotFound => MdExitCode::InvalidInput,
+            Self::DuplicateHeadingMatch | Self::FrontmatterFieldConflict => MdExitCode::Conflict,
+            Self::NoTablesInDocument | Self::TableNotATable => MdExitCode::NotFound,
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct Diagnostic {
-    pub code: DiagnosticCode,
-    pub message: String,
 }
 
 #[derive(Debug)]
 pub struct CommandError {
-    pub kind: ErrorKind,
     pub exit_code: MdExitCode,
-    pub diagnostic: Diagnostic,
+    pub message: String,
 }
 
 impl CommandError {
     pub fn new(code: DiagnosticCode, message: impl Into<String>) -> Self {
         Self {
-            kind: code.error_kind(),
             exit_code: code.exit_code(),
-            diagnostic: Diagnostic {
-                code,
-                message: message.into(),
-            },
+            message: message.into(),
         }
     }
 
@@ -131,13 +83,6 @@ impl CommandError {
         Self::new(
             DiagnosticCode::DuplicateHeadingMatch,
             format!("heading {:?} matches {} sections; use --occurrence to disambiguate", heading, count),
-        )
-    }
-
-    pub fn invalid_selector(selector: &str) -> Self {
-        Self::new(
-            DiagnosticCode::InvalidSelector,
-            format!("invalid selector: {}", selector),
         )
     }
 
@@ -176,7 +121,7 @@ impl CommandError {
 
 impl fmt::Display for CommandError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.diagnostic.message)
+        write!(f, "{}", self.message)
     }
 }
 

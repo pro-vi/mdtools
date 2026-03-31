@@ -9,26 +9,10 @@ use crate::parser::ParsedDocument;
 
 pub fn run(args: &StatsArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
-
-    if !file_set.is_multi() {
-        return run_one(&file_set.paths[0], json, false);
-    }
-
-    let mut errors = Vec::new();
-    for path in &file_set.paths {
-        if let Err(e) = run_one(path, json, true) {
-            multifile::report_file_error(path, &e);
-            errors.push(e.exit_code);
-        }
-    }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(CommandError::io(format!("{} file(s) failed", errors.len())))
-    }
+    multifile::for_each_file(&file_set, |file, multi| process_file(file, json, multi))
 }
 
-fn run_one(file: &Path, json: bool, multi: bool) -> Result<(), CommandError> {
+fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse(source)?;
     let file_str = file.to_string_lossy();

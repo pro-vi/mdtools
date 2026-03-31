@@ -11,13 +11,13 @@ pub fn run(args: &FrontmatterArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
 
     if !file_set.is_multi() && args.fields.is_empty() {
-        return run_one(&file_set.paths[0], json);
+        return process_file(&file_set.paths[0], json);
     }
 
     let mut errors = Vec::new();
     for path in &file_set.paths {
         let result = if args.fields.is_empty() {
-            run_one(path, json)
+            process_file(path, json)
         } else {
             run_field_projection(path, &args.fields, json, file_set.is_multi())
         };
@@ -33,7 +33,7 @@ pub fn run(args: &FrontmatterArgs, json: bool) -> Result<(), CommandError> {
     }
 }
 
-fn run_one(file: &Path, _json: bool) -> Result<(), CommandError> {
+fn process_file(file: &Path, _json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse_for_frontmatter(source)?;
 

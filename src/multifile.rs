@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::errors::{CommandError, MdExitCode};
+use crate::errors::CommandError;
 
 pub struct FileSet {
     pub paths: Vec<PathBuf>,
@@ -64,11 +64,28 @@ pub fn report_file_error(file: &Path, err: &CommandError) {
     eprintln!("{}: {}", file.display(), err);
 }
 
-/// Return the worst exit code from a list, or Success if empty.
-pub fn worst_exit_code(codes: &[MdExitCode]) -> MdExitCode {
-    codes
-        .iter()
-        .max_by_key(|c| **c as u8)
-        .copied()
-        .unwrap_or(MdExitCode::Success)
+/// Run a per-file callback over a resolved FileSet, handling the
+/// single-file shortcut and error aggregation.
+///
+/// The callback receives `(file_path, is_multi)`.
+pub fn for_each_file<F>(file_set: &FileSet, mut f: F) -> Result<(), CommandError>
+where
+    F: FnMut(&Path, bool) -> Result<(), CommandError>,
+{
+    if !file_set.is_multi() {
+        return f(&file_set.paths[0], false);
+    }
+
+    let mut error_count = 0u32;
+    for path in &file_set.paths {
+        if let Err(e) = f(path, true) {
+            report_file_error(path, &e);
+            error_count += 1;
+        }
+    }
+    if error_count == 0 {
+        Ok(())
+    } else {
+        Err(CommandError::io(format!("{} file(s) failed", error_count)))
+    }
 }

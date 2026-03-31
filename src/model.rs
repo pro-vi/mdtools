@@ -134,13 +134,6 @@ pub struct BlockReadResult {
     pub content: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct RawFileReadResult {
-    pub schema_version: String,
-    pub file: String,
-    pub content: String,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum SectionKind {
     Preamble,
@@ -170,7 +163,6 @@ pub enum LinkKind {
     Inline,
     Reference,
     Autolink,
-    Wiki,
 }
 
 #[derive(Clone, Debug, Serialize)]
