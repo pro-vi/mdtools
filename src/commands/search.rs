@@ -9,7 +9,8 @@ use crate::parser::ParsedDocument;
 
 pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
-    multifile::for_each_file(&file_set, |file, multi| process_file(file, args, json, multi))
+    let multi = file_set.is_multi();
+    multifile::for_each_file(&file_set, |file| process_file(file, args, json, multi))
 }
 
 fn process_file(file: &Path, args: &SearchArgs, json: bool, multi: bool) -> Result<(), CommandError> {

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::errors::CommandError;
+use crate::errors::{CommandError, MdExitCode};
 
 pub struct FileSet {
     pub paths: Vec<PathBuf>,
@@ -67,25 +67,33 @@ pub fn report_file_error(file: &Path, err: &CommandError) {
 /// Run a per-file callback over a resolved FileSet, handling the
 /// single-file shortcut and error aggregation.
 ///
-/// The callback receives `(file_path, is_multi)`.
+/// Callers capture `file_set.is_multi()` in their closure if they
+/// need it for output formatting.
 pub fn for_each_file<F>(file_set: &FileSet, mut f: F) -> Result<(), CommandError>
 where
-    F: FnMut(&Path, bool) -> Result<(), CommandError>,
+    F: FnMut(&Path) -> Result<(), CommandError>,
 {
     if !file_set.is_multi() {
-        return f(&file_set.paths[0], false);
+        return f(&file_set.paths[0]);
     }
 
     let mut error_count = 0u32;
+    let mut worst_code = MdExitCode::Success;
     for path in &file_set.paths {
-        if let Err(e) = f(path, true) {
+        if let Err(e) = f(path) {
             report_file_error(path, &e);
+            if (e.exit_code as u8) > (worst_code as u8) {
+                worst_code = e.exit_code;
+            }
             error_count += 1;
         }
     }
     if error_count == 0 {
         Ok(())
     } else {
-        Err(CommandError::io(format!("{} file(s) failed", error_count)))
+        Err(CommandError {
+            exit_code: worst_code,
+            message: format!("{} file(s) failed", error_count),
+        })
     }
 }

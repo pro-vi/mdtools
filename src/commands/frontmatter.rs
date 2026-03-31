@@ -9,27 +9,14 @@ use crate::parser::ParsedDocument;
 
 pub fn run(args: &FrontmatterArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
+    let multi = file_set.is_multi();
 
-    if !file_set.is_multi() && args.fields.is_empty() {
-        return process_file(&file_set.paths[0], json);
-    }
-
-    let mut errors = Vec::new();
-    for path in &file_set.paths {
-        let result = if args.fields.is_empty() {
-            process_file(path, json)
-        } else {
-            run_field_projection(path, &args.fields, json, file_set.is_multi())
-        };
-        if let Err(e) = result {
-            multifile::report_file_error(path, &e);
-            errors.push(e.exit_code);
-        }
-    }
-    if errors.is_empty() {
-        Ok(())
+    if args.fields.is_empty() {
+        multifile::for_each_file(&file_set, |file| process_file(file, json))
     } else {
-        Err(CommandError::io(format!("{} file(s) failed", errors.len())))
+        multifile::for_each_file(&file_set, |file| {
+            run_field_projection(file, &args.fields, json, multi)
+        })
     }
 }
 
