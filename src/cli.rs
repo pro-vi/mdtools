@@ -27,11 +27,16 @@ pub enum Command {
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
     Stats(StatsArgs),
+    Set(SetArgs),
+    Table(TableArgs),
 }
 
 #[derive(Args)]
 pub struct OutlineArgs {
-    pub file: PathBuf,
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
 }
 
 #[derive(Args)]
@@ -103,24 +108,75 @@ pub struct DeleteBlockArgs {
 #[derive(Args)]
 pub struct SearchArgs {
     pub query: String,
-    pub file: PathBuf,
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "kind")]
     pub kinds: Vec<BlockKind>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
 }
 
 #[derive(Args)]
 pub struct LinksArgs {
-    pub file: PathBuf,
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
 }
 
 #[derive(Args)]
 pub struct FrontmatterArgs {
-    pub file: PathBuf,
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
+    /// Extract specific fields (repeatable or comma-separated)
+    #[arg(long = "field", value_delimiter = ',')]
+    pub fields: Vec<String>,
 }
 
 #[derive(Args)]
 pub struct StatsArgs {
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
+}
+
+#[derive(Args)]
+pub struct SetArgs {
+    /// Dot-path key (e.g., "title", "author.name")
+    pub key: String,
+
     pub file: PathBuf,
+
+    /// Value to set (omit when using --delete)
+    pub value: Option<String>,
+
+    /// Delete the key instead of setting it
+    #[arg(long)]
+    pub delete: bool,
+
+    /// Force the value to be stored as a string
+    #[arg(long)]
+    pub string: bool,
+
+    /// Write changes back to the file
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+}
+
+#[derive(Args)]
+pub struct TableArgs {
+    pub file: PathBuf,
+
+    /// Block index of the table to extract (from `md blocks`)
+    #[arg(long)]
+    pub index: Option<u32>,
+
+    /// Comma-separated column names or 0-based indices to project
+    #[arg(long, value_delimiter = ',')]
+    pub select: Vec<String>,
 }

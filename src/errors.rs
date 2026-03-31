@@ -35,6 +35,11 @@ pub enum DiagnosticCode {
     DuplicateHeadingMatch,
     InvalidSelector,
     InvalidUtf8OnStdin,
+    InvalidKeyPath,
+    FrontmatterFieldConflict,
+    NoTablesInDocument,
+    TableNotATable,
+    ColumnNotFound,
 }
 
 impl DiagnosticCode {
@@ -43,8 +48,10 @@ impl DiagnosticCode {
             Self::IoOpenFailed => ErrorKind::Io,
             Self::ParseFailed | Self::FrontmatterParseFailed => ErrorKind::Parse,
             Self::HeadingNotFound | Self::BlockIndexOutOfRange => ErrorKind::NotFound,
-            Self::InvalidSelector | Self::InvalidUtf8OnStdin => ErrorKind::InvalidInput,
-            Self::DuplicateHeadingMatch => ErrorKind::Conflict,
+            Self::InvalidSelector | Self::InvalidUtf8OnStdin | Self::InvalidKeyPath
+            | Self::ColumnNotFound => ErrorKind::InvalidInput,
+            Self::DuplicateHeadingMatch | Self::FrontmatterFieldConflict => ErrorKind::Conflict,
+            Self::NoTablesInDocument | Self::TableNotATable => ErrorKind::NotFound,
         }
     }
 
@@ -68,6 +75,11 @@ impl DiagnosticCode {
             Self::DuplicateHeadingMatch => "DuplicateHeadingMatch",
             Self::InvalidSelector => "InvalidSelector",
             Self::InvalidUtf8OnStdin => "InvalidUtf8OnStdin",
+            Self::InvalidKeyPath => "InvalidKeyPath",
+            Self::FrontmatterFieldConflict => "FrontmatterFieldConflict",
+            Self::NoTablesInDocument => "NoTablesInDocument",
+            Self::TableNotATable => "TableNotATable",
+            Self::ColumnNotFound => "ColumnNotFound",
         }
     }
 }
@@ -126,6 +138,38 @@ impl CommandError {
         Self::new(
             DiagnosticCode::InvalidSelector,
             format!("invalid selector: {}", selector),
+        )
+    }
+
+    pub fn invalid_key_path(key: &str, reason: &str) -> Self {
+        Self::new(
+            DiagnosticCode::InvalidKeyPath,
+            format!("invalid key path '{}': {}", key, reason),
+        )
+    }
+
+    pub fn no_tables() -> Self {
+        Self::new(DiagnosticCode::NoTablesInDocument, "no tables found in document")
+    }
+
+    pub fn table_not_found(index: u32) -> Self {
+        Self::new(
+            DiagnosticCode::TableNotATable,
+            format!("block {} is not a table", index),
+        )
+    }
+
+    pub fn column_not_found(name: &str, headers: &[String]) -> Self {
+        Self::new(
+            DiagnosticCode::ColumnNotFound,
+            format!("column {:?} not found; available columns: {}", name, headers.join(", ")),
+        )
+    }
+
+    pub fn frontmatter_field_conflict(key: &str, blocker: &str) -> Self {
+        Self::new(
+            DiagnosticCode::FrontmatterFieldConflict,
+            format!("cannot set '{}': '{}' is not an object", key, blocker),
         )
     }
 }

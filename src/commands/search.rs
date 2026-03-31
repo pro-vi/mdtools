@@ -1,12 +1,37 @@
+use std::path::Path;
+
 use crate::cli::SearchArgs;
 use crate::errors::CommandError;
 use crate::model::*;
+use crate::multifile;
 use crate::output;
 use crate::parser::ParsedDocument;
 
 pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
+
+    if !file_set.is_multi() {
+        return run_one(&file_set.paths[0], args, json, false);
+    }
+
+    let mut errors = Vec::new();
+    for path in &file_set.paths {
+        if let Err(e) = run_one(path, args, json, true) {
+            multifile::report_file_error(path, &e);
+            errors.push(e.exit_code);
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(CommandError::io(format!("{} file(s) failed", errors.len())))
+    }
+}
+
+fn run_one(file: &Path, args: &SearchArgs, json: bool, multi: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse(source)?;
+    let file_str = file.to_string_lossy();
 
     let match_mode = if args.ignore_case {
         SearchMatchMode::LiteralIgnoreCase
@@ -15,7 +40,6 @@ pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     };
 
     let filter_kinds: Vec<BlockKind> = if args.kinds.is_empty() {
-        // All block kinds
         vec![
             BlockKind::Heading,
             BlockKind::Paragraph,
@@ -55,7 +79,7 @@ pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     if json {
         let result = SearchResult {
             schema_version: SCHEMA_VERSION.to_string(),
-            file: args.file.to_string_lossy().to_string(),
+            file: file_str.to_string(),
             query: args.query.clone(),
             match_mode,
             block_kinds: filter_kinds,
@@ -65,10 +89,17 @@ pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     } else {
         for m in &matches {
             let preview = output::escape_text_field(&m.preview);
-            println!(
-                "{}\t{}\t{}-{}\t{}",
-                m.block_index, m.block_kind, m.match_span.line_start, m.match_span.line_end, preview
-            );
+            if multi {
+                println!(
+                    "{}:\t{}\t{}\t{}-{}\t{}",
+                    file_str, m.block_index, m.block_kind, m.match_span.line_start, m.match_span.line_end, preview
+                );
+            } else {
+                println!(
+                    "{}\t{}\t{}-{}\t{}",
+                    m.block_index, m.block_kind, m.match_span.line_start, m.match_span.line_end, preview
+                );
+            }
         }
     }
     Ok(())

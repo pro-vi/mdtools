@@ -2,6 +2,7 @@ mod cli;
 mod commands;
 mod errors;
 mod model;
+mod multifile;
 mod output;
 mod parser;
 
@@ -36,5 +37,7 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::Links(args) => commands::links::run(args, cli.json),
         Command::Frontmatter(args) => commands::frontmatter::run(args, cli.json),
         Command::Stats(args) => commands::stats::run(args, cli.json),
+        Command::Set(args) => commands::set::run(args, cli.json),
+        Command::Table(args) => commands::table::run(args, cli.json),
     }
 }

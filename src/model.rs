@@ -247,6 +247,50 @@ pub struct StatsResult {
     pub stats: DocumentStats,
 }
 
+// --- Table types ---
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ColumnAlignment {
+    None,
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TableEntry {
+    pub block_index: u32,
+    pub span: SourceSpan,
+    pub headers: Vec<String>,
+    pub row_count: u32,
+    pub column_count: u32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TableData {
+    pub headers: Vec<String>,
+    pub alignments: Vec<ColumnAlignment>,
+    pub rows: Vec<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TablesResult {
+    pub schema_version: String,
+    pub file: String,
+    pub tables: Vec<TableEntry>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TableReadResult {
+    pub schema_version: String,
+    pub file: String,
+    pub block_index: u32,
+    pub span: SourceSpan,
+    pub headers: Vec<String>,
+    pub alignments: Vec<ColumnAlignment>,
+    pub rows: Vec<Vec<String>>,
+}
+
 // --- Mutation types ---
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -254,6 +298,7 @@ pub enum MutationTargetKind {
     Block,
     Section,
     InsertLocation,
+    FrontmatterField,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -262,6 +307,7 @@ pub enum MutationCommandKind {
     ReplaceSection,
     InsertBlock,
     DeleteBlock,
+    SetFrontmatter,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -294,10 +340,18 @@ pub struct InsertTargetRef {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct FrontmatterFieldTargetRef {
+    pub kind: MutationTargetKind,
+    pub key_path: String,
+    pub format: FrontmatterFormat,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub enum MutationTargetRef {
     Block(BlockTargetRef),
     Section(SectionTargetRef),
     Insert(InsertTargetRef),
+    FrontmatterField(FrontmatterFieldTargetRef),
 }
 
 #[derive(Clone, Debug, Serialize)]

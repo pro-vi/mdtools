@@ -521,3 +521,71 @@ fn find_link_text_close(src: &str) -> Option<usize> {
     }
     None
 }
+
+// --- Table extraction ---
+
+/// Extract structured table data from a markdown source fragment
+/// containing a single table. The source should be the sliced text
+/// of a Table block (obtained via ParsedDocument::slice()).
+pub fn extract_table_data(
+    table_source: &str,
+) -> Result<TableData, CommandError> {
+    use comrak::nodes::TableAlignment;
+
+    let arena = Arena::new();
+    let opts = comrak_opts(None);
+    let root = parse_document(&arena, table_source, &opts);
+
+    for node in root.children() {
+        let data = node.data.borrow();
+        if let NodeValue::Table(ref table_meta) = data.value {
+            let alignments: Vec<ColumnAlignment> = table_meta
+                .alignments
+                .iter()
+                .map(|a| match a {
+                    TableAlignment::None => ColumnAlignment::None,
+                    TableAlignment::Left => ColumnAlignment::Left,
+                    TableAlignment::Center => ColumnAlignment::Center,
+                    TableAlignment::Right => ColumnAlignment::Right,
+                })
+                .collect();
+
+            drop(data);
+
+            let mut headers = Vec::new();
+            let mut rows = Vec::new();
+
+            for row_node in node.children() {
+                let row_data = row_node.data.borrow();
+                if let NodeValue::TableRow(is_header) = row_data.value {
+                    let is_header = is_header;
+                    drop(row_data);
+
+                    let mut cells = Vec::new();
+                    for cell_node in row_node.children() {
+                        let mut text = String::new();
+                        collect_text_recursive(cell_node, &mut text);
+                        cells.push(text.trim().to_string());
+                    }
+
+                    if is_header {
+                        headers = cells;
+                    } else {
+                        rows.push(cells);
+                    }
+                }
+            }
+
+            return Ok(TableData {
+                headers,
+                alignments,
+                rows,
+            });
+        }
+    }
+
+    Err(CommandError::new(
+        crate::errors::DiagnosticCode::ParseFailed,
+        "source does not contain a table",
+    ))
+}

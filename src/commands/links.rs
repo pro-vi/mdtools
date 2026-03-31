@@ -1,12 +1,37 @@
+use std::path::Path;
+
 use crate::cli::LinksArgs;
 use crate::errors::CommandError;
 use crate::model::*;
+use crate::multifile;
 use crate::output;
 use crate::parser::ParsedDocument;
 
 pub fn run(args: &LinksArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
+
+    if !file_set.is_multi() {
+        return run_one(&file_set.paths[0], json, false);
+    }
+
+    let mut errors = Vec::new();
+    for path in &file_set.paths {
+        if let Err(e) = run_one(path, json, true) {
+            multifile::report_file_error(path, &e);
+            errors.push(e.exit_code);
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(CommandError::io(format!("{} file(s) failed", errors.len())))
+    }
+}
+
+fn run_one(file: &Path, json: bool, multi: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse(source)?;
+    let file_str = file.to_string_lossy();
 
     let links: Vec<LinkEntry> = doc
         .blocks
@@ -26,7 +51,7 @@ pub fn run(args: &LinksArgs, json: bool) -> Result<(), CommandError> {
     if json {
         let result = LinksResult {
             schema_version: SCHEMA_VERSION.to_string(),
-            file: args.file.to_string_lossy().to_string(),
+            file: file_str.to_string(),
             links,
         };
         output::write_json(&result)?;
@@ -34,10 +59,17 @@ pub fn run(args: &LinksArgs, json: bool) -> Result<(), CommandError> {
         for link in &links {
             let dest = link.destination.as_deref().unwrap_or("");
             let dest = output::escape_text_field(dest);
-            println!(
-                "{}\t{}\tblock:{}\t{}-{}",
-                link.kind, dest, link.source_block_index, link.span.line_start, link.span.line_end
-            );
+            if multi {
+                println!(
+                    "{}:\t{}\t{}\tblock:{}\t{}-{}",
+                    file_str, link.kind, dest, link.source_block_index, link.span.line_start, link.span.line_end
+                );
+            } else {
+                println!(
+                    "{}\t{}\tblock:{}\t{}-{}",
+                    link.kind, dest, link.source_block_index, link.span.line_start, link.span.line_end
+                );
+            }
         }
     }
     Ok(())
