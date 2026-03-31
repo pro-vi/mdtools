@@ -110,6 +110,8 @@ class StructuralDiffPolicy:
     compare_block_order: bool
     compare_link_destinations: bool
     compare_block_text: bool
+    json_canonical: bool = False
+    json_required_keys: list[str] | None = None
 
 
 @dataclass
@@ -121,6 +123,7 @@ class BenchTask:
     expected_artifact: str
     difficulty: str
     scorer: StructuralDiffPolicy
+    expected_stdout: str | None = None
 
 
 @dataclass
@@ -143,7 +146,8 @@ UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "c
 MDTOOLS_TOOLS = [
     "md outline", "md blocks", "md block", "md section",
     "md replace-section", "md replace-block", "md insert-block", "md delete-block",
-    "md search", "md links", "md frontmatter", "md stats", "cat",
+    "md search", "md links", "md frontmatter", "md stats",
+    "md tasks", "md set-task", "cat", "jq",
 ]
 
 
@@ -158,6 +162,8 @@ INPUT FILE: {input_file}
 OUTPUT: {output_instruction}
 
 {tool_docs}
+
+The `md` binary is available at `./md` in the working directory.
 
 Work step by step. When done, {completion_instruction}
 """
@@ -183,7 +189,15 @@ TOOL REFERENCE — md (markdown-aware CLI):
   md links <FILE> [--json]             List all links with kind, destination, source block
   md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
   md stats <FILE> [--json]             Word/heading/block/link/section/line counts
+  md tasks <FILE> [--json] [--status pending|done] [-r]
+                                       List GFM checkbox task items with loc, status, depth,
+                                       nearest heading, and summary text. Loc is a dot-path
+                                       like "9.0" or "14.4.0" for nested tasks.
+  md set-task <LOC> <FILE> [-i] [--json] --status done|pending
+                                       Set checkbox state of a task item by loc (from md tasks).
+                                       1-byte mutation, idempotent. Use with -i to write in-place.
   cat <FILE>                           Read raw file contents
+  jq <FILTER> [FILE]                   Process JSON (pipe from md --json commands)
 
 EXAMPLES:
   md outline doc.md --json                          # heading tree as JSON
@@ -192,6 +206,8 @@ EXAMPLES:
   echo "## New Section\\nContent" | md replace-section "Old" doc.md -i
   echo "Added" | md insert-block --after 2 doc.md -i
   md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
+  md tasks doc.md --status pending --json           # list pending task items
+  md set-task 5.1 doc.md -i --status done           # mark task at loc 5.1 as done
 """
 
 UNIX_DOCS = """\
@@ -213,6 +229,12 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
     elif task.expected_artifact == "file_contents":
         output_instruction = f"Modify the file {input_file} in place."
         completion_instruction = "confirm the file has been modified and stop."
+    elif task.expected_artifact == "stdout_and_file":
+        output_instruction = (
+            f"If you make a change, modify {input_file} in place and print the loc. "
+            f"If you cannot make a safe change, print exactly AMBIGUOUS (nothing else) and do not modify the file."
+        )
+        completion_instruction = "print your result and stop."
     else:
         output_instruction = "Print the result to stdout."
         completion_instruction = "print the result and stop."
@@ -240,9 +262,17 @@ def score_task(
     report = []
 
     if policy.kind == "raw_bytes":
-        ok = actual == expected
+        # Normalize before raw comparison if requested
+        a, e = actual, expected
+        if policy.normalize_line_endings:
+            a = a.replace("\r\n", "\n")
+            e = e.replace("\r\n", "\n")
+        if policy.ignore_trailing_whitespace:
+            a = "\n".join(line.rstrip() for line in a.split("\n"))
+            e = "\n".join(line.rstrip() for line in e.split("\n"))
+        ok = a == e
         if not ok:
-            report.append(f"raw_bytes: MISMATCH ({len(expected)}b expected, {len(actual)}b actual)")
+            report.append(f"raw_bytes: MISMATCH ({len(e)}b expected, {len(a)}b actual)")
         return ok, ok, "\n".join(report)
 
     # Normalize
@@ -253,6 +283,10 @@ def score_task(
     if policy.ignore_trailing_whitespace:
         a = "\n".join(line.rstrip() for line in a.split("\n"))
         e = "\n".join(line.rstrip() for line in e.split("\n"))
+
+    if policy.kind == "structural" and policy.json_canonical:
+        ok_md, ok_neutral = score_json_canonical(policy, a, e, report)
+        return ok_md, ok_neutral, "\n".join(report)
 
     if policy.kind == "structural" and task.expected_artifact == "json_envelope":
         ok_md, ok_neutral = score_structural_json(policy, a, e, report)
@@ -267,6 +301,67 @@ def score_task(
 
     ok = a.strip() == e.strip()
     return ok, ok, "\n".join(report)
+
+
+def _canonicalize_json(obj):
+    """Recursively sort object keys for canonical comparison."""
+    if isinstance(obj, dict):
+        return {k: _canonicalize_json(v) for k, v in sorted(obj.items())}
+    if isinstance(obj, list):
+        return [_canonicalize_json(item) for item in obj]
+    return obj
+
+
+def _project_keys(obj, keys: list[str]):
+    """Project an object or array of objects to only the specified keys."""
+    if isinstance(obj, list):
+        return [_project_keys(item, keys) for item in obj]
+    if isinstance(obj, dict):
+        return {k: obj[k] for k in keys if k in obj}
+    return obj
+
+
+def score_json_canonical(
+    policy: StructuralDiffPolicy,
+    actual_str: str,
+    expected_str: str,
+    report: list[str],
+) -> tuple[bool, bool]:
+    """Score JSON output with canonical comparison. Returns (ok, ok)."""
+    try:
+        actual = json.loads(actual_str)
+        expected = json.loads(expected_str)
+    except json.JSONDecodeError as exc:
+        report.append(f"JSON parse error: {exc}")
+        return False, False
+
+    if policy.json_required_keys:
+        actual = _project_keys(actual, policy.json_required_keys)
+        expected = _project_keys(expected, policy.json_required_keys)
+
+    actual_c = _canonicalize_json(actual)
+    expected_c = _canonicalize_json(expected)
+
+    if actual_c == expected_c:
+        report.append("json_canonical: OK")
+        return True, True
+
+    # Report first mismatch
+    a_str = json.dumps(actual_c, indent=2, ensure_ascii=False)
+    e_str = json.dumps(expected_c, indent=2, ensure_ascii=False)
+    # Find first differing line
+    a_lines = a_str.splitlines()
+    e_lines = e_str.splitlines()
+    for i, (al, el) in enumerate(zip(a_lines, e_lines)):
+        if al != el:
+            report.append(f"json_canonical: MISMATCH at line {i+1}")
+            report.append(f"  expected: {el}")
+            report.append(f"  actual:   {al}")
+            break
+    else:
+        report.append(f"json_canonical: MISMATCH (length: expected {len(e_lines)} lines, actual {len(a_lines)} lines)")
+
+    return False, False
 
 
 def score_structural_json(
@@ -429,15 +524,18 @@ def _md_block_texts(content: str, md_binary: str) -> list[str]:
 def load_tasks(tasks_path: str = "bench/tasks/tasks.json") -> list[BenchTask]:
     with open(tasks_path) as f:
         raw = json.load(f)
-    return [
-        BenchTask(
+    tasks = []
+    for t in raw:
+        scorer_data = dict(t["scorer"])
+        scorer = StructuralDiffPolicy(**scorer_data)
+        tasks.append(BenchTask(
             id=t["id"], description=t["description"],
             input_files=t["input_files"], expected_output=t["expected_output"],
             expected_artifact=t["expected_artifact"], difficulty=t["difficulty"],
-            scorer=StructuralDiffPolicy(**t["scorer"]),
-        )
-        for t in raw
-    ]
+            scorer=scorer,
+            expected_stdout=t.get("expected_stdout"),
+        ))
+    return tasks
 
 
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
@@ -445,13 +543,46 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     results = []
     for task in tasks:
         expected = Path(task.expected_output).read_text()
-        ok_md, ok_neutral, report = score_task(task, expected, expected, md_binary)
+
+        if task.expected_artifact == "stdout_and_file":
+            # For safe-fail tasks: expected_output is the unchanged input file,
+            # expected_stdout is the text that should appear on stdout.
+            # Dry-run: verify file identity passes and stdout matches itself.
+            ok_file, _, file_report = score_task(task, expected, expected, md_binary)
+            ok_stdout = task.expected_stdout is not None
+            report = file_report
+            if ok_stdout:
+                report += "\nstdout_check: OK (dry-run)"
+            ok_md = ok_file and ok_stdout
+            ok_neutral = ok_md
+        else:
+            ok_md, ok_neutral, report = score_task(task, expected, expected, md_binary)
+
         results.append(BenchResult(
             task_id=task.id, mode="mdtools",
             correct=ok_md, correct_neutral=ok_neutral,
             diff_report=report,
         ))
     return results
+
+
+def _build_agent_cmd(agent_cmd: str, mode: BenchMode, md_binary: str) -> list[str]:
+    """Build the full agent subprocess command with proper flags."""
+    parts = agent_cmd.split()
+    # If agent is claude (Claude Code), add flags for non-interactive tool use
+    if parts[0] == "claude":
+        cmd = ["claude", "-p"]
+        # Allow only the tools appropriate for the mode
+        if mode == "mdtools":
+            cmd += ["--allowedTools", "Bash"]
+        else:
+            cmd += ["--allowedTools", "Bash"]
+        cmd += ["--dangerously-skip-permissions"]
+        cmd += ["--max-turns", "30"]
+        cmd += ["--no-session-persistence"]
+        cmd += ["--output-format", "json"]
+        return cmd
+    return parts
 
 
 def run_agent(
@@ -466,44 +597,138 @@ def run_agent(
     for inp in task.input_files:
         shutil.copy2(inp, workdir)
 
+    # Copy md binary into workdir so it's accessible by relative path
+    if md_binary != "md":
+        md_dest = os.path.join(workdir, "md")
+        shutil.copy2(md_binary, md_dest)
+        local_md = "./md"
+    else:
+        local_md = "md"
+
     prompt = build_prompt(task, mode, workdir)
     input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
 
     bytes_prompt = len(prompt.encode())
+    cmd = _build_agent_cmd(agent_cmd, mode, local_md)
 
     start = time.time()
     try:
         result = subprocess.run(
-            agent_cmd.split() + [prompt],
+            cmd,
+            input=prompt,
             capture_output=True,
             text=True,
             timeout=180,
             cwd=workdir,
-            env={**os.environ, "CLAUDECODE": ""},
         )
-        stdout = result.stdout
-        bytes_output = len(stdout.encode())
+        raw_stdout = result.stdout
+        bytes_output = len(raw_stdout.encode())
     except subprocess.TimeoutExpired:
-        stdout = ""
+        raw_stdout = ""
         bytes_output = 0
     elapsed = time.time() - start
 
-    # Count tool calls from agent output
-    tool_calls = stdout.count('"tool_use"') + stdout.count("$ ") + stdout.count("```bash")
+    # Parse structured JSON output from claude -p --output-format json
+    stdout = ""
+    tool_calls = 0
+    num_turns = 0
+    all_tool_outputs: list[str] = []
+    all_text_outputs: list[str] = []
+    try:
+        messages = json.loads(raw_stdout)
+        for msg in messages:
+            if msg.get("type") == "result":
+                num_turns = msg.get("num_turns", 0)
+                # result.result is the final assistant text
+                all_text_outputs.append(msg.get("result", ""))
+            elif msg.get("type") == "assistant":
+                content = msg.get("message", {}).get("content", [])
+                for block in content:
+                    if block.get("type") == "tool_use":
+                        tool_calls += 1
+                    if block.get("type") == "text":
+                        all_text_outputs.append(block.get("text", ""))
+            elif msg.get("type") == "user":
+                # Tool results come back as user messages in Claude Code JSON format
+                content = msg.get("message", {}).get("content", [])
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            result_content = block.get("content", "")
+                            if isinstance(result_content, str):
+                                all_tool_outputs.append(result_content)
+                            elif isinstance(result_content, list):
+                                for c in result_content:
+                                    if isinstance(c, dict) and c.get("type") == "text":
+                                        all_tool_outputs.append(c.get("text", ""))
+        # Combine all outputs — tool outputs first (likely contain raw JSON),
+        # then text outputs (may contain JSON embedded in prose)
+        stdout = "\n".join(all_tool_outputs + all_text_outputs)
+    except (json.JSONDecodeError, TypeError):
+        # Fallback: treat raw output as text (non-claude agent)
+        stdout = raw_stdout
+        tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
 
     expected_content = Path(task.expected_output).read_text()
 
-    if task.expected_artifact == "file_contents":
+    if task.expected_artifact == "stdout_and_file":
+        # Score both stdout text and file contents
+        report_parts = []
+        # Check stdout contains expected_stdout (agent may add explanation)
+        ok_stdout = False
+        if task.expected_stdout is not None:
+            expected_text = task.expected_stdout.strip()
+            # Check if expected text appears as a line in the output
+            ok_stdout = expected_text in stdout
+            report_parts.append(f"stdout: {'OK' if ok_stdout else 'MISMATCH'}")
+            if not ok_stdout:
+                report_parts.append(f"  expected to contain: {expected_text!r}")
+                report_parts.append(f"  actual: {stdout[:200]!r}")
+        # Check file unchanged
+        try:
+            actual_file = Path(input_file).read_text()
+        except FileNotFoundError:
+            actual_file = ""
+        ok_file_md, ok_file_n, file_report = score_task(task, actual_file, expected_content, md_binary)
+        report_parts.append(file_report)
+        ok_md = ok_stdout and ok_file_md
+        ok_neutral = ok_stdout and ok_file_n
+        report = "\n".join(report_parts)
+    elif task.expected_artifact == "file_contents":
         try:
             actual = Path(input_file).read_text()
         except FileNotFoundError:
             actual = ""
+        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "json_envelope":
-        actual = extract_last_json(stdout)
+        # Search tool outputs individually (last non-trivial JSON wins),
+        # then fall back to text outputs, then combined stdout.
+        actual = ""
+        for tool_out in reversed(all_tool_outputs):
+            try:
+                parsed = json.loads(tool_out.strip())
+                if (isinstance(parsed, (list, dict)) and len(parsed) > 0):
+                    actual = tool_out.strip()
+                    break
+            except (json.JSONDecodeError, TypeError):
+                continue
+        if not actual:
+            # Try extracting from text outputs (agent may embed JSON in prose)
+            for text_out in reversed(all_text_outputs):
+                candidate = extract_last_json(text_out)
+                try:
+                    parsed = json.loads(candidate)
+                    if (isinstance(parsed, (list, dict)) and len(parsed) > 0):
+                        actual = candidate
+                        break
+                except (json.JSONDecodeError, TypeError):
+                    continue
+        if not actual:
+            actual = extract_last_json(stdout)
+        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     else:
         actual = stdout
-
-    ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
+        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
 
     shutil.rmtree(workdir, ignore_errors=True)
 
@@ -521,22 +746,43 @@ def run_agent(
 
 
 def extract_last_json(text: str) -> str:
-    """Extract the last JSON object from agent output, stripping code fences."""
-    # Strip markdown code fences
+    """Extract the best JSON from agent output, stripping code fences.
+    Tries each valid JSON substring and returns the last one that parses.
+    Prefers arrays over objects (agent often wraps results in an array)."""
     clean = re.sub(r"```(?:json)?\s*\n?", "", text)
-    depth = 0
-    last_start = last_end = -1
-    for i, ch in enumerate(clean):
-        if ch == "{":
-            if depth == 0:
-                last_start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                last_end = i + 1
-    if last_start >= 0 and last_end > last_start:
-        return clean[last_start:last_end]
+
+    candidates = []
+    for opener, closer in [("[", "]"), ("{", "}")]:
+        depth = 0
+        start = -1
+        for i, ch in enumerate(clean):
+            if ch == opener:
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == closer:
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    candidate = clean[start:i + 1]
+                    try:
+                        json.loads(candidate)
+                        candidates.append((start, candidate, opener))
+                    except json.JSONDecodeError:
+                        pass
+                    start = -1
+
+    if not candidates:
+        return text
+
+    # Prefer: last array > last object
+    # "Last" because the agent typically produces the final answer after intermediate results
+    arrays = [c for _, c, o in candidates if o == "["]
+    objects = [c for _, c, o in candidates if o == "{"]
+
+    if arrays:
+        return arrays[-1]
+    if objects:
+        return objects[-1]
     return text
 
 

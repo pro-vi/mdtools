@@ -1,0 +1,82 @@
+[
+  {
+    "loc": "3.0",
+    "nearest_heading": "Archived notes",
+    "summary_text": "Remove collation overrides"
+  },
+  {
+    "loc": "5.1",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Remove collation overrides"
+  },
+  {
+    "loc": "5.2",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Normalize default ORDER BY clauses"
+  },
+  {
+    "loc": "5.3",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Parser cleanup"
+  },
+  {
+    "loc": "5.3.0",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Token offsets"
+  },
+  {
+    "loc": "5.3.0.0",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Add regression test"
+  },
+  {
+    "loc": "5.3.1",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Range handling"
+  },
+  {
+    "loc": "5.3.1.0",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Add regression test"
+  },
+  {
+    "loc": "6.0.0",
+    "nearest_heading": "Phase 0 \u2014 SQL normalization",
+    "summary_text": "Confirm fallback locale mapping"
+  },
+  {
+    "loc": "12.2",
+    "nearest_heading": "Phase 1 \u2014 Backfill",
+    "summary_text": "Data cleanup"
+  },
+  {
+    "loc": "12.2.0",
+    "nearest_heading": "Phase 1 \u2014 Backfill",
+    "summary_text": "Add regression test"
+  },
+  {
+    "loc": "12.3",
+    "nearest_heading": "Phase 1 \u2014 Backfill",
+    "summary_text": "Remove stale dashboards"
+  },
+  {
+    "loc": "12.4",
+    "nearest_heading": "Phase 1 \u2014 Backfill",
+    "summary_text": "\u00c9tendre la couverture des tests"
+  },
+  {
+    "loc": "14.1",
+    "nearest_heading": "Phase 2 \u2014 Cutover",
+    "summary_text": "Switch read traffic"
+  },
+  {
+    "loc": "14.2",
+    "nearest_heading": "Phase 2 \u2014 Cutover",
+    "summary_text": "Remove collation overrides"
+  },
+  {
+    "loc": "14.3",
+    "nearest_heading": "Phase 2 \u2014 Cutover",
+    "summary_text": "Publish release notes"
+  }
+]

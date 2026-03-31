@@ -1,0 +1,23 @@
+{
+  "phases": [
+    {
+      "phase": "Phase 0 \u2014 SQL normalization",
+      "done": 3,
+      "pending": 8
+    },
+    {
+      "phase": "Phase 1 \u2014 Backfill",
+      "done": 2,
+      "pending": 4
+    },
+    {
+      "phase": "Phase 2 \u2014 Cutover",
+      "done": 1,
+      "pending": 3
+    }
+  ],
+  "totals": {
+    "done": 6,
+    "pending": 15
+  }
+}

@@ -142,5 +142,117 @@
       "compare_link_destinations": false,
       "compare_block_text": true
     }
+  },
+  {
+    "id": "T9",
+    "description": "Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose",
+    "input_files": ["bench/inputs/t9_rollout.md"],
+    "expected_output": "bench/expected/t9_pending.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "basic",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false,
+      "json_canonical": true,
+      "json_required_keys": ["loc", "nearest_heading", "summary_text"]
+    }
+  },
+  {
+    "id": "T10",
+    "description": "Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2",
+    "input_files": ["bench/inputs/t10_rollout.md"],
+    "expected_output": "bench/expected/t10_marked.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "T11",
+    "description": "Count done/pending GFM task items per Phase heading. Output JSON: {\"phases\": [{\"phase\": \"Phase N — Name\", \"done\": N, \"pending\": N}], \"totals\": {\"done\": N, \"pending\": N}}. Use exactly these key names.",
+    "input_files": ["bench/inputs/t11_rollout.md"],
+    "expected_output": "bench/expected/t11_summary.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false,
+      "json_canonical": true
+    }
+  },
+  {
+    "id": "T12",
+    "description": "Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section",
+    "input_files": ["bench/inputs/t12_rollout.md"],
+    "expected_output": "bench/expected/t12_batch.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "T13",
+    "description": "Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup",
+    "input_files": ["bench/inputs/t13_nested_dupes.md"],
+    "expected_output": "bench/expected/t13_disambiguated.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "T14",
+    "description": "Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS",
+    "input_files": ["bench/inputs/t14_nested_dupes.md"],
+    "expected_output": "bench/inputs/t14_nested_dupes.md",
+    "expected_artifact": "stdout_and_file",
+    "expected_stdout": "AMBIGUOUS\n",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
   }
 ]
