@@ -70,5 +70,77 @@
       "compare_link_destinations": false,
       "compare_block_text": true
     }
+  },
+  {
+    "id": "T5",
+    "description": "Extract the outline of a 287-line progress document with 10 headings as JSON",
+    "input_files": ["bench/inputs/t5_progress.md"],
+    "expected_output": "bench/expected/t5_outline.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "basic",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "T6",
+    "description": "Replace Phase 3 section with a completed version (all checkboxes [x], add Status line)",
+    "input_files": ["bench/inputs/t6_progress.md"],
+    "expected_output": "bench/expected/t6_phase_complete.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  },
+  {
+    "id": "T7",
+    "description": "Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else",
+    "input_files": ["bench/inputs/t7_progress.md"],
+    "expected_output": "bench/expected/t7_checkbox_toggled.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  },
+  {
+    "id": "T8",
+    "description": "Insert a new Phase 7 section before the Checkpoint Notes Template section",
+    "input_files": ["bench/inputs/t8_progress.md"],
+    "expected_output": "bench/expected/t8_phase_inserted.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
   }
 ]
