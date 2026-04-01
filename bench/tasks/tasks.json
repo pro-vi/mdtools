@@ -19,7 +19,7 @@
   },
   {
     "id": "T2",
-    "description": "Insert a new section after the third top-level block",
+    "description": "Insert a new section after the third top-level block (block index 2). The new section content is exactly:\n## v2.5\n\nHotfix release for auth regression.\n",
     "input_files": ["bench/inputs/t2_insert_target.md"],
     "expected_output": "bench/expected/t2_inserted.md",
     "expected_artifact": "file_contents",
@@ -37,7 +37,7 @@
   },
   {
     "id": "T3",
-    "description": "Replace the second occurrence of a duplicate-named section",
+    "description": "Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog.",
     "input_files": ["bench/inputs/t3_duplicate_sections.md"],
     "expected_output": "bench/expected/t3_replaced.md",
     "expected_artifact": "file_contents",
@@ -91,7 +91,7 @@
   },
   {
     "id": "T6",
-    "description": "Replace Phase 3 section with a completed version (all checkboxes [x], add Status line)",
+    "description": "In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section.",
     "input_files": ["bench/inputs/t6_progress.md"],
     "expected_output": "bench/expected/t6_phase_complete.md",
     "expected_artifact": "file_contents",
@@ -127,7 +127,7 @@
   },
   {
     "id": "T8",
-    "description": "Insert a new Phase 7 section before the Checkpoint Notes Template section",
+    "description": "Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:\n\n---\n\n## Phase 7: Distribution (PROJ-107)\n\n**Goal:** Publish app to distribution channels.\n**Oracle:** ORACLE_BASE\n**Iteration limit:** 10\n\n- [ ] 7.1 App store submission\n  - Prepare metadata and screenshots\n  - Submit for review\n\n- [ ] 7.2 Auto-update mechanism\n  - Check for updates on launch\n  - Download and apply updates\n\n**Checkpoint:** App available in distribution channel.\n**Gate:** /gate + /code-review\n",
     "input_files": ["bench/inputs/t8_progress.md"],
     "expected_output": "bench/expected/t8_phase_inserted.md",
     "expected_artifact": "file_contents",
