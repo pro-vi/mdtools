@@ -75,9 +75,9 @@ pub struct ReplaceSectionArgs {
     pub occurrence: Option<u32>,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
-    /// Read replacement content from file (use "-" for stdin)
-    #[arg(long = "content-file")]
-    pub content_file: Option<PathBuf>,
+    /// Read content from file instead of stdin (use "-" for stdin)
+    #[arg(long)]
+    pub from: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -99,9 +99,9 @@ pub struct ReplaceBlockArgs {
     pub file: PathBuf,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
-    /// Read replacement content from file (use "-" for stdin)
-    #[arg(long = "content-file")]
-    pub content_file: Option<PathBuf>,
+    /// Read content from file instead of stdin (use "-" for stdin)
+    #[arg(long)]
+    pub from: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -118,8 +118,9 @@ pub struct InsertBlockArgs {
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
     /// Read content from file (use "-" for stdin)
-    #[arg(long = "content-file")]
-    pub content_file: Option<PathBuf>,
+    /// Read content from file instead of stdin (use "-" for stdin)
+    #[arg(long)]
+    pub from: Option<PathBuf>,
 }
 
 #[derive(Args)]

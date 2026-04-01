@@ -38,9 +38,9 @@ pub fn normalize_line_endings(content: &str, style: &crate::model::LineEndingSty
     }
 }
 
-/// Read content from --content-file (or stdin if path is "-" or None).
-pub fn read_content(content_file: Option<&std::path::Path>) -> Result<String, CommandError> {
-    match content_file {
+/// Read content from --from path (or stdin if path is "-" or None).
+pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandError> {
+    match from {
         Some(path) if path.to_str() == Some("-") => {
             let mut buf = String::new();
             io::stdin().read_to_string(&mut buf).map_err(|_| {

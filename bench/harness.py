@@ -179,12 +179,12 @@ TOOL REFERENCE — md (markdown-aware CLI):
                                        Duplicate headings require --occurrence (1-based).
   md search <QUERY> <FILE> [--json] [--ignore-case] [--kind <KIND>...]
                                        Search block content. Filter by kind: heading, paragraph, list, code-fence, etc.
-  md replace-block <INDEX> <FILE> [-i] [--json] [--content-file PATH]
-                                       Replace block at INDEX. Reads from --content-file or stdin.
-  md replace-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N] [--content-file PATH]
-                                       Replace section. Reads from --content-file or stdin.
-  md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--content-file PATH]
-                                       Insert a new block. Reads from --content-file or stdin.
+  md replace-block <INDEX> <FILE> [-i] [--json] [--from PATH]
+                                       Replace block at INDEX. Reads from --from or stdin.
+  md replace-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N] [--from PATH]
+                                       Replace section. Reads from --from or stdin.
+  md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--from PATH]
+                                       Insert a new block. Reads from --from or stdin.
   md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
   md delete-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
                                        Delete an entire section (heading + content).
@@ -204,9 +204,9 @@ TOOL REFERENCE — md (markdown-aware CLI):
 EXAMPLES:
   md outline doc.md --json                          # heading tree as JSON
   md blocks doc.md                                  # list blocks: index, kind, lines, preview
-  md replace-block 3 doc.md -i --content-file new.md  # replace block 3 from file
-  md replace-section "Old" doc.md -i --content-file new.md
-  md insert-block --after 2 doc.md -i --content-file new.md
+  md replace-block 3 doc.md -i --from new.md  # replace block 3 from file
+  md replace-section "Old" doc.md -i --from new.md
+  md insert-block --after 2 doc.md -i --from new.md
   md delete-section "Notes" doc.md -i                 # delete entire section
   md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
   md tasks doc.md --status pending --json           # list pending task items

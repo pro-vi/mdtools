@@ -32,7 +32,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
 
-    let replacement = output::read_content(args.content_file.as_deref())?;
+    let replacement = output::read_content(args.from.as_deref())?;
 
     let line_endings = doc.line_ending_style();
     let replacement = normalize_line_endings(&replacement, &line_endings);
