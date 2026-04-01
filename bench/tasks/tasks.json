@@ -309,5 +309,23 @@
       "compare_link_destinations": false,
       "compare_block_text": false
     }
+  },
+  {
+    "id": "T18",
+    "description": "Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted.",
+    "input_files": ["bench/inputs/t18_stale_loc.md"],
+    "expected_output": "bench/expected/t18_requeried.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
   }
 ]
