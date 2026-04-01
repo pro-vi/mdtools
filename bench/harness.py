@@ -96,7 +96,7 @@ def neutral_block_texts(content: str) -> list[str]:
 
 # ── Types ─────────────────────────────────────────────────────
 
-BenchMode = Literal["unix", "mdtools"]
+BenchMode = Literal["unix", "mdtools", "hybrid"]
 ScorerKind = Literal["structural", "normalized_text", "raw_bytes"]
 
 
@@ -218,10 +218,37 @@ ALLOWED TOOLS (standard POSIX):
 Do NOT use: python, perl, ruby, node, or any other scripting language.
 """
 
+HYBRID_DOCS = MDTOOLS_DOCS.rstrip() + """
+
+STANDARD POSIX TOOLS (also available):
+  cat, grep, sed, awk, head, tail, wc, tee, mv, cp
+  Shell: pipes (|), redirection (>, >>), temp files (mktemp)
+
+Choose the best tool for each step. Use md commands for structural
+markdown operations and unix tools for simple text manipulation.
+Do NOT use: python, perl, ruby, node, or any other scripting language.
+"""
+
 
 def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
-    tool_docs = MDTOOLS_DOCS if mode == "mdtools" else UNIX_DOCS
-    input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
+    if mode == "mdtools":
+        tool_docs = MDTOOLS_DOCS
+    elif mode == "hybrid":
+        tool_docs = HYBRID_DOCS
+    else:
+        tool_docs = UNIX_DOCS
+
+    # Determine input reference for prompt
+    if len(task.input_files) > 1:
+        inp_dir = os.path.basename(os.path.dirname(task.input_files[0]))
+        if inp_dir and inp_dir != "inputs":
+            input_file = os.path.join(workdir, inp_dir) + "/"
+        else:
+            input_file = " ".join(
+                os.path.join(workdir, os.path.basename(f)) for f in task.input_files
+            )
+    else:
+        input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
 
     if task.expected_artifact == "json_envelope":
         output_instruction = "Print the result as JSON to stdout."
@@ -595,7 +622,17 @@ def run_agent(
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
 
     for inp in task.input_files:
-        shutil.copy2(inp, workdir)
+        # Preserve subdirectory structure (e.g., t16_vault/frontend.md)
+        dest = os.path.join(workdir, os.path.basename(inp))
+        # Check if input files share a common subdirectory
+        inp_dir = os.path.dirname(inp)
+        inp_parent = os.path.basename(inp_dir) if inp_dir else ""
+        if inp_parent and inp_parent != "inputs":
+            sub_dir = os.path.join(workdir, inp_parent)
+            os.makedirs(sub_dir, exist_ok=True)
+            shutil.copy2(inp, sub_dir)
+        else:
+            shutil.copy2(inp, workdir)
 
     # Copy md binary into workdir so it's accessible by relative path
     if md_binary != "md":
@@ -791,7 +828,7 @@ def extract_last_json(text: str) -> str:
 def main():
     parser = argparse.ArgumentParser(description="mdtools benchmark harness")
     parser.add_argument("--run", action="store_true", help="Run agent track")
-    parser.add_argument("--mode", choices=["unix", "mdtools"])
+    parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid"])
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument("--agent", default="claude -p", help="Agent command")

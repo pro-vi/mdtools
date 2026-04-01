@@ -254,5 +254,42 @@
       "compare_link_destinations": false,
       "compare_block_text": false
     }
+  },
+  {
+    "id": "T15",
+    "description": "Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first.",
+    "input_files": ["bench/inputs/t15_line_drift.md"],
+    "expected_output": "bench/expected/t15_drifted.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "T16",
+    "description": "Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {\"total_pending\": N, \"files\": [{\"file\": \"name.md\", \"pending\": N}]} sorted by filename.",
+    "input_files": ["bench/inputs/t16_vault/frontend.md", "bench/inputs/t16_vault/backend.md", "bench/inputs/t16_vault/devops.md"],
+    "expected_output": "bench/expected/t16_count.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false,
+      "json_canonical": true
+    }
   }
 ]
