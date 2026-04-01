@@ -145,7 +145,7 @@ class BenchResult:
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp"]
 MDTOOLS_TOOLS = [
     "md outline", "md blocks", "md block", "md section",
-    "md replace-section", "md replace-block", "md insert-block", "md delete-block",
+    "md replace-section", "md delete-section", "md replace-block", "md insert-block", "md delete-block",
     "md search", "md links", "md frontmatter", "md stats",
     "md tasks", "md set-task", "cat", "jq",
 ]
@@ -179,13 +179,15 @@ TOOL REFERENCE — md (markdown-aware CLI):
                                        Duplicate headings require --occurrence (1-based).
   md search <QUERY> <FILE> [--json] [--ignore-case] [--kind <KIND>...]
                                        Search block content. Filter by kind: heading, paragraph, list, code-fence, etc.
-  md replace-block <INDEX> <FILE> [-i] [--json]
-                                       Replace block at INDEX with stdin content. -i writes in-place.
-  md replace-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
-                                       Replace section with stdin content. -i writes in-place.
-  md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end
-                                       Insert stdin content as a new block at the specified location.
+  md replace-block <INDEX> <FILE> [-i] [--json] [--content-file PATH]
+                                       Replace block at INDEX. Reads from --content-file or stdin.
+  md replace-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N] [--content-file PATH]
+                                       Replace section. Reads from --content-file or stdin.
+  md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--content-file PATH]
+                                       Insert a new block. Reads from --content-file or stdin.
   md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
+  md delete-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
+                                       Delete an entire section (heading + content).
   md links <FILE> [--json]             List all links with kind, destination, source block
   md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
   md stats <FILE> [--json]             Word/heading/block/link/section/line counts
@@ -202,9 +204,10 @@ TOOL REFERENCE — md (markdown-aware CLI):
 EXAMPLES:
   md outline doc.md --json                          # heading tree as JSON
   md blocks doc.md                                  # list blocks: index, kind, lines, preview
-  echo "New text" | md replace-block 3 doc.md -i    # replace block 3 in-place
-  echo "## New Section\\nContent" | md replace-section "Old" doc.md -i
-  echo "Added" | md insert-block --after 2 doc.md -i
+  md replace-block 3 doc.md -i --content-file new.md  # replace block 3 from file
+  md replace-section "Old" doc.md -i --content-file new.md
+  md insert-block --after 2 doc.md -i --content-file new.md
+  md delete-section "Notes" doc.md -i                 # delete entire section
   md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
   md tasks doc.md --status pending --json           # list pending task items
   md set-task 5.1 doc.md -i --status done           # mark task at loc 5.1 as done

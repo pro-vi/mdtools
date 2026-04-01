@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use crate::cli::{DeleteBlockArgs, InsertBlockArgs, ReplaceBlockArgs};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
@@ -17,12 +15,7 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
 
     let block_span = block.span;
 
-    let mut replacement = String::new();
-    std::io::stdin()
-        .read_to_string(&mut replacement)
-        .map_err(|_| {
-            CommandError::new(DiagnosticCode::InvalidUtf8OnStdin, "invalid UTF-8 on stdin")
-        })?;
+    let replacement = output::read_content(args.content_file.as_deref())?;
 
     let line_endings = doc.line_ending_style();
     let replacement = normalize_line_endings(&replacement, &line_endings);
@@ -69,12 +62,7 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
 
-    let mut content = String::new();
-    std::io::stdin()
-        .read_to_string(&mut content)
-        .map_err(|_| {
-            CommandError::new(DiagnosticCode::InvalidUtf8OnStdin, "invalid UTF-8 on stdin")
-        })?;
+    let content = output::read_content(args.content_file.as_deref())?;
 
     let line_endings = doc.line_ending_style();
     let content = normalize_line_endings(&content, &line_endings);

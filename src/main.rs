@@ -30,6 +30,7 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::Blocks(args) => commands::blocks::run_blocks(args, cli.json),
         Command::Block(args) => commands::blocks::run_block(args, cli.json),
         Command::ReplaceSection(args) => commands::section::run_replace_section(args, cli.json),
+        Command::DeleteSection(args) => commands::section::run_delete_section(args, cli.json),
         Command::ReplaceBlock(args) => commands::replace::run_replace_block(args, cli.json),
         Command::InsertBlock(args) => commands::replace::run_insert_block(args, cli.json),
         Command::DeleteBlock(args) => commands::replace::run_delete_block(args, cli.json),

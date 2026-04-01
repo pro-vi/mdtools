@@ -20,6 +20,7 @@ pub enum Command {
     Blocks(BlocksArgs),
     Block(BlockArgs),
     ReplaceSection(ReplaceSectionArgs),
+    DeleteSection(DeleteSectionArgs),
     ReplaceBlock(ReplaceBlockArgs),
     InsertBlock(InsertBlockArgs),
     DeleteBlock(DeleteBlockArgs),
@@ -74,6 +75,22 @@ pub struct ReplaceSectionArgs {
     pub occurrence: Option<u32>,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    /// Read replacement content from file (use "-" for stdin)
+    #[arg(long = "content-file")]
+    pub content_file: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct DeleteSectionArgs {
+    #[arg(value_name = "SELECTOR")]
+    pub selector: String,
+    pub file: PathBuf,
+    #[arg(long = "ignore-case")]
+    pub ignore_case: bool,
+    #[arg(long = "occurrence")]
+    pub occurrence: Option<u32>,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
 }
 
 #[derive(Args)]
@@ -82,6 +99,9 @@ pub struct ReplaceBlockArgs {
     pub file: PathBuf,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    /// Read replacement content from file (use "-" for stdin)
+    #[arg(long = "content-file")]
+    pub content_file: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -97,6 +117,9 @@ pub struct InsertBlockArgs {
     pub file: PathBuf,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    /// Read content from file (use "-" for stdin)
+    #[arg(long = "content-file")]
+    pub content_file: Option<PathBuf>,
 }
 
 #[derive(Args)]

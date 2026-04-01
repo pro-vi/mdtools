@@ -345,6 +345,7 @@ pub enum MutationCommandKind {
     ReplaceSection,
     InsertBlock,
     DeleteBlock,
+    DeleteSection,
     SetFrontmatter,
     SetTask,
 }

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 
 use crate::errors::CommandError;
 
@@ -35,6 +35,37 @@ pub fn normalize_line_endings(content: &str, style: &crate::model::LineEndingSty
             lf.replace('\n', "\r\n")
         }
         LineEndingStyle::Mixed => content.to_string(),
+    }
+}
+
+/// Read content from --content-file (or stdin if path is "-" or None).
+pub fn read_content(content_file: Option<&std::path::Path>) -> Result<String, CommandError> {
+    match content_file {
+        Some(path) if path.to_str() == Some("-") => {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf).map_err(|_| {
+                CommandError::new(
+                    crate::errors::DiagnosticCode::InvalidUtf8OnStdin,
+                    "invalid UTF-8 on stdin",
+                )
+            })?;
+            Ok(buf)
+        }
+        Some(path) => {
+            std::fs::read_to_string(path).map_err(|e| {
+                CommandError::io(format!("cannot read content file '{}': {}", path.display(), e))
+            })
+        }
+        None => {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf).map_err(|_| {
+                CommandError::new(
+                    crate::errors::DiagnosticCode::InvalidUtf8OnStdin,
+                    "invalid UTF-8 on stdin",
+                )
+            })?;
+            Ok(buf)
+        }
     }
 }
 

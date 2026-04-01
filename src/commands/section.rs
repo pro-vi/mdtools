@@ -1,6 +1,4 @@
-use std::io::Read;
-
-use crate::cli::{ReplaceSectionArgs, SectionArgs};
+use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::output;
@@ -34,12 +32,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
 
-    let mut replacement = String::new();
-    std::io::stdin().read_to_string(&mut replacement)
-        .map_err(|_| CommandError::new(
-            crate::errors::DiagnosticCode::InvalidUtf8OnStdin,
-            "invalid UTF-8 on stdin",
-        ))?;
+    let replacement = output::read_content(args.content_file.as_deref())?;
 
     let line_endings = doc.line_ending_style();
     let replacement = normalize_line_endings(&replacement, &line_endings);
@@ -72,6 +65,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
                 section_span,
                 &replacement,
                 None,
+                MutationCommandKind::ReplaceSection,
             );
             output::write_json(&result)?;
         }
@@ -85,6 +79,57 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
             section_span,
             &replacement,
             Some(output_doc),
+            MutationCommandKind::ReplaceSection,
+        );
+        output::write_json(&result)?;
+    } else {
+        print!("{}", output_doc);
+    }
+    Ok(())
+}
+
+pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(&args.file)?;
+    let doc = ParsedDocument::parse(source)?;
+    let selector = build_selector(&args.selector, args.occurrence, args.ignore_case)?;
+    let section = find_section(&doc, &selector)?;
+    let section_span = section.span;
+    let line_endings = doc.line_ending_style();
+
+    let before = &doc.source[..section_span.byte_start as usize];
+    let after = &doc.source[section_span.byte_end as usize..];
+    let output_doc = format!("{}{}", before, after);
+
+    let changed = true;
+    let disposition = MutationDisposition::Deleted;
+
+    if args.in_place {
+        std::fs::write(&args.file, &output_doc)?;
+        if json {
+            let result = build_section_mutation_result(
+                &args.file.to_string_lossy(),
+                section,
+                disposition,
+                changed,
+                line_endings,
+                section_span,
+                "",
+                None,
+                MutationCommandKind::DeleteSection,
+            );
+            output::write_json(&result)?;
+        }
+    } else if json {
+        let result = build_section_mutation_result(
+            &args.file.to_string_lossy(),
+            section,
+            disposition,
+            changed,
+            line_endings,
+            section_span,
+            "",
+            Some(output_doc),
+            MutationCommandKind::DeleteSection,
         );
         output::write_json(&result)?;
     } else {
@@ -306,6 +351,7 @@ fn build_section_mutation_result(
     span_before: SourceSpan,
     replacement: &str,
     content: Option<String>,
+    command: MutationCommandKind,
 ) -> MutationResult {
     let span_after = match disposition {
         MutationDisposition::Deleted => None,
@@ -326,7 +372,7 @@ fn build_section_mutation_result(
     MutationResult {
         schema_version: SCHEMA_VERSION.to_string(),
         file: file.to_string(),
-        command: MutationCommandKind::ReplaceSection,
+        command,
         target: MutationTargetRef::Section(SectionTargetRef {
             kind: MutationTargetKind::Section,
             selector: section.selector.clone(),
