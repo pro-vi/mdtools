@@ -596,17 +596,15 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     return results
 
 
-def _build_agent_cmd(agent_cmd: str, mode: BenchMode, md_binary: str) -> list[str]:
+def _build_agent_cmd(agent_cmd: str, mode: BenchMode, md_binary: str, model: str | None = None) -> list[str]:
     """Build the full agent subprocess command with proper flags."""
     parts = agent_cmd.split()
     # If agent is claude (Claude Code), add flags for non-interactive tool use
     if parts[0] == "claude":
         cmd = ["claude", "-p"]
-        # Allow only the tools appropriate for the mode
-        if mode == "mdtools":
-            cmd += ["--allowedTools", "Bash"]
-        else:
-            cmd += ["--allowedTools", "Bash"]
+        if model:
+            cmd += ["--model", model]
+        cmd += ["--allowedTools", "Bash"]
         cmd += ["--dangerously-skip-permissions"]
         cmd += ["--max-turns", "30"]
         cmd += ["--no-session-persistence"]
@@ -620,6 +618,7 @@ def run_agent(
     mode: BenchMode,
     agent_cmd: str,
     md_binary: str,
+    model: str | None = None,
 ) -> BenchResult:
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
@@ -649,7 +648,7 @@ def run_agent(
     input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
 
     bytes_prompt = len(prompt.encode())
-    cmd = _build_agent_cmd(agent_cmd, mode, local_md)
+    cmd = _build_agent_cmd(agent_cmd, mode, local_md, model)
 
     start = time.time()
     try:
@@ -835,6 +834,7 @@ def main():
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument("--agent", default="claude -p", help="Agent command")
+    parser.add_argument("--model", default=None, help="Model override (e.g., claude-haiku-4-5-20251001)")
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
@@ -863,12 +863,13 @@ def main():
     all_results: list[BenchResult] = []
 
     for mode in modes:
-        print(f"\n=== MODE: {mode} (N={args.N}) ===\n")
+        model_label = f", model={args.model}" if args.model else ""
+        print(f"\n=== MODE: {mode} (N={args.N}{model_label}) ===\n")
         for task in tasks:
             for run_i in range(args.N):
                 label = f"{task.id} run {run_i+1}/{args.N}" if args.N > 1 else task.id
                 print(f"  {label}: {task.description}...")
-                result = run_agent(task, mode, args.agent, args.md_binary)
+                result = run_agent(task, mode, args.agent, args.md_binary, args.model)
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"
                 ns = "PASS" if result.correct_neutral else "FAIL"
