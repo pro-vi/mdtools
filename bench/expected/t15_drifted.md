@@ -6,7 +6,6 @@
 - [x] Create migration scripts
 - [ ] Run dry migration on staging
 
-
 ## Phase 1 — Data backfill
 
 - [x] Prepare backfill scripts
