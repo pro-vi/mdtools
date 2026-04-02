@@ -209,22 +209,32 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 ## Benchmark
 
-`bench/` contains an agent benchmark harness (18 tasks) measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
+`bench/` contains an agent benchmark harness (20 tasks) measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
 
 ### Results
 
-```
-Model                unix    mdtools   hybrid
-──────────────────────────────────────────────
-Haiku 4.5             61%      83%      94%
-Opus 4.6              89%       —       83%
+```mermaid
+xychart-beta
+    title "Pass rate by model and tool mode (20 tasks)"
+    x-axis ["Haiku 4.5", "Sonnet 4.6", "Opus 4.6"]
+    y-axis "Pass rate %" 0 --> 100
+    bar [50, 80, 89]
+    bar [87, 85, 83]
 ```
 
-**Haiku + hybrid (94%) beats Opus + unix (89%).** Structural tools let a cheap model outperform an expensive model on markdown tasks.
+```
+Model          unix   hybrid    Δ      Tool value
+─────────────────────────────────────────────────
+Haiku 4.5       50%     87%   +37pp    Correctness + speed
+Sonnet 4.6      80%     85%    +5pp    Speed (3-5x faster)
+Opus 4.6        89%     83%    -6pp    Efficiency only
+```
+
+**Tool benefit is inversely proportional to model capability.** Weaker models gain correctness. Stronger models gain speed.
 
 Key findings:
-- **+33pp correctness on weaker models.** Haiku fails 7/18 tasks in unix mode but only 1/18 with hybrid tools. Failures are concentrated in structural extraction (T1, T5, T9), multi-step workflows (T15), and aggregation (T11).
-- **2x faster, half the calls.** Haiku hybrid averages 23s / 4.9 calls vs unix 42s / 8.4 calls. The `--from` flag reduces section replacement to a single command.
+- **+37pp correctness on Haiku.** Fails 10/20 tasks in unix mode but only 3/20 with hybrid tools. Structural extraction (T1, T5, T9), aggregation (T11), and multi-step workflows (T15) flip from FAIL to PASS.
+- **3-5x faster on Sonnet.** Same pass rate, but structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
 - **Hybrid > pure.** Agents perform best when they can choose between `md` for structural operations and `sed` for simple text edits.
 
 ### Task categories
