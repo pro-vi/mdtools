@@ -215,16 +215,16 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 ```
 Model                unix    mdtools   hybrid
-─────────────────────────────────────────────
-Haiku 4.5             61%      83%      89%
+──────────────────────────────────────────────
+Haiku 4.5             61%      83%      94%
 Opus 4.6              89%       —       83%
 ```
 
-**Haiku + hybrid (89%) matches Opus + unix (89%).** Structural tools let a cheap model match an expensive model's correctness.
+**Haiku + hybrid (94%) beats Opus + unix (89%).** Structural tools let a cheap model outperform an expensive model on markdown tasks.
 
 Key findings:
-- **Correctness gap on weaker models.** Haiku fails 7/18 tasks in unix mode but only 2/18 with hybrid tools. The gap is concentrated in structural extraction (T1, T5, T9) and multi-step workflows (T6, T15).
-- **Efficiency gains across all models.** mdtools mode averages 40% fewer tool calls and 40% less agent output than unix mode. The `--from` flag reduces section replacement to a single command.
+- **+33pp correctness on weaker models.** Haiku fails 7/18 tasks in unix mode but only 1/18 with hybrid tools. Failures are concentrated in structural extraction (T1, T5, T9), multi-step workflows (T15), and aggregation (T11).
+- **2x faster, half the calls.** Haiku hybrid averages 23s / 4.9 calls vs unix 42s / 8.4 calls. The `--from` flag reduces section replacement to a single command.
 - **Hybrid > pure.** Agents perform best when they can choose between `md` for structural operations and `sed` for simple text edits.
 
 ### Task categories
