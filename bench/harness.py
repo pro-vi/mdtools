@@ -134,8 +134,11 @@ class BenchResult:
     correct_neutral: bool = True  # Independent scorer agreement
     bytes_prompt: int = 0
     bytes_output: int = 0
+    bytes_observation: int = 0   # total tool-result content agent had to read
     tool_calls: int = 0
     turns: int = 0
+    mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
+    requeried: bool = False      # did agent re-read structure after a mutation?
     elapsed_seconds: float = 0.0
     diff_report: str = ""
 
@@ -671,24 +674,41 @@ def run_agent(
     stdout = ""
     tool_calls = 0
     num_turns = 0
+    bytes_observation = 0
+    mutations = 0
+    requeried = False
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
+
+    # Mutation and re-query detection patterns
+    _MUTATION_PATTERNS = ("set-task", "replace-block", "replace-section",
+                          "insert-block", "delete-block", "delete-section")
+    _QUERY_PATTERNS = ("outline", "blocks", "block ", "tasks", "section",
+                        "search", "stats", "links", "frontmatter", "table")
+
     try:
         messages = json.loads(raw_stdout)
+        # Track tool call sequence for re-query detection
+        call_sequence: list[str] = []  # "mutation" or "query"
+
         for msg in messages:
             if msg.get("type") == "result":
                 num_turns = msg.get("num_turns", 0)
-                # result.result is the final assistant text
                 all_text_outputs.append(msg.get("result", ""))
             elif msg.get("type") == "assistant":
                 content = msg.get("message", {}).get("content", [])
                 for block in content:
                     if block.get("type") == "tool_use":
                         tool_calls += 1
+                        cmd_str = block.get("input", {}).get("command", "")
+                        if any(p in cmd_str for p in _MUTATION_PATTERNS):
+                            mutations += 1
+                            call_sequence.append("mutation")
+                        elif any(p in cmd_str for p in _QUERY_PATTERNS):
+                            call_sequence.append("query")
                     if block.get("type") == "text":
                         all_text_outputs.append(block.get("text", ""))
             elif msg.get("type") == "user":
-                # Tool results come back as user messages in Claude Code JSON format
                 content = msg.get("message", {}).get("content", [])
                 if isinstance(content, list):
                     for block in content:
@@ -696,10 +716,21 @@ def run_agent(
                             result_content = block.get("content", "")
                             if isinstance(result_content, str):
                                 all_tool_outputs.append(result_content)
+                                bytes_observation += len(result_content.encode())
                             elif isinstance(result_content, list):
                                 for c in result_content:
                                     if isinstance(c, dict) and c.get("type") == "text":
-                                        all_tool_outputs.append(c.get("text", ""))
+                                        text = c.get("text", "")
+                                        all_tool_outputs.append(text)
+                                        bytes_observation += len(text.encode())
+
+        # Detect re-query: did agent query structure after a mutation?
+        for i, kind in enumerate(call_sequence):
+            if kind == "mutation" and i + 1 < len(call_sequence):
+                if call_sequence[i + 1] == "query":
+                    requeried = True
+                    break
+
         # Combine all outputs — tool outputs first (likely contain raw JSON),
         # then text outputs (may contain JSON embedded in prose)
         stdout = "\n".join(all_tool_outputs + all_text_outputs)
@@ -778,7 +809,11 @@ def run_agent(
         correct_neutral=ok_neutral,
         bytes_prompt=bytes_prompt,
         bytes_output=bytes_output,
+        bytes_observation=bytes_observation,
         tool_calls=tool_calls,
+        turns=num_turns,
+        mutations=mutations,
+        requeried=requeried,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
     )
@@ -873,29 +908,39 @@ def main():
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"
                 ns = "PASS" if result.correct_neutral else "FAIL"
+                rq = "↻" if result.requeried else " "
                 print(f"    md={s} neutral={ns} | {result.elapsed_seconds}s | "
-                      f"~{result.bytes_output}B out | ~{result.tool_calls} calls")
+                      f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
+                      f"~{result.tool_calls} calls | {result.mutations} mut {rq}")
 
     # Summary
     print("\n=== SUMMARY ===\n")
-    print(f"{'Task':<6} {'Mode':<10} {'Pass':<6} {'Neutral':<8} {'Time':>7} {'Bytes':>8} {'Calls':>6}")
-    print("-" * 55)
+    print(f"{'Task':<6} {'Mode':<10} {'Pass':<6} {'Time':>6} {'Calls':>5} {'ObsKB':>6} {'Mut':>4} {'RQ':>3}")
+    print("-" * 50)
     for r in all_results:
+        obs_kb = r.bytes_observation / 1024
+        rq = "↻" if r.requeried else ""
         print(f"{r.task_id:<6} {r.mode:<10} "
               f"{'✓' if r.correct else '✗':<6} "
-              f"{'✓' if r.correct_neutral else '✗':<8} "
-              f"{r.elapsed_seconds:>6.1f}s "
-              f"{r.bytes_output:>7}B "
-              f"{r.tool_calls:>5}")
+              f"{r.elapsed_seconds:>5.0f}s "
+              f"{r.tool_calls:>5} "
+              f"{obs_kb:>5.1f}K "
+              f"{r.mutations:>4} "
+              f"{rq:>3}")
 
     # Aggregate stats per mode
     for mode in modes:
         mode_results = [r for r in all_results if r.mode == mode]
         if mode_results:
-            pass_rate = sum(1 for r in mode_results if r.correct) / len(mode_results)
-            avg_bytes = sum(r.bytes_output for r in mode_results) / len(mode_results)
-            avg_time = sum(r.elapsed_seconds for r in mode_results) / len(mode_results)
-            print(f"\n  {mode}: {pass_rate:.0%} pass | avg {avg_bytes:.0f}B | avg {avg_time:.1f}s")
+            n = len(mode_results)
+            pass_rate = sum(1 for r in mode_results if r.correct) / n
+            avg_time = sum(r.elapsed_seconds for r in mode_results) / n
+            avg_calls = sum(r.tool_calls for r in mode_results) / n
+            avg_obs = sum(r.bytes_observation for r in mode_results) / n / 1024
+            avg_mut = sum(r.mutations for r in mode_results) / n
+            rq_rate = sum(1 for r in mode_results if r.requeried) / n
+            print(f"\n  {mode}: {pass_rate:.0%} pass | {avg_time:.0f}s | {avg_calls:.1f} calls | "
+                  f"{avg_obs:.0f}KB obs | {avg_mut:.1f} mut | {rq_rate:.0%} requery")
 
     if args.json:
         print("\n" + json.dumps([asdict(r) for r in all_results], indent=2))

@@ -54,17 +54,29 @@ def parse_with_task_ids(filepath):
             if m2:
                 pending_task = m2.group(1)
                 continue
-            # Result line
-            m3 = re.match(r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| ~(\d+) calls", line)
-            if m3 and pending_task:
+            # Result line — new format with obs and mut
+            m3 = re.match(
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut\s*(↻?)",
+                line,
+            )
+            if not m3:
+                # Fallback: old format
+                m3 = re.match(r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| ~(\d+) calls", line)
+                if m3 and pending_task:
+                    results.append({
+                        "task": pending_task, "mode": mode, "model": model,
+                        "pass": m3.group(1) == "PASS",
+                        "time": float(m3.group(2)), "bytes": int(m3.group(3)),
+                        "calls": int(m3.group(4)), "obs": 0, "mut": 0, "rq": False,
+                    })
+                    pending_task = None
+            elif pending_task:
                 results.append({
-                    "task": pending_task,
-                    "mode": mode,
-                    "model": model,
+                    "task": pending_task, "mode": mode, "model": model,
                     "pass": m3.group(1) == "PASS",
-                    "time": float(m3.group(2)),
-                    "bytes": int(m3.group(3)),
-                    "calls": int(m3.group(4)),
+                    "time": float(m3.group(2)), "bytes": int(m3.group(3)),
+                    "obs": int(m3.group(4)), "calls": int(m3.group(5)),
+                    "mut": int(m3.group(6)), "rq": m3.group(7) == "↻",
                 })
                 pending_task = None
     return results
@@ -143,16 +155,19 @@ def main():
         print(f"\n{'='*70}")
         print("CROSS-MODEL SUMMARY")
         print(f"{'='*70}")
-        print(f"\n{'Model':<30} {'Mode':<10} {'Pass%':>6} {'AvgTime':>8} {'AvgCalls':>9}")
-        print("-" * 65)
+        print(f"\n{'Model':<30} {'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>6} {'RQ%':>5}")
+        print("-" * 72)
         for model in models:
             for mode in modes:
                 matches = [r for r in all_results if r["mode"] == mode and r["model"] == model]
                 if matches:
-                    pct = sum(1 for r in matches if r["pass"]) / len(matches) * 100
-                    avg_t = sum(r["time"] for r in matches) / len(matches)
-                    avg_c = sum(r["calls"] for r in matches) / len(matches)
-                    print(f"{model:<30} {mode:<10} {pct:>5.0f}% {avg_t:>7.1f}s {avg_c:>8.1f}")
+                    n = len(matches)
+                    pct = sum(1 for r in matches if r["pass"]) / n * 100
+                    avg_t = sum(r["time"] for r in matches) / n
+                    avg_c = sum(r["calls"] for r in matches) / n
+                    avg_obs = sum(r.get("obs", 0) for r in matches) / n / 1024
+                    rq_pct = sum(1 for r in matches if r.get("rq")) / n * 100
+                    print(f"{model:<30} {mode:<10} {pct:>5.0f}% {avg_t:>5.0f}s {avg_c:>5.1f} {avg_obs:>5.0f}K {rq_pct:>4.0f}%")
 
 
 if __name__ == "__main__":
