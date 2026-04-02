@@ -205,6 +205,10 @@ pub struct TableArgs {
     /// Comma-separated column names or 0-based indices to project
     #[arg(long, value_delimiter = ',')]
     pub select: Vec<String>,
+
+    /// Filter rows (repeatable). Format: col=val, col!=val, col~=substr
+    #[arg(long = "where")]
+    pub filters: Vec<String>,
 }
 
 #[derive(Args)]

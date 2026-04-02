@@ -15,7 +15,7 @@ pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
     }
 
     match args.index {
-        None if args.select.is_empty() => run_list_tables(&doc, &table_blocks, args, json),
+        None if args.select.is_empty() && args.filters.is_empty() => run_list_tables(&doc, &table_blocks, args, json),
         None => {
             if table_blocks.len() == 1 {
                 run_read_table(&doc, table_blocks[0], args, json)
@@ -88,13 +88,20 @@ fn run_read_table(
     let table_source = doc.slice(&block.span);
     let data = parser::extract_table_data(&table_source)?;
 
+    // Filter rows (before projection, so --where can reference any column)
+    let filtered_rows = if args.filters.is_empty() {
+        data.rows.clone()
+    } else {
+        let filters = parse_filters(&data.headers, &args.filters)?;
+        data.rows.iter().filter(|row| row_matches(row, &filters)).cloned().collect()
+    };
+
     let (headers, rows) = if args.select.is_empty() {
-        (data.headers.clone(), data.rows.clone())
+        (data.headers.clone(), filtered_rows)
     } else {
         let indices = resolve_columns(&data.headers, &args.select)?;
         let projected_headers: Vec<String> = indices.iter().map(|&i| data.headers[i].clone()).collect();
-        let projected_rows: Vec<Vec<String>> = data
-            .rows
+        let projected_rows: Vec<Vec<String>> = filtered_rows
             .iter()
             .map(|row| indices.iter().map(|&i| row.get(i).cloned().unwrap_or_default()).collect())
             .collect();
@@ -125,6 +132,60 @@ fn run_read_table(
         }
     }
     Ok(())
+}
+
+// --- Row filtering ---
+
+enum FilterOp {
+    Eq(usize, String),
+    NotEq(usize, String),
+    Contains(usize, String),
+}
+
+fn parse_filters(headers: &[String], filters: &[String]) -> Result<Vec<FilterOp>, CommandError> {
+    let mut ops = Vec::new();
+    for f in filters {
+        if let Some((col, val)) = f.split_once("!=") {
+            let idx = resolve_column(headers, col.trim())?;
+            ops.push(FilterOp::NotEq(idx, val.trim().to_string()));
+        } else if let Some((col, val)) = f.split_once("~=") {
+            let idx = resolve_column(headers, col.trim())?;
+            ops.push(FilterOp::Contains(idx, val.trim().to_string()));
+        } else if let Some((col, val)) = f.split_once('=') {
+            let idx = resolve_column(headers, col.trim())?;
+            ops.push(FilterOp::Eq(idx, val.trim().to_string()));
+        } else {
+            return Err(CommandError::new(
+                crate::errors::DiagnosticCode::InvalidSelector,
+                format!("invalid filter: {:?} (use col=val, col!=val, or col~=substr)", f),
+            ));
+        }
+    }
+    Ok(ops)
+}
+
+fn resolve_column(headers: &[String], col: &str) -> Result<usize, CommandError> {
+    if let Ok(idx) = col.parse::<usize>() {
+        if idx >= headers.len() {
+            return Err(CommandError::column_not_found(col, headers));
+        }
+        Ok(idx)
+    } else {
+        headers
+            .iter()
+            .position(|h| h == col)
+            .ok_or_else(|| CommandError::column_not_found(col, headers))
+    }
+}
+
+fn row_matches(row: &[String], filters: &[FilterOp]) -> bool {
+    filters.iter().all(|f| {
+        match f {
+            FilterOp::Eq(idx, val) => row.get(*idx).map_or(false, |c| c == val),
+            FilterOp::NotEq(idx, val) => row.get(*idx).map_or(true, |c| c != val),
+            FilterOp::Contains(idx, val) => row.get(*idx).map_or(false, |c| c.contains(val.as_str())),
+        }
+    })
 }
 
 fn resolve_columns(headers: &[String], select: &[String]) -> Result<Vec<usize>, CommandError> {

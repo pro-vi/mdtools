@@ -179,6 +179,142 @@ fn table_select_specific_from_multi() {
     assert!(stdout.contains("Carol"));
 }
 
+// --- Row filtering (--where) ---
+
+#[test]
+fn table_where_eq() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "1", "--where", "Priority=high"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2); // header + 1 row
+    assert_eq!(lines[0], "Task\tPriority");
+    assert_eq!(lines[1], "Deploy\thigh");
+}
+
+#[test]
+fn table_where_neq() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "1", "--where", "Priority!=high"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2); // header + 1 row
+    assert!(lines[1].starts_with("Review"));
+}
+
+#[test]
+fn table_where_contains() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "3", "--where", "Name~=l"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 3); // header + Alice + Carol
+    assert!(lines[1].starts_with("Alice"));
+    assert!(lines[2].starts_with("Carol"));
+}
+
+#[test]
+fn table_where_no_matches() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "1", "--where", "Priority=critical"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 1); // header only
+}
+
+#[test]
+fn table_where_with_select() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "3",
+               "--select", "Name", "--where", "Name~=o"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines[0], "Name");
+    assert_eq!(lines.len(), 3); // header + Bob + Carol
+}
+
+#[test]
+fn table_where_json() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "1",
+               "--where", "Priority=medium", "--json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let rows = json["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0][0], "Review");
+}
+
+#[test]
+fn table_where_invalid_column() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "1",
+               "--where", "Nonexistent=val"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("not found"));
+}
+
+#[test]
+fn table_where_invalid_syntax() {
+    let out = md()
+        .args(["table", "tests/fixtures/table_multi.md", "--index", "1",
+               "--where", "bad filter"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("invalid filter"));
+}
+
+#[test]
+fn table_where_multiple_filters() {
+    // Multiple --where flags act as AND
+    let out = md()
+        .args(["table", "tests/fixtures/table.md", "--index", "1",
+               "--where", "Name=Alpha", "--where", "Value=100"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2); // header + 1 matching row
+    assert!(lines[1].starts_with("Alpha"));
+}
+
+#[test]
+fn table_where_single_table_no_index() {
+    // Single-table doc: --where works without --index
+    let out = md()
+        .args(["table", "tests/fixtures/table.md", "--where", "Name=Alpha"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2);
+    assert!(lines[1].starts_with("Alpha"));
+}
+
 // --- Error cases ---
 
 #[test]
