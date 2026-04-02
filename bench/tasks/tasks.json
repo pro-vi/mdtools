@@ -327,5 +327,42 @@
       "compare_link_destinations": false,
       "compare_block_text": false
     }
+  },
+  {
+    "id": "T19",
+    "description": "Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {\"phases\": [{\"phase\": \"Phase N: Name (TICKET)\", \"done\": N, \"pending\": N}], \"totals\": {\"done\": N, \"pending\": N}}. Use exactly these key names.",
+    "input_files": ["bench/inputs/t19_scale.md"],
+    "expected_output": "bench/expected/t19_summary.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false,
+      "json_canonical": true
+    }
+  },
+  {
+    "id": "T20",
+    "description": "In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them.",
+    "input_files": ["bench/inputs/t20_scale.md"],
+    "expected_output": "bench/expected/t20_disambiguated.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "advanced",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
   }
 ]

@@ -1,0 +1,68 @@
+{
+  "phases": [
+    {
+      "phase": "Phase 0: Schema Normalization (PLAT-100)",
+      "done": 4,
+      "pending": 4
+    },
+    {
+      "phase": "Phase 1: Driver Abstraction (PLAT-101)",
+      "done": 2,
+      "pending": 5
+    },
+    {
+      "phase": "Phase 2: Service Extraction (PLAT-102)",
+      "done": 2,
+      "pending": 2
+    },
+    {
+      "phase": "Phase 3: Provider Abstraction (PLAT-103)",
+      "done": 6,
+      "pending": 4
+    },
+    {
+      "phase": "Phase 4: Auth Abstraction (PLAT-104)",
+      "done": 2,
+      "pending": 5
+    },
+    {
+      "phase": "Phase 5: Desktop Shell (PLAT-105)",
+      "done": 5,
+      "pending": 4
+    },
+    {
+      "phase": "Phase 6: Local Model Support (PLAT-106)",
+      "done": 3,
+      "pending": 8
+    },
+    {
+      "phase": "Phase 7: Distribution (PLAT-107)",
+      "done": 3,
+      "pending": 8
+    },
+    {
+      "phase": "Phase 8: Telemetry (PLAT-108)",
+      "done": 2,
+      "pending": 7
+    },
+    {
+      "phase": "Phase 9: Plugin System (PLAT-109)",
+      "done": 0,
+      "pending": 6
+    },
+    {
+      "phase": "Phase 10: Collaboration (PLAT-110)",
+      "done": 1,
+      "pending": 6
+    },
+    {
+      "phase": "Phase 11: Mobile Shell (PLAT-111)",
+      "done": 0,
+      "pending": 8
+    }
+  ],
+  "totals": {
+    "done": 30,
+    "pending": 67
+  }
+}
