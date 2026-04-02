@@ -217,9 +217,9 @@ Mutation commands emit a structured result describing what changed, what was pre
 xychart-beta
     title "Pass rate by model and tool mode (20 tasks)"
     x-axis ["Haiku 4.5", "Sonnet 4.6", "Opus 4.6"]
-    y-axis "Pass rate %" 0 --> 100
-    bar [50, 80, 89]
-    bar [87, 85, 83]
+    y-axis "Pass rate %" 40 --> 100
+    line "unix" [50, 80, 89]
+    line "hybrid" [87, 85, 83]
 ```
 
 ```
