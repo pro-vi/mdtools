@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI is functional, benchmark and docs are in progress.
+> **Status: WIP** — core CLI + task commands functional, 18-task benchmark with cross-model results.
 
 Structural access to Markdown for LLM agents.
 
@@ -104,20 +104,45 @@ Italic    wip
 Normal    todo
 ```
 
+### Task lists (GFM checkboxes)
+
+```sh
+# List all task items with structural metadata
+$ md tasks progress.md
+9.0     done     0   25-28   Phase 0   0.1 App-side ID generation
+9.1     done     0   30-33   Phase 0   0.2 Convert enums to text columns
+9.3     pending  0   39-41   Phase 0   0.4 Remove collation overrides
+14.4.0  pending  1   70-73   Phase 1   Schema initialization
+
+# Filter by status
+$ md tasks progress.md --status pending --json | jq '.results[0].tasks[0].loc'
+"9.3"
+
+# Mark a task done by structural location
+$ md set-task 9.3 progress.md -i --status done
+
+# Recursive across a vault
+$ md tasks vault/ -r --status pending --json
+```
+
 ### Mutate documents
 
 ```sh
+# Replace a section from a file (no shell escaping needed)
+md replace-section "Methods" doc.md -i --from revised_methods.md
+
 # Replace a section from stdin
 echo "## Methods\n\nRevised methodology." | md replace-section "Methods" doc.md -i
 
 # Replace a specific block
-echo "New paragraph content." | md replace-block 3 doc.md -i
+md replace-block 3 doc.md -i --from new_content.md
 
 # Insert a block after block 2
-echo "Added note." | md insert-block --after 2 doc.md -i
+md insert-block --after 2 doc.md -i --from note.md
 
-# Delete a block
+# Delete a block or section
 md delete-block 4 doc.md -i
+md delete-section "Draft Notes" doc.md -i
 
 # Set frontmatter fields (dot-path, type-inferred)
 md set tags doc.md '["rust", "cli"]' -i
@@ -174,32 +199,66 @@ Mutation commands emit a structured result describing what changed, what was pre
 | `stats` | Word, heading, block, link, section, line counts |
 | `table` | List, read, and project Markdown tables |
 | `set` | Set or delete frontmatter fields by dot-path |
-| `replace-block` | Replace a block from stdin |
-| `replace-section` | Replace a section from stdin |
+| `tasks` | List GFM checkbox items with loc, status, depth, heading |
+| `set-task` | Set checkbox state by structural loc |
+| `replace-block` | Replace a block (stdin or `--from` file) |
+| `replace-section` | Replace a section (stdin or `--from` file) |
 | `insert-block` | Insert a new block at a position |
 | `delete-block` | Remove a block |
+| `delete-section` | Remove an entire section |
 
 ## Benchmark
 
-`bench/` contains an agent benchmark harness that measures whether `md` actually helps LLM agents complete Markdown editing tasks compared to raw unix tools (`sed`/`awk`/`grep`).
+`bench/` contains an agent benchmark harness (18 tasks) measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
 
-**What exists:**
-- 4 tasks spanning basic (outline extraction), intermediate (block insertion, duplicate section replacement), and advanced (block-kind-aware word replacement)
-- Dual scoring — results are verified by both `md` and an independent parser (markdown-it-py) to avoid circular self-grading
-- Byte cost and tool call tracking per task
+### Results
 
-**What's missing:**
-- Published baseline results (no agent runs committed yet)
-- Multi-file, frontmatter, table, and set tasks (Phase 2 commands untested)
-- Edge case coverage (empty files, CRLF, malformed input, large documents)
-- Statistical significance (N=4 tasks is a smoke test, not a benchmark)
+```
+Model                unix    mdtools   hybrid
+─────────────────────────────────────────────
+Haiku 4.5             61%      83%      89%
+Opus 4.6              89%       —       83%
+```
 
-Run the scorer validation:
+**Haiku + hybrid (89%) matches Opus + unix (89%).** Structural tools let a cheap model match an expensive model's correctness.
+
+Key findings:
+- **Correctness gap on weaker models.** Haiku fails 7/18 tasks in unix mode but only 2/18 with hybrid tools. The gap is concentrated in structural extraction (T1, T5, T9) and multi-step workflows (T6, T15).
+- **Efficiency gains across all models.** mdtools mode averages 40% fewer tool calls and 40% less agent output than unix mode. The `--from` flag reduces section replacement to a single command.
+- **Hybrid > pure.** Agents perform best when they can choose between `md` for structural operations and `sed` for simple text edits.
+
+### Task categories
+
+| Category | Tasks | What they test |
+|----------|-------|---------------|
+| Extraction | T1, T5, T9, T11, T16 | Outline, task list, per-phase counts, multi-file |
+| Targeted mutation | T7, T10, T13 | Checkbox toggle, disambiguation, nested duplicates |
+| Batch mutation | T12 | Mark all tasks in a section (nested + blockquote) |
+| Multi-step | T15, T18 | Line-drift after section deletion, re-query pattern |
+| Content delivery | T2, T3, T8, T17 | Section insertion/replacement, shell metacharacters |
+| Safe-fail | T14 | Refuse edit when target is ambiguous |
+| Text manipulation | T4, T6 | Word replacement, section completion |
+
+### Running benchmarks
 
 ```sh
 pip install markdown-it-py
-python bench/harness.py          # dry run: validates dual scorer
-python bench/harness.py --run    # agent run: requires an agent command
+
+# Validate scorers (no agent needed)
+python bench/harness.py --md-binary target/release/md
+
+# Run with default model (Opus)
+python bench/harness.py --run --mode hybrid --md-binary target/release/md
+
+# Run with Haiku
+python bench/harness.py --run --mode hybrid --md-binary target/release/md \
+  --model claude-haiku-4-5-20251001
+
+# Compare modes
+python bench/harness.py --run --md-binary target/release/md  # runs unix + mdtools
+
+# Analyze results
+python bench/analyze.py /tmp/bench_*.txt
 ```
 
 ## License
