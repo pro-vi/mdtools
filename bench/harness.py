@@ -724,11 +724,13 @@ def run_agent(
                                         all_tool_outputs.append(text)
                                         bytes_observation += len(text.encode())
 
-        # Detect re-query: did agent query structure after a mutation?
-        for i, kind in enumerate(call_sequence):
-            if kind == "mutation" and i + 1 < len(call_sequence):
-                if call_sequence[i + 1] == "query":
-                    requeried = True
+        # Detect re-query: did agent query structure at any point after a mutation?
+        saw_mutation = False
+        for kind in call_sequence:
+            if kind == "mutation":
+                saw_mutation = True
+            elif kind == "query" and saw_mutation:
+                requeried = True
                     break
 
         # Combine all outputs — tool outputs first (likely contain raw JSON),
