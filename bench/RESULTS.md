@@ -33,15 +33,15 @@
 
 ### By task family
 
-| Family | N | hybrid | mdtools | unix |
-|--------|--:|---:|---:|---:|
-| Extraction | 6 | 83% | 83% | 20% |
-| Targeted mutation | 4 | 100% | 100% | — |
-| Batch mutation | 1 | 100% | 100% | — |
-| Multi-step | 2 | 100% | 100% | — |
-| Content delivery | 4 | 83% | 83% | 50% |
-| Safe-fail | 1 | 100% | 100% | — |
-| Text manipulation | 2 | 50% | 50% | 100% |
+| Family | Tasks | hybrid | mdtools | unix |
+|--------|------:|---:|---:|---:|
+| Extraction | 6 | 83% (n=18) | 83% (n=18) | 20% (n=5) |
+| Targeted mutation | 4 | 100% (n=12) | 100% (n=12) | — |
+| Batch mutation | 1 | 100% (n=3) | 100% (n=3) | — |
+| Multi-step | 2 | 100% (n=6) | 100% (n=6) | — |
+| Content delivery | 4 | 83% (n=12) | 83% (n=12) | 50% (n=6) |
+| Safe-fail | 1 | 100% (n=3) | 100% (n=3) | — |
+| Text manipulation | 2 | 50% (n=6) | 50% (n=6) | 100% (n=3) |
 
 *Generated from N=3 Haiku 4.5 runs on 2026-04-02. Unix mode incomplete — only T1-T5 finished (14/60 runs). T5 run 3/3 timed out. Unix aggregates are over completed runs only.*
 

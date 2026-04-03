@@ -25,23 +25,45 @@ TASK_FAMILIES = {
 def parse_json_results(filepath):
     """Extract JSON results array from harness output."""
     content = open(filepath).read()
-    # Find the JSON array at the end (after --json flag output)
-    # Look for the last [ ... ] block
+    # Try parsing the whole file as JSON first
+    try:
+        data = json.loads(content)
+        if isinstance(data, list):
+            return data
+    except json.JSONDecodeError:
+        pass
+    # Fallback: find the last valid JSON array by trying json.loads
+    # on progressively larger substrings from each top-level [
+    candidates = []
     depth = 0
-    last_start = -1
-    last_end = -1
+    in_string = False
+    escape = False
+    start = -1
     for i, ch in enumerate(content):
-        if ch == "[":
+        if escape:
+            escape = False
+            continue
+        if ch == '\\' and in_string:
+            escape = True
+            continue
+        if ch == '"' and not escape:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '[':
             if depth == 0:
-                last_start = i
+                start = i
             depth += 1
-        elif ch == "]":
+        elif ch == ']':
             depth -= 1
-            if depth == 0:
-                last_end = i + 1
-    if last_start >= 0 and last_end > last_start:
+            if depth == 0 and start >= 0:
+                candidates.append((start, i + 1))
+                start = -1
+    # Try candidates from last to first
+    for s, e in reversed(candidates):
         try:
-            return json.loads(content[last_start:last_end])
+            return json.loads(content[s:e])
         except json.JSONDecodeError:
             pass
     return []
@@ -176,24 +198,24 @@ def main():
             else:
                 print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['rq_rate']:>4.0%}")
 
-    # By task family
+    # By task family — show per-mode sample count alongside pass rate
     print()
     if markdown:
         print("### By task family\n")
-        print("| Family | N |", end="")
+        print("| Family | Tasks |", end="")
         for mode in modes:
             print(f" {mode} |", end="")
         print()
-        print("|--------|--:|", end="")
+        print("|--------|------:|", end="")
         for _ in modes:
             print(f"---:|", end="")
         print()
     else:
-        print(f"{'Family':<20} {'N':>3}", end="")
+        print(f"{'Family':<20} {'Tasks':>5}", end="")
         for mode in modes:
-            print(f"  {mode:>8}", end="")
+            print(f"  {mode:>10}", end="")
         print()
-        print("-" * (25 + 10 * len(modes)))
+        print("-" * (27 + 12 * len(modes)))
 
     for family, family_tasks in TASK_FAMILIES.items():
         present = [t for t in family_tasks if t in tasks]
@@ -202,20 +224,21 @@ def main():
         if markdown:
             print(f"| {family} | {len(present)} |", end="")
         else:
-            print(f"{family:<20} {len(present):>3}", end="")
+            print(f"{family:<20} {len(present):>5}", end="")
         for mode in modes:
             fam_results = [r for r in all_results if r["task_id"] in present and r.get("mode") == mode]
             a = agg(fam_results)
             if a:
+                n = a["n"]
                 if markdown:
-                    print(f" {a['pass_rate']:.0%} |", end="")
+                    print(f" {a['pass_rate']:.0%} (n={n}) |", end="")
                 else:
-                    print(f"  {a['pass_rate']:>7.0%}", end="")
+                    print(f"  {a['pass_rate']:>4.0%} n={n:<3}", end="")
             else:
                 if markdown:
                     print(f" — |", end="")
                 else:
-                    print(f"  {'—':>7}", end="")
+                    print(f"  {'—':>10}", end="")
         print()
 
 
