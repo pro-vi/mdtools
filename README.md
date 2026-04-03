@@ -257,15 +257,21 @@ pip install markdown-it-py
 # Validate scorers (no agent needed)
 python bench/harness.py --md-binary target/release/md
 
-# Run with default model (Opus)
-python bench/harness.py --run --mode hybrid --md-binary target/release/md
-
-# Run with Haiku
-python bench/harness.py --run --mode hybrid --md-binary target/release/md \
-  --model claude-haiku-4-5-20251001
-
-# Compare modes
-python bench/harness.py --run --md-binary target/release/md  # runs unix + mdtools
+# Reproduce the full cross-model matrix
+MD=target/release/md
+for MODE in unix mdtools hybrid; do
+  python bench/harness.py --run --mode $MODE --md-binary $MD \
+    --model claude-haiku-4-5-20251001 \
+    > /tmp/bench_haiku_${MODE}.txt 2>&1
+done
+for MODE in unix hybrid; do
+  python bench/harness.py --run --mode $MODE --md-binary $MD \
+    > /tmp/bench_opus_${MODE}.txt 2>&1
+done
+python bench/harness.py --run --mode hybrid --md-binary $MD \
+  --model claude-sonnet-4-6 > /tmp/bench_sonnet_hybrid.txt 2>&1
+python bench/harness.py --run --mode unix --md-binary $MD \
+  --model claude-sonnet-4-6 > /tmp/bench_sonnet_unix.txt 2>&1
 
 # Analyze results
 python bench/analyze.py /tmp/bench_*.txt
