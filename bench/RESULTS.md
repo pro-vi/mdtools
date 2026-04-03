@@ -43,7 +43,7 @@
 | Safe-fail | 1 | 100% | 100% | — |
 | Text manipulation | 2 | 50% | 50% | 100% |
 
-*Generated from N=3 Haiku 4.5 runs on 2026-04-02. Unix mode incomplete (5/20 tasks due to timeouts).*
+*Generated from N=3 Haiku 4.5 runs on 2026-04-02. Unix mode incomplete — only T1-T5 finished (14/60 runs). T5 run 3/3 timed out. Unix aggregates are over completed runs only.*
 
 ## Cross-model matrix (N=1, 20 tasks)
 
@@ -66,4 +66,3 @@ Sonnet timing evidence (N=1, selected structural tasks):
 
 The benefit is inversely proportional to model capability.
 Weaker models gain correctness. Stronger models gain speed.
-
