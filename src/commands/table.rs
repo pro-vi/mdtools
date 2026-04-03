@@ -145,23 +145,52 @@ enum FilterOp {
 fn parse_filters(headers: &[String], filters: &[String]) -> Result<Vec<FilterOp>, CommandError> {
     let mut ops = Vec::new();
     for f in filters {
-        if let Some((col, val)) = f.split_once("!=") {
-            let idx = resolve_column(headers, col.trim())?;
-            ops.push(FilterOp::NotEq(idx, val.trim().to_string()));
-        } else if let Some((col, val)) = f.split_once("~=") {
-            let idx = resolve_column(headers, col.trim())?;
-            ops.push(FilterOp::Contains(idx, val.trim().to_string()));
-        } else if let Some((col, val)) = f.split_once('=') {
-            let idx = resolve_column(headers, col.trim())?;
-            ops.push(FilterOp::Eq(idx, val.trim().to_string()));
-        } else {
-            return Err(CommandError::new(
-                crate::errors::DiagnosticCode::InvalidSelector,
-                format!("invalid filter: {:?} (use col=val, col!=val, or col~=substr)", f),
-            ));
+        // Find the first operator boundary. Try multi-char operators first
+        // so that "col=a!=b" parses as col / = / a!=b, not col=a / != / b.
+        let parsed = find_first_operator(f);
+        match parsed {
+            Some((col, "!=", val)) => {
+                let idx = resolve_column(headers, col.trim())?;
+                ops.push(FilterOp::NotEq(idx, val.trim().to_string()));
+            }
+            Some((col, "~=", val)) => {
+                let idx = resolve_column(headers, col.trim())?;
+                ops.push(FilterOp::Contains(idx, val.trim().to_string()));
+            }
+            Some((col, _, val)) => {
+                let idx = resolve_column(headers, col.trim())?;
+                ops.push(FilterOp::Eq(idx, val.trim().to_string()));
+            }
+            None => {
+                return Err(CommandError::new(
+                    crate::errors::DiagnosticCode::InvalidSelector,
+                    format!("invalid filter: {:?} (use col=val, col!=val, or col~=substr)", f),
+                ));
+            }
         }
     }
     Ok(ops)
+}
+
+/// Find the first operator in a filter string by scanning left-to-right.
+/// Returns (column, operator, value). Checks for != and ~= before bare =
+/// at each position so the operator is always the leftmost match.
+fn find_first_operator(s: &str) -> Option<(&str, &str, &str)> {
+    let bytes = s.as_bytes();
+    for i in 0..bytes.len() {
+        if i + 1 < bytes.len() {
+            if bytes[i] == b'!' && bytes[i + 1] == b'=' {
+                return Some((&s[..i], "!=", &s[i + 2..]));
+            }
+            if bytes[i] == b'~' && bytes[i + 1] == b'=' {
+                return Some((&s[..i], "~=", &s[i + 2..]));
+            }
+        }
+        if bytes[i] == b'=' {
+            return Some((&s[..i], "=", &s[i + 1..]));
+        }
+    }
+    None
 }
 
 fn resolve_column(headers: &[String], col: &str) -> Result<usize, CommandError> {

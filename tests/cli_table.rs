@@ -315,6 +315,63 @@ fn table_where_single_table_no_index() {
     assert!(lines[1].starts_with("Alpha"));
 }
 
+// --- Operator tokens inside values (regression) ---
+
+#[test]
+fn table_where_value_contains_neq() {
+    // "Expr=a!=b" should match the row where Expr column equals "a!=b"
+    let out = md()
+        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Expr=a!=b"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2); // header + 1 row
+    assert!(lines[1].starts_with("a!=b"));
+}
+
+#[test]
+fn table_where_value_contains_tilde_eq() {
+    // "Expr=a~=b" should match the row where Expr column equals "a~=b"
+    let out = md()
+        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Expr=a~=b"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2);
+    assert!(lines[1].starts_with("a~=b"));
+}
+
+#[test]
+fn table_where_contains_value_with_neq() {
+    // "Expr~=!=" should find rows where Expr contains "!="
+    let out = md()
+        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Expr~=!="])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 2); // header + "a!=b" row
+    assert!(lines[1].starts_with("a!=b"));
+}
+
+#[test]
+fn table_where_neq_value_with_eq() {
+    // "Result!=false" should match rows where Result is not "false"
+    let out = md()
+        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Result!=false"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 3); // header + "true" rows (a!=b and x>y)
+}
+
 // --- Error cases ---
 
 #[test]
