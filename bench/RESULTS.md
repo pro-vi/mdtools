@@ -44,13 +44,25 @@
 | Text manipulation | 2 | 50% | 50% | 100% |
 
 *Generated from N=3 Haiku 4.5 runs on 2026-04-02. Unix mode incomplete (5/20 tasks due to timeouts).*
-## Cross-model matrix (N=1)
+
+## Cross-model matrix (N=1, 20 tasks)
+
+Separate single runs per model. Not part of the N=3 Haiku dataset above.
 
 | Model | unix | hybrid | Δ | Tool value |
 |-------|-----:|-------:|--:|------------|
 | Haiku 4.5 | 50% | 87% | +37pp | Correctness + speed |
-| Sonnet 4.6 | 80% | 85% | +5pp | Speed (3-5x on structural tasks) |
+| Sonnet 4.6 | 80% | 85% | +5pp | Slight correctness lift + speed |
 | Opus 4.6 | 89% | 83% | -6pp | Efficiency only |
+
+Sonnet timing evidence (N=1, selected structural tasks):
+
+| Task | Sonnet unix | Sonnet hybrid | Speedup |
+|------|------------|--------------|---------|
+| T9 (extraction) | 111s / 5 calls | 22s / 2 calls | 5.0x |
+| T11 (aggregation) | 95s / 9 calls | 28s / 2 calls | 3.4x |
+| T12 (batch) | 149s / 6 calls | 26s / 3 calls | 5.7x |
+| T18 (re-query) | 72s / 10 calls | 22s / 4 calls | 3.3x |
 
 The benefit is inversely proportional to model capability.
 Weaker models gain correctness. Stronger models gain speed.
