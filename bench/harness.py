@@ -124,6 +124,7 @@ class BenchTask:
     difficulty: str
     scorer: StructuralDiffPolicy
     expected_stdout: str | None = None
+    support_files: list[str] | None = None
 
 
 @dataclass
@@ -567,6 +568,7 @@ def load_tasks(tasks_path: str = "bench/tasks/tasks.json") -> list[BenchTask]:
             expected_artifact=t["expected_artifact"], difficulty=t["difficulty"],
             scorer=scorer,
             expected_stdout=t.get("expected_stdout"),
+            support_files=t.get("support_files"),
         ))
     return tasks
 
@@ -626,10 +628,12 @@ def run_agent(
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
 
-    for inp in task.input_files:
+    all_files = list(task.input_files)
+    if task.support_files:
+        all_files.extend(task.support_files)
+
+    for inp in all_files:
         # Preserve subdirectory structure (e.g., t16_vault/frontend.md)
-        dest = os.path.join(workdir, os.path.basename(inp))
-        # Check if input files share a common subdirectory
         inp_dir = os.path.dirname(inp)
         inp_parent = os.path.basename(inp_dir) if inp_dir else ""
         if inp_parent and inp_parent != "inputs":
@@ -731,7 +735,7 @@ def run_agent(
                 saw_mutation = True
             elif kind == "query" and saw_mutation:
                 requeried = True
-                    break
+                break
 
         # Combine all outputs — tool outputs first (likely contain raw JSON),
         # then text outputs (may contain JSON embedded in prose)

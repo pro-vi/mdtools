@@ -294,8 +294,9 @@
   },
   {
     "id": "T17",
-    "description": "Replace the 'Environment Variables' section with the content from the file replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section \"Environment Variables\" FILE -i --from replacement.md",
-    "input_files": ["bench/inputs/t17_pipe_stress.md", "bench/inputs/t17_replacement.md"],
+    "description": "Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section \"Environment Variables\" FILE -i --from t17_replacement.md",
+    "input_files": ["bench/inputs/t17_pipe_stress.md"],
+    "support_files": ["bench/inputs/t17_replacement.md"],
     "expected_output": "bench/expected/t17_replaced.md",
     "expected_artifact": "file_contents",
     "difficulty": "intermediate",
