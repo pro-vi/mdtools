@@ -234,7 +234,7 @@ Opus 4.6        89%     83%    -6pp    Efficiency only
 
 Key findings:
 - **+37pp correctness on Haiku.** Fails 10/20 tasks in unix mode but only 3/20 with hybrid tools. Structural extraction (T1, T5, T9), aggregation (T11), and multi-step workflows (T15) flip from FAIL to PASS.
-- **3-5x faster on Sonnet.** Same pass rate, but structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
+- **3-5x faster on Sonnet.** Slight correctness lift (+5pp) plus structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
 - **Hybrid > pure.** Agents perform best when they can choose between `md` for structural operations and `sed` for simple text edits.
 
 ### Task categories
