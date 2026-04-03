@@ -49,8 +49,8 @@ def parse_with_task_ids(filepath):
                 mode = m.group(1)
                 model = m.group(3) or "opus"
                 continue
-            # Task line: "  T1: description..."
-            m2 = re.match(r"\s+(T\d+): ", line)
+            # Task line: "  T1: ..." or "  T1 run 1/3: ..."
+            m2 = re.match(r"\s+(T\d+)(?:\s+run \d+/\d+)?: ", line)
             if m2:
                 pending_task = m2.group(1)
                 continue
@@ -124,15 +124,19 @@ def main():
             for mode in modes:
                 matches = [r for r in all_results if r["task"] == task and r["mode"] == mode and r["model"] == model]
                 if matches:
-                    r = matches[0]
-                    mark = "✓" if r["pass"] else "✗"
-                    print(f"  {mark:>5} {r['time']:>5.0f}s {r['calls']:>5}", end="")
-                    mode_stats[mode]["total"] += 1
-                    if r["pass"]:
-                        mode_stats[mode]["pass"] += 1
-                    mode_stats[mode]["time"] += r["time"]
-                    mode_stats[mode]["calls"] += r["calls"]
-                    mode_stats[mode]["bytes"] += r["bytes"]
+                    n = len(matches)
+                    pass_rate = sum(1 for r in matches if r["pass"]) / n
+                    avg_time = sum(r["time"] for r in matches) / n
+                    avg_calls = sum(r["calls"] for r in matches) / n
+                    pct = f"{pass_rate:.0%}"
+                    print(f"  {pct:>5} {avg_time:>5.0f}s {avg_calls:>5.1f}", end="")
+                    for r in matches:
+                        mode_stats[mode]["total"] += 1
+                        if r["pass"]:
+                            mode_stats[mode]["pass"] += 1
+                        mode_stats[mode]["time"] += r["time"]
+                        mode_stats[mode]["calls"] += r["calls"]
+                        mode_stats[mode]["bytes"] += r["bytes"]
                 else:
                     print(f"  {'—':>5} {'—':>6} {'—':>5}", end="")
             print()
