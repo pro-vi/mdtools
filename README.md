@@ -218,8 +218,8 @@ xychart-beta
     title "Pass rate by model and tool mode (20 tasks)"
     x-axis ["Haiku 4.5", "Sonnet 4.6", "Opus 4.6"]
     y-axis "Pass rate %" 40 --> 100
-    line "unix" [50, 80, 89]
-    line "hybrid" [87, 85, 83]
+    line [50, 80, 89]
+    line [87, 85, 83]
 ```
 
 ```
