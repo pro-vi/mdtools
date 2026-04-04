@@ -126,7 +126,7 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
         multifile::for_each_file(&file_set, |file| {
             let fr = collect_fn(file)?;
             for task in &fr.tasks {
-                let heading = task.nearest_heading.as_deref().unwrap_or("");
+                let heading = output::escape_text_field(task.nearest_heading.as_deref().unwrap_or(""));
                 let text = output::escape_text_field(&task.summary_text);
                 if multi {
                     println!(
