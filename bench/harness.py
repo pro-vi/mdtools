@@ -754,12 +754,14 @@ def run_agent(
         ok_stdout = False
         if task.expected_stdout is not None:
             expected_text = task.expected_stdout.strip()
-            # Check if expected text appears as a line in the output
-            ok_stdout = expected_text in stdout
+            # Last non-empty line must match exactly
+            actual_lines = [l.strip() for l in stdout.strip().splitlines() if l.strip()]
+            actual_last = actual_lines[-1] if actual_lines else ""
+            ok_stdout = actual_last == expected_text
             report_parts.append(f"stdout: {'OK' if ok_stdout else 'MISMATCH'}")
             if not ok_stdout:
-                report_parts.append(f"  expected to contain: {expected_text!r}")
-                report_parts.append(f"  actual: {stdout[:200]!r}")
+                report_parts.append(f"  expected last line: {expected_text!r}")
+                report_parts.append(f"  actual last line:   {actual_last!r}")
         # Check file unchanged
         try:
             actual_file = Path(input_file).read_text()
