@@ -900,7 +900,7 @@ def main():
         sys.exit(0 if ok else 1)
 
     # Agent track
-    modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools"]
+    modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools", "hybrid"]
     all_results: list[BenchResult] = []
 
     for mode in modes:
