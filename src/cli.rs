@@ -117,7 +117,6 @@ pub struct InsertBlockArgs {
     pub file: PathBuf,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
-    /// Read content from file (use "-" for stdin)
     /// Read content from file instead of stdin (use "-" for stdin)
     #[arg(long)]
     pub from: Option<PathBuf>,
