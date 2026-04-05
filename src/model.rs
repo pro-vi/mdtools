@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: &str = "mdtools.v1";
 
 // --- Common types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub line_start: u32,
     pub line_end: u32,
@@ -295,7 +295,7 @@ pub struct TableReadResult {
 
 // --- Task types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, clap::ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "lowercase")]
 #[clap(rename_all = "kebab-case")]
 pub enum TaskStatus {
