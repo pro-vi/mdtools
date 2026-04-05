@@ -80,21 +80,27 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         && !before.ends_with("\r\n\r\n")
         && !content.is_empty();
     let needs_trailing_separator =
-        !after.is_empty() && !after.starts_with('\n') && !content.is_empty();
+        !after.is_empty() && !after.starts_with('\n') && !after.starts_with("\r\n") && !content.is_empty();
+
+    let nl = match line_endings {
+        LineEndingStyle::Crlf => "\r\n",
+        _ => "\n",
+    };
 
     let mut output_doc = String::with_capacity(doc.source.len() + content.len() + 4);
     output_doc.push_str(before);
     if needs_leading_newline {
-        output_doc.push('\n');
+        output_doc.push_str(nl);
     }
     if needs_separator && !needs_leading_newline {
-        output_doc.push('\n');
+        output_doc.push_str(nl);
     }
     output_doc.push_str(&content);
     if needs_trailing_separator {
-        output_doc.push_str("\n\n");
+        output_doc.push_str(nl);
+        output_doc.push_str(nl);
     } else if !after.is_empty() && !content.is_empty() && !content.ends_with('\n') {
-        output_doc.push('\n');
+        output_doc.push_str(nl);
     }
     output_doc.push_str(after);
 
