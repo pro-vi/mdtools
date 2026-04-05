@@ -137,7 +137,7 @@ fn comrak_opts(delimiter: Option<&str>) -> Options<'static> {
 
 /// Strip frontmatter delimiters (--- or +++) and trailing whitespace.
 /// comrak's FrontMatter.raw includes "---\ncontent\n---\n\n"
-pub(crate) fn strip_frontmatter_delimiters(raw: &str) -> String {
+pub fn strip_frontmatter_delimiters(raw: &str) -> String {
     let trimmed = raw.trim();
     let lines: Vec<&str> = trimmed.lines().collect();
     if lines.len() < 2 {

@@ -1,10 +1,11 @@
+pub use mdtools::errors;
+pub use mdtools::model;
+pub use mdtools::parser;
+
 mod cli;
 mod commands;
-mod errors;
-mod model;
 mod multifile;
 mod output;
-mod parser;
 
 use clap::Parser;
 use std::process::ExitCode;

@@ -60,12 +60,3 @@ fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError
     Ok(())
 }
 
-impl std::fmt::Display for LinkKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Inline => write!(f, "Inline"),
-            Self::Reference => write!(f, "Reference"),
-            Self::Autolink => write!(f, "Autolink"),
-        }
-    }
-}

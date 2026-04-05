@@ -165,6 +165,16 @@ pub enum LinkKind {
     Autolink,
 }
 
+impl std::fmt::Display for LinkKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Inline => write!(f, "Inline"),
+            Self::Reference => write!(f, "Reference"),
+            Self::Autolink => write!(f, "Autolink"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct LinkEntry {
     pub kind: LinkKind,
