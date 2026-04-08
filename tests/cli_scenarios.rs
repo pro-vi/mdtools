@@ -112,10 +112,7 @@ fn scenario_selective_word_replacement() {
         let replaced = content.replace("method", "approach");
 
         if replaced != content {
-            let output = md_stdin(
-                &["replace-block", &idx.to_string(), &tmp, "-i"],
-                &replaced,
-            );
+            let output = md_stdin(&["replace-block", &idx.to_string(), &tmp, "-i"], &replaced);
             assert!(output.status.success());
         }
     }
@@ -182,21 +179,30 @@ fn scenario_structural_analysis() {
     // H1 > H2 > H3 structure
     assert_eq!(levels[0], 1); // API Reference
     assert_eq!(texts[0], "API Reference");
-    assert!(levels[1..].iter().all(|&l| l >= 2), "all under H1 should be H2+");
+    assert!(
+        levels[1..].iter().all(|&l| l >= 2),
+        "all under H1 should be H2+"
+    );
 
     // Step 3: Verify section spans are contiguous and non-overlapping
     for i in 0..entries.len() - 1 {
         let this_level = levels[i];
         let next_level = levels[i + 1];
         let this_section_end = entries[i]["section_span"]["byte_end"].as_u64().unwrap();
-        let next_section_start = entries[i + 1]["section_span"]["byte_start"].as_u64().unwrap();
+        let next_section_start = entries[i + 1]["section_span"]["byte_start"]
+            .as_u64()
+            .unwrap();
 
         // If next heading is same or higher level, this section ends at next section start
         if next_level <= this_level {
             assert_eq!(
-                this_section_end, next_section_start,
+                this_section_end,
+                next_section_start,
                 "section {} ({:?}) should end where section {} ({:?}) starts",
-                i, texts[i], i + 1, texts[i + 1]
+                i,
+                texts[i],
+                i + 1,
+                texts[i + 1]
             );
         }
     }
@@ -331,11 +337,12 @@ fn scenario_replace_duplicate_section() {
     let tmp = tmpfile(&source);
 
     // Step 1: Agent tries to select "Methods" → gets Conflict
-    let output = md()
-        .args(["section", "Methods", &tmp])
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(4), "should conflict on duplicate");
+    let output = md().args(["section", "Methods", &tmp]).output().unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "should conflict on duplicate"
+    );
 
     // Step 2: Agent uses outline to understand the structure
     let outline = md_json(&["outline", &tmp]);
@@ -356,7 +363,14 @@ fn scenario_replace_duplicate_section() {
     // Step 4: Agent replaces the second occurrence
     let new_content = "## Methods\n\nUpdated second methods section with new approach.\n";
     let output = md_stdin(
-        &["replace-section", "Methods", &tmp, "--occurrence", "2", "-i"],
+        &[
+            "replace-section",
+            "Methods",
+            &tmp,
+            "--occurrence",
+            "2",
+            "-i",
+        ],
         new_content,
     );
     assert!(output.status.success());
@@ -406,18 +420,12 @@ fn scenario_multi_step_surgery() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|b| {
-            b["kind"] == "Heading"
-                && b["preview"].as_str().unwrap().contains("Old Section")
-        })
+        .find(|b| b["kind"] == "Heading" && b["preview"].as_str().unwrap().contains("Old Section"))
         .expect("should find Old Section heading");
     let old_idx = old_section_block["index"].as_u64().unwrap();
 
     // Delete the section by replacing it with empty
-    let output = md_stdin(
-        &["replace-section", "Old Section", &tmp, "-i"],
-        "",
-    );
+    let output = md_stdin(&["replace-section", "Old Section", &tmp, "-i"], "");
     assert!(output.status.success());
 
     // Step 5: Insert a new section
@@ -427,15 +435,18 @@ fn scenario_multi_step_surgery() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|b| {
-            b["kind"] == "Heading"
-                && b["preview"].as_str().unwrap().contains("Keep Section")
-        })
+        .find(|b| b["kind"] == "Heading" && b["preview"].as_str().unwrap().contains("Keep Section"))
         .expect("should find Keep Section");
     let keep_idx = keep_block["index"].as_u64().unwrap();
 
     let output = md_stdin(
-        &["insert-block", "--before", &keep_idx.to_string(), &tmp, "-i"],
+        &[
+            "insert-block",
+            "--before",
+            &keep_idx.to_string(),
+            &tmp,
+            "-i",
+        ],
         "## New Section\n\nFreshly added content.\n",
     );
     assert!(output.status.success());
@@ -450,7 +461,10 @@ fn scenario_multi_step_surgery() {
         .collect();
 
     assert!(final_headings.contains(&"Title"));
-    assert!(!final_headings.contains(&"Old Section"), "Old Section should be deleted");
+    assert!(
+        !final_headings.contains(&"Old Section"),
+        "Old Section should be deleted"
+    );
     assert!(final_headings.contains(&"New Section"));
     assert!(final_headings.contains(&"Keep Section"));
     assert!(final_headings.contains(&"Update Section"));
@@ -506,7 +520,10 @@ fn scenario_frontmatter_survives_body_edits() {
 
     // Step 4: Verify the frontmatter raw text is preserved
     let result = std::fs::read_to_string(&tmp).unwrap();
-    assert!(result.starts_with("---\n"), "file should still start with frontmatter");
+    assert!(
+        result.starts_with("---\n"),
+        "file should still start with frontmatter"
+    );
     assert!(result.contains("title: API Documentation"));
     assert!(result.contains("version: 3"));
 
@@ -640,7 +657,10 @@ fn scenario_link_audit() {
     }
 
     // Verify expected links
-    assert!(inline.iter().any(|l| l.contains("tools.ietf.org")), "should find RFC inline link");
+    assert!(
+        inline.iter().any(|l| l.contains("tools.ietf.org")),
+        "should find RFC inline link"
+    );
     assert!(
         reference.iter().any(|l| l.contains("internal.example.com")),
         "should find internal docs reference link"
@@ -742,5 +762,8 @@ fn scenario_case_insensitive_navigation() {
     // Step 3: Verify the content is the full section
     let json = md_json(&["section", "error handling", DOC, "--ignore-case"]);
     let block_indices = json["section"]["block_indices"].as_array().unwrap();
-    assert!(block_indices.len() >= 2, "section should have heading + body blocks");
+    assert!(
+        block_indices.len() >= 2,
+        "section should have heading + body blocks"
+    );
 }

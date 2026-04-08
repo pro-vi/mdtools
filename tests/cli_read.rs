@@ -256,10 +256,7 @@ fn stats_basic() {
 
 #[test]
 fn stats_empty() {
-    let output = md()
-        .args(["stats", "/dev/null"])
-        .output()
-        .unwrap();
+    let output = md().args(["stats", "/dev/null"]).output().unwrap();
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("words=0"));

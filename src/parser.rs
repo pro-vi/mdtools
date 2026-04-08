@@ -58,7 +58,8 @@ impl LineIndex {
 
     fn sourcepos_to_span(&self, sp: Sourcepos) -> SourceSpan {
         let byte_start = self.to_byte(sp.start.line, sp.start.column).unwrap_or(0) as u32;
-        let byte_end = self.to_byte_end(sp.end.line, sp.end.column)
+        let byte_end = self
+            .to_byte_end(sp.end.line, sp.end.column)
             .unwrap_or(self.source_len) as u32;
         SourceSpan {
             line_start: sp.start.line as u32,
@@ -388,9 +389,11 @@ impl ParsedDocument {
     /// Detect the document's line ending style.
     pub fn line_ending_style(&self) -> LineEndingStyle {
         let has_crlf = self.source.contains("\r\n");
-        let has_bare_lf = self.source.bytes().enumerate().any(|(i, b)| {
-            b == b'\n' && (i == 0 || self.source.as_bytes()[i - 1] != b'\r')
-        });
+        let has_bare_lf = self
+            .source
+            .bytes()
+            .enumerate()
+            .any(|(i, b)| b == b'\n' && (i == 0 || self.source.as_bytes()[i - 1] != b'\r'));
         match (has_crlf, has_bare_lf) {
             (true, false) => LineEndingStyle::Crlf,
             (false, true) | (false, false) => LineEndingStyle::Lf,
@@ -419,7 +422,10 @@ fn collect_task_items<'a>(
                 let sp = data.sourcepos;
                 let span = line_index.sourcepos_to_span(sp);
                 let symbol_byte_offset = line_index
-                    .to_byte(task.symbol_sourcepos.start.line, task.symbol_sourcepos.start.column)
+                    .to_byte(
+                        task.symbol_sourcepos.start.line,
+                        task.symbol_sourcepos.start.column,
+                    )
                     .unwrap_or(0) as u32;
                 let status = if task.symbol.is_some() {
                     TaskStatus::Done
@@ -481,10 +487,7 @@ fn collect_task_items<'a>(
 
 /// Find all task items under any block node by walking descendants for List nodes.
 /// Handles task lists inside blockquotes, callouts, and other containers.
-fn collect_all_task_items<'a>(
-    node: &'a AstNode<'a>,
-    line_index: &LineIndex,
-) -> Vec<TaskItemInfo> {
+fn collect_all_task_items<'a>(node: &'a AstNode<'a>, line_index: &LineIndex) -> Vec<TaskItemInfo> {
     let data = node.data.borrow();
     if matches!(data.value, NodeValue::List(_)) {
         drop(data);
@@ -677,9 +680,7 @@ fn find_link_text_close(src: &str) -> Option<usize> {
 /// Extract structured table data from a markdown source fragment
 /// containing a single table. The source should be the sliced text
 /// of a Table block (obtained via ParsedDocument::slice()).
-pub fn extract_table_data(
-    table_source: &str,
-) -> Result<TableData, CommandError> {
+pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError> {
     use comrak::nodes::TableAlignment;
 
     let arena = Arena::new();

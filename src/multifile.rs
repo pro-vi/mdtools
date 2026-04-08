@@ -25,7 +25,10 @@ pub fn resolve_paths(paths: &[PathBuf], recursive: bool) -> Result<FileSet, Comm
         if path.is_dir() {
             had_directory = true;
             if recursive {
-                for entry in WalkDir::new(path).sort_by_file_name().into_iter().filter_map(|e| e.ok())
+                for entry in WalkDir::new(path)
+                    .sort_by_file_name()
+                    .into_iter()
+                    .filter_map(|e| e.ok())
                 {
                     if entry.file_type().is_file() && has_md_extension(entry.path()) {
                         result.push(entry.into_path());
@@ -56,7 +59,8 @@ pub fn resolve_paths(paths: &[PathBuf], recursive: bool) -> Result<FileSet, Comm
 }
 
 fn has_md_extension(path: &Path) -> bool {
-    path.extension().map_or(false, |ext| ext == "md" || ext == "markdown")
+    path.extension()
+        .map_or(false, |ext| ext == "md" || ext == "markdown")
 }
 
 /// Report a per-file error to stderr with filename prefix.

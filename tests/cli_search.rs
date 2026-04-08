@@ -18,12 +18,7 @@ fn search_no_results() {
 #[test]
 fn search_json() {
     let output = md()
-        .args([
-            "search",
-            "method",
-            "tests/fixtures/basic.md",
-            "--json",
-        ])
+        .args(["search", "method", "tests/fixtures/basic.md", "--json"])
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -87,8 +82,7 @@ fn search_kind_filter_excludes() {
         .output()
         .unwrap();
     assert!(heading_output.status.success());
-    let heading_json: serde_json::Value =
-        serde_json::from_slice(&heading_output.stdout).unwrap();
+    let heading_json: serde_json::Value = serde_json::from_slice(&heading_output.stdout).unwrap();
 
     // Search for "method" only in paragraphs
     let para_output = md()
@@ -118,12 +112,7 @@ fn search_kind_filter_excludes() {
 #[test]
 fn search_match_span_is_exact() {
     let output = md()
-        .args([
-            "search",
-            "positive",
-            "tests/fixtures/basic.md",
-            "--json",
-        ])
+        .args(["search", "positive", "tests/fixtures/basic.md", "--json"])
         .output()
         .unwrap();
     assert!(output.status.success());

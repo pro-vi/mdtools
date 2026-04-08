@@ -8,14 +8,20 @@ pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
 
-    let table_blocks: Vec<_> = doc.blocks.iter().filter(|b| b.kind == BlockKind::Table).collect();
+    let table_blocks: Vec<_> = doc
+        .blocks
+        .iter()
+        .filter(|b| b.kind == BlockKind::Table)
+        .collect();
 
     if table_blocks.is_empty() {
         return Err(CommandError::no_tables());
     }
 
     match args.index {
-        None if args.select.is_empty() && args.filters.is_empty() => run_list_tables(&doc, &table_blocks, args, json),
+        None if args.select.is_empty() && args.filters.is_empty() => {
+            run_list_tables(&doc, &table_blocks, args, json)
+        }
         None => {
             if table_blocks.len() == 1 {
                 run_read_table(&doc, table_blocks[0], args, json)
@@ -93,17 +99,27 @@ fn run_read_table(
         data.rows.clone()
     } else {
         let filters = parse_filters(&data.headers, &args.filters)?;
-        data.rows.iter().filter(|row| row_matches(row, &filters)).cloned().collect()
+        data.rows
+            .iter()
+            .filter(|row| row_matches(row, &filters))
+            .cloned()
+            .collect()
     };
 
     let (headers, rows) = if args.select.is_empty() {
         (data.headers.clone(), filtered_rows)
     } else {
         let indices = resolve_columns(&data.headers, &args.select)?;
-        let projected_headers: Vec<String> = indices.iter().map(|&i| data.headers[i].clone()).collect();
+        let projected_headers: Vec<String> =
+            indices.iter().map(|&i| data.headers[i].clone()).collect();
         let projected_rows: Vec<Vec<String>> = filtered_rows
             .iter()
-            .map(|row| indices.iter().map(|&i| row.get(i).cloned().unwrap_or_default()).collect())
+            .map(|row| {
+                indices
+                    .iter()
+                    .map(|&i| row.get(i).cloned().unwrap_or_default())
+                    .collect()
+            })
             .collect();
         (projected_headers, projected_rows)
     };
@@ -126,9 +142,22 @@ fn run_read_table(
         })?;
     } else {
         // TSV output
-        println!("{}", headers.iter().map(|h| output::escape_text_field(h)).collect::<Vec<_>>().join("\t"));
+        println!(
+            "{}",
+            headers
+                .iter()
+                .map(|h| output::escape_text_field(h))
+                .collect::<Vec<_>>()
+                .join("\t")
+        );
         for row in &rows {
-            println!("{}", row.iter().map(|c| output::escape_text_field(c)).collect::<Vec<_>>().join("\t"));
+            println!(
+                "{}",
+                row.iter()
+                    .map(|c| output::escape_text_field(c))
+                    .collect::<Vec<_>>()
+                    .join("\t")
+            );
         }
     }
     Ok(())
@@ -164,7 +193,10 @@ fn parse_filters(headers: &[String], filters: &[String]) -> Result<Vec<FilterOp>
             None => {
                 return Err(CommandError::new(
                     crate::errors::DiagnosticCode::InvalidSelector,
-                    format!("invalid filter: {:?} (use col=val, col!=val, or col~=substr)", f),
+                    format!(
+                        "invalid filter: {:?} (use col=val, col!=val, or col~=substr)",
+                        f
+                    ),
                 ));
             }
         }
@@ -208,12 +240,10 @@ fn resolve_column(headers: &[String], col: &str) -> Result<usize, CommandError> 
 }
 
 fn row_matches(row: &[String], filters: &[FilterOp]) -> bool {
-    filters.iter().all(|f| {
-        match f {
-            FilterOp::Eq(idx, val) => row.get(*idx).map_or(false, |c| c == val),
-            FilterOp::NotEq(idx, val) => row.get(*idx).map_or(true, |c| c != val),
-            FilterOp::Contains(idx, val) => row.get(*idx).map_or(false, |c| c.contains(val.as_str())),
-        }
+    filters.iter().all(|f| match f {
+        FilterOp::Eq(idx, val) => row.get(*idx).map_or(false, |c| c == val),
+        FilterOp::NotEq(idx, val) => row.get(*idx).map_or(true, |c| c != val),
+        FilterOp::Contains(idx, val) => row.get(*idx).map_or(false, |c| c.contains(val.as_str())),
     })
 }
 

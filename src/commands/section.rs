@@ -296,7 +296,9 @@ fn find_heading_section(
     } else {
         // byte_end points to start of next section; line_end is the line before that
         let line_at_end = doc.byte_to_line(section_byte_end);
-        if section_byte_end > 0 && doc.source.as_bytes().get(section_byte_end as usize - 1) == Some(&b'\n') {
+        if section_byte_end > 0
+            && doc.source.as_bytes().get(section_byte_end as usize - 1) == Some(&b'\n')
+        {
             line_at_end - 1
         } else {
             line_at_end

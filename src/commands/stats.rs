@@ -45,11 +45,7 @@ fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError
 }
 
 fn compute_stats(doc: &ParsedDocument) -> DocumentStats {
-    let heading_count = doc
-        .blocks
-        .iter()
-        .filter(|b| b.heading.is_some())
-        .count() as u32;
+    let heading_count = doc.blocks.iter().filter(|b| b.heading.is_some()).count() as u32;
 
     let block_count = doc.blocks.len() as u32;
 
@@ -73,17 +69,10 @@ fn compute_stats(doc: &ParsedDocument) -> DocumentStats {
 
 /// Count sections: each heading is a section, plus preamble if non-empty.
 fn compute_section_count(doc: &ParsedDocument) -> u32 {
-    let heading_sections = doc
-        .blocks
-        .iter()
-        .filter(|b| b.heading.is_some())
-        .count() as u32;
+    let heading_sections = doc.blocks.iter().filter(|b| b.heading.is_some()).count() as u32;
 
     // Preamble counts if there are blocks before the first heading
-    let has_preamble = doc
-        .blocks
-        .first()
-        .map_or(false, |b| b.heading.is_none());
+    let has_preamble = doc.blocks.first().map_or(false, |b| b.heading.is_none());
 
     heading_sections + if has_preamble { 1 } else { 0 }
 }
@@ -147,10 +136,14 @@ fn count_words_in_content(content: &str, kind: BlockKind) -> u32 {
             // Count words in cell content, skip separator rows
             content
                 .lines()
-                .filter(|line| !line.trim().starts_with("|---") && !line.trim().starts_with("| ---"))
+                .filter(|line| {
+                    !line.trim().starts_with("|---") && !line.trim().starts_with("| ---")
+                })
                 .filter(|line| {
                     // Skip separator rows like |---|---|
-                    !line.chars().all(|c| c == '|' || c == '-' || c == ':' || c == ' ')
+                    !line
+                        .chars()
+                        .all(|c| c == '|' || c == '-' || c == ':' || c == ' ')
                 })
                 .map(|line| {
                     line.split('|')

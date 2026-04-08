@@ -7,7 +7,10 @@ use crate::parser::ParsedDocument;
 pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     // Validate args
     if args.key.is_empty() || args.key.split('.').any(|s| s.is_empty()) {
-        return Err(CommandError::invalid_key_path(&args.key, "key cannot be empty"));
+        return Err(CommandError::invalid_key_path(
+            &args.key,
+            "key cannot be empty",
+        ));
     }
     if args.delete && args.value.is_some() {
         return Err(CommandError::new(

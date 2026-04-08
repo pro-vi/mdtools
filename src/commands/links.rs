@@ -47,16 +47,24 @@ fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError
             if multi {
                 println!(
                     "{}:\t{}\t{}\tblock:{}\t{}-{}",
-                    file_str, link.kind, dest, link.source_block_index, link.span.line_start, link.span.line_end
+                    file_str,
+                    link.kind,
+                    dest,
+                    link.source_block_index,
+                    link.span.line_start,
+                    link.span.line_end
                 );
             } else {
                 println!(
                     "{}\t{}\tblock:{}\t{}-{}",
-                    link.kind, dest, link.source_block_index, link.span.line_start, link.span.line_end
+                    link.kind,
+                    dest,
+                    link.source_block_index,
+                    link.span.line_start,
+                    link.span.line_end
                 );
             }
         }
     }
     Ok(())
 }
-

@@ -131,8 +131,16 @@ fn tasks_summary_text_no_checkbox() {
     let tasks = json["results"][0]["tasks"].as_array().unwrap();
     for t in tasks {
         let text = t["summary_text"].as_str().unwrap();
-        assert!(!text.starts_with("[x]"), "summary_text has checkbox: {}", text);
-        assert!(!text.starts_with("[ ]"), "summary_text has checkbox: {}", text);
+        assert!(
+            !text.starts_with("[x]"),
+            "summary_text has checkbox: {}",
+            text
+        );
+        assert!(
+            !text.starts_with("[ ]"),
+            "summary_text has checkbox: {}",
+            text
+        );
     }
 }
 
@@ -196,7 +204,12 @@ fn tasks_text_output_format() {
     let first_line = stdout.lines().next().unwrap();
     // Tab-separated: LOC STATUS DEPTH LINES HEADING TEXT
     let parts: Vec<&str> = first_line.split('\t').collect();
-    assert_eq!(parts.len(), 6, "expected 6 tab-separated fields, got: {:?}", parts);
+    assert_eq!(
+        parts.len(),
+        6,
+        "expected 6 tab-separated fields, got: {:?}",
+        parts
+    );
     assert_eq!(parts[0], "9.0"); // loc
     assert_eq!(parts[1], "done"); // status
     assert_eq!(parts[2], "0"); // depth
@@ -209,7 +222,10 @@ fn nested_tasks_depth() {
     let json = md_json(&["tasks", NESTED]);
     let tasks = json["results"][0]["tasks"].as_array().unwrap();
     // Find grandchild task
-    let grandchild: Vec<_> = tasks.iter().filter(|t| t["depth"].as_u64().unwrap() == 2).collect();
+    let grandchild: Vec<_> = tasks
+        .iter()
+        .filter(|t| t["depth"].as_u64().unwrap() == 2)
+        .collect();
     assert_eq!(grandchild.len(), 1);
     assert_eq!(grandchild[0]["summary_text"], "Grandchild task");
     assert_eq!(grandchild[0]["child_path"], serde_json::json!([1, 0, 0]));
@@ -272,12 +288,7 @@ fn nested_tasks_multibyte() {
     let tasks = json["results"][0]["tasks"].as_array().unwrap();
     let mb = tasks
         .iter()
-        .find(|t| {
-            t["summary_text"]
-                .as_str()
-                .unwrap()
-                .contains("müłtîbÿté")
-        })
+        .find(|t| t["summary_text"].as_str().unwrap().contains("müłtîbÿté"))
         .unwrap();
     assert_eq!(mb["status"], "pending");
 }
@@ -343,7 +354,9 @@ fn set_task_done_to_pending() {
     let path = tmpfile(&content);
     // 9.0 is "0.1 App-side ID generation" which is [x]
     let output = md()
-        .args(["set-task", "9.0", &path, "-i", "--json", "--status", "pending"])
+        .args([
+            "set-task", "9.0", &path, "-i", "--json", "--status", "pending",
+        ])
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -501,7 +514,10 @@ fn tasks_sibling_lists_in_blockquote() {
     // Must have different locs
     let loc0 = tasks[0]["loc"].as_str().unwrap();
     let loc1 = tasks[1]["loc"].as_str().unwrap();
-    assert_ne!(loc0, loc1, "sibling lists in blockquote must have distinct locs");
+    assert_ne!(
+        loc0, loc1,
+        "sibling lists in blockquote must have distinct locs"
+    );
     assert_eq!(tasks[0]["summary_text"], "first");
     assert_eq!(tasks[1]["summary_text"], "second");
     std::fs::remove_file(&path).ok();
@@ -594,7 +610,9 @@ fn set_task_nested_grandchild() {
 
     // Mark the grandchild (2.1.0.0) as done
     let output = md()
-        .args(["set-task", "2.1.0.0", &path, "-i", "--json", "--status", "done"])
+        .args([
+            "set-task", "2.1.0.0", &path, "-i", "--json", "--status", "done",
+        ])
         .output()
         .unwrap();
     assert!(output.status.success());

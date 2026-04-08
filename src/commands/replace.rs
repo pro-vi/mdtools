@@ -79,8 +79,10 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         && !before.ends_with("\n\n")
         && !before.ends_with("\r\n\r\n")
         && !content.is_empty();
-    let needs_trailing_separator =
-        !after.is_empty() && !after.starts_with('\n') && !after.starts_with("\r\n") && !content.is_empty();
+    let needs_trailing_separator = !after.is_empty()
+        && !after.starts_with('\n')
+        && !after.starts_with("\r\n")
+        && !content.is_empty();
 
     let nl = match line_endings {
         LineEndingStyle::Crlf => "\r\n",
@@ -214,15 +216,17 @@ fn resolve_insert_location(
 ) -> Result<(usize, Option<SourceSpan>), CommandError> {
     match location {
         InsertLocation::Before(idx) => {
-            let block = doc.blocks.get(*idx as usize).ok_or_else(|| {
-                CommandError::block_out_of_range(*idx, doc.blocks.len() as u32)
-            })?;
+            let block = doc
+                .blocks
+                .get(*idx as usize)
+                .ok_or_else(|| CommandError::block_out_of_range(*idx, doc.blocks.len() as u32))?;
             Ok((block.span.byte_start as usize, Some(block.span)))
         }
         InsertLocation::After(idx) => {
-            let block = doc.blocks.get(*idx as usize).ok_or_else(|| {
-                CommandError::block_out_of_range(*idx, doc.blocks.len() as u32)
-            })?;
+            let block = doc
+                .blocks
+                .get(*idx as usize)
+                .ok_or_else(|| CommandError::block_out_of_range(*idx, doc.blocks.len() as u32))?;
             Ok((block.span.byte_end as usize, Some(block.span)))
         }
         InsertLocation::Start => {

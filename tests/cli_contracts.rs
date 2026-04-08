@@ -49,7 +49,10 @@ fn block_spans_match_source_content() {
         assert!(
             !sliced.is_empty(),
             "block {} ({}) has empty span [{}, {})",
-            block["index"], kind, bs, be
+            block["index"],
+            kind,
+            bs,
+            be
         );
 
         // Heading blocks must start with # or be setext (contain ==/--  on second line)
@@ -57,7 +60,9 @@ fn block_spans_match_source_content() {
             assert!(
                 sliced.starts_with('#') || sliced.contains("\n=") || sliced.contains("\n-"),
                 "Heading block at [{},{}): {:?} doesn't look like a heading",
-                bs, be, sliced
+                bs,
+                be,
+                sliced
             );
         }
     }
@@ -83,7 +88,10 @@ fn outline_heading_spans_match_source() {
         assert!(
             sliced.contains(text),
             "heading {:?} not found in span [{},{}): {:?}",
-            text, bs, be, sliced
+            text,
+            bs,
+            be,
+            sliced
         );
     }
 }
@@ -113,7 +121,12 @@ fn block_read_content_matches_span_slice() {
 
     for idx in 0..5 {
         let output = md()
-            .args(["block", &idx.to_string(), "tests/fixtures/basic.md", "--json"])
+            .args([
+                "block",
+                &idx.to_string(),
+                "tests/fixtures/basic.md",
+                "--json",
+            ])
             .output()
             .unwrap();
         assert!(output.status.success());
@@ -171,7 +184,10 @@ fn link_spans_match_source() {
         assert!(
             sliced.contains(dest) || dest.is_empty(),
             "link span [{},{}): {:?} doesn't contain destination {:?}",
-            bs, be, sliced, dest
+            bs,
+            be,
+            sliced,
+            dest
         );
     }
 }
@@ -198,16 +214,22 @@ fn utf8_block_spans_are_byte_accurate() {
         assert!(
             source.is_char_boundary(bs),
             "block {} byte_start {} is not a char boundary",
-            block["index"], bs
+            block["index"],
+            bs
         );
         assert!(
             source.is_char_boundary(be),
             "block {} byte_end {} is not a char boundary",
-            block["index"], be
+            block["index"],
+            be
         );
 
         let sliced = &source[bs..be];
-        assert!(!sliced.is_empty(), "block {} has empty span", block["index"]);
+        assert!(
+            !sliced.is_empty(),
+            "block {} has empty span",
+            block["index"]
+        );
     }
 }
 
@@ -270,7 +292,10 @@ fn mutation_replaced_both_spans_present() {
     // Spans must differ (content changed)
     let before_end = json["invariant"]["target_span_before"]["byte_end"].as_u64();
     let after_end = json["invariant"]["target_span_after"]["byte_end"].as_u64();
-    assert_ne!(before_end, after_end, "replaced spans should differ in byte_end");
+    assert_ne!(
+        before_end, after_end,
+        "replaced spans should differ in byte_end"
+    );
 }
 
 #[test]
@@ -306,8 +331,7 @@ fn mutation_nochange_spans_identical() {
     assert_eq!(json["disposition"], "NoChange");
     assert_eq!(json["changed"], false);
     assert_eq!(
-        json["invariant"]["target_span_before"],
-        json["invariant"]["target_span_after"],
+        json["invariant"]["target_span_before"], json["invariant"]["target_span_after"],
         "NoChange spans must be identical"
     );
 }
@@ -325,13 +349,21 @@ fn mutation_preserves_non_target_bytes() {
 
     // Actually verify: content before block 1 and after block 1 must be unchanged
     let content = json["content"].as_str().unwrap();
-    let bs = json["target"]["Block"]["span"]["byte_start"].as_u64().unwrap() as usize;
-    let be = json["target"]["Block"]["span"]["byte_end"].as_u64().unwrap() as usize;
+    let bs = json["target"]["Block"]["span"]["byte_start"]
+        .as_u64()
+        .unwrap() as usize;
+    let be = json["target"]["Block"]["span"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
 
     // Source bytes before the target span must be identical
     assert_eq!(&content[..bs], &source[..bs], "bytes before target changed");
     // Source bytes after the target span must be identical
-    assert_eq!(&content[content.len() - (source.len() - be)..], &source[be..], "bytes after target changed");
+    assert_eq!(
+        &content[content.len() - (source.len() - be)..],
+        &source[be..],
+        "bytes after target changed"
+    );
 }
 
 // ============================================================
@@ -353,7 +385,12 @@ fn replace_block_empty_stdin_yields_deleted() {
 #[test]
 fn replace_section_empty_stdin_yields_deleted() {
     let output = md_with_stdin(
-        &["replace-section", "Discussion", "tests/fixtures/basic.md", "--json"],
+        &[
+            "replace-section",
+            "Discussion",
+            "tests/fixtures/basic.md",
+            "--json",
+        ],
         "",
     );
     assert!(output.status.success());
@@ -406,15 +443,22 @@ fn crlf_stats_line_endings_detected() {
 fn search_inside_code_fence() {
     let output = md()
         .args([
-            "search", "method", "tests/fixtures/search_in_code.md",
-            "--kind", "code-fence", "--json",
+            "search",
+            "method",
+            "tests/fixtures/search_in_code.md",
+            "--kind",
+            "code-fence",
+            "--json",
         ])
         .output()
         .unwrap();
     assert!(output.status.success());
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let matches = json["matches"].as_array().unwrap();
-    assert!(!matches.is_empty(), "should find 'method' inside code fence");
+    assert!(
+        !matches.is_empty(),
+        "should find 'method' inside code fence"
+    );
     for m in matches {
         assert_eq!(m["block_kind"], "CodeFence");
     }
@@ -424,15 +468,22 @@ fn search_inside_code_fence() {
 fn search_inside_indented_code() {
     let output = md()
         .args([
-            "search", "method", "tests/fixtures/search_in_code.md",
-            "--kind", "indented-code", "--json",
+            "search",
+            "method",
+            "tests/fixtures/search_in_code.md",
+            "--kind",
+            "indented-code",
+            "--json",
         ])
         .output()
         .unwrap();
     assert!(output.status.success());
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let matches = json["matches"].as_array().unwrap();
-    assert!(!matches.is_empty(), "should find 'method' inside indented code");
+    assert!(
+        !matches.is_empty(),
+        "should find 'method' inside indented code"
+    );
     for m in matches {
         assert_eq!(m["block_kind"], "IndentedCode");
     }
@@ -443,8 +494,12 @@ fn search_excludes_code_by_default_when_filtered() {
     // Search only paragraphs — should not find code block matches
     let output = md()
         .args([
-            "search", "method", "tests/fixtures/search_in_code.md",
-            "--kind", "paragraph", "--json",
+            "search",
+            "method",
+            "tests/fixtures/search_in_code.md",
+            "--kind",
+            "paragraph",
+            "--json",
         ])
         .output()
         .unwrap();
@@ -505,10 +560,7 @@ fn stats_word_count_excludes_code() {
 fn stats_line_count_no_trailing_newline() {
     // A file with no trailing newline: last line still counts
     let tmp = tempfile_str("line1\nline2\nline3");
-    let output = md()
-        .args(["stats", &tmp, "--json"])
-        .output()
-        .unwrap();
+    let output = md().args(["stats", &tmp, "--json"]).output().unwrap();
     assert!(output.status.success());
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["stats"]["line_count"], 3);
@@ -533,7 +585,10 @@ fn footnote_definition_block() {
         .iter()
         .map(|b| b["kind"].as_str().unwrap())
         .collect();
-    assert!(kinds.contains(&"FootnoteDefinition"), "expected FootnoteDefinition block");
+    assert!(
+        kinds.contains(&"FootnoteDefinition"),
+        "expected FootnoteDefinition block"
+    );
 }
 
 #[test]
@@ -562,15 +617,23 @@ fn table_block_span_is_byte_accurate() {
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
 
-    let table = json["blocks"].as_array().unwrap()
+    let table = json["blocks"]
+        .as_array()
+        .unwrap()
         .iter()
         .find(|b| b["kind"] == "Table")
         .unwrap();
     let bs = table["span"]["byte_start"].as_u64().unwrap() as usize;
     let be = table["span"]["byte_end"].as_u64().unwrap() as usize;
     let sliced = &source[bs..be];
-    assert!(sliced.contains("| Name"), "table span should contain header row");
-    assert!(sliced.contains("| Alpha"), "table span should contain data rows");
+    assert!(
+        sliced.contains("| Name"),
+        "table span should contain header row"
+    );
+    assert!(
+        sliced.contains("| Alpha"),
+        "table span should contain data rows"
+    );
 }
 
 // ============================================================
@@ -587,7 +650,12 @@ fn blocks_text_format_is_tab_separated() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     for line in stdout.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
-        assert_eq!(fields.len(), 4, "blocks text line should have 4 tab-separated fields: {:?}", line);
+        assert_eq!(
+            fields.len(),
+            4,
+            "blocks text line should have 4 tab-separated fields: {:?}",
+            line
+        );
     }
 }
 
@@ -601,7 +669,12 @@ fn outline_text_format_is_tab_separated() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     for line in stdout.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
-        assert_eq!(fields.len(), 3, "outline text line should have 3 tab-separated fields: {:?}", line);
+        assert_eq!(
+            fields.len(),
+            3,
+            "outline text line should have 3 tab-separated fields: {:?}",
+            line
+        );
     }
 }
 
@@ -615,7 +688,12 @@ fn search_text_format_is_tab_separated() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     for line in stdout.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
-        assert_eq!(fields.len(), 4, "search text line should have 4 tab-separated fields: {:?}", line);
+        assert_eq!(
+            fields.len(),
+            4,
+            "search text line should have 4 tab-separated fields: {:?}",
+            line
+        );
     }
 }
 
@@ -629,7 +707,12 @@ fn links_text_format_is_tab_separated() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     for line in stdout.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
-        assert_eq!(fields.len(), 4, "links text line should have 4 tab-separated fields: {:?}", line);
+        assert_eq!(
+            fields.len(),
+            4,
+            "links text line should have 4 tab-separated fields: {:?}",
+            line
+        );
     }
 }
 
@@ -656,7 +739,10 @@ fn stats_text_format_key_equals_value() {
         );
     }
     // Verify all required keys present
-    let keys: Vec<&str> = stdout.lines().map(|l| l.split('=').next().unwrap()).collect();
+    let keys: Vec<&str> = stdout
+        .lines()
+        .map(|l| l.split('=').next().unwrap())
+        .collect();
     for required in &["words", "headings", "blocks", "links", "sections", "lines"] {
         assert!(keys.contains(required), "missing stats key: {}", required);
     }
@@ -681,11 +767,7 @@ fn all_json_commands_have_schema_version() {
 
     for args in &commands {
         let output = md().args(args).output().unwrap();
-        assert!(
-            output.status.success(),
-            "command {:?} failed",
-            args
-        );
+        assert!(output.status.success(), "command {:?} failed", args);
         let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(
             json["schema_version"], "mdtools.v1",
@@ -708,25 +790,42 @@ fn error_stderr_is_single_line() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     let lines: Vec<&str> = stderr.lines().collect();
-    assert_eq!(lines.len(), 1, "stderr should be exactly one line: {:?}", stderr);
+    assert_eq!(
+        lines.len(),
+        1,
+        "stderr should be exactly one line: {:?}",
+        stderr
+    );
 }
 
 #[test]
 fn error_exits_are_correct() {
     // NotFound = 1
-    let o = md().args(["section", "Nonexistent", "tests/fixtures/basic.md"]).output().unwrap();
+    let o = md()
+        .args(["section", "Nonexistent", "tests/fixtures/basic.md"])
+        .output()
+        .unwrap();
     assert_eq!(o.status.code(), Some(1));
 
     // NotFound = 1 (block out of range)
-    let o = md().args(["block", "99", "tests/fixtures/basic.md"]).output().unwrap();
+    let o = md()
+        .args(["block", "99", "tests/fixtures/basic.md"])
+        .output()
+        .unwrap();
     assert_eq!(o.status.code(), Some(1));
 
     // NotFound = 1 (missing file)
-    let o = md().args(["blocks", "/tmp/nonexistent_mdtools_xyz.md"]).output().unwrap();
+    let o = md()
+        .args(["blocks", "/tmp/nonexistent_mdtools_xyz.md"])
+        .output()
+        .unwrap();
     assert_eq!(o.status.code(), Some(1));
 
     // ParseError = 2 (malformed frontmatter)
-    let o = md().args(["frontmatter", "tests/fixtures/malformed_frontmatter.md"]).output().unwrap();
+    let o = md()
+        .args(["frontmatter", "tests/fixtures/malformed_frontmatter.md"])
+        .output()
+        .unwrap();
     assert_eq!(o.status.code(), Some(2));
 
     // InvalidInput = 3 (no insert location)
@@ -734,7 +833,10 @@ fn error_exits_are_correct() {
     assert_eq!(o.status.code(), Some(3));
 
     // Conflict = 4 (duplicate heading)
-    let o = md().args(["section", "Methods", "tests/fixtures/duplicate_headings.md"]).output().unwrap();
+    let o = md()
+        .args(["section", "Methods", "tests/fixtures/duplicate_headings.md"])
+        .output()
+        .unwrap();
     assert_eq!(o.status.code(), Some(4));
 }
 

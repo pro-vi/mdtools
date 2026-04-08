@@ -45,11 +45,7 @@ fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError
 fn build_outline(doc: &ParsedDocument, file: &str) -> OutlineResult {
     let mut entries = Vec::new();
 
-    let heading_blocks: Vec<_> = doc
-        .blocks
-        .iter()
-        .filter(|b| b.heading.is_some())
-        .collect();
+    let heading_blocks: Vec<_> = doc.blocks.iter().filter(|b| b.heading.is_some()).collect();
 
     for block in &heading_blocks {
         let h = block.heading.as_ref().unwrap();
@@ -61,7 +57,9 @@ fn build_outline(doc: &ParsedDocument, file: &str) -> OutlineResult {
             doc.line_count()
         } else {
             let line_at_end = doc.byte_to_line(section_byte_end);
-            if section_byte_end > 0 && doc.source.as_bytes().get(section_byte_end as usize - 1) == Some(&b'\n') {
+            if section_byte_end > 0
+                && doc.source.as_bytes().get(section_byte_end as usize - 1) == Some(&b'\n')
+            {
                 line_at_end - 1
             } else {
                 line_at_end
@@ -113,4 +111,3 @@ fn find_section_end(doc: &ParsedDocument, heading_block_index: u32, heading_leve
     // Section extends to end of document
     doc.source.len() as u32
 }
-

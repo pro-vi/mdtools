@@ -42,7 +42,9 @@ impl DiagnosticCode {
             Self::IoOpenFailed => MdExitCode::NotFound,
             Self::ParseFailed | Self::FrontmatterParseFailed => MdExitCode::ParseError,
             Self::HeadingNotFound | Self::BlockIndexOutOfRange => MdExitCode::NotFound,
-            Self::InvalidSelector | Self::InvalidUtf8OnStdin | Self::InvalidKeyPath
+            Self::InvalidSelector
+            | Self::InvalidUtf8OnStdin
+            | Self::InvalidKeyPath
             | Self::ColumnNotFound => MdExitCode::InvalidInput,
             Self::DuplicateHeadingMatch | Self::FrontmatterFieldConflict => MdExitCode::Conflict,
             Self::NoTablesInDocument | Self::TableNotATable => MdExitCode::NotFound,
@@ -80,14 +82,20 @@ impl CommandError {
     pub fn block_out_of_range(index: u32, count: u32) -> Self {
         Self::new(
             DiagnosticCode::BlockIndexOutOfRange,
-            format!("block index {} out of range (document has {} blocks)", index, count),
+            format!(
+                "block index {} out of range (document has {} blocks)",
+                index, count
+            ),
         )
     }
 
     pub fn duplicate_heading(heading: &str, count: usize) -> Self {
         Self::new(
             DiagnosticCode::DuplicateHeadingMatch,
-            format!("heading {:?} matches {} sections; use --occurrence to disambiguate", heading, count),
+            format!(
+                "heading {:?} matches {} sections; use --occurrence to disambiguate",
+                heading, count
+            ),
         )
     }
 
@@ -99,7 +107,10 @@ impl CommandError {
     }
 
     pub fn no_tables() -> Self {
-        Self::new(DiagnosticCode::NoTablesInDocument, "no tables found in document")
+        Self::new(
+            DiagnosticCode::NoTablesInDocument,
+            "no tables found in document",
+        )
     }
 
     pub fn table_not_found(index: u32) -> Self {
@@ -112,7 +123,11 @@ impl CommandError {
     pub fn column_not_found(name: &str, headers: &[String]) -> Self {
         Self::new(
             DiagnosticCode::ColumnNotFound,
-            format!("column {:?} not found; available columns: {}", name, headers.join(", ")),
+            format!(
+                "column {:?} not found; available columns: {}",
+                name,
+                headers.join(", ")
+            ),
         )
     }
 

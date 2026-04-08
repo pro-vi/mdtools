@@ -12,7 +12,11 @@ fn frontmatter_directory() {
         .args(["frontmatter", "--field", "title", "tests/fixtures/vault/"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     // Should have alpha and beta (non-recursive)
     assert!(stdout.contains("alpha.md\tAlpha Doc"));
@@ -24,7 +28,13 @@ fn frontmatter_directory() {
 #[test]
 fn frontmatter_directory_recursive() {
     let out = md()
-        .args(["frontmatter", "--field", "status,title", "tests/fixtures/vault/", "-r"])
+        .args([
+            "frontmatter",
+            "--field",
+            "status,title",
+            "tests/fixtures/vault/",
+            "-r",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -38,7 +48,13 @@ fn frontmatter_directory_recursive() {
 #[test]
 fn frontmatter_field_json() {
     let out = md()
-        .args(["frontmatter", "--field", "status", "tests/fixtures/vault/", "--json"])
+        .args([
+            "frontmatter",
+            "--field",
+            "status",
+            "tests/fixtures/vault/",
+            "--json",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -56,7 +72,8 @@ fn frontmatter_explicit_multi_file() {
     let out = md()
         .args([
             "frontmatter",
-            "--field", "title",
+            "--field",
+            "title",
             "tests/fixtures/vault/alpha.md",
             "tests/fixtures/vault/beta.md",
         ])
@@ -188,7 +205,8 @@ fn multi_file_continues_on_error() {
     let out = md()
         .args([
             "frontmatter",
-            "--field", "title",
+            "--field",
+            "title",
             "tests/fixtures/vault/alpha.md",
             "tests/fixtures/nonexistent.md",
         ])

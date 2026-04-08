@@ -32,7 +32,11 @@ fn set_simple_field_stdout() {
         .args(["set", "title", "tests/fixtures/set_basic.md", "New Title"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("title: New Title"));
     assert!(stdout.contains("author: Jane"));
@@ -46,7 +50,11 @@ fn set_simple_field_in_place() {
         .args(["set", "title", &tmp.to_string_lossy(), "Updated", "-i"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let content = std::fs::read_to_string(&tmp).unwrap();
     assert!(content.contains("title: Updated"));
     assert!(content.contains("author: Jane"));
@@ -56,10 +64,20 @@ fn set_simple_field_in_place() {
 #[test]
 fn set_simple_field_json() {
     let out = md()
-        .args(["set", "title", "tests/fixtures/set_basic.md", "New Title", "--json"])
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/set_basic.md",
+            "New Title",
+            "--json",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["command"], "SetFrontmatter");
     assert_eq!(json["disposition"], "Replaced");
@@ -71,10 +89,20 @@ fn set_simple_field_json() {
 #[test]
 fn set_no_change() {
     let out = md()
-        .args(["set", "title", "tests/fixtures/set_basic.md", "Original", "--json"])
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/set_basic.md",
+            "Original",
+            "--json",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["disposition"], "NoChange");
     assert_eq!(json["changed"], false);
@@ -88,7 +116,11 @@ fn set_nested_field_creates_path() {
         .args(["set", "meta.version", "tests/fixtures/set_basic.md", "2"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("meta:"));
     assert!(stdout.contains("version: 2"));
@@ -100,7 +132,11 @@ fn set_deep_nested() {
         .args(["set", "a.b.c", "tests/fixtures/set_basic.md", "deep"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("a:"));
     assert!(stdout.contains("b:"));
@@ -123,10 +159,20 @@ fn set_nested_conflict_error() {
 #[test]
 fn delete_existing_field() {
     let out = md()
-        .args(["set", "--delete", "author", "tests/fixtures/set_basic.md", "--json"])
+        .args([
+            "set",
+            "--delete",
+            "author",
+            "tests/fixtures/set_basic.md",
+            "--json",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["disposition"], "Deleted");
     assert_eq!(json["changed"], true);
@@ -138,10 +184,20 @@ fn delete_existing_field() {
 #[test]
 fn delete_nonexistent_field() {
     let out = md()
-        .args(["set", "--delete", "nosuchkey", "tests/fixtures/set_basic.md", "--json"])
+        .args([
+            "set",
+            "--delete",
+            "nosuchkey",
+            "tests/fixtures/set_basic.md",
+            "--json",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["disposition"], "NoChange");
     assert_eq!(json["changed"], false);
@@ -155,7 +211,11 @@ fn set_creates_frontmatter() {
         .args(["set", "title", "tests/fixtures/no_frontmatter.md", "Hello"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.starts_with("---\n"));
     assert!(stdout.contains("title: Hello"));
@@ -165,10 +225,20 @@ fn set_creates_frontmatter() {
 #[test]
 fn set_creates_frontmatter_json() {
     let out = md()
-        .args(["set", "title", "tests/fixtures/no_frontmatter.md", "Hello", "--json"])
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/no_frontmatter.md",
+            "Hello",
+            "--json",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["disposition"], "Inserted");
     assert_eq!(json["changed"], true);
@@ -177,10 +247,20 @@ fn set_creates_frontmatter_json() {
 #[test]
 fn delete_on_no_frontmatter() {
     let out = md()
-        .args(["set", "--delete", "key", "tests/fixtures/no_frontmatter.md", "--json"])
+        .args([
+            "set",
+            "--delete",
+            "key",
+            "tests/fixtures/no_frontmatter.md",
+            "--json",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["disposition"], "NoChange");
     assert_eq!(json["changed"], false);
@@ -194,7 +274,11 @@ fn set_number_value() {
         .args(["set", "version", "tests/fixtures/set_basic.md", "42"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("version: 42"));
 }
@@ -205,7 +289,11 @@ fn set_bool_value() {
         .args(["set", "published", "tests/fixtures/set_basic.md", "true"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("published: true"));
 }
@@ -213,10 +301,20 @@ fn set_bool_value() {
 #[test]
 fn set_string_flag() {
     let out = md()
-        .args(["set", "version", "--string", "tests/fixtures/set_basic.md", "2"])
+        .args([
+            "set",
+            "version",
+            "--string",
+            "tests/fixtures/set_basic.md",
+            "2",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("version: '2'") || stdout.contains("version: \"2\""));
 }
@@ -224,10 +322,19 @@ fn set_string_flag() {
 #[test]
 fn set_array_value() {
     let out = md()
-        .args(["set", "categories", "tests/fixtures/set_basic.md", "[a, b, c]"])
+        .args([
+            "set",
+            "categories",
+            "tests/fixtures/set_basic.md",
+            "[a, b, c]",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("categories:"));
 }
@@ -237,10 +344,19 @@ fn set_array_value() {
 #[test]
 fn set_toml_preserves_format() {
     let out = md()
-        .args(["set", "title", "tests/fixtures/toml_frontmatter.md", "Updated"])
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/toml_frontmatter.md",
+            "Updated",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.starts_with("+++\n"));
     assert!(stdout.contains("title"));
@@ -254,7 +370,11 @@ fn set_preserves_body_bytes() {
         .args(["set", "title", "tests/fixtures/set_basic.md", "Changed"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("\n# Content\n\nBody text here.\n"));
 }
@@ -274,7 +394,13 @@ fn set_empty_key_error() {
 #[test]
 fn set_string_with_delete_error() {
     let out = md()
-        .args(["set", "--delete", "--string", "key", "tests/fixtures/set_basic.md"])
+        .args([
+            "set",
+            "--delete",
+            "--string",
+            "key",
+            "tests/fixtures/set_basic.md",
+        ])
         .output()
         .unwrap();
     assert!(!out.status.success());
@@ -283,7 +409,12 @@ fn set_string_with_delete_error() {
 #[test]
 fn set_malformed_frontmatter_error() {
     let out = md()
-        .args(["set", "title", "tests/fixtures/malformed_frontmatter.md", "New"])
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/malformed_frontmatter.md",
+            "New",
+        ])
         .output()
         .unwrap();
     assert!(!out.status.success());
@@ -295,10 +426,19 @@ fn set_malformed_frontmatter_error() {
 #[test]
 fn set_frontmatter_only_file() {
     let out = md()
-        .args(["set", "title", "tests/fixtures/frontmatter_only.md", "Updated"])
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/frontmatter_only.md",
+            "Updated",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.starts_with("---\n"));
     assert!(stdout.contains("title: Updated"));
@@ -311,7 +451,11 @@ fn set_on_empty_file() {
         .args(["set", "title", &tmp.to_string_lossy(), "Hello"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.starts_with("---\n"));
     assert!(stdout.contains("title: Hello"));
@@ -328,13 +472,21 @@ fn set_multiple_fields_sequentially() {
         .args(["set", "title", &path, "New Title", "-i"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let out = md()
         .args(["set", "status", &path, "published", "-i"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let content = std::fs::read_to_string(&tmp).unwrap();
     assert!(content.contains("title: New Title"));

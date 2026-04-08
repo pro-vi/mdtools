@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::cli::{TasksArgs, SetTaskArgs};
+use crate::cli::{SetTaskArgs, TasksArgs};
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
@@ -39,7 +39,10 @@ fn parse_loc(loc: &str) -> Result<ParsedLoc, CommandError> {
 
 // --- Nearest heading lookup ---
 
-fn find_nearest_heading(blocks: &[crate::parser::BlockInfo], before_index: u32) -> (Option<String>, Option<u32>) {
+fn find_nearest_heading(
+    blocks: &[crate::parser::BlockInfo],
+    before_index: u32,
+) -> (Option<String>, Option<u32>) {
     for block in blocks[..before_index as usize].iter().rev() {
         if let Some(ref h) = block.heading {
             return (Some(h.text.clone()), Some(block.index));
@@ -89,7 +92,10 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
             }
         }
 
-        Ok(TaskFileResult { file: file_str, tasks })
+        Ok(TaskFileResult {
+            file: file_str,
+            tasks,
+        })
     };
 
     if json {
@@ -126,21 +132,31 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
         multifile::for_each_file(&file_set, |file| {
             let fr = collect_fn(file)?;
             for task in &fr.tasks {
-                let heading = output::escape_text_field(task.nearest_heading.as_deref().unwrap_or(""));
+                let heading =
+                    output::escape_text_field(task.nearest_heading.as_deref().unwrap_or(""));
                 let text = output::escape_text_field(&task.summary_text);
                 if multi {
                     println!(
                         "{}:\t{}\t{}\t{}\t{}-{}\t{}\t{}",
-                        fr.file, task.loc, task.status, task.depth,
-                        task.span.line_start, task.span.line_end,
-                        heading, text,
+                        fr.file,
+                        task.loc,
+                        task.status,
+                        task.depth,
+                        task.span.line_start,
+                        task.span.line_end,
+                        heading,
+                        text,
                     );
                 } else {
                     println!(
                         "{}\t{}\t{}\t{}-{}\t{}\t{}",
-                        task.loc, task.status, task.depth,
-                        task.span.line_start, task.span.line_end,
-                        heading, text,
+                        task.loc,
+                        task.status,
+                        task.depth,
+                        task.span.line_start,
+                        task.span.line_end,
+                        heading,
+                        text,
                     );
                 }
             }
@@ -215,7 +231,11 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
         span: task_span,
     });
 
-    let span_after = if changed { Some(task_span) } else { Some(task_span) };
+    let span_after = if changed {
+        Some(task_span)
+    } else {
+        Some(task_span)
+    };
 
     let build_result = |content: Option<String>| MutationResult {
         schema_version: SCHEMA_VERSION.to_string(),

@@ -13,7 +13,12 @@ pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     multifile::for_each_file(&file_set, |file| process_file(file, args, json, multi))
 }
 
-fn process_file(file: &Path, args: &SearchArgs, json: bool, multi: bool) -> Result<(), CommandError> {
+fn process_file(
+    file: &Path,
+    args: &SearchArgs,
+    json: bool,
+    multi: bool,
+) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse(source)?;
     let file_str = file.to_string_lossy();
@@ -77,12 +82,21 @@ fn process_file(file: &Path, args: &SearchArgs, json: bool, multi: bool) -> Resu
             if multi {
                 println!(
                     "{}:\t{}\t{}\t{}-{}\t{}",
-                    file_str, m.block_index, m.block_kind, m.match_span.line_start, m.match_span.line_end, preview
+                    file_str,
+                    m.block_index,
+                    m.block_kind,
+                    m.match_span.line_start,
+                    m.match_span.line_end,
+                    preview
                 );
             } else {
                 println!(
                     "{}\t{}\t{}-{}\t{}",
-                    m.block_index, m.block_kind, m.match_span.line_start, m.match_span.line_end, preview
+                    m.block_index,
+                    m.block_kind,
+                    m.match_span.line_start,
+                    m.match_span.line_end,
+                    preview
                 );
             }
         }
@@ -127,8 +141,14 @@ fn find_matches_in_content(
                 let orig_end = map_lowercase_pos_to_original(content, &haystack, match_end);
 
                 push_match(
-                    &mut results, content, orig_start, orig_end,
-                    block_byte_start, block_line_start, block_index, block_kind,
+                    &mut results,
+                    content,
+                    orig_start,
+                    orig_end,
+                    block_byte_start,
+                    block_line_start,
+                    block_index,
+                    block_kind,
                 );
 
                 // Advance past this match, respecting char boundaries in haystack
@@ -145,8 +165,14 @@ fn find_matches_in_content(
                 let match_end = match_start + query.len();
 
                 push_match(
-                    &mut results, content, match_start, match_end,
-                    block_byte_start, block_line_start, block_index, block_kind,
+                    &mut results,
+                    content,
+                    match_start,
+                    match_end,
+                    block_byte_start,
+                    block_line_start,
+                    block_index,
+                    block_kind,
                 );
 
                 // Advance past this match, respecting char boundaries
@@ -178,7 +204,10 @@ fn push_match(
     let lines_in_match = content[match_start..match_end].matches('\n').count() as u32;
     let match_line_end = match_line_start + lines_in_match;
 
-    let line_start_in_content = content[..match_start].rfind('\n').map(|p| p + 1).unwrap_or(0);
+    let line_start_in_content = content[..match_start]
+        .rfind('\n')
+        .map(|p| p + 1)
+        .unwrap_or(0);
     let line_end_in_content = content[match_end..]
         .find('\n')
         .map(|p| match_end + p)

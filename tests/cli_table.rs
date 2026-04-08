@@ -12,7 +12,11 @@ fn table_list_text() {
         .args(["table", "tests/fixtures/table.md"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("Name, Value"));
     assert!(stdout.contains("2 rows"));
@@ -68,7 +72,14 @@ fn table_read_json() {
 #[test]
 fn table_select_by_name() {
     let out = md()
-        .args(["table", "tests/fixtures/table.md", "--index", "1", "--select", "Name"])
+        .args([
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--select",
+            "Name",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -82,7 +93,14 @@ fn table_select_by_name() {
 #[test]
 fn table_select_by_index() {
     let out = md()
-        .args(["table", "tests/fixtures/table.md", "--index", "1", "--select", "1"])
+        .args([
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--select",
+            "1",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -95,7 +113,14 @@ fn table_select_by_index() {
 #[test]
 fn table_select_reorder() {
     let out = md()
-        .args(["table", "tests/fixtures/table.md", "--index", "1", "--select", "Value,Name"])
+        .args([
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--select",
+            "Value,Name",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -128,12 +153,21 @@ fn table_strips_formatting() {
 #[test]
 fn table_formatted_alignments() {
     let out = md()
-        .args(["table", "tests/fixtures/table_formatted.md", "--index", "1", "--json"])
+        .args([
+            "table",
+            "tests/fixtures/table_formatted.md",
+            "--index",
+            "1",
+            "--json",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(json["alignments"], serde_json::json!(["Left", "Center", "Right"]));
+    assert_eq!(
+        json["alignments"],
+        serde_json::json!(["Left", "Center", "Right"])
+    );
 }
 
 // --- Multiple tables ---
@@ -184,7 +218,14 @@ fn table_select_specific_from_multi() {
 #[test]
 fn table_where_eq() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "1", "--where", "Priority=high"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "1",
+            "--where",
+            "Priority=high",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -198,7 +239,14 @@ fn table_where_eq() {
 #[test]
 fn table_where_neq() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "1", "--where", "Priority!=high"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "1",
+            "--where",
+            "Priority!=high",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -211,7 +259,14 @@ fn table_where_neq() {
 #[test]
 fn table_where_contains() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "3", "--where", "Name~=l"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "3",
+            "--where",
+            "Name~=l",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -225,7 +280,14 @@ fn table_where_contains() {
 #[test]
 fn table_where_no_matches() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "1", "--where", "Priority=critical"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "1",
+            "--where",
+            "Priority=critical",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -237,8 +299,16 @@ fn table_where_no_matches() {
 #[test]
 fn table_where_with_select() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "3",
-               "--select", "Name", "--where", "Name~=o"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "3",
+            "--select",
+            "Name",
+            "--where",
+            "Name~=o",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -251,8 +321,15 @@ fn table_where_with_select() {
 #[test]
 fn table_where_json() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "1",
-               "--where", "Priority=medium", "--json"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "1",
+            "--where",
+            "Priority=medium",
+            "--json",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -265,8 +342,14 @@ fn table_where_json() {
 #[test]
 fn table_where_invalid_column() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "1",
-               "--where", "Nonexistent=val"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "1",
+            "--where",
+            "Nonexistent=val",
+        ])
         .output()
         .unwrap();
     assert!(!out.status.success());
@@ -277,8 +360,14 @@ fn table_where_invalid_column() {
 #[test]
 fn table_where_invalid_syntax() {
     let out = md()
-        .args(["table", "tests/fixtures/table_multi.md", "--index", "1",
-               "--where", "bad filter"])
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--index",
+            "1",
+            "--where",
+            "bad filter",
+        ])
         .output()
         .unwrap();
     assert!(!out.status.success());
@@ -290,8 +379,16 @@ fn table_where_invalid_syntax() {
 fn table_where_multiple_filters() {
     // Multiple --where flags act as AND
     let out = md()
-        .args(["table", "tests/fixtures/table.md", "--index", "1",
-               "--where", "Name=Alpha", "--where", "Value=100"])
+        .args([
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--where",
+            "Name=Alpha",
+            "--where",
+            "Value=100",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -321,10 +418,21 @@ fn table_where_single_table_no_index() {
 fn table_where_value_contains_neq() {
     // "Expr=a!=b" should match the row where Expr column equals "a!=b"
     let out = md()
-        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Expr=a!=b"])
+        .args([
+            "table",
+            "tests/fixtures/table_operators.md",
+            "--index",
+            "1",
+            "--where",
+            "Expr=a!=b",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 2); // header + 1 row
@@ -335,10 +443,21 @@ fn table_where_value_contains_neq() {
 fn table_where_value_contains_tilde_eq() {
     // "Expr=a~=b" should match the row where Expr column equals "a~=b"
     let out = md()
-        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Expr=a~=b"])
+        .args([
+            "table",
+            "tests/fixtures/table_operators.md",
+            "--index",
+            "1",
+            "--where",
+            "Expr=a~=b",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 2);
@@ -349,10 +468,21 @@ fn table_where_value_contains_tilde_eq() {
 fn table_where_contains_value_with_neq() {
     // "Expr~=!=" should find rows where Expr contains "!="
     let out = md()
-        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Expr~=!="])
+        .args([
+            "table",
+            "tests/fixtures/table_operators.md",
+            "--index",
+            "1",
+            "--where",
+            "Expr~=!=",
+        ])
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 2); // header + "a!=b" row
@@ -363,7 +493,14 @@ fn table_where_contains_value_with_neq() {
 fn table_where_neq_value_with_eq() {
     // "Result!=false" should match rows where Result is not "false"
     let out = md()
-        .args(["table", "tests/fixtures/table_operators.md", "--index", "1", "--where", "Result!=false"])
+        .args([
+            "table",
+            "tests/fixtures/table_operators.md",
+            "--index",
+            "1",
+            "--where",
+            "Result!=false",
+        ])
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -412,7 +549,14 @@ fn table_index_out_of_range() {
 #[test]
 fn table_column_not_found() {
     let out = md()
-        .args(["table", "tests/fixtures/table.md", "--index", "1", "--select", "Nonexistent"])
+        .args([
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--select",
+            "Nonexistent",
+        ])
         .output()
         .unwrap();
     assert!(!out.status.success());

@@ -51,11 +51,13 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
             })?;
             Ok(buf)
         }
-        Some(path) => {
-            std::fs::read_to_string(path).map_err(|e| {
-                CommandError::io(format!("cannot read content file '{}': {}", path.display(), e))
-            })
-        }
+        Some(path) => std::fs::read_to_string(path).map_err(|e| {
+            CommandError::io(format!(
+                "cannot read content file '{}': {}",
+                path.display(),
+                e
+            ))
+        }),
         None => {
             let mut buf = String::new();
             io::stdin().read_to_string(&mut buf).map_err(|_| {
@@ -72,8 +74,7 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 pub fn write_json<T: Serialize>(value: &T) -> Result<(), CommandError> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
-    serde_json::to_writer(&mut handle, value)
-        .map_err(|e| CommandError::io(e.to_string()))?;
+    serde_json::to_writer(&mut handle, value).map_err(|e| CommandError::io(e.to_string()))?;
     writeln!(handle).map_err(|e| CommandError::io(e.to_string()))?;
     Ok(())
 }

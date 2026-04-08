@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 use crate::model::{BlockKind, TaskStatus};

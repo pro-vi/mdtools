@@ -131,8 +131,8 @@ fn progress_blocks_kind_distribution() {
     }
     assert_eq!(counts["Heading"], 10);
     assert_eq!(counts["ThematicBreak"], 9);
-    assert_eq!(counts["List"], 7);      // one per phase (0-6)
-    assert_eq!(counts["CodeFence"], 2);  // oracle bash + checkpoint template
+    assert_eq!(counts["List"], 7); // one per phase (0-6)
+    assert_eq!(counts["CodeFence"], 2); // oracle bash + checkpoint template
     assert_eq!(counts["Paragraph"], 16); // metadata paragraphs
 }
 
@@ -180,7 +180,11 @@ fn progress_block_read_thematic_break() {
 
 #[test]
 fn progress_section_phase0() {
-    let json = md_json(&["section", "Phase 0: Schema Compatibility (PROJ-100)", FIXTURE]);
+    let json = md_json(&[
+        "section",
+        "Phase 0: Schema Compatibility (PROJ-100)",
+        FIXTURE,
+    ]);
     assert_eq!(json["section"]["heading"]["level"], 2);
     let content = json["content"].as_str().unwrap();
     assert!(content.contains("**Goal:** Make schema dual-compatible"));
@@ -191,7 +195,11 @@ fn progress_section_phase0() {
 
 #[test]
 fn progress_section_phase0_does_not_bleed() {
-    let json = md_json(&["section", "Phase 0: Schema Compatibility (PROJ-100)", FIXTURE]);
+    let json = md_json(&[
+        "section",
+        "Phase 0: Schema Compatibility (PROJ-100)",
+        FIXTURE,
+    ]);
     let content = json["content"].as_str().unwrap();
     // Should not contain Phase 1 content
     assert!(!content.contains("Phase 1"));
@@ -200,7 +208,11 @@ fn progress_section_phase0_does_not_bleed() {
 
 #[test]
 fn progress_section_last_phase() {
-    let json = md_json(&["section", "Phase 6: Local Model Support (PROJ-106)", FIXTURE]);
+    let json = md_json(&[
+        "section",
+        "Phase 6: Local Model Support (PROJ-106)",
+        FIXTURE,
+    ]);
     let content = json["content"].as_str().unwrap();
     assert!(content.contains("Local inference provider"));
     assert!(content.contains("6.5 End-to-end local flow"));
@@ -323,7 +335,13 @@ fn progress_replace_section_roundtrip() {
 
     let replacement = "## Phase 0: Schema Compatibility (PROJ-100)\n\n**Status:** Complete\n";
     let output = md_stdin(
-        &["replace-section", "Phase 0: Schema Compatibility (PROJ-100)", &path, "-i", "--json"],
+        &[
+            "replace-section",
+            "Phase 0: Schema Compatibility (PROJ-100)",
+            &path,
+            "-i",
+            "--json",
+        ],
         replacement,
     );
     assert!(output.status.success());
@@ -396,10 +414,7 @@ fn progress_replace_code_block() {
 
     // Replace the oracle code block (block 4)
     let new_code = "```bash\ncheck-all && test && build && lint\n```\n";
-    let output = md_stdin(
-        &["replace-block", "4", &path, "-i", "--json"],
-        new_code,
-    );
+    let output = md_stdin(&["replace-block", "4", &path, "-i", "--json"], new_code);
     assert!(output.status.success());
 
     let updated = std::fs::read_to_string(&path).unwrap();
@@ -431,7 +446,11 @@ fn progress_scenario_count_completed_tasks() {
     assert_eq!(phase_headings.len(), 7);
 
     // Check Phase 0: 3 completed, 1 incomplete
-    let phase0 = md_json(&["section", "Phase 0: Schema Compatibility (PROJ-100)", FIXTURE]);
+    let phase0 = md_json(&[
+        "section",
+        "Phase 0: Schema Compatibility (PROJ-100)",
+        FIXTURE,
+    ]);
     let content = phase0["content"].as_str().unwrap();
     let completed = content.matches("[x]").count();
     let incomplete = content.matches("[ ]").count();
@@ -455,7 +474,11 @@ fn progress_scenario_search_incomplete_tasks() {
 #[test]
 fn progress_scenario_extract_oracle() {
     // Phase 1 has a custom oracle: ORACLE_BASE + `DRIVER=b test-cmd run src/lib/db/`
-    let phase1 = md_json(&["section", "Phase 1: DB Driver Abstraction (PROJ-101)", FIXTURE]);
+    let phase1 = md_json(&[
+        "section",
+        "Phase 1: DB Driver Abstraction (PROJ-101)",
+        FIXTURE,
+    ]);
     let content = phase1["content"].as_str().unwrap();
     assert!(content.contains("DRIVER=b test-cmd run src/lib/db/"));
 }

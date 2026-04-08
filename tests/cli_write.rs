@@ -38,10 +38,7 @@ fn replace_block_stdout() {
 #[test]
 fn replace_block_in_place() {
     let tmp = tempfile("# Hello\n\nOriginal.\n");
-    let output = md_with_stdin(
-        &["replace-block", "1", &tmp, "-i"],
-        "New content.",
-    );
+    let output = md_with_stdin(&["replace-block", "1", &tmp, "-i"], "New content.");
     assert!(output.status.success());
     let result = std::fs::read_to_string(&tmp).unwrap();
     assert!(result.contains("New content."));
@@ -144,10 +141,7 @@ fn insert_block_at_start() {
 
 #[test]
 fn insert_block_no_location_flag() {
-    let output = md_with_stdin(
-        &["insert-block", "tests/fixtures/basic.md"],
-        "content",
-    );
+    let output = md_with_stdin(&["insert-block", "tests/fixtures/basic.md"], "content");
     assert_eq!(output.status.code(), Some(3));
 }
 
@@ -201,7 +195,11 @@ fn insert_block_in_place_json() {
 #[test]
 fn insert_block_at_start_after_frontmatter() {
     let output = md_with_stdin(
-        &["insert-block", "--at-start", "tests/fixtures/frontmatter.md"],
+        &[
+            "insert-block",
+            "--at-start",
+            "tests/fixtures/frontmatter.md",
+        ],
         "Inserted after frontmatter.",
     );
     assert!(output.status.success());
