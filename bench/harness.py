@@ -30,9 +30,11 @@ from typing import Literal
 
 try:
     from bench.command_policy import create_restricted_shell_env, load_guard_events
+    from bench.oai_loop import resolve_oai_model, run_oai_loop
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import create_restricted_shell_env, load_guard_events
+    from bench.oai_loop import resolve_oai_model, run_oai_loop
 
 # ── Independent scorer (no md dependency) ─────────────────────
 
@@ -428,6 +430,13 @@ def score_structural_json(
         report.append(f"JSON parse error: {exc}")
         return False, False
 
+    if not isinstance(actual_json, dict) or not isinstance(expected_json, dict):
+        report.append(
+            "json_envelope: MISMATCH expected top-level JSON object "
+            f"(actual={type(actual_json).__name__}, expected={type(expected_json).__name__})"
+        )
+        return False, False
+
     ok_md = True
     ok_neutral = True
 
@@ -655,7 +664,13 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     return results
 
 
-def _build_agent_cmd(agent_cmd: str, mode: BenchMode, md_binary: str, model: str | None = None) -> list[str]:
+def _build_agent_cmd(
+    agent_cmd: str,
+    mode: BenchMode,
+    md_binary: str,
+    model: str | None = None,
+    max_turns: int = 30,
+) -> list[str]:
     """Build the full agent subprocess command with proper flags."""
     parts = agent_cmd.split()
     # If agent is claude (Claude Code), add flags for non-interactive tool use
@@ -667,7 +682,7 @@ def _build_agent_cmd(agent_cmd: str, mode: BenchMode, md_binary: str, model: str
         cmd += ["--tools", "Bash"]
         cmd += ["--allowedTools", "Bash"]
         cmd += ["--dangerously-skip-permissions"]
-        cmd += ["--max-turns", "30"]
+        cmd += ["--max-turns", str(max_turns)]
         cmd += ["--no-session-persistence"]
         cmd += ["--output-format", "json"]
         return cmd
@@ -680,8 +695,14 @@ def run_agent(
     agent_cmd: str,
     md_binary: str,
     model: str | None = None,
+    runner: str = "claude-cli",
     executor: str = "guarded",
     log_dir: str | None = None,
+    max_turns: int = 30,
+    oai_api_base: str | None = None,
+    oai_api_key: str | None = None,
+    oai_request_timeout: int = 60,
+    oai_tool_timeout: int = 30,
 ) -> BenchResult:
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
@@ -728,27 +749,9 @@ def run_agent(
     input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
 
     bytes_prompt = len(prompt.encode())
-    cmd = _build_agent_cmd(agent_cmd, mode, local_md, model)
 
     start = time.time()
-    try:
-        result = subprocess.run(
-            cmd,
-            input=prompt,
-            capture_output=True,
-            text=True,
-            timeout=180,
-            cwd=workdir,
-            env=child_env,
-        )
-        raw_stdout = result.stdout
-        bytes_output = len(raw_stdout.encode())
-    except subprocess.TimeoutExpired:
-        raw_stdout = ""
-        bytes_output = 0
-    elapsed = time.time() - start
-
-    # Parse structured JSON output from claude -p --output-format json
+    raw_stdout = ""
     stdout = ""
     tool_calls = 0
     num_turns = 0
@@ -760,43 +763,89 @@ def run_agent(
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
 
-    try:
-        messages = json.loads(raw_stdout)
+    if runner == "oai-loop":
+        if not oai_api_base:
+            raise RuntimeError("oai-loop runner requires --oai-api-base or BENCH_OAI_API_BASE")
+        if not oai_api_key:
+            raise RuntimeError("oai-loop runner requires --oai-api-key or BENCH_OAI_API_KEY")
+        if not model:
+            raise RuntimeError("oai-loop runner requires a resolved model id")
 
-        for msg in messages:
-            if msg.get("type") == "result":
-                num_turns = msg.get("num_turns", 0)
-                all_text_outputs.append(msg.get("result", ""))
-            elif msg.get("type") == "assistant":
-                content = msg.get("message", {}).get("content", [])
-                for block in content:
-                    if block.get("type") == "tool_use":
-                        tool_calls += 1
-                    if block.get("type") == "text":
-                        all_text_outputs.append(block.get("text", ""))
-            elif msg.get("type") == "user":
-                content = msg.get("message", {}).get("content", [])
-                if isinstance(content, list):
-                    for block in content:
-                        if isinstance(block, dict) and block.get("type") == "tool_result":
-                            result_content = block.get("content", "")
-                            if isinstance(result_content, str):
-                                all_tool_outputs.append(result_content)
-                                bytes_observation += len(result_content.encode())
-                            elif isinstance(result_content, list):
-                                for c in result_content:
-                                    if isinstance(c, dict) and c.get("type") == "text":
-                                        text = c.get("text", "")
-                                        all_tool_outputs.append(text)
-                                        bytes_observation += len(text.encode())
-
-        # Combine all outputs — tool outputs first (likely contain raw JSON),
-        # then text outputs (may contain JSON embedded in prose)
+        trace = run_oai_loop(
+            api_base=oai_api_base,
+            api_key=oai_api_key,
+            model=model,
+            prompt=prompt,
+            workdir=workdir_path,
+            env=child_env,
+            max_turns=max_turns,
+            request_timeout_seconds=oai_request_timeout,
+            tool_timeout_seconds=oai_tool_timeout,
+        )
+        raw_stdout = trace.raw_output
+        bytes_output = trace.bytes_output
+        tool_calls = trace.tool_calls
+        num_turns = trace.turns
+        bytes_observation = trace.bytes_observation
+        all_tool_outputs = trace.tool_outputs
+        all_text_outputs = trace.text_outputs
         stdout = "\n".join(all_tool_outputs + all_text_outputs)
-    except (json.JSONDecodeError, TypeError):
-        # Fallback: treat raw output as text (non-claude agent)
-        stdout = raw_stdout
-        tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+    else:
+        cmd = _build_agent_cmd(agent_cmd, mode, local_md, model, max_turns)
+        try:
+            result = subprocess.run(
+                cmd,
+                input=prompt,
+                capture_output=True,
+                text=True,
+                timeout=180,
+                cwd=workdir,
+                env=child_env,
+            )
+            raw_stdout = result.stdout
+            bytes_output = len(raw_stdout.encode())
+        except subprocess.TimeoutExpired:
+            raw_stdout = ""
+            bytes_output = 0
+
+        try:
+            messages = json.loads(raw_stdout)
+
+            for msg in messages:
+                if msg.get("type") == "result":
+                    num_turns = msg.get("num_turns", 0)
+                    all_text_outputs.append(msg.get("result", ""))
+                elif msg.get("type") == "assistant":
+                    content = msg.get("message", {}).get("content", [])
+                    for block in content:
+                        if block.get("type") == "tool_use":
+                            tool_calls += 1
+                        if block.get("type") == "text":
+                            all_text_outputs.append(block.get("text", ""))
+                elif msg.get("type") == "user":
+                    content = msg.get("message", {}).get("content", [])
+                    if isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "tool_result":
+                                result_content = block.get("content", "")
+                                if isinstance(result_content, str):
+                                    all_tool_outputs.append(result_content)
+                                    bytes_observation += len(result_content.encode())
+                                elif isinstance(result_content, list):
+                                    for c in result_content:
+                                        if isinstance(c, dict) and c.get("type") == "text":
+                                            text = c.get("text", "")
+                                            all_tool_outputs.append(text)
+                                            bytes_observation += len(text.encode())
+
+            # Combine all outputs — tool outputs first (likely contain raw JSON),
+            # then text outputs (may contain JSON embedded in prose)
+            stdout = "\n".join(all_tool_outputs + all_text_outputs)
+        except (json.JSONDecodeError, TypeError):
+            # Fallback: treat raw output as text (non-claude agent)
+            stdout = raw_stdout
+            tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+    elapsed = time.time() - start
 
     if guard_log_path is not None:
         for event in load_guard_events(guard_log_path):
@@ -918,6 +967,13 @@ def extract_last_json(text: str) -> str:
     Prefers arrays over objects (agent often wraps results in an array)."""
     clean = re.sub(r"```(?:json)?\s*\n?", "", text)
 
+    try:
+        parsed = json.loads(clean)
+        if isinstance(parsed, (list, dict)):
+            return clean
+    except json.JSONDecodeError:
+        pass
+
     candidates = []
     for opener, closer in [("[", "]"), ("{", "}")]:
         depth = 0
@@ -976,9 +1032,16 @@ def main():
     parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid"])
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
+    parser.add_argument(
+        "--runner",
+        choices=["claude-cli", "oai-loop"],
+        default="claude-cli",
+        help="Runner backend for agent execution",
+    )
     parser.add_argument("--agent", default="claude -p", help="Agent command")
     parser.add_argument("--model", default=None, help="Model override (e.g., claude-haiku-4-5-20251001)")
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
+    parser.add_argument("--max-turns", type=int, default=30, help="Maximum agent turns per run")
     parser.add_argument(
         "--executor",
         choices=["guarded", "legacy"],
@@ -995,12 +1058,41 @@ def main():
         default="bench/tasks/tasks.json",
         help="Path to the benchmark task corpus JSON file",
     )
+    parser.add_argument(
+        "--oai-api-base",
+        default=os.environ.get("BENCH_OAI_API_BASE") or os.environ.get("OPENAI_BASE_URL"),
+        help="OpenAI-compatible API base URL for oai-loop runs",
+    )
+    parser.add_argument(
+        "--oai-api-key",
+        default=os.environ.get("BENCH_OAI_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+        help="OpenAI-compatible API key for oai-loop runs",
+    )
+    parser.add_argument(
+        "--oai-request-timeout",
+        type=int,
+        default=60,
+        help="HTTP timeout in seconds for each OAI completion request",
+    )
+    parser.add_argument(
+        "--oai-tool-timeout",
+        type=int,
+        default=30,
+        help="Timeout in seconds for each Bash command executed by the oai-loop runner",
+    )
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
 
     tasks = load_tasks(args.tasks_path)
     if args.task:
         tasks = [t for t in tasks if t.id == args.task]
+
+    if args.run and args.runner == "oai-loop":
+        if not args.oai_api_base:
+            parser.error("--runner oai-loop requires --oai-api-base or BENCH_OAI_API_BASE")
+        if not args.oai_api_key:
+            parser.error("--runner oai-loop requires --oai-api-key or BENCH_OAI_API_KEY")
+        args.model = resolve_oai_model(args.oai_api_base, args.oai_api_key, args.model)
 
     if not args.run:
         print("=== DRY RUN: dual scorer validation ===\n")
@@ -1034,8 +1126,14 @@ def main():
                     args.agent,
                     args.md_binary,
                     args.model,
+                    runner=args.runner,
                     executor=args.executor,
                     log_dir=args.log_dir,
+                    max_turns=args.max_turns,
+                    oai_api_base=args.oai_api_base,
+                    oai_api_key=args.oai_api_key,
+                    oai_request_timeout=args.oai_request_timeout,
+                    oai_tool_timeout=args.oai_tool_timeout,
                 )
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"

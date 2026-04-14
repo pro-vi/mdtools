@@ -270,6 +270,12 @@ python bench/harness.py --md-binary target/release/md
 python bench/harness.py --run --mode hybrid --md-binary target/release/md \
   --log-dir /tmp/mdtools-bench-logs
 
+# Local OpenAI-compatible loop runner (for OMLX or similar)
+export BENCH_OAI_API_BASE=http://127.0.0.1:10240/v1
+export BENCH_OAI_API_KEY=your-local-key
+python bench/harness.py --run --runner oai-loop --mode mdtools \
+  --model your-model-id --md-binary target/release/md --task T1
+
 # Reproduce the published 20-task snapshot
 MD=target/release/md
 SNAPSHOT=bench/tasks/tasks_v1.json
