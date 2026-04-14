@@ -1,4 +1,4 @@
-### Per-task results (N=3)
+### Per-task results (N=3, 20-task v1 snapshot)
 
 | Task | hybrid pass | hybrid time | hybrid calls | mdtools pass | mdtools time | mdtools calls | unix pass | unix time | unix calls |
 |------|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -43,9 +43,9 @@
 | Safe-fail | 1 | 100% (n=3) | 100% (n=3) | — |
 | Text manipulation | 2 | 50% (n=6) | 50% (n=6) | 100% (n=3) |
 
-*Generated from N=3 Haiku 4.5 runs on 2026-04-02. Unix mode incomplete — only T1-T5 finished (14/60 runs). T5 run 3/3 timed out. Unix aggregates are over completed runs only.*
+*Generated from N=3 Haiku 4.5 runs on 2026-04-02 against `bench/tasks/tasks_v1.json` (20-task snapshot). Unix mode incomplete — only T1-T5 finished (14/60 runs). T5 run 3/3 timed out. Unix aggregates are over completed runs only.*
 
-## Cross-model matrix (N=1, 20 tasks)
+## Cross-model matrix (N=1, 20-task v1 snapshot)
 
 Separate single runs per model. Not part of the N=3 Haiku dataset above.
 

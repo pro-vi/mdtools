@@ -752,12 +752,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-BenchMode = Literal["unix", "mdtools", "function_calls"]  # [id:bench-mode]
+BenchMode = Literal["unix", "mdtools", "hybrid"]  # [id:bench-mode]
 
-BenchExpectedArtifact = Literal["stdout_text", "file_contents", "json_envelope"]  # [id:bench-expected-artifact]
+BenchExpectedArtifact = Literal["stdout_text", "file_contents", "json_envelope", "stdout_and_file"]  # [id:bench-expected-artifact]
 # stdout_text:    correctness is scored against the agent's final stdout capture.
 # file_contents:  correctness is scored against the on-disk file state after the agent finishes.
 # json_envelope:  correctness is scored against a JSON result parsed from the agent's final stdout.
+# stdout_and_file: correctness requires both stdout text and the final on-disk file state.
 
 ScorerKind = Literal["structural", "normalized_text", "raw_bytes"]  # [id:bench-scorer-kind]
 # structural:       compare using StructuralDiffPolicy fields only (heading tree, block order, etc.).
@@ -784,6 +785,8 @@ class BenchTask:  # [id:bench-task]
     expected_artifact: BenchExpectedArtifact
     difficulty: Literal["basic", "intermediate", "advanced"]
     scorer: StructuralDiffPolicy
+    expected_stdout: str | None = None
+    support_files: list[Path] | None = None
 
 @dataclass
 class ToolInventory:  # [id:bench-tool-inventory]
@@ -791,19 +794,13 @@ class ToolInventory:  # [id:bench-tool-inventory]
     tools: list[str]
 
 @dataclass
-class FunctionToolSpec:  # [id:bench-function-tool-spec]
-    name: str
-    input_schema: dict
-    result_ref: str
-
-@dataclass
 class BenchRunConfig:  # [id:bench-run-config]
     model_id: str
     system_prompt_template: str
     temperature: float
     max_turns: int
+    task_corpus_path: Path
     inventories: list[ToolInventory]
-    function_tools: list[FunctionToolSpec]
 
 @dataclass
 class BenchResult:  # [id:bench-result]
@@ -822,249 +819,14 @@ class BenchResult:  # [id:bench-result]
 Mode inventory contracts:
 
 - `unix` mode inventory is exactly: `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, `tee`, `mv`, `cp`. The agent shell environment supports standard POSIX redirection operators (`>`, `>>`, `<`, `|`) and temp-file creation via `mktemp`. This enables `file_contents` tasks: agents may use `sed` or shell redirection to write modified files in place. [id:bench-unix-inventory]
-- `mdtools` mode inventory is exactly the Phase 1 CLI commands in this spec. [id:bench-mdtools-inventory]
-- `mdtools` mode inventory additionally includes `cat` for raw file reading parity with `unix` mode. [id:bench-mdtools-cat]
-- `function_calls` mode inventory must be semantically aligned to the Phase 1 CLI surface and may not expose stronger document primitives than `mdtools`. [id:bench-function-parity]
-- `function_calls` mode inventory additionally includes `read_file` for raw file reading parity with `unix` mode `cat` and `mdtools` mode `cat`. [id:bench-function-read-file]
-- Function-call `replace_section`, `replace_block`, `insert_block`, and `delete_block` tools write the file atomically and return `MutationResult`; this matches the CLI `--in-place` behavior, not the stdout-emit behavior. [id:bench-function-replace-write]
+- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `replace-block`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
+- `hybrid` mode inventory is the union of `mdtools` and `unix`. It exists to measure whether agents benefit from mixing structural Markdown commands with conventional shell text tools. [id:bench-hybrid-inventory]
 
-Function-call tool schemas:
+Implemented CLI inventory details:
 
-```json
-{
-  "name": "read_file",
-  "inputSchema": {
-    "type": "object",
-    "properties": { "file": { "type": "string" } },
-    "required": ["file"]
-  },
-  "resultRef": "RawFileReadResult"
-}
-``` [id:bench-tool-read-file]
-
-```json
-{
-  "name": "get_outline",
-  "inputSchema": {
-    "type": "object",
-    "properties": { "file": { "type": "string" } },
-    "required": ["file"]
-  },
-  "resultRef": "OutlineResult"
-}
-``` [id:bench-tool-get-outline]
-
-```json
-{
-  "name": "list_blocks",
-  "inputSchema": {
-    "type": "object",
-    "properties": { "file": { "type": "string" } },
-    "required": ["file"]
-  },
-  "resultRef": "BlocksResult"
-}
-``` [id:bench-tool-list-blocks]
-
-```json
-{
-  "name": "get_block",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "index": { "type": "integer", "minimum": 0 }
-    },
-    "required": ["file", "index"]
-  },
-  "resultRef": "BlockReadResult"
-}
-``` [id:bench-tool-get-block]
-
-```json
-{
-  "name": "get_section",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "selector": { "type": "string" },
-      "ignore_case": { "type": "boolean" },
-      "occurrence": { "type": "integer", "minimum": 1 }
-    },
-    "required": ["file", "selector"]
-  },
-  "resultRef": "SectionReadResult"
-}
-``` [id:bench-tool-get-section]
-
-```json
-{
-  "name": "replace_section",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "selector": { "type": "string" },
-      "ignore_case": { "type": "boolean" },
-      "occurrence": { "type": "integer", "minimum": 1 },
-      "content": { "type": "string" }
-    },
-    "required": ["file", "selector", "content"]
-  },
-  "resultRef": "MutationResult"
-}
-``` [id:bench-tool-replace-section]
-
-```json
-{
-  "name": "replace_block",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "index": { "type": "integer", "minimum": 0 },
-      "content": { "type": "string" }
-    },
-    "required": ["file", "index", "content"]
-  },
-  "resultRef": "MutationResult"
-}
-``` [id:bench-tool-replace-block]
-
-```json
-{
-  "name": "insert_block",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "location": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "kind": { "const": "Before" },
-              "index": { "type": "integer", "minimum": 0 }
-            },
-            "required": ["kind", "index"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": { "const": "After" },
-              "index": { "type": "integer", "minimum": 0 }
-            },
-            "required": ["kind", "index"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": { "const": "Start" }
-            },
-            "required": ["kind"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": { "const": "End" }
-            },
-            "required": ["kind"]
-          }
-        ]
-      },
-      "content": { "type": "string" }
-    },
-    "required": ["file", "location", "content"]
-  },
-  "resultRef": "MutationResult"
-}
-``` [id:bench-tool-insert-block]
-
-```json
-{
-  "name": "delete_block",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "index": { "type": "integer", "minimum": 0 }
-    },
-    "required": ["file", "index"]
-  },
-  "resultRef": "MutationResult"
-}
-``` [id:bench-tool-delete-block]
-
-```json
-{
-  "name": "search_content",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "file": { "type": "string" },
-      "query": { "type": "string" },
-      "ignore_case": { "type": "boolean" },
-      "kinds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "Heading",
-            "Paragraph",
-            "List",
-            "BlockQuote",
-            "CodeFence",
-            "IndentedCode",
-            "ThematicBreak",
-            "Table",
-            "HtmlBlock",
-            "FootnoteDefinition"
-          ]
-        }
-      }
-    },
-    "required": ["file", "query"]
-  },
-  "resultRef": "SearchResult"
-}
-``` [id:bench-tool-search-content]
-
-```json
-{
-  "name": "list_links",
-  "inputSchema": {
-    "type": "object",
-    "properties": { "file": { "type": "string" } },
-    "required": ["file"]
-  },
-  "resultRef": "LinksResult"
-}
-``` [id:bench-tool-list-links]
-
-```json
-{
-  "name": "get_frontmatter",
-  "inputSchema": {
-    "type": "object",
-    "properties": { "file": { "type": "string" } },
-    "required": ["file"]
-  },
-  "resultRef": "FrontmatterReadResult"
-}
-``` [id:bench-tool-get-frontmatter]
-
-```json
-{
-  "name": "get_stats",
-  "inputSchema": {
-    "type": "object",
-    "properties": { "file": { "type": "string" } },
-    "required": ["file"]
-  },
-  "resultRef": "StatsResult"
-}
-``` [id:bench-tool-get-stats]
+- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
+- `replace-section`, `delete-section`, `replace-block`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations. In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
+- The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
 
 Benchmark validation rules:
 
@@ -1072,14 +834,15 @@ Benchmark validation rules:
 - Correctness is evaluated by the task-specific `StructuralDiffPolicy`. The `kind` field selects the primary comparison mode: `structural` checks only the enabled structural fields, `normalized_text` additionally compares block-level textual content (catching body-text mutations), and `raw_bytes` requires exact byte equality. Tasks that involve body-text edits (e.g. T4) must use `normalized_text` or `raw_bytes` to prevent false passes from structurally-similar but textually-wrong output. [id:bench-correctness-structural]
 - The structural diff report is a first-class output artifact for every benchmark result. [id:bench-diff-report]
 - Benchmark tasks that require metadata awareness must specify whether frontmatter and link destinations participate in correctness. [id:bench-task-scorer]
-- Every `BenchTask` must declare `expected_artifact` to specify whether the harness scores `stdout_text` (agent's final captured output), `file_contents` (on-disk file state after agent finishes), or `json_envelope` (structured JSON parsed from stdout). The harness compares `expected_output` against exactly the declared artifact. The task's declared `expected_artifact` governs unconditionally — there is no implicit default by task category. [id:bench-task-artifact-rule]
+- Every `BenchTask` must declare `expected_artifact` to specify whether the harness scores `stdout_text` (agent's final captured output), `file_contents` (on-disk file state after agent finishes), `json_envelope` (structured JSON parsed from stdout), or `stdout_and_file` (both stdout text and the final file state). The harness compares `expected_output` against exactly the declared artifact. The task's declared `expected_artifact` governs unconditionally — there is no implicit default by task category. [id:bench-task-artifact-rule]
 
 Benchmark task set validation:
 
-- `T1` extracts an outline from a mixed-heading document and is expressible via `outline` alone; `expected_artifact = "json_envelope"`. All three modes produce an `OutlineResult`-shaped JSON object (CLI via `--json`, function-call natively, unix via agent-constructed JSON). The scorer uses `kind = "structural"` with `compare_heading_tree = true` so evaluation measures structural access parity rather than text-format reconstruction. This ensures function-call mode is not penalized for lacking a raw-text rendering path. [id:bench-task-t1]
+- `T1` extracts an outline from a mixed-heading document and is expressible via `outline` alone; `expected_artifact = "json_envelope"`. All three implemented modes can produce an `OutlineResult`-shaped JSON object (CLI via `--json`, hybrid via the same CLI plus shell tools, unix via agent-constructed JSON). The scorer uses `kind = "structural"` with `compare_heading_tree = true` so evaluation measures structural access parity rather than text-format reconstruction. [id:bench-task-t1]
 - `T2` inserts a new block after the third top-level block and is expressible via `insert-block --after 2`; `expected_artifact = "file_contents"`. Scorer uses `kind = "normalized_text"` with `compare_block_order = true` and `compare_block_text = true`. [id:bench-task-t2]
 - `T3` replaces a duplicate heading-selected section and requires `--occurrence` to avoid a conflict; `expected_artifact = "file_contents"`. Scorer uses `kind = "normalized_text"` with `compare_heading_tree = true` and `compare_block_text = true`. [id:bench-task-t3]
 - `T4` replaces `"method"` with `"approach"` in body text but not in headings or code blocks and requires only the `search`, `block`, and `replace-block` primitives already defined for Phase 1; `expected_artifact = "file_contents"`. Scorer uses `kind = "normalized_text"` with `compare_block_text = true` to catch textually-wrong but structurally-similar output. [id:bench-task-t4]
+- The current default corpus additionally includes metadata and projection coverage tasks: `T21` exercises parsed frontmatter extraction (`compare_frontmatter_json = true`), `T22` exercises link extraction (`compare_link_destinations = true`), `T23` exercises table projection as TSV (`expected_artifact = "stdout_text"`), and `T24` exercises frontmatter mutation via `set`. [id:bench-task-metadata]
 
 ## Test Strategy [id:sec-tests]
 

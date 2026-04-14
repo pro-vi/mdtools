@@ -19,6 +19,8 @@ TASK_FAMILIES = {
     "Content delivery": ["T2", "T3", "T8", "T17"],
     "Safe-fail":        ["T14"],
     "Text manipulation": ["T4", "T6"],
+    "Metadata":         ["T21", "T22", "T24"],
+    "Table projection": ["T23"],
 }
 
 

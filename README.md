@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands functional, 18-task benchmark with cross-model results.
+> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 24 tasks, with published cross-model results on the historical 20-task snapshot.
 
 Structural access to Markdown for LLM agents.
 
@@ -209,13 +209,15 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 ## Benchmark
 
-`bench/` contains an agent benchmark harness (20 tasks) measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
+`bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
+
+The current default corpus is 24 tasks in `bench/tasks/tasks.json`. The published aggregate numbers below were generated on April 2, 2026 against the historical 20-task snapshot preserved in `bench/tasks/tasks_v1.json`.
 
 ### Results
 
 ```mermaid
 xychart-beta
-    title "Pass rate by model and tool mode (20 tasks)"
+    title "Pass rate by model and tool mode (20-task v1 snapshot)"
     x-axis ["Haiku 4.5", "Sonnet 4.6", "Opus 4.6"]
     y-axis "Pass rate %" 40 --> 100
     line [50, 80, 89]
@@ -232,12 +234,13 @@ Opus 4.6        89%     83%    -6pp    Efficiency only
 
 **Tool benefit is inversely proportional to model capability.** Weaker models gain correctness. Stronger models gain speed.
 
-Key findings:
+Key findings from the published 20-task snapshot:
 - **+37pp correctness on Haiku.** Fails 10/20 tasks in unix mode but only 3/20 with hybrid tools. Structural extraction (T1, T5, T9), aggregation (T11), and multi-step workflows (T15) flip from FAIL to PASS.
 - **3-5x faster on Sonnet.** Slight correctness lift (+5pp) plus structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
 - **Hybrid > pure.** Agents perform best when they can choose between `md` for structural operations and `sed` for simple text edits.
+- The current default corpus adds T21-T24 to cover `frontmatter`, `links`, `table`, and `set`. The aggregate tables below have not yet been rerun on that expanded set.
 
-### Task categories
+### Published Snapshot Categories
 
 | Category | Tasks | What they test |
 |----------|-------|---------------|
@@ -254,23 +257,27 @@ Key findings:
 ```sh
 pip install markdown-it-py
 
-# Validate scorers (no agent needed)
+# Local parser/runtime microbenchmarks
+cargo bench --bench core
+
+# Validate the current default corpus scorers (no agent needed)
 python bench/harness.py --md-binary target/release/md
 
-# Reproduce the full cross-model matrix
+# Reproduce the published 20-task snapshot
 MD=target/release/md
+SNAPSHOT=bench/tasks/tasks_v1.json
 for MODE in unix mdtools hybrid; do
-  python bench/harness.py --run --mode $MODE --md-binary $MD \
+  python bench/harness.py --run --mode $MODE --tasks-path $SNAPSHOT --md-binary $MD \
     --model claude-haiku-4-5-20251001 \
     > /tmp/bench_haiku_${MODE}.txt 2>&1
 done
 for MODE in unix hybrid; do
-  python bench/harness.py --run --mode $MODE --md-binary $MD \
+  python bench/harness.py --run --mode $MODE --tasks-path $SNAPSHOT --md-binary $MD \
     > /tmp/bench_opus_${MODE}.txt 2>&1
 done
-python bench/harness.py --run --mode hybrid --md-binary $MD \
+python bench/harness.py --run --mode hybrid --tasks-path $SNAPSHOT --md-binary $MD \
   --model claude-sonnet-4-6 > /tmp/bench_sonnet_hybrid.txt 2>&1
-python bench/harness.py --run --mode unix --md-binary $MD \
+python bench/harness.py --run --mode unix --tasks-path $SNAPSHOT --md-binary $MD \
   --model claude-sonnet-4-6 > /tmp/bench_sonnet_unix.txt 2>&1
 
 # Analyze results

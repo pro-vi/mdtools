@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """mdtools benchmark harness.
 
-Runs T1-T4 tasks in unix and mdtools modes, scores results using
-dual scorers (independent markdown-it-py + md binary), and produces
-a benchmark report with byte-cost metrics.
+Runs the benchmark task corpus in unix, mdtools, and hybrid modes,
+scores results using dual scorers (independent markdown-it-py + md
+binary), and produces a benchmark report with byte-cost metrics.
 
 Usage:
     python bench/harness.py                      # dry run: validate scorer
@@ -151,7 +151,7 @@ MDTOOLS_TOOLS = [
     "md outline", "md blocks", "md block", "md section",
     "md replace-section", "md delete-section", "md replace-block", "md insert-block", "md delete-block",
     "md search", "md links", "md frontmatter", "md stats",
-    "md tasks", "md set-task", "cat", "jq",
+    "md table", "md set", "md tasks", "md set-task", "cat", "jq",
 ]
 
 
@@ -195,6 +195,10 @@ TOOL REFERENCE — md (markdown-aware CLI):
   md links <FILE> [--json]             List all links with kind, destination, source block
   md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
   md stats <FILE> [--json]             Word/heading/block/link/section/line counts
+  md table <FILE> [--json] [--index N] [--select COLS] [--where FILTER]
+                                       List tables or read/project a specific table.
+  md set <KEY> <FILE> <VALUE> [-i] [--json]
+                                       Set a frontmatter field by dot-path. Use --delete to remove a field.
   md tasks <FILE> [--json] [--status pending|done] [-r]
                                        List GFM checkbox task items with loc, status, depth,
                                        nearest heading, and summary text. Loc is a dot-path
@@ -213,6 +217,8 @@ EXAMPLES:
   md insert-block --after 2 doc.md -i --from new.md
   md delete-section "Notes" doc.md -i                 # delete entire section
   md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
+  md table report.md --select Feature,Status         # project table columns as TSV
+  md set release.channel doc.md stable -i            # set YAML/TOML frontmatter field
   md tasks doc.md --status pending --json           # list pending task items
   md set-task 5.1 doc.md -i --status done           # mark task at loc 5.1 as done
 """
@@ -260,6 +266,9 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
     if task.expected_artifact == "json_envelope":
         output_instruction = "Print the result as JSON to stdout."
         completion_instruction = "print the JSON result and stop."
+    elif task.expected_artifact == "stdout_text":
+        output_instruction = "Print the requested text result to stdout."
+        completion_instruction = "print the final text result and stop."
     elif task.expected_artifact == "file_contents":
         output_instruction = f"Modify the file {input_file} in place."
         completion_instruction = "confirm the file has been modified and stop."
@@ -429,6 +438,44 @@ def score_structural_json(
         # For JSON envelope tasks, both scorers agree on the JSON structure
         ok_neutral = ok_md
         report.append(f"heading_tree [neutral]: {'OK' if ok_neutral else 'MISMATCH'}")
+
+    if policy.compare_frontmatter_json:
+        actual_present = actual_json.get("present")
+        expected_present = expected_json.get("present")
+        actual_fm = actual_json.get("frontmatter") or {}
+        expected_fm = expected_json.get("frontmatter") or {}
+        actual_data = _canonicalize_json(actual_fm.get("data"))
+        expected_data = _canonicalize_json(expected_fm.get("data"))
+        actual_format = actual_fm.get("format")
+        expected_format = expected_fm.get("format")
+
+        if (
+            actual_present != expected_present
+            or actual_format != expected_format
+            or actual_data != expected_data
+        ):
+            ok_md = False
+            ok_neutral = False
+            report.append("frontmatter_json: MISMATCH")
+        else:
+            report.append("frontmatter_json: OK")
+
+    if policy.compare_link_destinations:
+        actual_links = [
+            (link.get("kind"), link.get("destination"))
+            for link in actual_json.get("links", [])
+        ]
+        expected_links = [
+            (link.get("kind"), link.get("destination"))
+            for link in expected_json.get("links", [])
+        ]
+
+        if actual_links != expected_links:
+            ok_md = False
+            ok_neutral = False
+            report.append(f"link_destinations: MISMATCH {expected_links} vs {actual_links}")
+        else:
+            report.append("link_destinations: OK")
 
     return ok_md, ok_neutral
 
@@ -685,8 +732,16 @@ def run_agent(
     all_text_outputs: list[str] = []
 
     # Mutation and re-query detection patterns
-    _MUTATION_PATTERNS = ("set-task", "replace-block", "replace-section",
-                          "insert-block", "delete-block", "delete-section")
+    _MUTATION_PATTERNS = (
+        "set-task",
+        "md set ",
+        "./md set ",
+        "replace-block",
+        "replace-section",
+        "insert-block",
+        "delete-block",
+        "delete-section",
+    )
     _QUERY_PATTERNS = ("outline", "blocks", "block ", "tasks", "section",
                         "search", "stats", "links", "frontmatter", "table")
 
@@ -804,6 +859,9 @@ def run_agent(
         if not actual:
             actual = extract_last_json(stdout)
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
+    elif task.expected_artifact == "stdout_text":
+        actual = extract_final_text(all_tool_outputs, all_text_outputs, stdout)
+        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     else:
         actual = stdout
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
@@ -868,6 +926,21 @@ def extract_last_json(text: str) -> str:
     return text
 
 
+def extract_final_text(
+    tool_outputs: list[str],
+    text_outputs: list[str],
+    combined_stdout: str,
+) -> str:
+    """Extract the final text artifact from agent output."""
+    for text_out in reversed(text_outputs):
+        if text_out.strip():
+            return text_out.strip()
+    for tool_out in reversed(tool_outputs):
+        if tool_out.strip():
+            return tool_out.strip()
+    return combined_stdout.strip()
+
+
 # ── CLI ───────────────────────────────────────────────────────
 
 def main():
@@ -879,10 +952,15 @@ def main():
     parser.add_argument("--agent", default="claude -p", help="Agent command")
     parser.add_argument("--model", default=None, help="Model override (e.g., claude-haiku-4-5-20251001)")
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
+    parser.add_argument(
+        "--tasks-path",
+        default="bench/tasks/tasks.json",
+        help="Path to the benchmark task corpus JSON file",
+    )
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
 
-    tasks = load_tasks()
+    tasks = load_tasks(args.tasks_path)
     if args.task:
         tasks = [t for t in tasks if t.id == args.task]
 
