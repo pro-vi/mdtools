@@ -28,6 +28,12 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Literal
 
+try:
+    from bench.command_policy import create_restricted_shell_env, load_guard_events
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from bench.command_policy import create_restricted_shell_env, load_guard_events
+
 # ── Independent scorer (no md dependency) ─────────────────────
 
 from markdown_it import MarkdownIt
@@ -139,6 +145,7 @@ class BenchResult:
     tool_calls: int = 0
     turns: int = 0
     mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
+    policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
     elapsed_seconds: float = 0.0
     diff_report: str = ""
@@ -652,10 +659,12 @@ def _build_agent_cmd(agent_cmd: str, mode: BenchMode, md_binary: str, model: str
     """Build the full agent subprocess command with proper flags."""
     parts = agent_cmd.split()
     # If agent is claude (Claude Code), add flags for non-interactive tool use
-    if parts[0] == "claude":
-        cmd = ["claude", "-p"]
+    if Path(parts[0]).name == "claude":
+        cmd = [parts[0], "-p"]
         if model:
             cmd += ["--model", model]
+        cmd += ["--bare"]
+        cmd += ["--tools", "Bash"]
         cmd += ["--allowedTools", "Bash"]
         cmd += ["--dangerously-skip-permissions"]
         cmd += ["--max-turns", "30"]
@@ -671,9 +680,12 @@ def run_agent(
     agent_cmd: str,
     md_binary: str,
     model: str | None = None,
+    executor: str = "guarded",
+    log_dir: str | None = None,
 ) -> BenchResult:
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
+    workdir_path = Path(workdir)
 
     all_files = list(task.input_files)
     if task.support_files:
@@ -697,6 +709,20 @@ def run_agent(
         local_md = "./md"
     else:
         local_md = "md"
+        md_dest = os.path.join(workdir, "md")
+        shutil.copy2(shutil.which("md") or md_binary, md_dest)
+
+    restricted_env = None
+    child_env = os.environ.copy()
+    guard_log_path: Path | None = None
+    if executor == "guarded":
+        restricted_env = create_restricted_shell_env(
+            workdir_path,
+            mode,
+            Path(md_dest),
+        )
+        child_env = restricted_env.env
+        guard_log_path = restricted_env.guard_log_path
 
     prompt = build_prompt(task, mode, workdir)
     input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
@@ -713,6 +739,7 @@ def run_agent(
             text=True,
             timeout=180,
             cwd=workdir,
+            env=child_env,
         )
         raw_stdout = result.stdout
         bytes_output = len(raw_stdout.encode())
@@ -727,28 +754,14 @@ def run_agent(
     num_turns = 0
     bytes_observation = 0
     mutations = 0
+    policy_violations = 0
     requeried = False
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
-
-    # Mutation and re-query detection patterns
-    _MUTATION_PATTERNS = (
-        "set-task",
-        "md set ",
-        "./md set ",
-        "replace-block",
-        "replace-section",
-        "insert-block",
-        "delete-block",
-        "delete-section",
-    )
-    _QUERY_PATTERNS = ("outline", "blocks", "block ", "tasks", "section",
-                        "search", "stats", "links", "frontmatter", "table")
+    call_sequence: list[str] = []  # "mutation" or "query"
 
     try:
         messages = json.loads(raw_stdout)
-        # Track tool call sequence for re-query detection
-        call_sequence: list[str] = []  # "mutation" or "query"
 
         for msg in messages:
             if msg.get("type") == "result":
@@ -759,12 +772,6 @@ def run_agent(
                 for block in content:
                     if block.get("type") == "tool_use":
                         tool_calls += 1
-                        cmd_str = block.get("input", {}).get("command", "")
-                        if any(p in cmd_str for p in _MUTATION_PATTERNS):
-                            mutations += 1
-                            call_sequence.append("mutation")
-                        elif any(p in cmd_str for p in _QUERY_PATTERNS):
-                            call_sequence.append("query")
                     if block.get("type") == "text":
                         all_text_outputs.append(block.get("text", ""))
             elif msg.get("type") == "user":
@@ -783,15 +790,6 @@ def run_agent(
                                         all_tool_outputs.append(text)
                                         bytes_observation += len(text.encode())
 
-        # Detect re-query: did agent query structure at any point after a mutation?
-        saw_mutation = False
-        for kind in call_sequence:
-            if kind == "mutation":
-                saw_mutation = True
-            elif kind == "query" and saw_mutation:
-                requeried = True
-                break
-
         # Combine all outputs — tool outputs first (likely contain raw JSON),
         # then text outputs (may contain JSON embedded in prose)
         stdout = "\n".join(all_tool_outputs + all_text_outputs)
@@ -799,6 +797,26 @@ def run_agent(
         # Fallback: treat raw output as text (non-claude agent)
         stdout = raw_stdout
         tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+
+    if guard_log_path is not None:
+        for event in load_guard_events(guard_log_path):
+            if event.decision != "allow":
+                policy_violations += 1
+                continue
+            kind = event.kind
+            if kind == "mutation":
+                mutations += 1
+                call_sequence.append("mutation")
+            elif kind == "query":
+                call_sequence.append("query")
+
+    saw_mutation = False
+    for kind in call_sequence:
+        if kind == "mutation":
+            saw_mutation = True
+        elif kind == "query" and saw_mutation:
+            requeried = True
+            break
 
     expected_content = Path(task.expected_output).read_text()
 
@@ -866,6 +884,14 @@ def run_agent(
         actual = stdout
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
 
+    if log_dir:
+        run_log_dir = Path(log_dir) / f"{task.id}_{mode}_{int(start)}"
+        run_log_dir.mkdir(parents=True, exist_ok=True)
+        (run_log_dir / "prompt.txt").write_text(prompt)
+        (run_log_dir / "agent_output.txt").write_text(raw_stdout)
+        if guard_log_path is not None and guard_log_path.exists():
+            shutil.copy2(guard_log_path, run_log_dir / "guard.log")
+
     shutil.rmtree(workdir, ignore_errors=True)
 
     return BenchResult(
@@ -879,6 +905,7 @@ def run_agent(
         tool_calls=tool_calls,
         turns=num_turns,
         mutations=mutations,
+        policy_violations=policy_violations,
         requeried=requeried,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
@@ -953,6 +980,17 @@ def main():
     parser.add_argument("--model", default=None, help="Model override (e.g., claude-haiku-4-5-20251001)")
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
     parser.add_argument(
+        "--executor",
+        choices=["guarded", "legacy"],
+        default="guarded",
+        help="Shell execution mode for agent runs",
+    )
+    parser.add_argument(
+        "--log-dir",
+        default=None,
+        help="Optional directory to persist prompt/output/guard logs for each run",
+    )
+    parser.add_argument(
         "--tasks-path",
         default="bench/tasks/tasks.json",
         help="Path to the benchmark task corpus JSON file",
@@ -990,19 +1028,31 @@ def main():
             for run_i in range(args.N):
                 label = f"{task.id} run {run_i+1}/{args.N}" if args.N > 1 else task.id
                 print(f"  {label}: {task.description}...")
-                result = run_agent(task, mode, args.agent, args.md_binary, args.model)
+                result = run_agent(
+                    task,
+                    mode,
+                    args.agent,
+                    args.md_binary,
+                    args.model,
+                    executor=args.executor,
+                    log_dir=args.log_dir,
+                )
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"
                 ns = "PASS" if result.correct_neutral else "FAIL"
                 rq = "↻" if result.requeried else " "
                 print(f"    md={s} neutral={ns} | {result.elapsed_seconds}s | "
                       f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
-                      f"~{result.tool_calls} calls | {result.mutations} mut {rq}")
+                      f"~{result.tool_calls} calls | {result.mutations} mut | "
+                      f"deny:{result.policy_violations} {rq}")
 
     # Summary
     print("\n=== SUMMARY ===\n")
-    print(f"{'Task':<6} {'Mode':<10} {'Pass':<6} {'Time':>6} {'Calls':>5} {'ObsKB':>6} {'Mut':>4} {'RQ':>3}")
-    print("-" * 50)
+    print(
+        f"{'Task':<6} {'Mode':<10} {'Pass':<6} {'Time':>6} {'Calls':>5} "
+        f"{'ObsKB':>6} {'Mut':>4} {'Deny':>5} {'RQ':>3}"
+    )
+    print("-" * 58)
     for r in all_results:
         obs_kb = r.bytes_observation / 1024
         rq = "↻" if r.requeried else ""
@@ -1012,6 +1062,7 @@ def main():
               f"{r.tool_calls:>5} "
               f"{obs_kb:>5.1f}K "
               f"{r.mutations:>4} "
+              f"{r.policy_violations:>5} "
               f"{rq:>3}")
 
     # Aggregate stats per mode
@@ -1024,9 +1075,11 @@ def main():
             avg_calls = sum(r.tool_calls for r in mode_results) / n
             avg_obs = sum(r.bytes_observation for r in mode_results) / n / 1024
             avg_mut = sum(r.mutations for r in mode_results) / n
+            avg_deny = sum(r.policy_violations for r in mode_results) / n
             rq_rate = sum(1 for r in mode_results if r.requeried) / n
             print(f"\n  {mode}: {pass_rate:.0%} pass | {avg_time:.0f}s | {avg_calls:.1f} calls | "
-                  f"{avg_obs:.0f}KB obs | {avg_mut:.1f} mut | {rq_rate:.0%} requery")
+                  f"{avg_obs:.0f}KB obs | {avg_mut:.1f} mut | {avg_deny:.1f} deny | "
+                  f"{rq_rate:.0%} requery")
 
     if args.json:
         print("\n" + json.dumps([asdict(r) for r in all_results], indent=2))

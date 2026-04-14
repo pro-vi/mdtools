@@ -213,6 +213,8 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 The current default corpus is 24 tasks in `bench/tasks/tasks.json`. The published aggregate numbers below were generated on April 2, 2026 against the historical 20-task snapshot preserved in `bench/tasks/tasks_v1.json`.
 
+Benchmark runs now default to a guarded executor that constrains the Bash tool to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
+
 ### Results
 
 ```mermaid
@@ -262,6 +264,11 @@ cargo bench --bench core
 
 # Validate the current default corpus scorers (no agent needed)
 python bench/harness.py --md-binary target/release/md
+
+# Agent runs default to the guarded executor and emit deny:<N> policy violations.
+# Use --log-dir to keep prompt/output/guard logs for failed or suspicious runs.
+python bench/harness.py --run --mode hybrid --md-binary target/release/md \
+  --log-dir /tmp/mdtools-bench-logs
 
 # Reproduce the published 20-task snapshot
 MD=target/release/md

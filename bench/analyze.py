@@ -56,7 +56,7 @@ def parse_with_task_ids(filepath):
                 continue
             # Result line — new format with obs and mut
             m3 = re.match(
-                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut\s*(↻?)",
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)",
                 line,
             )
             if not m3:
@@ -76,7 +76,8 @@ def parse_with_task_ids(filepath):
                     "pass": m3.group(1) == "PASS",
                     "time": float(m3.group(2)), "bytes": int(m3.group(3)),
                     "obs": int(m3.group(4)), "calls": int(m3.group(5)),
-                    "mut": int(m3.group(6)), "rq": m3.group(7) == "↻",
+                    "mut": int(m3.group(6)), "deny": int(m3.group(7)),
+                    "rq": m3.group(8) == "↻",
                 })
                 pending_task = None
     return results
@@ -159,8 +160,8 @@ def main():
         print(f"\n{'='*70}")
         print("CROSS-MODEL SUMMARY")
         print(f"{'='*70}")
-        print(f"\n{'Model':<30} {'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>6} {'RQ%':>5}")
-        print("-" * 72)
+        print(f"\n{'Model':<30} {'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>6} {'Deny':>6} {'RQ%':>5}")
+        print("-" * 80)
         for model in models:
             for mode in modes:
                 matches = [r for r in all_results if r["mode"] == mode and r["model"] == model]
@@ -170,8 +171,9 @@ def main():
                     avg_t = sum(r["time"] for r in matches) / n
                     avg_c = sum(r["calls"] for r in matches) / n
                     avg_obs = sum(r.get("obs", 0) for r in matches) / n / 1024
+                    avg_deny = sum(r.get("deny", 0) for r in matches) / n
                     rq_pct = sum(1 for r in matches if r.get("rq")) / n * 100
-                    print(f"{model:<30} {mode:<10} {pct:>5.0f}% {avg_t:>5.0f}s {avg_c:>5.1f} {avg_obs:>5.0f}K {rq_pct:>4.0f}%")
+                    print(f"{model:<30} {mode:<10} {pct:>5.0f}% {avg_t:>5.0f}s {avg_c:>5.1f} {avg_obs:>5.0f}K {avg_deny:>5.1f} {rq_pct:>4.0f}%")
 
 
 if __name__ == "__main__":

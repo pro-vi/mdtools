@@ -87,7 +87,7 @@ def parse_text_results(filepath):
             if m2:
                 pending_task = m2.group(1)
             m3 = re.match(
-                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut\s*(↻?)",
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)",
                 line,
             )
             if m3 and pending_task:
@@ -99,7 +99,8 @@ def parse_text_results(filepath):
                     "bytes_observation": int(m3.group(4)),
                     "tool_calls": int(m3.group(5)),
                     "mutations": int(m3.group(6)),
-                    "requeried": m3.group(7) == "↻",
+                    "policy_violations": int(m3.group(7)),
+                    "requeried": m3.group(8) == "↻",
                 })
                 pending_task = None
     return results
@@ -135,6 +136,7 @@ def main():
             "avg_calls": sum(r["tool_calls"] for r in results_list) / n,
             "avg_obs_kb": sum(r.get("bytes_observation", 0) for r in results_list) / n / 1024,
             "avg_mut": sum(r.get("mutations", 0) for r in results_list) / n,
+            "avg_deny": sum(r.get("policy_violations", 0) for r in results_list) / n,
             "rq_rate": sum(1 for r in results_list if r.get("requeried")) / n,
         }
 
@@ -185,20 +187,20 @@ def main():
     print()
     if markdown:
         print("### Aggregate\n")
-        print("| Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Requery% |")
-        print("|------|------:|--------:|---------:|----------:|--------:|")
+        print("| Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Avg Deny | Requery% |")
+        print("|------|------:|--------:|---------:|----------:|---------:|--------:|")
     else:
-        print(f"{'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>7} {'RQ%':>5}")
-        print("-" * 42)
+        print(f"{'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>7} {'Deny':>6} {'RQ%':>5}")
+        print("-" * 50)
 
     for mode in modes:
         mode_results = [r for r in all_results if r.get("mode") == mode]
         a = agg(mode_results)
         if a:
             if markdown:
-                print(f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | {a['rq_rate']:.0%} |")
+                print(f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | {a['avg_deny']:.1f} | {a['rq_rate']:.0%} |")
             else:
-                print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['rq_rate']:>4.0%}")
+                print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['avg_deny']:>5.1f} {a['rq_rate']:>4.0%}")
 
     # By task family — show per-mode sample count alongside pass rate
     print()
