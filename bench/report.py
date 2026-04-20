@@ -3,13 +3,15 @@
 
 Usage:
     python3 bench/report.py /tmp/bench_p5_haiku_*.txt
-    python3 bench/report.py /tmp/bench_p5_haiku_*.txt --markdown
+    python3 bench/report.py bench/runs/search-hybrid-haiku
+    python3 bench/report.py bench/runs/search-hybrid-haiku --markdown
 """
 
 import json
 import re
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 TASK_FAMILIES = {
     "Extraction":       ["T1", "T5", "T9", "T11", "T16", "T19"],
@@ -71,6 +73,83 @@ def parse_json_results(filepath):
     return []
 
 
+def parse_run_metadata(filepath):
+    """Load a persisted run.json metadata object when present."""
+    try:
+        data = json.loads(Path(filepath).read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def load_report_input(path):
+    """Load results plus optional persisted metadata from a file or run bundle."""
+    input_path = Path(path)
+    metadata = None
+    results = []
+
+    if input_path.is_dir():
+        results_path = input_path / "results.json"
+        if not results_path.exists():
+            raise FileNotFoundError(f"{input_path} does not contain results.json")
+        results = parse_json_results(results_path)
+        metadata = parse_run_metadata(input_path / "run.json")
+        source = str(input_path)
+    else:
+        results = parse_json_results(input_path)
+        if not results:
+            results = parse_text_results(input_path)
+        if input_path.name == "results.json":
+            metadata = parse_run_metadata(input_path.with_name("run.json"))
+            source = str(input_path.parent)
+        else:
+            source = str(input_path)
+
+    if metadata:
+        metadata = dict(metadata)
+        metadata["_source"] = source
+    return results, metadata
+
+
+def format_run_context(metadata):
+    """Summarize a persisted run bundle in one line for report headers."""
+    selected = metadata.get("selected_task_ids") or []
+    modes = metadata.get("modes") or []
+    selection = metadata.get("task_ids_path") or "inline selection"
+
+    parts = [
+        str(metadata.get("kind", "unknown")),
+        f"{len(selected)} tasks",
+        f"selection={selection}",
+        f"modes={','.join(modes) if modes else '?'}",
+        f"corpus={metadata.get('tasks_path', '?')}",
+    ]
+
+    if metadata.get("runner"):
+        parts.append(f"runner={metadata['runner']}")
+    if metadata.get("executor"):
+        parts.append(f"executor={metadata['executor']}")
+    if metadata.get("model"):
+        parts.append(f"model={metadata['model']}")
+
+    return f"{metadata.get('_source', '?')}: " + ", ".join(parts)
+
+
+def print_run_context(metadata_list, markdown=False):
+    if not metadata_list:
+        return
+
+    if markdown:
+        print("### Run context\n")
+        for metadata in metadata_list:
+            print(f"- `{format_run_context(metadata)}`")
+    else:
+        print("Run context:")
+        for metadata in metadata_list:
+            print(f"  - {format_run_context(metadata)}")
+    print()
+
+
 def parse_text_results(filepath):
     """Fallback: parse from text output."""
     results = []
@@ -111,15 +190,18 @@ def main():
     markdown = "--markdown" in sys.argv
 
     all_results = []
+    run_metadata = []
     for f in files:
-        results = parse_json_results(f)
-        if not results:
-            results = parse_text_results(f)
+        results, metadata = load_report_input(f)
         all_results.extend(results)
+        if metadata:
+            run_metadata.append(metadata)
 
     if not all_results:
         print("No results found.")
         return
+
+    print_run_context(run_metadata, markdown=markdown)
 
     modes = sorted(set(r.get("mode", "?") for r in all_results))
     tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))

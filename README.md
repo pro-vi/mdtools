@@ -312,7 +312,7 @@ python bench/harness.py --run --mode unix --tasks-path $SNAPSHOT --md-binary $MD
 
 # Analyze results
 python bench/analyze.py /tmp/bench_*.txt
-python bench/report.py bench/runs/search-hybrid-haiku/results.json --markdown
+python bench/report.py bench/runs/search-hybrid-haiku --markdown
 ```
 
 ## License
