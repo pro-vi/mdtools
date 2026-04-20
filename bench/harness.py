@@ -636,6 +636,31 @@ def load_tasks(tasks_path: str = "bench/tasks/tasks.json") -> list[BenchTask]:
     return tasks
 
 
+def load_task_ids(task_ids_path: str) -> list[str]:
+    with open(task_ids_path) as f:
+        raw = json.load(f)
+
+    if not isinstance(raw, list) or not all(isinstance(task_id, str) and task_id for task_id in raw):
+        raise ValueError(f"{task_ids_path} must be a JSON array of non-empty task IDs")
+
+    task_ids: list[str] = []
+    seen: set[str] = set()
+    for task_id in raw:
+        if task_id in seen:
+            raise ValueError(f"duplicate task ID in {task_ids_path}: {task_id}")
+        seen.add(task_id)
+        task_ids.append(task_id)
+    return task_ids
+
+
+def select_tasks(tasks: list[BenchTask], task_ids: list[str]) -> list[BenchTask]:
+    by_id = {task.id: task for task in tasks}
+    missing = [task_id for task_id in task_ids if task_id not in by_id]
+    if missing:
+        raise ValueError(f"unknown task IDs in selection: {', '.join(missing)}")
+    return [by_id[task_id] for task_id in task_ids]
+
+
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     """Validate dual scorer: expected vs itself should pass both paths."""
     results = []
@@ -1059,6 +1084,11 @@ def main():
         help="Path to the benchmark task corpus JSON file",
     )
     parser.add_argument(
+        "--task-ids-path",
+        default=None,
+        help="Optional JSON file containing an ordered task-ID subset from --tasks-path",
+    )
+    parser.add_argument(
         "--oai-api-base",
         default=os.environ.get("BENCH_OAI_API_BASE") or os.environ.get("OPENAI_BASE_URL"),
         help="OpenAI-compatible API base URL for oai-loop runs",
@@ -1084,8 +1114,17 @@ def main():
     args = parser.parse_args()
 
     tasks = load_tasks(args.tasks_path)
+    if args.task_ids_path:
+        try:
+            tasks = select_tasks(tasks, load_task_ids(args.task_ids_path))
+        except ValueError as exc:
+            parser.error(str(exc))
     if args.task:
         tasks = [t for t in tasks if t.id == args.task]
+        if not tasks:
+            parser.error(f"unknown task ID: {args.task}")
+    if not tasks:
+        parser.error("no tasks selected")
 
     if args.run and args.runner == "oai-loop":
         if not args.oai_api_base:

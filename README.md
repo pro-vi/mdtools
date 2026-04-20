@@ -211,7 +211,9 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 `bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
 
-The current default corpus is 24 tasks in `bench/tasks/tasks.json`. The published aggregate numbers below were generated on April 2, 2026 against the historical 20-task snapshot preserved in `bench/tasks/tasks_v1.json`.
+The current default corpus is 24 tasks in `bench/tasks/tasks.json`. To reduce visible-corpus overfitting, that corpus is now partitioned into an 18-task search split in `bench/search/task_ids.json` and a 6-task holdout split in `bench/holdout/task_ids.json`.
+
+The published aggregate numbers below were generated on April 2, 2026 against the historical 20-task snapshot preserved in `bench/tasks/tasks_v1.json`, before the explicit search/holdout split existed.
 
 Benchmark runs now default to a guarded executor that constrains the Bash tool to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
 
@@ -264,6 +266,14 @@ cargo bench --bench core
 
 # Validate the current default corpus scorers (no agent needed)
 python bench/harness.py --md-binary target/release/md
+
+# Search-set runs for iterative optimization on the default 24-task corpus
+python bench/harness.py --run --task-ids-path bench/search/task_ids.json \
+  --md-binary target/release/md
+
+# Holdout validation after accepting a search-set change
+python bench/harness.py --run --task-ids-path bench/holdout/task_ids.json \
+  --md-binary target/release/md
 
 # Agent runs default to the guarded executor and emit deny:<N> policy violations.
 # Use --log-dir to keep prompt/output/guard logs for failed or suspicious runs.
