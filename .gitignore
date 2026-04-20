@@ -21,3 +21,5 @@ bench/results/
 .claude/
 .journal/
 .cocc/
+.inbox/
+.prov/
