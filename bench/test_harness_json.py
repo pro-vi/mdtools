@@ -14,6 +14,11 @@ class HarnessJsonExtractionTests(unittest.TestCase):
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {
+                "type": "system",
+                "subtype": "init",
+                "model": "claude-sonnet-4-6",
+            },
+            {
                 "type": "assistant",
                 "message": {
                     "content": [
@@ -32,6 +37,7 @@ class HarnessJsonExtractionTests(unittest.TestCase):
 
         parsed = parse_agent_output(payload)
 
+        self.assertEqual(parsed.model, "claude-sonnet-4-6")
         self.assertEqual(
             parsed.runner_error,
             "authentication_failed: Not logged in · Please run /login",

@@ -18,6 +18,7 @@ class ReportInputTests(unittest.TestCase):
                 mode="mdtools",
                 correct=True,
                 correct_neutral=True,
+                model="claude-haiku-test",
                 tool_calls=2,
                 elapsed_seconds=1.5,
             )
@@ -31,7 +32,7 @@ class ReportInputTests(unittest.TestCase):
             md_binary="target/debug/md",
             runner="claude-cli",
             executor="guarded",
-            model="claude-haiku-test",
+            model=None,
             runs_per_task=1,
             results=results,
             started_at=0,
@@ -56,6 +57,7 @@ class ReportInputTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("Run context:", completed.stdout)
+        self.assertIn("model=claude-haiku-test", completed.stdout)
         self.assertIn("selection=bench/search/task_ids.json", completed.stdout)
         self.assertIn("T1", completed.stdout)
 

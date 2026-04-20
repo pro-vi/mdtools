@@ -18,6 +18,7 @@ class AnalyzeInputTests(unittest.TestCase):
                 mode="hybrid",
                 correct=True,
                 correct_neutral=True,
+                model="claude-haiku-test",
                 tool_calls=2,
                 elapsed_seconds=1.5,
             )
@@ -31,7 +32,7 @@ class AnalyzeInputTests(unittest.TestCase):
             md_binary="target/debug/md",
             runner="claude-cli",
             executor="guarded",
-            model="claude-haiku-test",
+            model=None,
             runs_per_task=1,
             results=results,
             started_at=0,

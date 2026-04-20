@@ -142,6 +142,7 @@ class BenchResult:
     mode: BenchMode
     correct: bool
     correct_neutral: bool = True  # Independent scorer agreement
+    model: str | None = None
     bytes_prompt: int = 0
     bytes_output: int = 0
     bytes_observation: int = 0   # total tool-result content agent had to read
@@ -158,6 +159,7 @@ class BenchResult:
 @dataclass
 class ParsedAgentOutput:
     stdout: str
+    model: str | None = None
     tool_calls: int = 0
     turns: int = 0
     bytes_observation: int = 0
@@ -728,6 +730,16 @@ def build_run_metadata(
     started_at: float,
     finished_at: float,
 ) -> dict[str, object]:
+    resolved_model = model
+    if resolved_model is None:
+        observed_models = {
+            result.model
+            for result in results
+            if isinstance(result.model, str) and result.model.strip()
+        }
+        if len(observed_models) == 1:
+            resolved_model = next(iter(observed_models))
+
     by_mode: dict[str, dict[str, float | int]] = {}
     for mode in modes:
         mode_results = [result for result in results if result.mode == mode]
@@ -746,7 +758,7 @@ def build_run_metadata(
         "md_binary": md_binary,
         "runner": runner,
         "executor": executor,
-        "model": model,
+        "model": resolved_model,
         "runs_per_task": runs_per_task,
         "aggregates": {
             "overall": aggregate_results(results),
@@ -834,6 +846,15 @@ def _summarize_runner_error(code: str | None, message: str | None) -> str | None
     return clean_code or clean_message
 
 
+def _normalize_runner_model(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    model = value.strip()
+    if not model or model == "<synthetic>":
+        return None
+    return model
+
+
 def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
     """Extract combined stdout, tool stats, and runner failures from agent output."""
     parsed = ParsedAgentOutput(stdout=raw_stdout)
@@ -856,7 +877,9 @@ def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
             continue
 
         msg_type = msg.get("type")
-        if msg_type == "result":
+        if msg_type == "system" and msg.get("subtype") == "init" and parsed.model is None:
+            parsed.model = _normalize_runner_model(msg.get("model"))
+        elif msg_type == "result":
             parsed.turns = msg.get("num_turns", 0)
             result_text = msg.get("result", "")
             if isinstance(result_text, str):
@@ -867,6 +890,8 @@ def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
                 if isinstance(result_text, str) and result_text.strip() and not error_message:
                     error_message = result_text
         elif msg_type == "assistant":
+            if parsed.model is None:
+                parsed.model = _normalize_runner_model(msg.get("message", {}).get("model"))
             if isinstance(msg.get("error"), str) and msg["error"].strip() and not error_code:
                 error_code = msg["error"]
 
@@ -978,6 +1003,7 @@ def run_agent(
     policy_violations = 0
     requeried = False
     runner_error = None
+    resolved_model = model
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
@@ -1002,6 +1028,7 @@ def run_agent(
             tool_timeout_seconds=oai_tool_timeout,
         )
         raw_stdout = trace.raw_output
+        resolved_model = model
         bytes_output = trace.bytes_output
         tool_calls = trace.tool_calls
         num_turns = trace.turns
@@ -1035,6 +1062,7 @@ def run_agent(
         all_tool_outputs = parsed_output.tool_outputs
         all_text_outputs = parsed_output.text_outputs
         runner_error = parsed_output.runner_error
+        resolved_model = model or parsed_output.model
     elapsed = time.time() - start
 
     if guard_log_path is not None:
@@ -1141,6 +1169,7 @@ def run_agent(
         mode=mode,
         correct=ok_md,
         correct_neutral=ok_neutral,
+        model=resolved_model,
         bytes_prompt=bytes_prompt,
         bytes_output=bytes_output,
         bytes_observation=bytes_observation,
