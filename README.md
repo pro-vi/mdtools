@@ -310,8 +310,9 @@ python bench/harness.py --run --mode hybrid --tasks-path $SNAPSHOT --md-binary $
 python bench/harness.py --run --mode unix --tasks-path $SNAPSHOT --md-binary $MD \
   --model claude-sonnet-4-6 > /tmp/bench_sonnet_unix.txt 2>&1
 
-# Analyze results
+# Analyze results from legacy text outputs or durable run bundles
 python bench/analyze.py /tmp/bench_*.txt
+python bench/analyze.py bench/runs/search-hybrid-haiku
 python bench/report.py bench/runs/search-hybrid-haiku --markdown
 ```
 

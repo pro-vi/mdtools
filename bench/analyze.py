@@ -1,9 +1,132 @@
 #!/usr/bin/env python3
-"""Analyze benchmark results from harness output files."""
+"""Analyze benchmark results from harness output files or persisted run bundles."""
 
+import json
 import re
 import sys
 from collections import defaultdict
+from pathlib import Path
+
+
+def parse_json_results(filepath):
+    """Load a persisted results.json array when present."""
+    try:
+        data = json.loads(Path(filepath).read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+    return data if isinstance(data, list) else []
+
+
+def parse_run_metadata(filepath):
+    """Load a persisted run.json metadata object when present."""
+    try:
+        data = json.loads(Path(filepath).read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def normalize_result(result, default_model):
+    """Normalize persisted or text-parsed results into the analysis shape."""
+    if not isinstance(result, dict):
+        return None
+
+    task_id = result.get("task_id") or result.get("task")
+    mode = result.get("mode")
+    if not task_id or not mode:
+        return None
+
+    if "correct" in result:
+        passed = bool(result["correct"])
+    elif "pass" in result:
+        passed = bool(result["pass"])
+    else:
+        return None
+
+    return {
+        "task": task_id,
+        "mode": mode,
+        "model": result.get("model") or default_model,
+        "pass": passed,
+        "time": float(result.get("elapsed_seconds", result.get("time", 0.0))),
+        "bytes": int(result.get("bytes_output", result.get("bytes", 0))),
+        "calls": int(result.get("tool_calls", result.get("calls", 0))),
+        "obs": int(result.get("bytes_observation", result.get("obs", 0))),
+        "mut": int(result.get("mutations", result.get("mut", 0))),
+        "deny": int(result.get("policy_violations", result.get("deny", 0))),
+        "rq": bool(result.get("requeried", result.get("rq", False))),
+    }
+
+
+def load_analysis_input(path):
+    """Load normalized results plus optional run metadata from a file or run bundle."""
+    input_path = Path(path)
+    metadata = None
+
+    if input_path.is_dir():
+        results_path = input_path / "results.json"
+        if not results_path.exists():
+            raise FileNotFoundError(f"{input_path} does not contain results.json")
+        raw_results = parse_json_results(results_path)
+        metadata = parse_run_metadata(input_path / "run.json")
+        source = str(input_path)
+    else:
+        raw_results = parse_json_results(input_path)
+        if not raw_results:
+            raw_results = parse_with_task_ids(input_path)
+        if input_path.name == "results.json":
+            metadata = parse_run_metadata(input_path.with_name("run.json"))
+            source = str(input_path.parent)
+        else:
+            source = str(input_path)
+
+    default_model = "opus"
+    if metadata and metadata.get("model"):
+        default_model = metadata["model"]
+
+    results = []
+    for result in raw_results:
+        normalized = normalize_result(result, default_model)
+        if normalized:
+            results.append(normalized)
+
+    if metadata:
+        metadata = dict(metadata)
+        metadata["_source"] = source
+    return results, metadata
+
+
+def format_run_context(metadata):
+    selected = metadata.get("selected_task_ids") or []
+    modes = metadata.get("modes") or []
+    selection = metadata.get("task_ids_path") or "inline selection"
+
+    parts = [
+        str(metadata.get("kind", "unknown")),
+        f"{len(selected)} tasks",
+        f"selection={selection}",
+        f"modes={','.join(modes) if modes else '?'}",
+        f"corpus={metadata.get('tasks_path', '?')}",
+    ]
+
+    if metadata.get("runner"):
+        parts.append(f"runner={metadata['runner']}")
+    if metadata.get("executor"):
+        parts.append(f"executor={metadata['executor']}")
+    if metadata.get("model"):
+        parts.append(f"model={metadata['model']}")
+
+    return f"{metadata.get('_source', '?')}: " + ", ".join(parts)
+
+
+def print_run_context(metadata_list):
+    if not metadata_list:
+        return
+
+    print("Run context:")
+    for metadata in metadata_list:
+        print(f"  - {format_run_context(metadata)}")
+    print()
 
 def parse_results(filepath):
     """Parse harness output into structured results."""
@@ -86,16 +209,22 @@ def parse_with_task_ids(filepath):
 def main():
     files = sys.argv[1:]
     if not files:
-        print("Usage: python3 bench/analyze.py /tmp/bench_*.txt")
+        print("Usage: python3 bench/analyze.py /tmp/bench_*.txt | bench/runs/<bundle>")
         return
 
     all_results = []
+    run_metadata = []
     for f in files:
-        all_results.extend(parse_with_task_ids(f))
+        results, metadata = load_analysis_input(f)
+        all_results.extend(results)
+        if metadata:
+            run_metadata.append(metadata)
 
     if not all_results:
         print("No results found.")
         return
+
+    print_run_context(run_metadata)
 
     # Group by model
     models = sorted(set(r["model"] for r in all_results))
