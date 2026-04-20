@@ -170,6 +170,44 @@ def format_sample_count_label(results):
     return f"N varies ({unique_counts[0]}-{unique_counts[-1]} per task/mode)"
 
 
+def format_task_label(task_ids):
+    return ", ".join(task_ids)
+
+
+def escape_markdown_cell(value):
+    return str(value).replace("|", "\\|")
+
+
+def collect_runner_errors(results):
+    grouped = defaultdict(lambda: {"count": 0, "tasks": set()})
+    for result in results:
+        error = result.get("runner_error")
+        task_id = result.get("task_id")
+        mode = result.get("mode")
+        if not error or not task_id or not mode:
+            continue
+        entry = grouped[(mode, error)]
+        entry["count"] += 1
+        entry["tasks"].add(task_id)
+
+    def sort_task_id(task_id):
+        if task_id.startswith("T") and task_id[1:].isdigit():
+            return int(task_id[1:])
+        return task_id
+
+    rows = []
+    for (mode, error), entry in sorted(grouped.items()):
+        rows.append(
+            {
+                "mode": mode,
+                "count": entry["count"],
+                "tasks": sorted(entry["tasks"], key=sort_task_id),
+                "error": error,
+            }
+        )
+    return rows
+
+
 def parse_text_results(filepath):
     """Fallback: parse from text output."""
     results = []
@@ -213,7 +251,7 @@ def parse_text_results(filepath):
             if m2:
                 pending_task = m2.group(1)
             m3 = re.match(
-                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)(?: \| err:.*)?$",
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)(?: \| err:(.*))?$",
                 line,
             )
             if m3 and pending_task:
@@ -227,6 +265,7 @@ def parse_text_results(filepath):
                     "mutations": int(m3.group(6)),
                     "policy_violations": int(m3.group(7)),
                     "requeried": m3.group(8) == "↻",
+                    "runner_error": m3.group(9).strip() if m3.group(9) else None,
                 })
                 pending_task = None
     return results
@@ -332,6 +371,23 @@ def main():
                 print(f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | {a['avg_deny']:.1f} | {a['rq_rate']:.0%} |")
             else:
                 print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['avg_deny']:>5.1f} {a['rq_rate']:>4.0%}")
+
+    runner_errors = collect_runner_errors(all_results)
+    if runner_errors:
+        print()
+        if markdown:
+            print("### Runner errors\n")
+            print("| Mode | Count | Tasks | Error |")
+            print("|------|------:|-------|-------|")
+            for row in runner_errors:
+                tasks_label = escape_markdown_cell(format_task_label(row["tasks"]))
+                error_label = escape_markdown_cell(row["error"])
+                print(f"| {escape_markdown_cell(row['mode'])} | {row['count']} | {tasks_label} | {error_label} |")
+        else:
+            print("Runner errors:")
+            for row in runner_errors:
+                tasks_label = format_task_label(row["tasks"])
+                print(f"  - {row['mode']} x{row['count']} [{tasks_label}]: {row['error']}")
 
     # By task family — show per-mode sample count alongside pass rate
     print()
