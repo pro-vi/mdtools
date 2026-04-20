@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import tempfile
@@ -107,6 +108,47 @@ class AnalyzeInputTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("MODEL: unspecified", completed.stdout)
         self.assertNotIn("MODEL: opus", completed.stdout)
+
+    def test_analyze_accepts_dry_run_text_output(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        dry_run_output = """=== DRY RUN: dual scorer validation ===
+
+  T1: md=PASS neutral=PASS
+    heading_tree [md]: OK
+    heading_tree [neutral]: OK
+  T2: md=PASS neutral=FAIL ⚠ DIVERGENCE
+    heading_tree [md]: OK
+    heading_tree [neutral]: FAIL
+
+SCORER ISSUES DETECTED.
+"""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="bench_analyze_dry_run_",
+            suffix=".txt",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(dry_run_output)
+
+        try:
+            completed = subprocess.run(
+                [sys.executable, "bench/analyze.py", str(tmp_path)],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("MODEL: unspecified", completed.stdout)
+        self.assertNotIn("No results found.", completed.stdout)
+        self.assertNotIn("MODEL: opus", completed.stdout)
+        self.assertRegex(completed.stdout, re.compile(r"^T2\s+—\s+—\s+—\s+0%\s+0s\s+0\.0", re.MULTILINE))
 
 
 if __name__ == "__main__":

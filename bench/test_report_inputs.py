@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import tempfile
@@ -60,6 +61,48 @@ class ReportInputTests(unittest.TestCase):
         self.assertIn("model=claude-haiku-test", completed.stdout)
         self.assertIn("selection=bench/search/task_ids.json", completed.stdout)
         self.assertIn("T1", completed.stdout)
+
+    def test_report_accepts_dry_run_text_output(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        dry_run_output = """=== DRY RUN: dual scorer validation ===
+
+  T1: md=PASS neutral=PASS
+    heading_tree [md]: OK
+    heading_tree [neutral]: OK
+  T2: md=FAIL neutral=FAIL
+    heading_tree [md]: FAIL
+    heading_tree [neutral]: FAIL
+
+SCORER ISSUES DETECTED.
+"""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="bench_report_dry_run_",
+            suffix=".txt",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(dry_run_output)
+
+        try:
+            completed = subprocess.run(
+                [sys.executable, "bench/report.py", str(tmp_path)],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn("No results found.", completed.stdout)
+        self.assertIn("mdtools", completed.stdout)
+        self.assertIn("T1", completed.stdout)
+        self.assertIn("T2", completed.stdout)
+        self.assertRegex(completed.stdout, re.compile(r"^T2\s+0%\s+0s\s+0\.0", re.MULTILINE))
 
 
 if __name__ == "__main__":

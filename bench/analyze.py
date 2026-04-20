@@ -133,13 +133,37 @@ def parse_results(filepath):
     results = []
     mode = None
     model = None
+    in_dry_run = False
     with open(filepath) as f:
         for line in f:
+            if line.startswith("=== DRY RUN:"):
+                mode = "mdtools"
+                model = "unspecified"
+                in_dry_run = True
+                continue
             # === MODE: hybrid (N=1, model=claude-haiku-4-5-20251001) ===
             m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
-                model = m.group(3) or "opus"
+                model = m.group(3) or "unspecified"
+                in_dry_run = False
+                continue
+            if in_dry_run:
+                m = re.match(r"\s+(T\d+): md=(PASS|FAIL) neutral=(PASS|FAIL)(?: .*)?$", line)
+                if m:
+                    results.append({
+                        "task": m.group(1),
+                        "mode": mode,
+                        "model": model,
+                        "pass": m.group(2) == "PASS" and m.group(3) == "PASS",
+                        "time": 0.0,
+                        "bytes": 0,
+                        "calls": 0,
+                        "obs": 0,
+                        "mut": 0,
+                        "deny": 0,
+                        "rq": False,
+                    })
                 continue
             # md=PASS neutral=PASS | 24.82s | ~18292B out | ~1 calls
             m = re.match(r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| ~(\d+) calls", line)
@@ -165,12 +189,38 @@ def parse_with_task_ids(filepath):
     mode = None
     model = None
     pending_task = None
+    in_dry_run = False
     with open(filepath) as f:
         for line in f:
+            if line.startswith("=== DRY RUN:"):
+                mode = "mdtools"
+                model = "unspecified"
+                pending_task = None
+                in_dry_run = True
+                continue
             m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
-                model = m.group(3) or "opus"
+                model = m.group(3) or "unspecified"
+                pending_task = None
+                in_dry_run = False
+                continue
+            if in_dry_run:
+                m = re.match(r"\s+(T\d+): md=(PASS|FAIL) neutral=(PASS|FAIL)(?: .*)?$", line)
+                if m:
+                    results.append({
+                        "task": m.group(1),
+                        "mode": mode,
+                        "model": model,
+                        "pass": m.group(2) == "PASS" and m.group(3) == "PASS",
+                        "time": 0.0,
+                        "bytes": 0,
+                        "calls": 0,
+                        "obs": 0,
+                        "mut": 0,
+                        "deny": 0,
+                        "rq": False,
+                    })
                 continue
             # Task line: "  T1: ..." or "  T1 run 1/3: ..."
             m2 = re.match(r"\s+(T\d+)(?:\s+run \d+/\d+)?: ", line)

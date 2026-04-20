@@ -156,12 +156,39 @@ def parse_text_results(filepath):
     mode = None
     model = None
     pending_task = None
+    in_dry_run = False
     with open(filepath) as f:
         for line in f:
+            if line.startswith("=== DRY RUN:"):
+                mode = "mdtools"
+                model = "unspecified"
+                pending_task = None
+                in_dry_run = True
+                continue
             m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
-                model = m.group(3) or "opus"
+                model = m.group(3) or "unspecified"
+                pending_task = None
+                in_dry_run = False
+                continue
+            if in_dry_run:
+                m = re.match(r"\s+(T\d+): md=(PASS|FAIL) neutral=(PASS|FAIL)(?: .*)?$", line)
+                if m:
+                    results.append({
+                        "task_id": m.group(1),
+                        "mode": mode,
+                        "model": model,
+                        "correct": m.group(2) == "PASS" and m.group(3) == "PASS",
+                        "elapsed_seconds": 0.0,
+                        "bytes_output": 0,
+                        "bytes_observation": 0,
+                        "tool_calls": 0,
+                        "mutations": 0,
+                        "policy_violations": 0,
+                        "requeried": False,
+                    })
+                continue
             m2 = re.match(r"\s+(T\d+)(?:\s+run \d+/\d+)?:", line)
             if m2:
                 pending_task = m2.group(1)
