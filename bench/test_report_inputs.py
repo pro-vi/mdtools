@@ -61,6 +61,55 @@ class ReportInputTests(unittest.TestCase):
         self.assertIn("model=claude-haiku-test", completed.stdout)
         self.assertIn("selection=bench/search/task_ids.json", completed.stdout)
         self.assertIn("T1", completed.stdout)
+        self.assertIn("Per-task sample count: N=1 per task/mode", completed.stdout)
+
+    def test_report_markdown_uses_real_sample_count(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="mdtools",
+                correct=True,
+                correct_neutral=True,
+                tool_calls=2,
+                elapsed_seconds=1.5,
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="dry-run",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["mdtools"],
+            md_binary="target/debug/md",
+            runner=None,
+            executor=None,
+            model=None,
+            runs_per_task=1,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_report_markdown_n1_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/report.py", tmpdir, "--markdown"],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("### Per-task results (N=1 per task/mode)", completed.stdout)
+        self.assertNotIn("N=3", completed.stdout)
 
     def test_report_accepts_dry_run_text_output(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent

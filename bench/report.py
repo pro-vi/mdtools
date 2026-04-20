@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a benchmark report from N=3 harness JSON output files.
+"""Generate a benchmark report from harness outputs or persisted run bundles.
 
 Usage:
     python3 bench/report.py /tmp/bench_p5_haiku_*.txt
@@ -150,6 +150,26 @@ def print_run_context(metadata_list, markdown=False):
     print()
 
 
+def format_sample_count_label(results):
+    """Describe how many samples contributed to each task/mode cell."""
+    counts = {}
+    for result in results:
+        task_id = result.get("task_id")
+        mode = result.get("mode")
+        if not task_id or not mode:
+            continue
+        counts[(task_id, mode)] = counts.get((task_id, mode), 0) + 1
+
+    if not counts:
+        return "N=? per task/mode"
+
+    unique_counts = sorted(set(counts.values()))
+    if len(unique_counts) == 1:
+        return f"N={unique_counts[0]} per task/mode"
+
+    return f"N varies ({unique_counts[0]}-{unique_counts[-1]} per task/mode)"
+
+
 def parse_text_results(filepath):
     """Fallback: parse from text output."""
     results = []
@@ -229,6 +249,7 @@ def main():
         return
 
     print_run_context(run_metadata, markdown=markdown)
+    sample_count_label = format_sample_count_label(all_results)
 
     modes = sorted(set(r.get("mode", "?") for r in all_results))
     tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))
@@ -251,7 +272,7 @@ def main():
 
     if markdown:
         # Markdown table output
-        print("### Per-task results (N=3)\n")
+        print(f"### Per-task results ({sample_count_label})\n")
         print(f"| Task |", end="")
         for mode in modes:
             print(f" {mode} pass | {mode} time | {mode} calls |", end="")
@@ -261,6 +282,7 @@ def main():
             print(f"---:|---:|---:|", end="")
         print()
     else:
+        print(f"Per-task sample count: {sample_count_label}\n")
         print(f"\n{'Task':<6}", end="")
         for mode in modes:
             print(f"  {mode:^18}", end="")
