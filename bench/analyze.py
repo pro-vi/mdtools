@@ -55,6 +55,7 @@ def normalize_result(result, default_model):
         "mut": int(result.get("mutations", result.get("mut", 0))),
         "deny": int(result.get("policy_violations", result.get("deny", 0))),
         "rq": bool(result.get("requeried", result.get("rq", False))),
+        "runner_error": result.get("runner_error"),
     }
 
 
@@ -127,6 +128,31 @@ def print_run_context(metadata_list):
     for metadata in metadata_list:
         print(f"  - {format_run_context(metadata)}")
     print()
+
+
+def collect_runner_errors(results):
+    grouped = defaultdict(lambda: {"count": 0, "tasks": set()})
+    for result in results:
+        error = result.get("runner_error")
+        task = result.get("task")
+        mode = result.get("mode")
+        if not error or not task or not mode:
+            continue
+        entry = grouped[(mode, error)]
+        entry["count"] += 1
+        entry["tasks"].add(task)
+
+    rows = []
+    for (mode, error), entry in sorted(grouped.items()):
+        rows.append(
+            {
+                "mode": mode,
+                "count": entry["count"],
+                "tasks": sorted(entry["tasks"], key=lambda task_id: int(task_id[1:])),
+                "error": error,
+            }
+        )
+    return rows
 
 def parse_results(filepath):
     """Parse harness output into structured results."""
@@ -229,7 +255,7 @@ def parse_with_task_ids(filepath):
                 continue
             # Result line — new format with obs and mut
             m3 = re.match(
-                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)(?: \| err:.*)?$",
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)(?: \| err:(.*))?$",
                 line,
             )
             if not m3:
@@ -251,6 +277,7 @@ def parse_with_task_ids(filepath):
                     "obs": int(m3.group(4)), "calls": int(m3.group(5)),
                     "mut": int(m3.group(6)), "deny": int(m3.group(7)),
                     "rq": m3.group(8) == "↻",
+                    "runner_error": m3.group(9).strip() if m3.group(9) else None,
                 })
                 pending_task = None
     return results
@@ -333,6 +360,13 @@ def main():
             else:
                 print(f"  {'—':>5} {'—':>6} {'—':>5}", end="")
         print()
+
+        runner_errors = collect_runner_errors([r for r in all_results if r["model"] == model])
+        if runner_errors:
+            print("\nRunner errors:")
+            for row in runner_errors:
+                tasks_label = ", ".join(row["tasks"])
+                print(f"  - {row['mode']} x{row['count']} [{tasks_label}]: {row['error']}")
 
     # Cross-model comparison
     if len(models) > 1:
