@@ -61,6 +61,53 @@ class AnalyzeInputTests(unittest.TestCase):
         self.assertIn("MODEL: claude-haiku-test", completed.stdout)
         self.assertIn("T1", completed.stdout)
 
+    def test_analyze_labels_unresolved_persisted_models_as_unspecified(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="mdtools",
+                correct=True,
+                correct_neutral=True,
+                elapsed_seconds=0.0,
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="dry-run",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path="bench/search/task_ids.json",
+            selected_task_ids=["T1"],
+            modes=["mdtools"],
+            md_binary="target/debug/md",
+            runner=None,
+            executor=None,
+            model=None,
+            runs_per_task=1,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_analyze_unspecified_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/analyze.py", tmpdir],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("MODEL: unspecified", completed.stdout)
+        self.assertNotIn("MODEL: opus", completed.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
