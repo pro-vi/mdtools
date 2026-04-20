@@ -166,7 +166,7 @@ def parse_text_results(filepath):
             if m2:
                 pending_task = m2.group(1)
             m3 = re.match(
-                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)",
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)(?: \| err:.*)?$",
                 line,
             )
             if m3 and pending_task:

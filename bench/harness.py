@@ -24,7 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -152,6 +152,18 @@ class BenchResult:
     requeried: bool = False      # did agent re-read structure after a mutation?
     elapsed_seconds: float = 0.0
     diff_report: str = ""
+    runner_error: str | None = None
+
+
+@dataclass
+class ParsedAgentOutput:
+    stdout: str
+    tool_calls: int = 0
+    turns: int = 0
+    bytes_observation: int = 0
+    tool_outputs: list[str] = field(default_factory=list)
+    text_outputs: list[str] = field(default_factory=list)
+    runner_error: str | None = None
 
 
 # ── Tool inventories ──────────────────────────────────────────
@@ -810,6 +822,91 @@ def _build_agent_cmd(
     return parts
 
 
+def _summarize_runner_error(code: str | None, message: str | None) -> str | None:
+    clean_code = code.strip() if isinstance(code, str) and code.strip() else None
+    clean_message = None
+    if isinstance(message, str):
+        collapsed = " ".join(message.split())
+        clean_message = collapsed if collapsed else None
+
+    if clean_code and clean_message:
+        return f"{clean_code}: {clean_message}"
+    return clean_code or clean_message
+
+
+def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
+    """Extract combined stdout, tool stats, and runner failures from agent output."""
+    parsed = ParsedAgentOutput(stdout=raw_stdout)
+
+    try:
+        messages = json.loads(raw_stdout)
+    except (json.JSONDecodeError, TypeError):
+        parsed.tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+        return parsed
+
+    if not isinstance(messages, list):
+        parsed.tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+        return parsed
+
+    error_code: str | None = None
+    error_message: str | None = None
+
+    for msg in messages:
+        if not isinstance(msg, dict):
+            continue
+
+        msg_type = msg.get("type")
+        if msg_type == "result":
+            parsed.turns = msg.get("num_turns", 0)
+            result_text = msg.get("result", "")
+            if isinstance(result_text, str):
+                parsed.text_outputs.append(result_text)
+            if msg.get("is_error"):
+                if isinstance(msg.get("api_error_status"), str) and not error_code:
+                    error_code = msg["api_error_status"]
+                if isinstance(result_text, str) and result_text.strip() and not error_message:
+                    error_message = result_text
+        elif msg_type == "assistant":
+            if isinstance(msg.get("error"), str) and msg["error"].strip() and not error_code:
+                error_code = msg["error"]
+
+            content = msg.get("message", {}).get("content", [])
+            if isinstance(content, list):
+                text_blocks: list[str] = []
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "tool_use":
+                        parsed.tool_calls += 1
+                    if block.get("type") == "text":
+                        text = block.get("text", "")
+                        parsed.text_outputs.append(text)
+                        text_blocks.append(text)
+                if text_blocks and msg.get("error") and not error_message:
+                    error_message = "\n".join(text_blocks)
+        elif msg_type == "user":
+            content = msg.get("message", {}).get("content", [])
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict) or block.get("type") != "tool_result":
+                        continue
+                    result_content = block.get("content", "")
+                    if isinstance(result_content, str):
+                        parsed.tool_outputs.append(result_content)
+                        parsed.bytes_observation += len(result_content.encode())
+                    elif isinstance(result_content, list):
+                        for item in result_content:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                text = item.get("text", "")
+                                parsed.tool_outputs.append(text)
+                                parsed.bytes_observation += len(text.encode())
+
+    combined = parsed.tool_outputs + parsed.text_outputs
+    parsed.stdout = "\n".join(combined) if combined else raw_stdout
+    parsed.runner_error = _summarize_runner_error(error_code, error_message)
+    return parsed
+
+
 def run_agent(
     task: BenchTask,
     mode: BenchMode,
@@ -880,6 +977,7 @@ def run_agent(
     mutations = 0
     policy_violations = 0
     requeried = False
+    runner_error = None
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
@@ -929,43 +1027,14 @@ def run_agent(
             raw_stdout = ""
             bytes_output = 0
 
-        try:
-            messages = json.loads(raw_stdout)
-
-            for msg in messages:
-                if msg.get("type") == "result":
-                    num_turns = msg.get("num_turns", 0)
-                    all_text_outputs.append(msg.get("result", ""))
-                elif msg.get("type") == "assistant":
-                    content = msg.get("message", {}).get("content", [])
-                    for block in content:
-                        if block.get("type") == "tool_use":
-                            tool_calls += 1
-                        if block.get("type") == "text":
-                            all_text_outputs.append(block.get("text", ""))
-                elif msg.get("type") == "user":
-                    content = msg.get("message", {}).get("content", [])
-                    if isinstance(content, list):
-                        for block in content:
-                            if isinstance(block, dict) and block.get("type") == "tool_result":
-                                result_content = block.get("content", "")
-                                if isinstance(result_content, str):
-                                    all_tool_outputs.append(result_content)
-                                    bytes_observation += len(result_content.encode())
-                                elif isinstance(result_content, list):
-                                    for c in result_content:
-                                        if isinstance(c, dict) and c.get("type") == "text":
-                                            text = c.get("text", "")
-                                            all_tool_outputs.append(text)
-                                            bytes_observation += len(text.encode())
-
-            # Combine all outputs — tool outputs first (likely contain raw JSON),
-            # then text outputs (may contain JSON embedded in prose)
-            stdout = "\n".join(all_tool_outputs + all_text_outputs)
-        except (json.JSONDecodeError, TypeError):
-            # Fallback: treat raw output as text (non-claude agent)
-            stdout = raw_stdout
-            tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+        parsed_output = parse_agent_output(raw_stdout)
+        stdout = parsed_output.stdout
+        tool_calls = parsed_output.tool_calls
+        num_turns = parsed_output.turns
+        bytes_observation = parsed_output.bytes_observation
+        all_tool_outputs = parsed_output.tool_outputs
+        all_text_outputs = parsed_output.text_outputs
+        runner_error = parsed_output.runner_error
     elapsed = time.time() - start
 
     if guard_log_path is not None:
@@ -1054,6 +1123,9 @@ def run_agent(
         actual = stdout
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
 
+    if runner_error and (not ok_md or not ok_neutral):
+        report = f"runner_error: {runner_error}\n{report}" if report else f"runner_error: {runner_error}"
+
     if log_dir:
         run_log_dir = Path(log_dir) / f"{task.id}_{mode}_{int(start)}"
         run_log_dir.mkdir(parents=True, exist_ok=True)
@@ -1079,6 +1151,7 @@ def run_agent(
         requeried=requeried,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
+        runner_error=runner_error,
     )
 
 
@@ -1307,10 +1380,11 @@ def main():
                 s = "PASS" if result.correct else "FAIL"
                 ns = "PASS" if result.correct_neutral else "FAIL"
                 rq = "↻" if result.requeried else " "
+                err = f" | err:{result.runner_error}" if result.runner_error else ""
                 print(f"    md={s} neutral={ns} | {result.elapsed_seconds}s | "
                       f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
                       f"~{result.tool_calls} calls | {result.mutations} mut | "
-                      f"deny:{result.policy_violations} {rq}")
+                      f"deny:{result.policy_violations} {rq}{err}")
 
     # Summary
     print("\n=== SUMMARY ===\n")

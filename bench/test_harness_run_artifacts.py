@@ -12,7 +12,15 @@ class HarnessRunArtifactTests(unittest.TestCase):
     def test_write_run_artifacts_persists_metadata_results_and_task_ids(self) -> None:
         results = [
             BenchResult(task_id="T2", mode="hybrid", correct=True, correct_neutral=True, tool_calls=3, elapsed_seconds=1.25),
-            BenchResult(task_id="T1", mode="hybrid", correct=False, correct_neutral=True, policy_violations=1, requeried=True),
+            BenchResult(
+                task_id="T1",
+                mode="hybrid",
+                correct=False,
+                correct_neutral=True,
+                policy_violations=1,
+                requeried=True,
+                runner_error="authentication_failed: Not logged in · Please run /login",
+            ),
         ]
         metadata = build_run_metadata(
             run_kind="agent-track",
@@ -51,6 +59,10 @@ class HarnessRunArtifactTests(unittest.TestCase):
 
         self.assertEqual([item["task_id"] for item in result_data], ["T2", "T1"])
         self.assertEqual(result_data[1]["policy_violations"], 1)
+        self.assertEqual(
+            result_data[1]["runner_error"],
+            "authentication_failed: Not logged in · Please run /login",
+        )
         self.assertEqual(task_id_data, ["T2", "T1"])
 
 
