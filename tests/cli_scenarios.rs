@@ -133,6 +133,11 @@ fn scenario_selective_word_replacement() {
 
     // Code blocks should be untouched
     let code_search = md_json(&["search", "method", &tmp, "--kind", "code-fence"]);
+    assert_eq!(
+        code_search["matches"].as_array().unwrap().len(),
+        0,
+        "the fixture does not contain code-fence matches for 'method'"
+    );
     // There's no "method" in the code block of this fixture, but verify code is intact
     let blocks = md_json(&["blocks", &tmp]);
     let code_blocks: Vec<_> = blocks["blocks"]
@@ -422,7 +427,7 @@ fn scenario_multi_step_surgery() {
         .iter()
         .find(|b| b["kind"] == "Heading" && b["preview"].as_str().unwrap().contains("Old Section"))
         .expect("should find Old Section heading");
-    let old_idx = old_section_block["index"].as_u64().unwrap();
+    assert!(old_section_block["index"].as_u64().is_some());
 
     // Delete the section by replacing it with empty
     let output = md_stdin(&["replace-section", "Old Section", &tmp, "-i"], "");
@@ -468,6 +473,13 @@ fn scenario_multi_step_surgery() {
     assert!(final_headings.contains(&"New Section"));
     assert!(final_headings.contains(&"Keep Section"));
     assert!(final_headings.contains(&"Update Section"));
+
+    let final_blocks = md_json(&["blocks", &tmp]);
+    assert_eq!(
+        final_blocks["blocks"].as_array().unwrap().len(),
+        initial_count,
+        "replacing one section, deleting one section, and inserting one section should keep block count stable"
+    );
 
     // Verify content integrity
     let final_doc = std::fs::read_to_string(&tmp).unwrap();
