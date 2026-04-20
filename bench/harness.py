@@ -25,6 +25,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -661,6 +662,101 @@ def select_tasks(tasks: list[BenchTask], task_ids: list[str]) -> list[BenchTask]
     return [by_id[task_id] for task_id in task_ids]
 
 
+def _iso_timestamp(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
+    total = len(results)
+    if total == 0:
+        return {
+            "runs": 0,
+            "pass_count": 0,
+            "pass_rate": 0.0,
+            "neutral_pass_count": 0,
+            "neutral_pass_rate": 0.0,
+            "avg_elapsed_seconds": 0.0,
+            "avg_tool_calls": 0.0,
+            "avg_bytes_output": 0.0,
+            "avg_bytes_observation": 0.0,
+            "avg_mutations": 0.0,
+            "avg_policy_violations": 0.0,
+            "requery_rate": 0.0,
+        }
+
+    return {
+        "runs": total,
+        "pass_count": sum(1 for result in results if result.correct),
+        "pass_rate": sum(1 for result in results if result.correct) / total,
+        "neutral_pass_count": sum(1 for result in results if result.correct_neutral),
+        "neutral_pass_rate": sum(1 for result in results if result.correct_neutral) / total,
+        "avg_elapsed_seconds": sum(result.elapsed_seconds for result in results) / total,
+        "avg_tool_calls": sum(result.tool_calls for result in results) / total,
+        "avg_bytes_output": sum(result.bytes_output for result in results) / total,
+        "avg_bytes_observation": sum(result.bytes_observation for result in results) / total,
+        "avg_mutations": sum(result.mutations for result in results) / total,
+        "avg_policy_violations": sum(result.policy_violations for result in results) / total,
+        "requery_rate": sum(1 for result in results if result.requeried) / total,
+    }
+
+
+def build_run_metadata(
+    *,
+    run_kind: str,
+    tasks_path: str,
+    task_ids_path: str | None,
+    selected_task_ids: list[str],
+    modes: list[BenchMode],
+    md_binary: str,
+    runner: str | None,
+    executor: str | None,
+    model: str | None,
+    runs_per_task: int,
+    results: list[BenchResult],
+    started_at: float,
+    finished_at: float,
+) -> dict[str, object]:
+    by_mode: dict[str, dict[str, float | int]] = {}
+    for mode in modes:
+        mode_results = [result for result in results if result.mode == mode]
+        if mode_results:
+            by_mode[mode] = aggregate_results(mode_results)
+
+    return {
+        "schema_version": 1,
+        "kind": run_kind,
+        "started_at": _iso_timestamp(started_at),
+        "finished_at": _iso_timestamp(finished_at),
+        "tasks_path": tasks_path,
+        "task_ids_path": task_ids_path,
+        "selected_task_ids": selected_task_ids,
+        "modes": modes,
+        "md_binary": md_binary,
+        "runner": runner,
+        "executor": executor,
+        "model": model,
+        "runs_per_task": runs_per_task,
+        "aggregates": {
+            "overall": aggregate_results(results),
+            "by_mode": by_mode,
+        },
+    }
+
+
+def write_run_artifacts(
+    results_dir: str,
+    *,
+    metadata: dict[str, object],
+    results: list[BenchResult],
+    selected_task_ids: list[str],
+) -> None:
+    output_dir = Path(results_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "run.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (output_dir / "results.json").write_text(json.dumps([asdict(result) for result in results], indent=2) + "\n")
+    (output_dir / "task_ids.json").write_text(json.dumps(selected_task_ids, indent=2) + "\n")
+
+
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     """Validate dual scorer: expected vs itself should pass both paths."""
     results = []
@@ -1079,6 +1175,11 @@ def main():
         help="Optional directory to persist prompt/output/guard logs for each run",
     )
     parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Optional directory to persist run.json, results.json, and task_ids.json",
+    )
+    parser.add_argument(
         "--tasks-path",
         default="bench/tasks/tasks.json",
         help="Path to the benchmark task corpus JSON file",
@@ -1113,6 +1214,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
 
+    started_at = time.time()
     tasks = load_tasks(args.tasks_path)
     if args.task_ids_path:
         try:
@@ -1125,6 +1227,8 @@ def main():
             parser.error(f"unknown task ID: {args.task}")
     if not tasks:
         parser.error("no tasks selected")
+
+    selected_task_ids = [task.id for task in tasks]
 
     if args.run and args.runner == "oai-loop":
         if not args.oai_api_base:
@@ -1145,12 +1249,37 @@ def main():
                 if line.strip():
                     print(f"    {line}")
         ok = all(r.correct and r.correct_neutral for r in results)
+        if args.results_dir:
+            metadata = build_run_metadata(
+                run_kind="dry-run",
+                tasks_path=args.tasks_path,
+                task_ids_path=args.task_ids_path,
+                selected_task_ids=selected_task_ids,
+                modes=["mdtools"],
+                md_binary=args.md_binary,
+                runner=None,
+                executor=None,
+                model=None,
+                runs_per_task=1,
+                results=results,
+                started_at=started_at,
+                finished_at=time.time(),
+            )
+            write_run_artifacts(
+                args.results_dir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=selected_task_ids,
+            )
         print(f"\n{'All tasks pass dual scorer.' if ok else 'SCORER ISSUES DETECTED.'}")
         sys.exit(0 if ok else 1)
 
     # Agent track
     modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools", "hybrid"]
     all_results: list[BenchResult] = []
+    effective_log_dir = args.log_dir
+    if args.results_dir and not effective_log_dir:
+        effective_log_dir = str(Path(args.results_dir) / "logs")
 
     for mode in modes:
         model_label = f", model={args.model}" if args.model else ""
@@ -1167,7 +1296,7 @@ def main():
                     args.model,
                     runner=args.runner,
                     executor=args.executor,
-                    log_dir=args.log_dir,
+                    log_dir=effective_log_dir,
                     max_turns=args.max_turns,
                     oai_api_base=args.oai_api_base,
                     oai_api_key=args.oai_api_key,
@@ -1217,6 +1346,29 @@ def main():
             print(f"\n  {mode}: {pass_rate:.0%} pass | {avg_time:.0f}s | {avg_calls:.1f} calls | "
                   f"{avg_obs:.0f}KB obs | {avg_mut:.1f} mut | {avg_deny:.1f} deny | "
                   f"{rq_rate:.0%} requery")
+
+    if args.results_dir:
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path=args.tasks_path,
+            task_ids_path=args.task_ids_path,
+            selected_task_ids=selected_task_ids,
+            modes=modes,
+            md_binary=args.md_binary,
+            runner=args.runner,
+            executor=args.executor,
+            model=args.model,
+            runs_per_task=args.N,
+            results=all_results,
+            started_at=started_at,
+            finished_at=time.time(),
+        )
+        write_run_artifacts(
+            args.results_dir,
+            metadata=metadata,
+            results=all_results,
+            selected_task_ids=selected_task_ids,
+        )
 
     if args.json:
         print("\n" + json.dumps([asdict(r) for r in all_results], indent=2))

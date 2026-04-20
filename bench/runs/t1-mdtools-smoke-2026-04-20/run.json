@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-20T08:17:53Z",
+  "finished_at": "2026-04-20T08:17:53Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": null,
+  "selected_task_ids": [
+    "T1"
+  ],
+  "modes": [
+    "mdtools"
+  ],
+  "md_binary": "target/debug/md",
+  "runner": "claude-cli",
+  "executor": "guarded",
+  "model": null,
+  "runs_per_task": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "neutral_pass_count": 0,
+      "neutral_pass_rate": 0.0,
+      "avg_elapsed_seconds": 0.41,
+      "avg_tool_calls": 0.0,
+      "avg_bytes_output": 2372.0,
+      "avg_bytes_observation": 0.0,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.0,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "mdtools": {
+        "runs": 1,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 0.41,
+        "avg_tool_calls": 0.0,
+        "avg_bytes_output": 2372.0,
+        "avg_bytes_observation": 0.0,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.0,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

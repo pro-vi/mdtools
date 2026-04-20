@@ -1,0 +1,60 @@
+You are a benchmark agent. Complete the task using ONLY the allowed tools.
+Do NOT use any other commands. Do NOT install packages. Do NOT use python or node.
+
+TASK: Extract the document outline as a JSON heading tree
+INPUT FILE: /var/folders/sw/zn4xtdd96nq_y2jvwzyx0vk80000gn/T/mdtools_bench_T1_mdtools_62i4oso_/t1_mixed_headings.md
+OUTPUT: Print the result as JSON to stdout.
+
+TOOL REFERENCE — md (markdown-aware CLI):
+
+  md outline <FILE> [--json]           Show heading hierarchy with line spans
+  md blocks <FILE> [--json]            List all top-level blocks with index, kind, span, preview
+  md block <INDEX> <FILE> [--json]     Read a single block's full content by 0-based index
+  md section <SELECTOR> <FILE> [--json] [--ignore-case] [--occurrence N]
+                                       Read a section by heading text. Use ":preamble" for content before first heading.
+                                       Duplicate headings require --occurrence (1-based).
+  md search <QUERY> <FILE> [--json] [--ignore-case] [--kind <KIND>...]
+                                       Search block content. Filter by kind: heading, paragraph, list, code-fence, etc.
+  md replace-block <INDEX> <FILE> [-i] [--json] [--from PATH]
+                                       Replace block at INDEX. Reads from --from or stdin.
+  md replace-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N] [--from PATH]
+                                       Replace section. Reads from --from or stdin.
+  md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--from PATH]
+                                       Insert a new block. Reads from --from or stdin.
+  md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
+  md delete-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
+                                       Delete an entire section (heading + content).
+  md links <FILE> [--json]             List all links with kind, destination, source block
+  md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
+  md stats <FILE> [--json]             Word/heading/block/link/section/line counts
+  md table <FILE> [--json] [--index N] [--select COLS] [--where FILTER]
+                                       List tables or read/project a specific table.
+  md set <KEY> <FILE> <VALUE> [-i] [--json]
+                                       Set a frontmatter field by dot-path. Use --delete to remove a field.
+  md tasks <FILE> [--json] [--status pending|done] [-r]
+                                       List GFM checkbox task items with loc, status, depth,
+                                       nearest heading, and summary text. Loc is a dot-path
+                                       like "9.0" or "14.4.0" for nested tasks.
+  md set-task <LOC> <FILE> [-i] [--json] --status done|pending
+                                       Set checkbox state of a task item by loc (from md tasks).
+                                       1-byte mutation, idempotent. Use with -i to write in-place.
+  cat <FILE>                           Read raw file contents
+  jq <FILTER> [FILE]                   Process JSON (pipe from md --json commands)
+
+EXAMPLES:
+  md outline doc.md --json                          # heading tree as JSON
+  md blocks doc.md                                  # list blocks: index, kind, lines, preview
+  md replace-block 3 doc.md -i --from new.md  # replace block 3 from file
+  md replace-section "Old" doc.md -i --from new.md
+  md insert-block --after 2 doc.md -i --from new.md
+  md delete-section "Notes" doc.md -i                 # delete entire section
+  md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
+  md table report.md --select Feature,Status         # project table columns as TSV
+  md set release.channel doc.md stable -i            # set YAML/TOML frontmatter field
+  md tasks doc.md --status pending --json           # list pending task items
+  md set-task 5.1 doc.md -i --status done           # mark task at loc 5.1 as done
+
+
+The `md` binary is available at `./md` in the working directory.
+
+Work step by step. When done, print the JSON result and stop.

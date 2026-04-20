@@ -275,10 +275,17 @@ python bench/harness.py --run --task-ids-path bench/search/task_ids.json \
 python bench/harness.py --run --task-ids-path bench/holdout/task_ids.json \
   --md-binary target/release/md
 
+# Persist a machine-readable run bundle under bench/runs/.
+# Agent runs also write prompt/output/guard logs to <results-dir>/logs by default.
+python bench/harness.py --task-ids-path bench/search/task_ids.json \
+  --md-binary target/release/md \
+  --results-dir bench/runs/search-dry-run
+
 # Agent runs default to the guarded executor and emit deny:<N> policy violations.
-# Use --log-dir to keep prompt/output/guard logs for failed or suspicious runs.
+# Use --results-dir for durable results.json/run.json/task_ids.json artifacts and
+# --log-dir to override where per-run prompt/output/guard logs land.
 python bench/harness.py --run --mode hybrid --md-binary target/release/md \
-  --log-dir /tmp/mdtools-bench-logs
+  --results-dir bench/runs/search-hybrid-haiku
 
 # Local OpenAI-compatible loop runner (for OMLX or similar)
 export BENCH_OAI_API_BASE=http://127.0.0.1:10240/v1
@@ -305,6 +312,7 @@ python bench/harness.py --run --mode unix --tasks-path $SNAPSHOT --md-binary $MD
 
 # Analyze results
 python bench/analyze.py /tmp/bench_*.txt
+python bench/report.py bench/runs/search-hybrid-haiku/results.json --markdown
 ```
 
 ## License

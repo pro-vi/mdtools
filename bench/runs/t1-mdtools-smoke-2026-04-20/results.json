@@ -1,0 +1,18 @@
+[
+  {
+    "task_id": "T1",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "bytes_prompt": 4190,
+    "bytes_output": 2372,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 1,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "elapsed_seconds": 0.41,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)"
+  }
+]
