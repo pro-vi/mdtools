@@ -72,6 +72,54 @@ class OAILoopTests(unittest.TestCase):
         self.assertEqual(trace.tool_calls, 0)
         self.assertEqual(trace.turns, 3)
         self.assertEqual(trace.text_outputs, ["done"])
+        # The two invalid replies above were textually distinct (&& vs ;), so
+        # they both count as unique attempts. Matches the Qwen unix-mode
+        # "varied rejections" signature rather than the Hermes T16
+        # "deterministic lock" pattern exercised by the next test.
+        self.assertEqual(trace.unique_invalid_responses, 2)
+
+    def test_run_oai_loop_counts_unique_invalid_responses(self) -> None:
+        # Hermes-4-70B-4bit T16 mdtools surfaces a deterministic-lock pattern:
+        # at temperature=0, the model re-emits the identical rejected command
+        # every turn. invalid_responses alone cannot separate "stuck on one
+        # strategy" from "trying varied strategies and all failing" — the new
+        # unique counter surfaces exactly that distinction.
+        stuck_reply = json.dumps({
+            "type": "bash",
+            "command": "find . -name '*.md' -exec md tasks {} \\; | jq -s '.'",
+        })
+        scripted_assistant_replies = [
+            stuck_reply,
+            stuck_reply,
+            stuck_reply,
+            json.dumps({"type": "final", "output": "giving up"}),
+        ]
+        responses = iter(
+            {"choices": [{"message": {"content": reply}}]}
+            for reply in scripted_assistant_replies
+        )
+
+        def fake_request_json(_base, _key, _path, _payload, _timeout):
+            return next(responses)
+
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_stuck_") as tmpdir, \
+                patch.object(oai_loop, "_request_json", side_effect=fake_request_json):
+            trace = run_oai_loop(
+                api_base="http://127.0.0.1:10240",
+                api_key="test-key",
+                model="test-model",
+                prompt="task",
+                workdir=Path(tmpdir),
+                env={"PATH": "/usr/bin"},
+                max_turns=10,
+                request_timeout_seconds=1,
+                tool_timeout_seconds=1,
+            )
+
+        self.assertEqual(trace.invalid_responses, 3)
+        self.assertEqual(trace.unique_invalid_responses, 1)
+        self.assertEqual(trace.tool_calls, 0)
+        self.assertEqual(trace.turns, 4)
 
     def test_request_json_watchdog_fires_when_blocking_exceeds_deadline(self) -> None:
         # urllib.urlopen(timeout=N) can fail to raise on streaming completions
@@ -160,6 +208,7 @@ class OAILoopTests(unittest.TestCase):
         # attempted total (turn 4 raised on the request itself).
         self.assertEqual(err.partial.tool_calls, 2)
         self.assertEqual(err.partial.invalid_responses, 1)
+        self.assertEqual(err.partial.unique_invalid_responses, 1)
         self.assertEqual(err.partial.turns, 4)
         self.assertGreater(err.partial.bytes_output, 0)
         self.assertGreater(err.partial.bytes_observation, 0)

@@ -305,6 +305,77 @@ SCORER ISSUES DETECTED.
         self.assertIn(f"{model_id} [claude-cli]", stdout)
         self.assertIn(f"{model_id} [oai-loop]", stdout)
 
+    def test_analyze_renders_unique_invalid_responses_column(self) -> None:
+        """The InvU column distinguishes a deterministic-lock signature
+        (invalid_responses=30, unique=1) from a varied-strategy signature
+        (invalid_responses=25, unique=15). It must render in the
+        CROSS-MODEL SUMMARY beside the existing Inv column so future
+        model comparisons can read the adaptation signal at a glance."""
+        repo_root = Path(__file__).resolve().parent.parent
+
+        def build_bundle(runner: str, invalid: int, unique: int) -> tuple[list[BenchResult], dict]:
+            results = [
+                BenchResult(
+                    task_id="T16",
+                    mode="mdtools",
+                    correct=False,
+                    correct_neutral=False,
+                    model="test-model",
+                    tool_calls=0,
+                    turns=30,
+                    invalid_responses=invalid,
+                    unique_invalid_responses=unique,
+                    elapsed_seconds=1.0,
+                )
+            ]
+            metadata = build_run_metadata(
+                run_kind="agent-track",
+                tasks_path="bench/tasks/tasks.json",
+                task_ids_path="bench/search/task_ids.json",
+                selected_task_ids=["T16"],
+                modes=["mdtools"],
+                md_binary="target/debug/md",
+                runner=runner,
+                executor="guarded",
+                model=None,
+                runs_per_task=1,
+                results=results,
+                started_at=0,
+                finished_at=1,
+            )
+            return results, metadata
+
+        stuck_results, stuck_meta = build_bundle("oai-loop-stuck", invalid=30, unique=1)
+        trying_results, trying_meta = build_bundle("oai-loop-trying", invalid=25, unique=15)
+
+        with tempfile.TemporaryDirectory(prefix="bench_analyze_stuck_") as stuck_dir, \
+                tempfile.TemporaryDirectory(prefix="bench_analyze_trying_") as trying_dir:
+            write_run_artifacts(
+                stuck_dir, metadata=stuck_meta, results=stuck_results, selected_task_ids=["T16"]
+            )
+            write_run_artifacts(
+                trying_dir, metadata=trying_meta, results=trying_results, selected_task_ids=["T16"]
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/analyze.py", stuck_dir, trying_dir],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("InvU", completed.stdout)
+        # The cross-model summary should surface 30.0/1.0 for the stuck
+        # group and 25.0/15.0 for the trying group on the same row.
+        self.assertRegex(
+            completed.stdout, re.compile(r"oai-loop-stuck\].*mdtools.*30\.0\s+1\.0", re.DOTALL)
+        )
+        self.assertRegex(
+            completed.stdout, re.compile(r"oai-loop-trying\].*mdtools.*25\.0\s+15\.0", re.DOTALL)
+        )
+
     def test_analyze_accepts_text_runner_error_suffixes(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent
         agent_output = """=== MODE: mdtools (N=1, model=claude-sonnet-test) ===

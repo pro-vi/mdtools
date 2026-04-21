@@ -301,6 +301,7 @@ def agg_results(results_list):
         "avg_mut": sum(r.get("mutations", 0) for r in results_list) / n,
         "avg_deny": sum(r.get("policy_violations", 0) for r in results_list) / n,
         "avg_inv": sum(r.get("invalid_responses", 0) for r in results_list) / n,
+        "avg_inv_unique": sum(r.get("unique_invalid_responses", 0) for r in results_list) / n,
         "rq_rate": sum(1 for r in results_list if r.get("requeried")) / n,
     }
 
@@ -354,20 +355,33 @@ def render_aggregate(results, modes, markdown):
     print()
     if markdown:
         print("### Aggregate\n")
-        print("| Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Avg Deny | Avg Inv | Requery% |")
-        print("|------|------:|--------:|---------:|----------:|---------:|--------:|--------:|")
+        print("| Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Avg Deny | Avg Inv | Avg InvU | Requery% |")
+        print("|------|------:|--------:|---------:|----------:|---------:|--------:|--------:|--------:|")
     else:
-        print(f"{'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>7} {'Deny':>6} {'Inv':>5} {'RQ%':>5}")
-        print("-" * 56)
+        print(
+            f"{'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>7} "
+            f"{'Deny':>6} {'Inv':>5} {'InvU':>5} {'RQ%':>5}"
+        )
+        print("-" * 62)
 
     for mode in modes:
         mode_results = [r for r in results if r.get("mode") == mode]
         a = agg_results(mode_results)
         if a:
             if markdown:
-                print(f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | {a['avg_deny']:.1f} | {a['avg_inv']:.1f} | {a['rq_rate']:.0%} |")
+                print(
+                    f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | "
+                    f"{a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | "
+                    f"{a['avg_deny']:.1f} | {a['avg_inv']:.1f} | "
+                    f"{a['avg_inv_unique']:.1f} | {a['rq_rate']:.0%} |"
+                )
             else:
-                print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['avg_deny']:>5.1f} {a['avg_inv']:>4.1f} {a['rq_rate']:>4.0%}")
+                print(
+                    f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s "
+                    f"{a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K "
+                    f"{a['avg_deny']:>5.1f} {a['avg_inv']:>4.1f} "
+                    f"{a['avg_inv_unique']:>4.1f} {a['rq_rate']:>4.0%}"
+                )
 
 
 def render_runner_errors(results, markdown):
@@ -453,17 +467,17 @@ def render_group_header(runner, model, markdown):
 def render_cross_group_summary(all_results, groups, modes, markdown):
     if markdown:
         print("\n### Cross-group summary\n")
-        print("| Group | Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Avg Deny | Avg Inv | Requery% |")
-        print("|-------|------|------:|--------:|---------:|----------:|---------:|--------:|--------:|")
+        print("| Group | Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Avg Deny | Avg Inv | Avg InvU | Requery% |")
+        print("|-------|------|------:|--------:|---------:|----------:|---------:|--------:|--------:|--------:|")
     else:
         print(f"\n{'=' * 70}")
         print("CROSS-GROUP SUMMARY")
         print(f"{'=' * 70}")
         print(
             f"\n{'Group':<40} {'Mode':<10} {'Pass%':>6} {'Time':>6} "
-            f"{'Calls':>6} {'ObsKB':>7} {'Deny':>6} {'Inv':>5} {'RQ%':>5}"
+            f"{'Calls':>6} {'ObsKB':>7} {'Deny':>6} {'Inv':>5} {'InvU':>5} {'RQ%':>5}"
         )
-        print("-" * 96)
+        print("-" * 102)
 
     for runner, model in groups:
         label = format_group_label(runner, model)
@@ -479,13 +493,15 @@ def render_cross_group_summary(all_results, groups, modes, markdown):
                 print(
                     f"| {escape_markdown_cell(label)} | {mode} | {a['pass_rate']:.0%} | "
                     f"{a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | "
-                    f"{a['avg_deny']:.1f} | {a['avg_inv']:.1f} | {a['rq_rate']:.0%} |"
+                    f"{a['avg_deny']:.1f} | {a['avg_inv']:.1f} | "
+                    f"{a['avg_inv_unique']:.1f} | {a['rq_rate']:.0%} |"
                 )
             else:
                 print(
                     f"{label:<40} {mode:<10} {a['pass_rate']:>5.0%} "
                     f"{a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K "
-                    f"{a['avg_deny']:>5.1f} {a['avg_inv']:>4.1f} {a['rq_rate']:>4.0%}"
+                    f"{a['avg_deny']:>5.1f} {a['avg_inv']:>4.1f} {a['avg_inv_unique']:>4.1f} "
+                    f"{a['rq_rate']:>4.0%}"
                 )
 
 

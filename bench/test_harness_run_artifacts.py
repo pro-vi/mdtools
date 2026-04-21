@@ -32,6 +32,7 @@ class HarnessRunArtifactTests(unittest.TestCase):
                 policy_violations=1,
                 requeried=True,
                 invalid_responses=4,
+                unique_invalid_responses=1,
                 runner_error="authentication_failed: Not logged in · Please run /login",
             ),
         ]
@@ -76,11 +77,23 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual(result_data[1]["policy_violations"], 1)
         self.assertEqual(result_data[0]["invalid_responses"], 0)
         self.assertEqual(result_data[1]["invalid_responses"], 4)
+        self.assertEqual(result_data[0]["unique_invalid_responses"], 0)
+        self.assertEqual(result_data[1]["unique_invalid_responses"], 1)
         self.assertAlmostEqual(
             run_data["aggregates"]["overall"]["avg_invalid_responses"], 2.0
         )
         self.assertAlmostEqual(
             run_data["aggregates"]["by_mode"]["hybrid"]["avg_invalid_responses"], 2.0
+        )
+        # InvU aggregates separately: 0 + 1 = 1, /2 = 0.5 — distinguishes the
+        # (4 invalid, 1 unique) deterministic-lock signature from a hypothetical
+        # (4 invalid, 4 unique) varied-strategy signature.
+        self.assertAlmostEqual(
+            run_data["aggregates"]["overall"]["avg_unique_invalid_responses"], 0.5
+        )
+        self.assertAlmostEqual(
+            run_data["aggregates"]["by_mode"]["hybrid"]["avg_unique_invalid_responses"],
+            0.5,
         )
         self.assertEqual(
             result_data[1]["runner_error"],
@@ -231,6 +244,7 @@ class HarnessRunArtifactTests(unittest.TestCase):
             tool_calls=2,
             turns=4,
             invalid_responses=1,
+            unique_invalid_responses=1,
         )
 
         def raise_loop_error(**_kwargs):
@@ -264,6 +278,7 @@ class HarnessRunArtifactTests(unittest.TestCase):
         # Partial trace counters MUST survive the error path.
         self.assertEqual(result.tool_calls, 2)
         self.assertEqual(result.invalid_responses, 1)
+        self.assertEqual(result.unique_invalid_responses, 1)
         self.assertEqual(result.turns, 4)
         self.assertEqual(result.bytes_output, 512)
         self.assertEqual(result.bytes_observation, 1024)

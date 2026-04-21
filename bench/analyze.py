@@ -56,6 +56,12 @@ def normalize_result(result, default_model, default_runner="unspecified"):
         "mut": int(result.get("mutations", result.get("mut", 0))),
         "deny": int(result.get("policy_violations", result.get("deny", 0))),
         "inv": int(result.get("invalid_responses", result.get("inv", 0))),
+        "inv_unique": int(
+            result.get(
+                "unique_invalid_responses",
+                result.get("inv_unique", 0),
+            )
+        ),
         "rq": bool(result.get("requeried", result.get("rq", False))),
         "runner_error": result.get("runner_error"),
     }
@@ -394,9 +400,9 @@ def main():
         label_width = max(label_width, len("Model"))
         print(
             f"\n{'Model':<{label_width}} {'Mode':<10} {'Pass%':>6} {'Time':>6} "
-            f"{'Calls':>6} {'ObsKB':>6} {'Deny':>6} {'Inv':>5} {'RQ%':>5}"
+            f"{'Calls':>6} {'ObsKB':>6} {'Deny':>6} {'Inv':>5} {'InvU':>5} {'RQ%':>5}"
         )
-        print("-" * (label_width + 56))
+        print("-" * (label_width + 62))
         for runner, model in groups:
             label = (
                 f"{model} [{runner}]"
@@ -416,11 +422,13 @@ def main():
                     avg_obs = sum(r.get("obs", 0) for r in matches) / n / 1024
                     avg_deny = sum(r.get("deny", 0) for r in matches) / n
                     avg_inv = sum(r.get("inv", 0) for r in matches) / n
+                    avg_inv_unique = sum(r.get("inv_unique", 0) for r in matches) / n
                     rq_pct = sum(1 for r in matches if r.get("rq")) / n * 100
                     print(
                         f"{label:<{label_width}} {mode:<10} {pct:>5.0f}% "
                         f"{avg_t:>5.0f}s {avg_c:>5.1f} {avg_obs:>5.0f}K "
-                        f"{avg_deny:>5.1f} {avg_inv:>4.1f} {rq_pct:>4.0f}%"
+                        f"{avg_deny:>5.1f} {avg_inv:>4.1f} {avg_inv_unique:>4.1f} "
+                        f"{rq_pct:>4.0f}%"
                     )
 
 

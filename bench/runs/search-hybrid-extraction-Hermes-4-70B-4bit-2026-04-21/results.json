@@ -16,7 +16,8 @@
     "invalid_responses": 0,
     "elapsed_seconds": 72.28,
     "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
-    "runner_error": null
+    "runner_error": null,
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T9",
@@ -35,7 +36,8 @@
     "invalid_responses": 0,
     "elapsed_seconds": 95.09,
     "diff_report": "json_canonical: MISMATCH at line 8\n  expected:     \"loc\": \"5.1\",\n  actual:       \"loc\": \"3.1\",",
-    "runner_error": null
+    "runner_error": null,
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T16",
@@ -54,6 +56,7 @@
     "invalid_responses": 4,
     "elapsed_seconds": 127.22,
     "diff_report": "json_canonical: MISMATCH at line 2\n  expected:   \"files\": [\n  actual:     \"files\": [],",
-    "runner_error": null
+    "runner_error": null,
+    "unique_invalid_responses": 4
   }
 ]

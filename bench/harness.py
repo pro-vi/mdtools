@@ -152,6 +152,7 @@ class BenchResult:
     policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
     invalid_responses: int = 0   # oai-loop parse_action_text failures (action-format adherence)
+    unique_invalid_responses: int = 0  # distinct assistant texts among the invalid_responses (deterministic-lock signal)
     elapsed_seconds: float = 0.0
     diff_report: str = ""
     runner_error: str | None = None
@@ -697,6 +698,7 @@ def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
             "avg_mutations": 0.0,
             "avg_policy_violations": 0.0,
             "avg_invalid_responses": 0.0,
+            "avg_unique_invalid_responses": 0.0,
             "requery_rate": 0.0,
         }
 
@@ -713,6 +715,7 @@ def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
         "avg_mutations": sum(result.mutations for result in results) / total,
         "avg_policy_violations": sum(result.policy_violations for result in results) / total,
         "avg_invalid_responses": sum(result.invalid_responses for result in results) / total,
+        "avg_unique_invalid_responses": sum(result.unique_invalid_responses for result in results) / total,
         "requery_rate": sum(1 for result in results if result.requeried) / total,
     }
 
@@ -1012,6 +1015,7 @@ def run_agent(
     policy_violations = 0
     requeried = False
     invalid_responses = 0
+    unique_invalid_responses = 0
     runner_error = None
     resolved_model = model
     all_tool_outputs: list[str] = []
@@ -1059,6 +1063,7 @@ def run_agent(
             num_turns = trace.turns
             bytes_observation = trace.bytes_observation
             invalid_responses = trace.invalid_responses
+            unique_invalid_responses = trace.unique_invalid_responses
             all_tool_outputs = trace.tool_outputs
             all_text_outputs = trace.text_outputs
             stdout = "\n".join(all_tool_outputs + all_text_outputs)
@@ -1205,6 +1210,7 @@ def run_agent(
         policy_violations=policy_violations,
         requeried=requeried,
         invalid_responses=invalid_responses,
+        unique_invalid_responses=unique_invalid_responses,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
         runner_error=runner_error,

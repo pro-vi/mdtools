@@ -41,6 +41,7 @@ class LoopTrace:
     tool_calls: int
     turns: int
     invalid_responses: int = 0
+    unique_invalid_responses: int = 0
 
 
 @dataclass
@@ -55,8 +56,9 @@ class LoopError(Exception):
 
     Carries a `partial` LoopTrace built from whatever counters had accumulated
     before the failure, so the harness can record per-turn diagnostic state
-    (tool_calls, invalid_responses, turns, bytes_*) alongside the runner_error
-    instead of losing everything to all-zero defaults on watchdog/timeout.
+    (tool_calls, invalid_responses, unique_invalid_responses, turns, bytes_*)
+    alongside the runner_error instead of losing everything to all-zero
+    defaults on watchdog/timeout.
     """
 
     def __init__(self, cause: BaseException, partial: LoopTrace) -> None:
@@ -140,6 +142,7 @@ def run_oai_loop(
     bytes_observation = 0
     tool_calls = 0
     invalid_responses = 0
+    invalid_response_seen: set[str] = set()
     turn = 0
 
     def _snapshot() -> LoopTrace:
@@ -152,6 +155,7 @@ def run_oai_loop(
             tool_calls=tool_calls,
             turns=turn,
             invalid_responses=invalid_responses,
+            unique_invalid_responses=len(invalid_response_seen),
         )
 
     try:
@@ -177,6 +181,7 @@ def run_oai_loop(
                 action = parse_action_text(assistant_text)
             except (json.JSONDecodeError, ValueError) as exc:
                 invalid_responses += 1
+                invalid_response_seen.add(assistant_text)
                 correction = (
                     "Your last response was invalid. "
                     "Reply again with exactly one JSON object matching the required schema. "

@@ -52,7 +52,8 @@
       "avg_bytes_observation": 0.0,
       "avg_mutations": 0.0,
       "avg_policy_violations": 0.0,
-      "requery_rate": 0.0
+      "requery_rate": 0.0,
+      "avg_unique_invalid_responses": 0.0
     },
     "by_mode": {
       "mdtools": {
@@ -67,7 +68,8 @@
         "avg_bytes_observation": 0.0,
         "avg_mutations": 0.0,
         "avg_policy_violations": 0.0,
-        "requery_rate": 0.0
+        "requery_rate": 0.0,
+        "avg_unique_invalid_responses": 0.0
       }
     }
   }

@@ -16,7 +16,8 @@
     "invalid_responses": 0,
     "elapsed_seconds": 154.79,
     "diff_report": "json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)",
-    "runner_error": null
+    "runner_error": null,
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T9",
@@ -35,7 +36,8 @@
     "invalid_responses": 0,
     "elapsed_seconds": 220.64,
     "diff_report": "json_canonical: OK",
-    "runner_error": null
+    "runner_error": null,
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T16",
@@ -54,6 +56,7 @@
     "invalid_responses": 30,
     "elapsed_seconds": 698.82,
     "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
-    "runner_error": null
+    "runner_error": null,
+    "unique_invalid_responses": 1
   }
 ]

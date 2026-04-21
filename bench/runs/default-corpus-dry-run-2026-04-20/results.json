@@ -13,7 +13,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK"
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T2",
@@ -29,7 +30,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "block_order [md]: OK\nblock_text [md]: OK\nblock_text [neutral]: OK"
+    "diff_report": "block_order [md]: OK\nblock_text [md]: OK\nblock_text [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T3",
@@ -45,7 +47,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "heading_tree [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK"
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T4",
@@ -61,7 +64,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "block_text [md]: OK\nblock_text [neutral]: OK"
+    "diff_report": "block_text [md]: OK\nblock_text [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T5",
@@ -77,7 +81,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK"
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T6",
@@ -93,7 +98,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK"
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T7",
@@ -109,7 +115,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK"
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T8",
@@ -125,7 +132,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK"
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T9",
@@ -141,7 +149,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "json_canonical: OK"
+    "diff_report": "json_canonical: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T10",
@@ -157,7 +166,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T11",
@@ -173,7 +183,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "json_canonical: OK"
+    "diff_report": "json_canonical: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T12",
@@ -189,7 +200,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T13",
@@ -205,7 +217,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T14",
@@ -221,7 +234,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "\nstdout_check: OK (dry-run)"
+    "diff_report": "\nstdout_check: OK (dry-run)",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T15",
@@ -237,7 +251,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T16",
@@ -253,7 +268,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "json_canonical: OK"
+    "diff_report": "json_canonical: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T17",
@@ -269,7 +285,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T18",
@@ -285,7 +302,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T19",
@@ -301,7 +319,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "json_canonical: OK"
+    "diff_report": "json_canonical: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T20",
@@ -317,7 +336,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T21",
@@ -333,7 +353,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "frontmatter_json: OK"
+    "diff_report": "frontmatter_json: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T22",
@@ -349,7 +370,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": "link_destinations: OK"
+    "diff_report": "link_destinations: OK",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T23",
@@ -365,7 +387,8 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   },
   {
     "task_id": "T24",
@@ -381,6 +404,7 @@
     "policy_violations": 0,
     "requeried": false,
     "elapsed_seconds": 0.0,
-    "diff_report": ""
+    "diff_report": "",
+    "unique_invalid_responses": 0
   }
 ]
