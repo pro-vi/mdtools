@@ -54,6 +54,30 @@ class CommandPolicyGuardTests(unittest.TestCase):
         self.assertEqual(proc.returncode, -15)
         self.assertEqual([(event.decision, event.base_command) for event in events], [("deny", "grep")])
 
+    def test_mdtools_mode_denies_absolute_path_md(self) -> None:
+        # Regression guard for the magnum-v4-123b-4bit failure mode observed on
+        # the extraction pilot: the model invoked md via an absolute workdir
+        # path (e.g. "/tmp/workdir/md outline ...") and got stuck in a deny loop.
+        # The guard script rejects any base command containing "/" so only
+        # PATH-resolved "md" or "./md" are accepted; this test locks that in.
+        tmp, workdir = self._make_workdir()
+        self.addCleanup(tmp.cleanup)
+        env_info = create_restricted_shell_env(workdir, "mdtools", workdir / "md")
+        abs_md = workdir / "md"
+        proc = subprocess.run(
+            ["/bin/bash", "-lc", f"{abs_md} outline doc.md --json >/dev/null"],
+            cwd=workdir,
+            env=env_info.env,
+            text=True,
+            capture_output=True,
+        )
+        events = load_guard_events(env_info.guard_log_path)
+        self.assertEqual(proc.returncode, -15)
+        self.assertIn("denied command in mdtools mode", proc.stderr)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].decision, "deny")
+        self.assertEqual(events[0].base_command, str(abs_md))
+
 
 if __name__ == "__main__":
     unittest.main()
