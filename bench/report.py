@@ -105,10 +105,27 @@ def load_report_input(path):
         else:
             source = str(input_path)
 
+    default_model = "unspecified"
+    default_runner = "unspecified"
+    if metadata:
+        default_model = metadata.get("model") or "unspecified"
+        default_runner = metadata.get("runner") or "unspecified"
+
+    annotated = []
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        enriched = dict(result)
+        if not enriched.get("model"):
+            enriched["model"] = default_model
+        if not enriched.get("runner"):
+            enriched["runner"] = default_runner
+        annotated.append(enriched)
+
     if metadata:
         metadata = dict(metadata)
         metadata["_source"] = source
-    return results, metadata
+    return annotated, metadata
 
 
 def format_run_context(metadata):
@@ -271,46 +288,24 @@ def parse_text_results(filepath):
     return results
 
 
-def main():
-    files = [f for f in sys.argv[1:] if not f.startswith("--")]
-    markdown = "--markdown" in sys.argv
+def agg_results(results_list):
+    if not results_list:
+        return None
+    n = len(results_list)
+    return {
+        "n": n,
+        "pass_rate": sum(1 for r in results_list if r["correct"]) / n,
+        "avg_time": sum(r["elapsed_seconds"] for r in results_list) / n,
+        "avg_calls": sum(r["tool_calls"] for r in results_list) / n,
+        "avg_obs_kb": sum(r.get("bytes_observation", 0) for r in results_list) / n / 1024,
+        "avg_mut": sum(r.get("mutations", 0) for r in results_list) / n,
+        "avg_deny": sum(r.get("policy_violations", 0) for r in results_list) / n,
+        "rq_rate": sum(1 for r in results_list if r.get("requeried")) / n,
+    }
 
-    all_results = []
-    run_metadata = []
-    for f in files:
-        results, metadata = load_report_input(f)
-        all_results.extend(results)
-        if metadata:
-            run_metadata.append(metadata)
 
-    if not all_results:
-        print("No results found.")
-        return
-
-    print_run_context(run_metadata, markdown=markdown)
-    sample_count_label = format_sample_count_label(all_results)
-
-    modes = sorted(set(r.get("mode", "?") for r in all_results))
-    tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))
-
-    # Per-task aggregated results
-    def agg(results_list):
-        if not results_list:
-            return None
-        n = len(results_list)
-        return {
-            "n": n,
-            "pass_rate": sum(1 for r in results_list if r["correct"]) / n,
-            "avg_time": sum(r["elapsed_seconds"] for r in results_list) / n,
-            "avg_calls": sum(r["tool_calls"] for r in results_list) / n,
-            "avg_obs_kb": sum(r.get("bytes_observation", 0) for r in results_list) / n / 1024,
-            "avg_mut": sum(r.get("mutations", 0) for r in results_list) / n,
-            "avg_deny": sum(r.get("policy_violations", 0) for r in results_list) / n,
-            "rq_rate": sum(1 for r in results_list if r.get("requeried")) / n,
-        }
-
+def render_per_task_table(results, modes, tasks, sample_count_label, markdown):
     if markdown:
-        # Markdown table output
         print(f"### Per-task results ({sample_count_label})\n")
         print(f"| Task |", end="")
         for mode in modes:
@@ -338,8 +333,8 @@ def main():
         else:
             print(f"{task:<6}", end="")
         for mode in modes:
-            task_results = [r for r in all_results if r["task_id"] == task and r.get("mode") == mode]
-            a = agg(task_results)
+            task_results = [r for r in results if r["task_id"] == task and r.get("mode") == mode]
+            a = agg_results(task_results)
             if a:
                 pct = f"{a['pass_rate']:.0%}"
                 if markdown:
@@ -353,7 +348,8 @@ def main():
                     print(f"  {'—':>5} {'—':>5} {'—':>5}", end="")
         print()
 
-    # Aggregate by mode
+
+def render_aggregate(results, modes, markdown):
     print()
     if markdown:
         print("### Aggregate\n")
@@ -364,32 +360,36 @@ def main():
         print("-" * 50)
 
     for mode in modes:
-        mode_results = [r for r in all_results if r.get("mode") == mode]
-        a = agg(mode_results)
+        mode_results = [r for r in results if r.get("mode") == mode]
+        a = agg_results(mode_results)
         if a:
             if markdown:
                 print(f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | {a['avg_deny']:.1f} | {a['rq_rate']:.0%} |")
             else:
                 print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['avg_deny']:>5.1f} {a['rq_rate']:>4.0%}")
 
-    runner_errors = collect_runner_errors(all_results)
-    if runner_errors:
-        print()
-        if markdown:
-            print("### Runner errors\n")
-            print("| Mode | Count | Tasks | Error |")
-            print("|------|------:|-------|-------|")
-            for row in runner_errors:
-                tasks_label = escape_markdown_cell(format_task_label(row["tasks"]))
-                error_label = escape_markdown_cell(row["error"])
-                print(f"| {escape_markdown_cell(row['mode'])} | {row['count']} | {tasks_label} | {error_label} |")
-        else:
-            print("Runner errors:")
-            for row in runner_errors:
-                tasks_label = format_task_label(row["tasks"])
-                print(f"  - {row['mode']} x{row['count']} [{tasks_label}]: {row['error']}")
 
-    # By task family — show per-mode sample count alongside pass rate
+def render_runner_errors(results, markdown):
+    runner_errors = collect_runner_errors(results)
+    if not runner_errors:
+        return
+    print()
+    if markdown:
+        print("### Runner errors\n")
+        print("| Mode | Count | Tasks | Error |")
+        print("|------|------:|-------|-------|")
+        for row in runner_errors:
+            tasks_label = escape_markdown_cell(format_task_label(row["tasks"]))
+            error_label = escape_markdown_cell(row["error"])
+            print(f"| {escape_markdown_cell(row['mode'])} | {row['count']} | {tasks_label} | {error_label} |")
+    else:
+        print("Runner errors:")
+        for row in runner_errors:
+            tasks_label = format_task_label(row["tasks"])
+            print(f"  - {row['mode']} x{row['count']} [{tasks_label}]: {row['error']}")
+
+
+def render_task_family(results, modes, tasks, markdown):
     print()
     if markdown:
         print("### By task family\n")
@@ -417,8 +417,8 @@ def main():
         else:
             print(f"{family:<20} {len(present):>5}", end="")
         for mode in modes:
-            fam_results = [r for r in all_results if r["task_id"] in present and r.get("mode") == mode]
-            a = agg(fam_results)
+            fam_results = [r for r in results if r["task_id"] in present and r.get("mode") == mode]
+            a = agg_results(fam_results)
             if a:
                 n = a["n"]
                 if markdown:
@@ -431,6 +431,105 @@ def main():
                 else:
                     print(f"  {'—':>10}", end="")
         print()
+
+
+def format_group_label(runner, model):
+    if runner and runner != "unspecified":
+        return f"{model} [{runner}]"
+    return model
+
+
+def render_group_header(runner, model, markdown):
+    label = format_group_label(runner, model)
+    if markdown:
+        print(f"## {label}\n")
+    else:
+        print(f"\n{'=' * 70}")
+        print(f"GROUP: {label}")
+        print(f"{'=' * 70}")
+
+
+def render_cross_group_summary(all_results, groups, modes, markdown):
+    if markdown:
+        print("\n### Cross-group summary\n")
+        print("| Group | Mode | Pass% | Avg Time | Avg Calls | Avg Obs KB | Avg Deny | Requery% |")
+        print("|-------|------|------:|--------:|---------:|----------:|---------:|--------:|")
+    else:
+        print(f"\n{'=' * 70}")
+        print("CROSS-GROUP SUMMARY")
+        print(f"{'=' * 70}")
+        print(
+            f"\n{'Group':<40} {'Mode':<10} {'Pass%':>6} {'Time':>6} "
+            f"{'Calls':>6} {'ObsKB':>7} {'Deny':>6} {'RQ%':>5}"
+        )
+        print("-" * 90)
+
+    for runner, model in groups:
+        label = format_group_label(runner, model)
+        for mode in modes:
+            matches = [
+                r for r in all_results
+                if r.get("mode") == mode and r["model"] == model and r["runner"] == runner
+            ]
+            a = agg_results(matches)
+            if not a:
+                continue
+            if markdown:
+                print(
+                    f"| {escape_markdown_cell(label)} | {mode} | {a['pass_rate']:.0%} | "
+                    f"{a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | "
+                    f"{a['avg_deny']:.1f} | {a['rq_rate']:.0%} |"
+                )
+            else:
+                print(
+                    f"{label:<40} {mode:<10} {a['pass_rate']:>5.0%} "
+                    f"{a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K "
+                    f"{a['avg_deny']:>5.1f} {a['rq_rate']:>4.0%}"
+                )
+
+
+def main():
+    files = [f for f in sys.argv[1:] if not f.startswith("--")]
+    markdown = "--markdown" in sys.argv
+
+    all_results = []
+    run_metadata = []
+    for f in files:
+        results, metadata = load_report_input(f)
+        all_results.extend(results)
+        if metadata:
+            run_metadata.append(metadata)
+
+    if not all_results:
+        print("No results found.")
+        return
+
+    print_run_context(run_metadata, markdown=markdown)
+    sample_count_label = format_sample_count_label(all_results)
+
+    modes = sorted(set(r.get("mode", "?") for r in all_results))
+    tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))
+
+    # Group by (runner, model) so multi-bundle reports stay apples-to-apples
+    # distinct (e.g., the same Claude model run via claude-cli vs oai-loop).
+    groups = sorted({(r.get("runner", "unspecified"), r.get("model", "unspecified"))
+                     for r in all_results})
+
+    multi_group = len(groups) > 1
+    for runner, model in groups:
+        group_results = [
+            r for r in all_results
+            if r.get("runner") == runner and r.get("model") == model
+        ]
+        if multi_group:
+            render_group_header(runner, model, markdown)
+        render_per_task_table(group_results, modes, tasks, sample_count_label, markdown)
+        render_aggregate(group_results, modes, markdown)
+        render_runner_errors(group_results, markdown)
+        render_task_family(group_results, modes, tasks, markdown)
+
+    if multi_group:
+        render_cross_group_summary(all_results, groups, modes, markdown)
 
 
 if __name__ == "__main__":
