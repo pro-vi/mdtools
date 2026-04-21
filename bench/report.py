@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Generate a benchmark report from N=3 harness JSON output files.
+"""Generate a benchmark report from harness outputs or persisted run bundles.
 
 Usage:
     python3 bench/report.py /tmp/bench_p5_haiku_*.txt
-    python3 bench/report.py /tmp/bench_p5_haiku_*.txt --markdown
+    python3 bench/report.py bench/runs/search-hybrid-haiku
+    python3 bench/report.py bench/runs/search-hybrid-haiku --markdown
 """
 
 import json
 import re
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 TASK_FAMILIES = {
     "Extraction":       ["T1", "T5", "T9", "T11", "T16", "T19"],
@@ -71,23 +73,185 @@ def parse_json_results(filepath):
     return []
 
 
+def parse_run_metadata(filepath):
+    """Load a persisted run.json metadata object when present."""
+    try:
+        data = json.loads(Path(filepath).read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def load_report_input(path):
+    """Load results plus optional persisted metadata from a file or run bundle."""
+    input_path = Path(path)
+    metadata = None
+    results = []
+
+    if input_path.is_dir():
+        results_path = input_path / "results.json"
+        if not results_path.exists():
+            raise FileNotFoundError(f"{input_path} does not contain results.json")
+        results = parse_json_results(results_path)
+        metadata = parse_run_metadata(input_path / "run.json")
+        source = str(input_path)
+    else:
+        results = parse_json_results(input_path)
+        if not results:
+            results = parse_text_results(input_path)
+        if input_path.name == "results.json":
+            metadata = parse_run_metadata(input_path.with_name("run.json"))
+            source = str(input_path.parent)
+        else:
+            source = str(input_path)
+
+    if metadata:
+        metadata = dict(metadata)
+        metadata["_source"] = source
+    return results, metadata
+
+
+def format_run_context(metadata):
+    """Summarize a persisted run bundle in one line for report headers."""
+    selected = metadata.get("selected_task_ids") or []
+    modes = metadata.get("modes") or []
+    selection = metadata.get("task_ids_path") or "inline selection"
+
+    parts = [
+        str(metadata.get("kind", "unknown")),
+        f"{len(selected)} tasks",
+        f"selection={selection}",
+        f"modes={','.join(modes) if modes else '?'}",
+        f"corpus={metadata.get('tasks_path', '?')}",
+    ]
+
+    if metadata.get("runner"):
+        parts.append(f"runner={metadata['runner']}")
+    if metadata.get("executor"):
+        parts.append(f"executor={metadata['executor']}")
+    if metadata.get("model"):
+        parts.append(f"model={metadata['model']}")
+
+    return f"{metadata.get('_source', '?')}: " + ", ".join(parts)
+
+
+def print_run_context(metadata_list, markdown=False):
+    if not metadata_list:
+        return
+
+    if markdown:
+        print("### Run context\n")
+        for metadata in metadata_list:
+            print(f"- `{format_run_context(metadata)}`")
+    else:
+        print("Run context:")
+        for metadata in metadata_list:
+            print(f"  - {format_run_context(metadata)}")
+    print()
+
+
+def format_sample_count_label(results):
+    """Describe how many samples contributed to each task/mode cell."""
+    counts = {}
+    for result in results:
+        task_id = result.get("task_id")
+        mode = result.get("mode")
+        if not task_id or not mode:
+            continue
+        counts[(task_id, mode)] = counts.get((task_id, mode), 0) + 1
+
+    if not counts:
+        return "N=? per task/mode"
+
+    unique_counts = sorted(set(counts.values()))
+    if len(unique_counts) == 1:
+        return f"N={unique_counts[0]} per task/mode"
+
+    return f"N varies ({unique_counts[0]}-{unique_counts[-1]} per task/mode)"
+
+
+def format_task_label(task_ids):
+    return ", ".join(task_ids)
+
+
+def escape_markdown_cell(value):
+    return str(value).replace("|", "\\|")
+
+
+def collect_runner_errors(results):
+    grouped = defaultdict(lambda: {"count": 0, "tasks": set()})
+    for result in results:
+        error = result.get("runner_error")
+        task_id = result.get("task_id")
+        mode = result.get("mode")
+        if not error or not task_id or not mode:
+            continue
+        entry = grouped[(mode, error)]
+        entry["count"] += 1
+        entry["tasks"].add(task_id)
+
+    def sort_task_id(task_id):
+        if task_id.startswith("T") and task_id[1:].isdigit():
+            return int(task_id[1:])
+        return task_id
+
+    rows = []
+    for (mode, error), entry in sorted(grouped.items()):
+        rows.append(
+            {
+                "mode": mode,
+                "count": entry["count"],
+                "tasks": sorted(entry["tasks"], key=sort_task_id),
+                "error": error,
+            }
+        )
+    return rows
+
+
 def parse_text_results(filepath):
     """Fallback: parse from text output."""
     results = []
     mode = None
     model = None
     pending_task = None
+    in_dry_run = False
     with open(filepath) as f:
         for line in f:
+            if line.startswith("=== DRY RUN:"):
+                mode = "mdtools"
+                model = "unspecified"
+                pending_task = None
+                in_dry_run = True
+                continue
             m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
-                model = m.group(3) or "opus"
+                model = m.group(3) or "unspecified"
+                pending_task = None
+                in_dry_run = False
+                continue
+            if in_dry_run:
+                m = re.match(r"\s+(T\d+): md=(PASS|FAIL) neutral=(PASS|FAIL)(?: .*)?$", line)
+                if m:
+                    results.append({
+                        "task_id": m.group(1),
+                        "mode": mode,
+                        "model": model,
+                        "correct": m.group(2) == "PASS" and m.group(3) == "PASS",
+                        "elapsed_seconds": 0.0,
+                        "bytes_output": 0,
+                        "bytes_observation": 0,
+                        "tool_calls": 0,
+                        "mutations": 0,
+                        "policy_violations": 0,
+                        "requeried": False,
+                    })
+                continue
             m2 = re.match(r"\s+(T\d+)(?:\s+run \d+/\d+)?:", line)
             if m2:
                 pending_task = m2.group(1)
             m3 = re.match(
-                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)",
+                r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| obs:(\d+)B \| ~(\d+) calls \| (\d+) mut \| deny:(\d+)\s*(↻?)(?: \| err:(.*))?$",
                 line,
             )
             if m3 and pending_task:
@@ -101,6 +265,7 @@ def parse_text_results(filepath):
                     "mutations": int(m3.group(6)),
                     "policy_violations": int(m3.group(7)),
                     "requeried": m3.group(8) == "↻",
+                    "runner_error": m3.group(9).strip() if m3.group(9) else None,
                 })
                 pending_task = None
     return results
@@ -111,15 +276,19 @@ def main():
     markdown = "--markdown" in sys.argv
 
     all_results = []
+    run_metadata = []
     for f in files:
-        results = parse_json_results(f)
-        if not results:
-            results = parse_text_results(f)
+        results, metadata = load_report_input(f)
         all_results.extend(results)
+        if metadata:
+            run_metadata.append(metadata)
 
     if not all_results:
         print("No results found.")
         return
+
+    print_run_context(run_metadata, markdown=markdown)
+    sample_count_label = format_sample_count_label(all_results)
 
     modes = sorted(set(r.get("mode", "?") for r in all_results))
     tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))
@@ -142,7 +311,7 @@ def main():
 
     if markdown:
         # Markdown table output
-        print("### Per-task results (N=3)\n")
+        print(f"### Per-task results ({sample_count_label})\n")
         print(f"| Task |", end="")
         for mode in modes:
             print(f" {mode} pass | {mode} time | {mode} calls |", end="")
@@ -152,6 +321,7 @@ def main():
             print(f"---:|---:|---:|", end="")
         print()
     else:
+        print(f"Per-task sample count: {sample_count_label}\n")
         print(f"\n{'Task':<6}", end="")
         for mode in modes:
             print(f"  {mode:^18}", end="")
@@ -201,6 +371,23 @@ def main():
                 print(f"| {mode} | {a['pass_rate']:.0%} | {a['avg_time']:.0f}s | {a['avg_calls']:.1f} | {a['avg_obs_kb']:.0f}KB | {a['avg_deny']:.1f} | {a['rq_rate']:.0%} |")
             else:
                 print(f"{mode:<10} {a['pass_rate']:>5.0%} {a['avg_time']:>5.0f}s {a['avg_calls']:>5.1f} {a['avg_obs_kb']:>6.0f}K {a['avg_deny']:>5.1f} {a['rq_rate']:>4.0%}")
+
+    runner_errors = collect_runner_errors(all_results)
+    if runner_errors:
+        print()
+        if markdown:
+            print("### Runner errors\n")
+            print("| Mode | Count | Tasks | Error |")
+            print("|------|------:|-------|-------|")
+            for row in runner_errors:
+                tasks_label = escape_markdown_cell(format_task_label(row["tasks"]))
+                error_label = escape_markdown_cell(row["error"])
+                print(f"| {escape_markdown_cell(row['mode'])} | {row['count']} | {tasks_label} | {error_label} |")
+        else:
+            print("Runner errors:")
+            for row in runner_errors:
+                tasks_label = format_task_label(row["tasks"])
+                print(f"  - {row['mode']} x{row['count']} [{tasks_label}]: {row['error']}")
 
     # By task family — show per-mode sample count alongside pass rate
     print()

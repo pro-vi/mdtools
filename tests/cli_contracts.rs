@@ -331,6 +331,11 @@ fn mutation_nochange_spans_identical() {
     assert_eq!(json["disposition"], "NoChange");
     assert_eq!(json["changed"], false);
     assert_eq!(
+        json["content"].as_str().unwrap(),
+        source,
+        "NoChange should preserve the full document content"
+    );
+    assert_eq!(
         json["invariant"]["target_span_before"], json["invariant"]["target_span_after"],
         "NoChange spans must be identical"
     );

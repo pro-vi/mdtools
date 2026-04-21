@@ -108,6 +108,7 @@ fn obsidian_callouts_not_in_outline() {
 fn obsidian_block_ref_preserved_in_content() {
     // ^key-insight at end of paragraph should be part of block content
     let source = std::fs::read_to_string("tests/fixtures/persona_obsidian.md").unwrap();
+    assert!(source.contains("^key-insight"));
     let json = md_json(&["block", "1", "tests/fixtures/persona_obsidian.md"]);
     let content = json["content"].as_str().unwrap();
     assert!(

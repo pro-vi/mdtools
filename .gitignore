@@ -8,6 +8,7 @@ __pycache__/
 
 # Benchmark results
 bench/results/
+bench/runs/**/logs/
 
 # OS
 .DS_Store
@@ -21,3 +22,5 @@ bench/results/
 .claude/
 .journal/
 .cocc/
+.inbox/
+.prov/

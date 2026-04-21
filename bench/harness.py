@@ -24,7 +24,8 @@ import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -141,6 +142,7 @@ class BenchResult:
     mode: BenchMode
     correct: bool
     correct_neutral: bool = True  # Independent scorer agreement
+    model: str | None = None
     bytes_prompt: int = 0
     bytes_output: int = 0
     bytes_observation: int = 0   # total tool-result content agent had to read
@@ -151,6 +153,19 @@ class BenchResult:
     requeried: bool = False      # did agent re-read structure after a mutation?
     elapsed_seconds: float = 0.0
     diff_report: str = ""
+    runner_error: str | None = None
+
+
+@dataclass
+class ParsedAgentOutput:
+    stdout: str
+    model: str | None = None
+    tool_calls: int = 0
+    turns: int = 0
+    bytes_observation: int = 0
+    tool_outputs: list[str] = field(default_factory=list)
+    text_outputs: list[str] = field(default_factory=list)
+    runner_error: str | None = None
 
 
 # ── Tool inventories ──────────────────────────────────────────
@@ -636,6 +651,136 @@ def load_tasks(tasks_path: str = "bench/tasks/tasks.json") -> list[BenchTask]:
     return tasks
 
 
+def load_task_ids(task_ids_path: str) -> list[str]:
+    with open(task_ids_path) as f:
+        raw = json.load(f)
+
+    if not isinstance(raw, list) or not all(isinstance(task_id, str) and task_id for task_id in raw):
+        raise ValueError(f"{task_ids_path} must be a JSON array of non-empty task IDs")
+
+    task_ids: list[str] = []
+    seen: set[str] = set()
+    for task_id in raw:
+        if task_id in seen:
+            raise ValueError(f"duplicate task ID in {task_ids_path}: {task_id}")
+        seen.add(task_id)
+        task_ids.append(task_id)
+    return task_ids
+
+
+def select_tasks(tasks: list[BenchTask], task_ids: list[str]) -> list[BenchTask]:
+    by_id = {task.id: task for task in tasks}
+    missing = [task_id for task_id in task_ids if task_id not in by_id]
+    if missing:
+        raise ValueError(f"unknown task IDs in selection: {', '.join(missing)}")
+    return [by_id[task_id] for task_id in task_ids]
+
+
+def _iso_timestamp(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
+    total = len(results)
+    if total == 0:
+        return {
+            "runs": 0,
+            "pass_count": 0,
+            "pass_rate": 0.0,
+            "neutral_pass_count": 0,
+            "neutral_pass_rate": 0.0,
+            "avg_elapsed_seconds": 0.0,
+            "avg_tool_calls": 0.0,
+            "avg_bytes_output": 0.0,
+            "avg_bytes_observation": 0.0,
+            "avg_mutations": 0.0,
+            "avg_policy_violations": 0.0,
+            "requery_rate": 0.0,
+        }
+
+    return {
+        "runs": total,
+        "pass_count": sum(1 for result in results if result.correct),
+        "pass_rate": sum(1 for result in results if result.correct) / total,
+        "neutral_pass_count": sum(1 for result in results if result.correct_neutral),
+        "neutral_pass_rate": sum(1 for result in results if result.correct_neutral) / total,
+        "avg_elapsed_seconds": sum(result.elapsed_seconds for result in results) / total,
+        "avg_tool_calls": sum(result.tool_calls for result in results) / total,
+        "avg_bytes_output": sum(result.bytes_output for result in results) / total,
+        "avg_bytes_observation": sum(result.bytes_observation for result in results) / total,
+        "avg_mutations": sum(result.mutations for result in results) / total,
+        "avg_policy_violations": sum(result.policy_violations for result in results) / total,
+        "requery_rate": sum(1 for result in results if result.requeried) / total,
+    }
+
+
+def build_run_metadata(
+    *,
+    run_kind: str,
+    tasks_path: str,
+    task_ids_path: str | None,
+    selected_task_ids: list[str],
+    modes: list[BenchMode],
+    md_binary: str,
+    runner: str | None,
+    executor: str | None,
+    model: str | None,
+    runs_per_task: int,
+    results: list[BenchResult],
+    started_at: float,
+    finished_at: float,
+) -> dict[str, object]:
+    resolved_model = model
+    if resolved_model is None:
+        observed_models = {
+            result.model
+            for result in results
+            if isinstance(result.model, str) and result.model.strip()
+        }
+        if len(observed_models) == 1:
+            resolved_model = next(iter(observed_models))
+
+    by_mode: dict[str, dict[str, float | int]] = {}
+    for mode in modes:
+        mode_results = [result for result in results if result.mode == mode]
+        if mode_results:
+            by_mode[mode] = aggregate_results(mode_results)
+
+    return {
+        "schema_version": 1,
+        "kind": run_kind,
+        "started_at": _iso_timestamp(started_at),
+        "finished_at": _iso_timestamp(finished_at),
+        "tasks_path": tasks_path,
+        "task_ids_path": task_ids_path,
+        "selected_task_ids": selected_task_ids,
+        "modes": modes,
+        "md_binary": md_binary,
+        "runner": runner,
+        "executor": executor,
+        "model": resolved_model,
+        "runs_per_task": runs_per_task,
+        "aggregates": {
+            "overall": aggregate_results(results),
+            "by_mode": by_mode,
+        },
+    }
+
+
+def write_run_artifacts(
+    results_dir: str,
+    *,
+    metadata: dict[str, object],
+    results: list[BenchResult],
+    selected_task_ids: list[str],
+) -> None:
+    output_dir = Path(results_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "run.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (output_dir / "results.json").write_text(json.dumps([asdict(result) for result in results], indent=2) + "\n")
+    (output_dir / "task_ids.json").write_text(json.dumps(selected_task_ids, indent=2) + "\n")
+
+
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     """Validate dual scorer: expected vs itself should pass both paths."""
     results = []
@@ -687,6 +832,104 @@ def _build_agent_cmd(
         cmd += ["--output-format", "json"]
         return cmd
     return parts
+
+
+def _summarize_runner_error(code: str | None, message: str | None) -> str | None:
+    clean_code = code.strip() if isinstance(code, str) and code.strip() else None
+    clean_message = None
+    if isinstance(message, str):
+        collapsed = " ".join(message.split())
+        clean_message = collapsed if collapsed else None
+
+    if clean_code and clean_message:
+        return f"{clean_code}: {clean_message}"
+    return clean_code or clean_message
+
+
+def _normalize_runner_model(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    model = value.strip()
+    if not model or model == "<synthetic>":
+        return None
+    return model
+
+
+def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
+    """Extract combined stdout, tool stats, and runner failures from agent output."""
+    parsed = ParsedAgentOutput(stdout=raw_stdout)
+
+    try:
+        messages = json.loads(raw_stdout)
+    except (json.JSONDecodeError, TypeError):
+        parsed.tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+        return parsed
+
+    if not isinstance(messages, list):
+        parsed.tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+        return parsed
+
+    error_code: str | None = None
+    error_message: str | None = None
+
+    for msg in messages:
+        if not isinstance(msg, dict):
+            continue
+
+        msg_type = msg.get("type")
+        if msg_type == "system" and msg.get("subtype") == "init" and parsed.model is None:
+            parsed.model = _normalize_runner_model(msg.get("model"))
+        elif msg_type == "result":
+            parsed.turns = msg.get("num_turns", 0)
+            result_text = msg.get("result", "")
+            if isinstance(result_text, str):
+                parsed.text_outputs.append(result_text)
+            if msg.get("is_error"):
+                if isinstance(msg.get("api_error_status"), str) and not error_code:
+                    error_code = msg["api_error_status"]
+                if isinstance(result_text, str) and result_text.strip() and not error_message:
+                    error_message = result_text
+        elif msg_type == "assistant":
+            if parsed.model is None:
+                parsed.model = _normalize_runner_model(msg.get("message", {}).get("model"))
+            if isinstance(msg.get("error"), str) and msg["error"].strip() and not error_code:
+                error_code = msg["error"]
+
+            content = msg.get("message", {}).get("content", [])
+            if isinstance(content, list):
+                text_blocks: list[str] = []
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "tool_use":
+                        parsed.tool_calls += 1
+                    if block.get("type") == "text":
+                        text = block.get("text", "")
+                        parsed.text_outputs.append(text)
+                        text_blocks.append(text)
+                if text_blocks and msg.get("error") and not error_message:
+                    error_message = "\n".join(text_blocks)
+        elif msg_type == "user":
+            content = msg.get("message", {}).get("content", [])
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict) or block.get("type") != "tool_result":
+                        continue
+                    result_content = block.get("content", "")
+                    if isinstance(result_content, str):
+                        parsed.tool_outputs.append(result_content)
+                        parsed.bytes_observation += len(result_content.encode())
+                    elif isinstance(result_content, list):
+                        for item in result_content:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                text = item.get("text", "")
+                                parsed.tool_outputs.append(text)
+                                parsed.bytes_observation += len(text.encode())
+
+    combined = parsed.tool_outputs + parsed.text_outputs
+    parsed.stdout = "\n".join(combined) if combined else raw_stdout
+    parsed.runner_error = _summarize_runner_error(error_code, error_message)
+    return parsed
 
 
 def run_agent(
@@ -759,6 +1002,8 @@ def run_agent(
     mutations = 0
     policy_violations = 0
     requeried = False
+    runner_error = None
+    resolved_model = model
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
@@ -783,6 +1028,7 @@ def run_agent(
             tool_timeout_seconds=oai_tool_timeout,
         )
         raw_stdout = trace.raw_output
+        resolved_model = model
         bytes_output = trace.bytes_output
         tool_calls = trace.tool_calls
         num_turns = trace.turns
@@ -808,43 +1054,15 @@ def run_agent(
             raw_stdout = ""
             bytes_output = 0
 
-        try:
-            messages = json.loads(raw_stdout)
-
-            for msg in messages:
-                if msg.get("type") == "result":
-                    num_turns = msg.get("num_turns", 0)
-                    all_text_outputs.append(msg.get("result", ""))
-                elif msg.get("type") == "assistant":
-                    content = msg.get("message", {}).get("content", [])
-                    for block in content:
-                        if block.get("type") == "tool_use":
-                            tool_calls += 1
-                        if block.get("type") == "text":
-                            all_text_outputs.append(block.get("text", ""))
-                elif msg.get("type") == "user":
-                    content = msg.get("message", {}).get("content", [])
-                    if isinstance(content, list):
-                        for block in content:
-                            if isinstance(block, dict) and block.get("type") == "tool_result":
-                                result_content = block.get("content", "")
-                                if isinstance(result_content, str):
-                                    all_tool_outputs.append(result_content)
-                                    bytes_observation += len(result_content.encode())
-                                elif isinstance(result_content, list):
-                                    for c in result_content:
-                                        if isinstance(c, dict) and c.get("type") == "text":
-                                            text = c.get("text", "")
-                                            all_tool_outputs.append(text)
-                                            bytes_observation += len(text.encode())
-
-            # Combine all outputs — tool outputs first (likely contain raw JSON),
-            # then text outputs (may contain JSON embedded in prose)
-            stdout = "\n".join(all_tool_outputs + all_text_outputs)
-        except (json.JSONDecodeError, TypeError):
-            # Fallback: treat raw output as text (non-claude agent)
-            stdout = raw_stdout
-            tool_calls = raw_stdout.count('"tool_use"') + raw_stdout.count("$ ")
+        parsed_output = parse_agent_output(raw_stdout)
+        stdout = parsed_output.stdout
+        tool_calls = parsed_output.tool_calls
+        num_turns = parsed_output.turns
+        bytes_observation = parsed_output.bytes_observation
+        all_tool_outputs = parsed_output.tool_outputs
+        all_text_outputs = parsed_output.text_outputs
+        runner_error = parsed_output.runner_error
+        resolved_model = model or parsed_output.model
     elapsed = time.time() - start
 
     if guard_log_path is not None:
@@ -933,6 +1151,9 @@ def run_agent(
         actual = stdout
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
 
+    if runner_error and (not ok_md or not ok_neutral):
+        report = f"runner_error: {runner_error}\n{report}" if report else f"runner_error: {runner_error}"
+
     if log_dir:
         run_log_dir = Path(log_dir) / f"{task.id}_{mode}_{int(start)}"
         run_log_dir.mkdir(parents=True, exist_ok=True)
@@ -948,6 +1169,7 @@ def run_agent(
         mode=mode,
         correct=ok_md,
         correct_neutral=ok_neutral,
+        model=resolved_model,
         bytes_prompt=bytes_prompt,
         bytes_output=bytes_output,
         bytes_observation=bytes_observation,
@@ -958,6 +1180,7 @@ def run_agent(
         requeried=requeried,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
+        runner_error=runner_error,
     )
 
 
@@ -1054,9 +1277,19 @@ def main():
         help="Optional directory to persist prompt/output/guard logs for each run",
     )
     parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Optional directory to persist run.json, results.json, and task_ids.json",
+    )
+    parser.add_argument(
         "--tasks-path",
         default="bench/tasks/tasks.json",
         help="Path to the benchmark task corpus JSON file",
+    )
+    parser.add_argument(
+        "--task-ids-path",
+        default=None,
+        help="Optional JSON file containing an ordered task-ID subset from --tasks-path",
     )
     parser.add_argument(
         "--oai-api-base",
@@ -1083,9 +1316,21 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
 
+    started_at = time.time()
     tasks = load_tasks(args.tasks_path)
+    if args.task_ids_path:
+        try:
+            tasks = select_tasks(tasks, load_task_ids(args.task_ids_path))
+        except ValueError as exc:
+            parser.error(str(exc))
     if args.task:
         tasks = [t for t in tasks if t.id == args.task]
+        if not tasks:
+            parser.error(f"unknown task ID: {args.task}")
+    if not tasks:
+        parser.error("no tasks selected")
+
+    selected_task_ids = [task.id for task in tasks]
 
     if args.run and args.runner == "oai-loop":
         if not args.oai_api_base:
@@ -1106,12 +1351,37 @@ def main():
                 if line.strip():
                     print(f"    {line}")
         ok = all(r.correct and r.correct_neutral for r in results)
+        if args.results_dir:
+            metadata = build_run_metadata(
+                run_kind="dry-run",
+                tasks_path=args.tasks_path,
+                task_ids_path=args.task_ids_path,
+                selected_task_ids=selected_task_ids,
+                modes=["mdtools"],
+                md_binary=args.md_binary,
+                runner=None,
+                executor=None,
+                model=None,
+                runs_per_task=1,
+                results=results,
+                started_at=started_at,
+                finished_at=time.time(),
+            )
+            write_run_artifacts(
+                args.results_dir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=selected_task_ids,
+            )
         print(f"\n{'All tasks pass dual scorer.' if ok else 'SCORER ISSUES DETECTED.'}")
         sys.exit(0 if ok else 1)
 
     # Agent track
     modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools", "hybrid"]
     all_results: list[BenchResult] = []
+    effective_log_dir = args.log_dir
+    if args.results_dir and not effective_log_dir:
+        effective_log_dir = str(Path(args.results_dir) / "logs")
 
     for mode in modes:
         model_label = f", model={args.model}" if args.model else ""
@@ -1128,7 +1398,7 @@ def main():
                     args.model,
                     runner=args.runner,
                     executor=args.executor,
-                    log_dir=args.log_dir,
+                    log_dir=effective_log_dir,
                     max_turns=args.max_turns,
                     oai_api_base=args.oai_api_base,
                     oai_api_key=args.oai_api_key,
@@ -1139,10 +1409,11 @@ def main():
                 s = "PASS" if result.correct else "FAIL"
                 ns = "PASS" if result.correct_neutral else "FAIL"
                 rq = "↻" if result.requeried else " "
+                err = f" | err:{result.runner_error}" if result.runner_error else ""
                 print(f"    md={s} neutral={ns} | {result.elapsed_seconds}s | "
                       f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
                       f"~{result.tool_calls} calls | {result.mutations} mut | "
-                      f"deny:{result.policy_violations} {rq}")
+                      f"deny:{result.policy_violations} {rq}{err}")
 
     # Summary
     print("\n=== SUMMARY ===\n")
@@ -1178,6 +1449,29 @@ def main():
             print(f"\n  {mode}: {pass_rate:.0%} pass | {avg_time:.0f}s | {avg_calls:.1f} calls | "
                   f"{avg_obs:.0f}KB obs | {avg_mut:.1f} mut | {avg_deny:.1f} deny | "
                   f"{rq_rate:.0%} requery")
+
+    if args.results_dir:
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path=args.tasks_path,
+            task_ids_path=args.task_ids_path,
+            selected_task_ids=selected_task_ids,
+            modes=modes,
+            md_binary=args.md_binary,
+            runner=args.runner,
+            executor=args.executor,
+            model=args.model,
+            runs_per_task=args.N,
+            results=all_results,
+            started_at=started_at,
+            finished_at=time.time(),
+        )
+        write_run_artifacts(
+            args.results_dir,
+            metadata=metadata,
+            results=all_results,
+            selected_task_ids=selected_task_ids,
+        )
 
     if args.json:
         print("\n" + json.dumps([asdict(r) for r in all_results], indent=2))
