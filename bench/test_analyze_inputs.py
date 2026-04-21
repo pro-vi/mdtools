@@ -238,6 +238,73 @@ SCORER ISSUES DETECTED.
         self.assertIn("MODEL: unspecified", completed.stdout)
         self.assertNotIn("MODEL: opus", completed.stdout)
 
+    def test_analyze_separates_same_model_across_runners(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        model_id = "claude-haiku-4-5-20251001"
+
+        def build_bundle(runner: str, passed: bool) -> tuple[list[BenchResult], dict]:
+            results = [
+                BenchResult(
+                    task_id="T1",
+                    mode="hybrid",
+                    correct=passed,
+                    correct_neutral=passed,
+                    model=model_id,
+                    tool_calls=2,
+                    elapsed_seconds=1.0,
+                )
+            ]
+            metadata = build_run_metadata(
+                run_kind="agent-track",
+                tasks_path="bench/tasks/tasks.json",
+                task_ids_path="bench/search/task_ids.json",
+                selected_task_ids=["T1"],
+                modes=["hybrid"],
+                md_binary="target/debug/md",
+                runner=runner,
+                executor="guarded",
+                model=None,
+                runs_per_task=1,
+                results=results,
+                started_at=0,
+                finished_at=1,
+            )
+            return results, metadata
+
+        claude_results, claude_metadata = build_bundle("claude-cli", passed=True)
+        oai_results, oai_metadata = build_bundle("oai-loop", passed=False)
+
+        with tempfile.TemporaryDirectory(prefix="bench_analyze_claude_") as claude_dir, \
+                tempfile.TemporaryDirectory(prefix="bench_analyze_oai_") as oai_dir:
+            write_run_artifacts(
+                claude_dir,
+                metadata=claude_metadata,
+                results=claude_results,
+                selected_task_ids=["T1"],
+            )
+            write_run_artifacts(
+                oai_dir,
+                metadata=oai_metadata,
+                results=oai_results,
+                selected_task_ids=["T1"],
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/analyze.py", claude_dir, oai_dir],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        stdout = completed.stdout
+        self.assertIn(f"MODEL: {model_id} (runner=claude-cli)", stdout)
+        self.assertIn(f"MODEL: {model_id} (runner=oai-loop)", stdout)
+        self.assertIn("CROSS-MODEL SUMMARY", stdout)
+        self.assertIn(f"{model_id} [claude-cli]", stdout)
+        self.assertIn(f"{model_id} [oai-loop]", stdout)
+
     def test_analyze_accepts_text_runner_error_suffixes(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent
         agent_output = """=== MODE: mdtools (N=1, model=claude-sonnet-test) ===

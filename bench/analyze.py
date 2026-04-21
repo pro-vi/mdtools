@@ -26,7 +26,7 @@ def parse_run_metadata(filepath):
     return data if isinstance(data, dict) else None
 
 
-def normalize_result(result, default_model):
+def normalize_result(result, default_model, default_runner="unspecified"):
     """Normalize persisted or text-parsed results into the analysis shape."""
     if not isinstance(result, dict):
         return None
@@ -47,6 +47,7 @@ def normalize_result(result, default_model):
         "task": task_id,
         "mode": mode,
         "model": result.get("model") or default_model,
+        "runner": result.get("runner") or default_runner,
         "pass": passed,
         "time": float(result.get("elapsed_seconds", result.get("time", 0.0))),
         "bytes": int(result.get("bytes_output", result.get("bytes", 0))),
@@ -82,12 +83,14 @@ def load_analysis_input(path):
             source = str(input_path)
 
     default_model = "unspecified"
+    default_runner = "unspecified"
     if metadata:
         default_model = metadata.get("model") or "unspecified"
+        default_runner = metadata.get("runner") or "unspecified"
 
     results = []
     for result in raw_results:
-        normalized = normalize_result(result, default_model)
+        normalized = normalize_result(result, default_model, default_runner)
         if normalized:
             results.append(normalized)
 
@@ -303,14 +306,18 @@ def main():
 
     print_run_context(run_metadata)
 
-    # Group by model
-    models = sorted(set(r["model"] for r in all_results))
+    # Group by (runner, model) so bundles with the same model but different
+    # runners (e.g., oai-loop vs claude-cli) stay apples-to-apples distinct.
+    groups = sorted({(r["runner"], r["model"]) for r in all_results})
     modes = ["unix", "mdtools", "hybrid"]
     tasks = sorted(set(r["task"] for r in all_results), key=lambda t: int(t[1:]))
 
-    for model in models:
+    for runner, model in groups:
+        header = f"MODEL: {model}"
+        if runner and runner != "unspecified":
+            header += f" (runner={runner})"
         print(f"\n{'='*70}")
-        print(f"MODEL: {model}")
+        print(header)
         print(f"{'='*70}")
 
         # Per-task comparison
@@ -329,7 +336,11 @@ def main():
         for task in tasks:
             print(f"{task:<6}", end="")
             for mode in modes:
-                matches = [r for r in all_results if r["task"] == task and r["mode"] == mode and r["model"] == model]
+                matches = [
+                    r for r in all_results
+                    if r["task"] == task and r["mode"] == mode
+                    and r["model"] == model and r["runner"] == runner
+                ]
                 if matches:
                     n = len(matches)
                     pass_rate = sum(1 for r in matches if r["pass"]) / n
@@ -361,23 +372,41 @@ def main():
                 print(f"  {'—':>5} {'—':>6} {'—':>5}", end="")
         print()
 
-        runner_errors = collect_runner_errors([r for r in all_results if r["model"] == model])
+        runner_errors = collect_runner_errors([
+            r for r in all_results if r["model"] == model and r["runner"] == runner
+        ])
         if runner_errors:
             print("\nRunner errors:")
             for row in runner_errors:
                 tasks_label = ", ".join(row["tasks"])
                 print(f"  - {row['mode']} x{row['count']} [{tasks_label}]: {row['error']}")
 
-    # Cross-model comparison
-    if len(models) > 1:
+    # Cross-group comparison
+    if len(groups) > 1:
         print(f"\n{'='*70}")
         print("CROSS-MODEL SUMMARY")
         print(f"{'='*70}")
-        print(f"\n{'Model':<30} {'Mode':<10} {'Pass%':>6} {'Time':>6} {'Calls':>6} {'ObsKB':>6} {'Deny':>6} {'RQ%':>5}")
-        print("-" * 80)
-        for model in models:
+        label_width = max(
+            len(f"{model} [{runner}]" if runner and runner != "unspecified" else model)
+            for runner, model in groups
+        )
+        label_width = max(label_width, len("Model"))
+        print(
+            f"\n{'Model':<{label_width}} {'Mode':<10} {'Pass%':>6} {'Time':>6} "
+            f"{'Calls':>6} {'ObsKB':>6} {'Deny':>6} {'RQ%':>5}"
+        )
+        print("-" * (label_width + 50))
+        for runner, model in groups:
+            label = (
+                f"{model} [{runner}]"
+                if runner and runner != "unspecified"
+                else model
+            )
             for mode in modes:
-                matches = [r for r in all_results if r["mode"] == mode and r["model"] == model]
+                matches = [
+                    r for r in all_results
+                    if r["mode"] == mode and r["model"] == model and r["runner"] == runner
+                ]
                 if matches:
                     n = len(matches)
                     pct = sum(1 for r in matches if r["pass"]) / n * 100
@@ -386,7 +415,11 @@ def main():
                     avg_obs = sum(r.get("obs", 0) for r in matches) / n / 1024
                     avg_deny = sum(r.get("deny", 0) for r in matches) / n
                     rq_pct = sum(1 for r in matches if r.get("rq")) / n * 100
-                    print(f"{model:<30} {mode:<10} {pct:>5.0f}% {avg_t:>5.0f}s {avg_c:>5.1f} {avg_obs:>5.0f}K {avg_deny:>5.1f} {rq_pct:>4.0f}%")
+                    print(
+                        f"{label:<{label_width}} {mode:<10} {pct:>5.0f}% "
+                        f"{avg_t:>5.0f}s {avg_c:>5.1f} {avg_obs:>5.0f}K "
+                        f"{avg_deny:>5.1f} {rq_pct:>4.0f}%"
+                    )
 
 
 if __name__ == "__main__":
