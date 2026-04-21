@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from bench import harness
 from bench.harness import BenchResult, build_run_metadata, load_tasks, run_agent, select_tasks, write_run_artifacts
+from bench.oai_loop import LoopError, LoopTrace
 
 
 class HarnessRunArtifactTests(unittest.TestCase):
@@ -206,6 +207,66 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual(result.tool_calls, 0)
         self.assertEqual(result.turns, 0)
         self.assertEqual(result.model, "Hermes-4-70B-4bit")
+
+
+    def test_run_agent_preserves_partial_trace_when_loop_error_raised(self) -> None:
+        """When run_oai_loop raises LoopError (watchdog/HTTP/etc.) mid-task,
+        the harness populates the BenchResult's per-turn counters from the
+        attached partial trace instead of defaulting to all zeros, so the
+        durable bundle carries diagnostic signal (tool_calls, invalid_responses,
+        turns, bytes_*) alongside the recorded runner_error."""
+        md_binary = "target/release/md"
+        if not Path(md_binary).exists():
+            self.skipTest(f"{md_binary} not built")
+
+        tasks = load_tasks("bench/tasks/tasks.json")
+        task = select_tasks(tasks, ["T7"])[0]
+
+        partial = LoopTrace(
+            raw_output="[partial transcript]",
+            text_outputs=["first attempt"],
+            tool_outputs=["tool output 1", "tool output 2"],
+            bytes_output=512,
+            bytes_observation=1024,
+            tool_calls=2,
+            turns=4,
+            invalid_responses=1,
+        )
+
+        def raise_loop_error(**_kwargs):
+            cause = TimeoutError(
+                "OAI request to /chat/completions exceeded wall-time deadline of 90s"
+            )
+            raise LoopError(cause, partial)
+
+        with patch.object(harness, "run_oai_loop", side_effect=raise_loop_error):
+            result = run_agent(
+                task,
+                "mdtools",
+                agent_cmd="unused",
+                md_binary=md_binary,
+                model="Hermes-4-70B-4bit",
+                runner="oai-loop",
+                executor="guarded",
+                log_dir=None,
+                max_turns=30,
+                oai_api_base="http://127.0.0.1:10240/v1",
+                oai_api_key="test-key",
+                oai_request_timeout=60,
+                oai_tool_timeout=30,
+            )
+
+        self.assertFalse(result.correct)
+        self.assertIsNotNone(result.runner_error)
+        self.assertIn("oai_loop_error", result.runner_error)
+        self.assertIn("TimeoutError", result.runner_error)
+        self.assertIn("wall-time deadline", result.runner_error)
+        # Partial trace counters MUST survive the error path.
+        self.assertEqual(result.tool_calls, 2)
+        self.assertEqual(result.invalid_responses, 1)
+        self.assertEqual(result.turns, 4)
+        self.assertEqual(result.bytes_output, 512)
+        self.assertEqual(result.bytes_observation, 1024)
 
 
 if __name__ == "__main__":

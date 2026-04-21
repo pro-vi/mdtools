@@ -31,11 +31,11 @@ from typing import Literal
 
 try:
     from bench.command_policy import create_restricted_shell_env, load_guard_events
-    from bench.oai_loop import resolve_oai_model, run_oai_loop
+    from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import create_restricted_shell_env, load_guard_events
-    from bench.oai_loop import resolve_oai_model, run_oai_loop
+    from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
 
 # ── Independent scorer (no md dependency) ─────────────────────
 
@@ -1028,6 +1028,7 @@ def run_agent(
 
         resolved_model = model
         bytes_output = 0
+        trace = None
         try:
             trace = run_oai_loop(
                 api_base=oai_api_base,
@@ -1040,10 +1041,18 @@ def run_agent(
                 request_timeout_seconds=oai_request_timeout,
                 tool_timeout_seconds=oai_tool_timeout,
             )
-        except Exception as exc:  # noqa: BLE001 — surface any loop failure as a recorded runner_error
+        except LoopError as exc:
+            # The loop body raised mid-turn; preserve accumulated per-turn
+            # counters (tool_calls, invalid_responses, turns, bytes_*) from
+            # the partial trace so runner_error rows still carry diagnostic
+            # signal instead of all-zero defaults.
+            runner_error = f"oai_loop_error: {type(exc.cause).__name__}: {exc.cause}"
+            trace = exc.partial
+        except Exception as exc:  # noqa: BLE001 — surface any other loop failure as a recorded runner_error
             runner_error = f"oai_loop_error: {type(exc).__name__}: {exc}"
             raw_stdout = ""
-        else:
+
+        if trace is not None:
             raw_stdout = trace.raw_output
             bytes_output = trace.bytes_output
             tool_calls = trace.tool_calls

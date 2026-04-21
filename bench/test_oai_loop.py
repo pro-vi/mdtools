@@ -9,7 +9,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bench import oai_loop
-from bench.oai_loop import format_final_output, normalize_api_base, parse_action_text, run_oai_loop
+from bench.oai_loop import (
+    LoopError,
+    format_final_output,
+    normalize_api_base,
+    parse_action_text,
+    run_oai_loop,
+)
 
 
 class OAILoopTests(unittest.TestCase):
@@ -107,6 +113,56 @@ class OAILoopTests(unittest.TestCase):
                 timeout_seconds=5,
             )
         self.assertEqual(result, fixture)
+
+    def test_run_oai_loop_attaches_partial_trace_on_mid_task_failure(self) -> None:
+        # Before this change, a mid-task request failure (watchdog timeout, HTTP
+        # 500, etc.) propagated up through run_oai_loop with no visible state,
+        # so the harness recorded runner_error with tool_calls=0 / turns=0 and
+        # lost every per-turn diagnostic counter accumulated so far. The
+        # LoopError wrapper keeps the partial LoopTrace alongside the cause so
+        # the harness can populate the BenchResult from it.
+        scripted_assistant_replies = [
+            json.dumps({"type": "bash", "command": "md outline --json doc.md"}),
+            json.dumps({"type": "bash", "command": "md tasks --json doc.md"}),
+            json.dumps({"type": "bash", "command": "echo foo && echo bar"}),  # invalid
+        ]
+        call_count = {"n": 0}
+
+        def fake_request_json(_base, _key, _path, _payload, _timeout):
+            idx = call_count["n"]
+            call_count["n"] += 1
+            if idx < len(scripted_assistant_replies):
+                return {"choices": [{"message": {"content": scripted_assistant_replies[idx]}}]}
+            raise TimeoutError(
+                "OAI request to /chat/completions exceeded wall-time deadline of 90s"
+            )
+
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_partial_") as tmpdir, \
+                patch.object(oai_loop, "_request_json", side_effect=fake_request_json):
+            with self.assertRaises(LoopError) as ctx:
+                run_oai_loop(
+                    api_base="http://127.0.0.1:10240",
+                    api_key="test-key",
+                    model="test-model",
+                    prompt="task",
+                    workdir=Path(tmpdir),
+                    env={"PATH": "/usr/bin"},
+                    max_turns=10,
+                    request_timeout_seconds=1,
+                    tool_timeout_seconds=1,
+                )
+
+        err = ctx.exception
+        self.assertIsInstance(err.cause, TimeoutError)
+        self.assertIn("wall-time deadline", str(err.cause))
+        # Partial trace must reflect everything observed before the watchdog
+        # fired: two successful bash turns, one parse-rejected turn, four turns
+        # attempted total (turn 4 raised on the request itself).
+        self.assertEqual(err.partial.tool_calls, 2)
+        self.assertEqual(err.partial.invalid_responses, 1)
+        self.assertEqual(err.partial.turns, 4)
+        self.assertGreater(err.partial.bytes_output, 0)
+        self.assertGreater(err.partial.bytes_observation, 0)
 
     def test_request_json_propagates_inner_error(self) -> None:
         with patch.object(

@@ -50,6 +50,21 @@ class LoopAction:
     output: Any = None
 
 
+class LoopError(Exception):
+    """Raised by run_oai_loop when the inner request/response cycle fails.
+
+    Carries a `partial` LoopTrace built from whatever counters had accumulated
+    before the failure, so the harness can record per-turn diagnostic state
+    (tool_calls, invalid_responses, turns, bytes_*) alongside the runner_error
+    instead of losing everything to all-zero defaults on watchdog/timeout.
+    """
+
+    def __init__(self, cause: BaseException, partial: LoopTrace) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+        self.partial = partial
+
+
 def normalize_api_base(api_base: str) -> str:
     base = api_base.rstrip("/")
     if not base.endswith("/v1"):
@@ -125,81 +140,79 @@ def run_oai_loop(
     bytes_observation = 0
     tool_calls = 0
     invalid_responses = 0
+    turn = 0
 
-    for turn in range(1, max_turns + 1):
-        response = _request_json(
-            base,
-            api_key,
-            "/chat/completions",
-            {
-                "model": model,
-                "messages": messages,
-                "temperature": 0,
-                "max_tokens": 1024,
-                "response_format": {"type": "json_object"},
-            },
-            request_timeout_seconds,
+    def _snapshot() -> LoopTrace:
+        return LoopTrace(
+            raw_output=json.dumps(transcript, indent=2, ensure_ascii=False),
+            text_outputs=list(text_outputs),
+            tool_outputs=list(tool_outputs),
+            bytes_output=bytes_output,
+            bytes_observation=bytes_observation,
+            tool_calls=tool_calls,
+            turns=turn,
+            invalid_responses=invalid_responses,
         )
-        assistant_text = _extract_assistant_text(response)
-        bytes_output += len(assistant_text.encode())
-        transcript.append({"turn": turn, "assistant": assistant_text})
 
-        try:
-            action = parse_action_text(assistant_text)
-        except (json.JSONDecodeError, ValueError) as exc:
-            invalid_responses += 1
-            correction = (
-                "Your last response was invalid. "
-                "Reply again with exactly one JSON object matching the required schema. "
-                f"Error: {exc}"
+    try:
+        for turn in range(1, max_turns + 1):
+            response = _request_json(
+                base,
+                api_key,
+                "/chat/completions",
+                {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": 0,
+                    "max_tokens": 1024,
+                    "response_format": {"type": "json_object"},
+                },
+                request_timeout_seconds,
             )
+            assistant_text = _extract_assistant_text(response)
+            bytes_output += len(assistant_text.encode())
+            transcript.append({"turn": turn, "assistant": assistant_text})
+
+            try:
+                action = parse_action_text(assistant_text)
+            except (json.JSONDecodeError, ValueError) as exc:
+                invalid_responses += 1
+                correction = (
+                    "Your last response was invalid. "
+                    "Reply again with exactly one JSON object matching the required schema. "
+                    f"Error: {exc}"
+                )
+                messages.append({"role": "assistant", "content": assistant_text})
+                messages.append({"role": "user", "content": correction})
+                transcript.append({"turn": turn, "user": correction})
+                continue
+
             messages.append({"role": "assistant", "content": assistant_text})
-            messages.append({"role": "user", "content": correction})
-            transcript.append({"turn": turn, "user": correction})
-            continue
 
-        messages.append({"role": "assistant", "content": assistant_text})
+            if action.action_type == "final":
+                final_output = format_final_output(action.output)
+                text_outputs.append(final_output)
+                transcript.append({"turn": turn, "final": final_output})
+                return _snapshot()
 
-        if action.action_type == "final":
-            final_output = format_final_output(action.output)
-            text_outputs.append(final_output)
-            transcript.append({"turn": turn, "final": final_output})
-            return LoopTrace(
-                raw_output=json.dumps(transcript, indent=2, ensure_ascii=False),
-                text_outputs=text_outputs,
-                tool_outputs=tool_outputs,
-                bytes_output=bytes_output,
-                bytes_observation=bytes_observation,
-                tool_calls=tool_calls,
-                turns=turn,
-                invalid_responses=invalid_responses,
+            tool_calls += 1
+            observation = _run_bash_command(
+                action.command or "",
+                workdir=workdir,
+                env=env,
+                timeout_seconds=tool_timeout_seconds,
             )
-
-        tool_calls += 1
-        observation = _run_bash_command(
-            action.command or "",
-            workdir=workdir,
-            env=env,
-            timeout_seconds=tool_timeout_seconds,
-        )
-        tool_outputs.append(observation)
-        bytes_observation += len(observation.encode())
-        transcript.append({"turn": turn, "tool_result": observation})
-        messages.append({"role": "user", "content": f"Tool result:\n{observation}"})
+            tool_outputs.append(observation)
+            bytes_observation += len(observation.encode())
+            transcript.append({"turn": turn, "tool_result": observation})
+            messages.append({"role": "user", "content": f"Tool result:\n{observation}"})
+    except BaseException as exc:  # noqa: BLE001 — attach partial trace to any failure
+        raise LoopError(exc, _snapshot()) from exc
 
     timeout_note = "MAX_TURNS_EXCEEDED"
     text_outputs.append(timeout_note)
     transcript.append({"turn": max_turns, "final": timeout_note})
-    return LoopTrace(
-        raw_output=json.dumps(transcript, indent=2, ensure_ascii=False),
-        text_outputs=text_outputs,
-        tool_outputs=tool_outputs,
-        bytes_output=bytes_output,
-        bytes_observation=bytes_observation,
-        tool_calls=tool_calls,
-        turns=max_turns,
-        invalid_responses=invalid_responses,
-    )
+    return _snapshot()
 
 
 def _request_json(
