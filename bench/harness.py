@@ -770,6 +770,12 @@ def build_run_metadata(
     }
 
 
+def _write_atomic(path: Path, content: str) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(content)
+    tmp.replace(path)
+
+
 def write_run_artifacts(
     results_dir: str,
     *,
@@ -779,9 +785,9 @@ def write_run_artifacts(
 ) -> None:
     output_dir = Path(results_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "run.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    (output_dir / "results.json").write_text(json.dumps([asdict(result) for result in results], indent=2) + "\n")
-    (output_dir / "task_ids.json").write_text(json.dumps(selected_task_ids, indent=2) + "\n")
+    _write_atomic(output_dir / "run.json", json.dumps(metadata, indent=2) + "\n")
+    _write_atomic(output_dir / "results.json", json.dumps([asdict(result) for result in results], indent=2) + "\n")
+    _write_atomic(output_dir / "task_ids.json", json.dumps(selected_task_ids, indent=2) + "\n")
 
 
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
@@ -1420,6 +1426,28 @@ def main():
                       f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
                       f"~{result.tool_calls} calls | {result.mutations} mut | "
                       f"deny:{result.policy_violations} {rq}{err}")
+                if args.results_dir:
+                    partial_metadata = build_run_metadata(
+                        run_kind="agent-track",
+                        tasks_path=args.tasks_path,
+                        task_ids_path=args.task_ids_path,
+                        selected_task_ids=selected_task_ids,
+                        modes=modes,
+                        md_binary=args.md_binary,
+                        runner=args.runner,
+                        executor=args.executor,
+                        model=args.model,
+                        runs_per_task=args.N,
+                        results=all_results,
+                        started_at=started_at,
+                        finished_at=time.time(),
+                    )
+                    write_run_artifacts(
+                        args.results_dir,
+                        metadata=partial_metadata,
+                        results=all_results,
+                        selected_task_ids=selected_task_ids,
+                    )
 
     # Summary
     print("\n=== SUMMARY ===\n")
