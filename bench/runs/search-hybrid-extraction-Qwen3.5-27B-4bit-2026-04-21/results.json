@@ -15,7 +15,8 @@
     "requeried": false,
     "elapsed_seconds": 46.56,
     "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 0
   },
   {
     "task_id": "T9",
@@ -33,7 +34,8 @@
     "requeried": false,
     "elapsed_seconds": 60.17,
     "diff_report": "json_canonical: OK",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 0
   },
   {
     "task_id": "T16",
@@ -51,6 +53,7 @@
     "requeried": false,
     "elapsed_seconds": 106.89,
     "diff_report": "json_canonical: OK",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 0
   }
 ]

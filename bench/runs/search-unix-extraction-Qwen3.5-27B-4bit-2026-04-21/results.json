@@ -15,7 +15,8 @@
     "requeried": false,
     "elapsed_seconds": 469.61,
     "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 25
   },
   {
     "task_id": "T9",
@@ -33,7 +34,8 @@
     "requeried": false,
     "elapsed_seconds": 340.3,
     "diff_report": "json_canonical: MISMATCH at line 3\n  expected:     \"loc\": \"3.0\",\n  actual:       \"loc\": 8,",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 8
   },
   {
     "task_id": "T16",
@@ -51,6 +53,7 @@
     "requeried": false,
     "elapsed_seconds": 423.32,
     "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 11
   }
 ]

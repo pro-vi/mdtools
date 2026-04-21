@@ -31,6 +31,7 @@
       "avg_bytes_observation": 3077.3333333333335,
       "avg_mutations": 0.0,
       "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 10.0,
       "requery_rate": 0.0
     },
     "by_mode": {
@@ -46,6 +47,7 @@
         "avg_bytes_observation": 3077.3333333333335,
         "avg_mutations": 0.0,
         "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 10.0,
         "requery_rate": 0.0
       }
     }

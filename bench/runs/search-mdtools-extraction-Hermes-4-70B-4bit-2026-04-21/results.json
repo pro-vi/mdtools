@@ -15,7 +15,8 @@
     "requeried": false,
     "elapsed_seconds": 68.55,
     "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 0
   },
   {
     "task_id": "T9",
@@ -33,7 +34,8 @@
     "requeried": false,
     "elapsed_seconds": 61.32,
     "diff_report": "json_canonical: OK",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 0
   },
   {
     "task_id": "T16",
@@ -51,6 +53,7 @@
     "requeried": false,
     "elapsed_seconds": 378.38,
     "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
-    "runner_error": null
+    "runner_error": null,
+    "invalid_responses": 30
   }
 ]

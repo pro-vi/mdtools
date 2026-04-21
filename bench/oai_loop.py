@@ -36,6 +36,7 @@ class LoopTrace:
     bytes_observation: int
     tool_calls: int
     turns: int
+    invalid_responses: int = 0
 
 
 @dataclass
@@ -119,6 +120,7 @@ def run_oai_loop(
     bytes_output = 0
     bytes_observation = 0
     tool_calls = 0
+    invalid_responses = 0
 
     for turn in range(1, max_turns + 1):
         response = _request_json(
@@ -141,6 +143,7 @@ def run_oai_loop(
         try:
             action = parse_action_text(assistant_text)
         except (json.JSONDecodeError, ValueError) as exc:
+            invalid_responses += 1
             correction = (
                 "Your last response was invalid. "
                 "Reply again with exactly one JSON object matching the required schema. "
@@ -165,6 +168,7 @@ def run_oai_loop(
                 bytes_observation=bytes_observation,
                 tool_calls=tool_calls,
                 turns=turn,
+                invalid_responses=invalid_responses,
             )
 
         tool_calls += 1
@@ -190,6 +194,7 @@ def run_oai_loop(
         bytes_observation=bytes_observation,
         tool_calls=tool_calls,
         turns=max_turns,
+        invalid_responses=invalid_responses,
     )
 
 

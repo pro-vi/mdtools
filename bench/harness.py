@@ -151,6 +151,7 @@ class BenchResult:
     mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
     policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
+    invalid_responses: int = 0   # oai-loop parse_action_text failures (action-format adherence)
     elapsed_seconds: float = 0.0
     diff_report: str = ""
     runner_error: str | None = None
@@ -695,6 +696,7 @@ def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
             "avg_bytes_observation": 0.0,
             "avg_mutations": 0.0,
             "avg_policy_violations": 0.0,
+            "avg_invalid_responses": 0.0,
             "requery_rate": 0.0,
         }
 
@@ -710,6 +712,7 @@ def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
         "avg_bytes_observation": sum(result.bytes_observation for result in results) / total,
         "avg_mutations": sum(result.mutations for result in results) / total,
         "avg_policy_violations": sum(result.policy_violations for result in results) / total,
+        "avg_invalid_responses": sum(result.invalid_responses for result in results) / total,
         "requery_rate": sum(1 for result in results if result.requeried) / total,
     }
 
@@ -1002,6 +1005,7 @@ def run_agent(
     mutations = 0
     policy_violations = 0
     requeried = False
+    invalid_responses = 0
     runner_error = None
     resolved_model = model
     all_tool_outputs: list[str] = []
@@ -1033,6 +1037,7 @@ def run_agent(
         tool_calls = trace.tool_calls
         num_turns = trace.turns
         bytes_observation = trace.bytes_observation
+        invalid_responses = trace.invalid_responses
         all_tool_outputs = trace.tool_outputs
         all_text_outputs = trace.text_outputs
         stdout = "\n".join(all_tool_outputs + all_text_outputs)
@@ -1178,6 +1183,7 @@ def run_agent(
         mutations=mutations,
         policy_violations=policy_violations,
         requeried=requeried,
+        invalid_responses=invalid_responses,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
         runner_error=runner_error,

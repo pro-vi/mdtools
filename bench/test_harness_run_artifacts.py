@@ -28,6 +28,7 @@ class HarnessRunArtifactTests(unittest.TestCase):
                 model="claude-sonnet-4-6",
                 policy_violations=1,
                 requeried=True,
+                invalid_responses=4,
                 runner_error="authentication_failed: Not logged in · Please run /login",
             ),
         ]
@@ -70,6 +71,14 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual([item["task_id"] for item in result_data], ["T2", "T1"])
         self.assertEqual(result_data[0]["model"], "claude-sonnet-4-6")
         self.assertEqual(result_data[1]["policy_violations"], 1)
+        self.assertEqual(result_data[0]["invalid_responses"], 0)
+        self.assertEqual(result_data[1]["invalid_responses"], 4)
+        self.assertAlmostEqual(
+            run_data["aggregates"]["overall"]["avg_invalid_responses"], 2.0
+        )
+        self.assertAlmostEqual(
+            run_data["aggregates"]["by_mode"]["hybrid"]["avg_invalid_responses"], 2.0
+        )
         self.assertEqual(
             result_data[1]["runner_error"],
             "authentication_failed: Not logged in · Please run /login",
