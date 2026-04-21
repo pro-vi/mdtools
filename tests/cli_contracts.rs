@@ -853,7 +853,7 @@ fn tempfile_str(content: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let path = format!("/tmp/mdtools_contract_{}_{}.md", std::process::id(), id);
+    let path = format!("/tmp/mdtools_contract_str_{}_{}.md", std::process::id(), id);
     std::fs::write(&path, content).unwrap();
     path
 }
@@ -862,7 +862,21 @@ fn tempfile_bytes(content: &[u8]) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let path = format!("/tmp/mdtools_contract_{}_{}.md", std::process::id(), id);
+    let path = format!("/tmp/mdtools_contract_bytes_{}_{}.md", std::process::id(), id);
     std::fs::write(&path, content).unwrap();
     path
+}
+
+// Regression guard: tempfile_str and tempfile_bytes own independent counters
+// starting at 0. Before namespacing by prefix, both helpers produced the same
+// path at id=0 and collided when called concurrently within the same test
+// binary, intermittently failing tests like stats_line_count_no_trailing_newline
+// (see iteration-6 notes). Assert that their first-issued paths differ.
+#[test]
+fn tempfile_helpers_produce_disjoint_paths() {
+    let a = tempfile_str("a");
+    let b = tempfile_bytes(b"b");
+    assert_ne!(a, b, "tempfile_str and tempfile_bytes must not collide on disk");
+    std::fs::remove_file(&a).ok();
+    std::fs::remove_file(&b).ok();
 }
