@@ -276,7 +276,8 @@ python bench/harness.py --run --task-ids-path bench/holdout/task_ids.json \
   --md-binary target/release/md
 
 # Persist a machine-readable run bundle under bench/runs/.
-# Agent runs also write prompt/output/guard logs to <results-dir>/logs by default.
+# Agent runs also write prompt/output/guard logs to <results-dir>/logs by default;
+# those logs are local debug aids and are gitignored under bench/runs/**/logs/.
 python bench/harness.py --task-ids-path bench/search/task_ids.json \
   --md-binary target/release/md \
   --results-dir bench/runs/search-dry-run

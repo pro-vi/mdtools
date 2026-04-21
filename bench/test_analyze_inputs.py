@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -199,6 +200,43 @@ SCORER ISSUES DETECTED.
         self.assertIn("Runner errors:", completed.stdout)
         self.assertIn("authentication_failed: Not logged in · Please run /login", completed.stdout)
         self.assertIn("mdtools x1 [T1]", completed.stdout)
+
+    def test_analyze_results_json_without_metadata_uses_unspecified(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        results = [
+            {
+                "task_id": "T1",
+                "mode": "mdtools",
+                "correct": True,
+                "elapsed_seconds": 0.5,
+                "tool_calls": 1,
+            }
+        ]
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="bench_analyze_results_json_",
+            suffix=".json",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(json.dumps(results))
+
+        try:
+            completed = subprocess.run(
+                [sys.executable, "bench/analyze.py", str(tmp_path)],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("MODEL: unspecified", completed.stdout)
+        self.assertNotIn("MODEL: opus", completed.stdout)
 
     def test_analyze_accepts_text_runner_error_suffixes(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent

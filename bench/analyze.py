@@ -81,7 +81,7 @@ def load_analysis_input(path):
         else:
             source = str(input_path)
 
-    default_model = "opus"
+    default_model = "unspecified"
     if metadata:
         default_model = metadata.get("model") or "unspecified"
 
