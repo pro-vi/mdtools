@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -64,6 +66,63 @@ class OAILoopTests(unittest.TestCase):
         self.assertEqual(trace.tool_calls, 0)
         self.assertEqual(trace.turns, 3)
         self.assertEqual(trace.text_outputs, ["done"])
+
+    def test_request_json_watchdog_fires_when_blocking_exceeds_deadline(self) -> None:
+        # urllib.urlopen(timeout=N) can fail to raise on streaming completions
+        # when keepalives reset the socket read timer (observed on Hermes-4-70B
+        # via OMLX: harness sat on a single POST for 10+ min). The watchdog
+        # enforces a hard wall-time bound so a stuck request becomes a recorded
+        # runner_error rather than a silent hang.
+        release = threading.Event()
+
+        def blocking(*_args, **_kwargs):
+            release.wait(timeout=5)
+            return {"ok": True}
+
+        with patch.object(oai_loop, "_do_request_json", side_effect=blocking), \
+                patch.object(oai_loop, "WATCHDOG_MARGIN_SECONDS", 0):
+            started = time.monotonic()
+            with self.assertRaises(TimeoutError) as ctx:
+                oai_loop._request_json(
+                    "http://127.0.0.1:10240/v1",
+                    "test-key",
+                    "/chat/completions",
+                    {"model": "x"},
+                    timeout_seconds=1,
+                )
+            elapsed = time.monotonic() - started
+        release.set()  # let the abandoned worker finish
+
+        self.assertIn("wall-time deadline", str(ctx.exception))
+        self.assertLess(elapsed, 3.0)
+
+    def test_request_json_returns_fast_response_without_tripping_watchdog(self) -> None:
+        fixture = {"choices": [{"message": {"content": "ok"}}]}
+        with patch.object(oai_loop, "_do_request_json", return_value=fixture):
+            result = oai_loop._request_json(
+                "http://127.0.0.1:10240/v1",
+                "test-key",
+                "/chat/completions",
+                {"model": "x"},
+                timeout_seconds=5,
+            )
+        self.assertEqual(result, fixture)
+
+    def test_request_json_propagates_inner_error(self) -> None:
+        with patch.object(
+            oai_loop,
+            "_do_request_json",
+            side_effect=RuntimeError("OAI request failed with HTTP 500"),
+        ):
+            with self.assertRaises(RuntimeError) as ctx:
+                oai_loop._request_json(
+                    "http://127.0.0.1:10240/v1",
+                    "test-key",
+                    "/chat/completions",
+                    {"model": "x"},
+                    timeout_seconds=5,
+                )
+        self.assertIn("HTTP 500", str(ctx.exception))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-21T14:30:36Z",
+  "finished_at": "2026-04-21T14:35:31Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": "bench/search/extraction_pilot.json",
+  "selected_task_ids": [
+    "T1",
+    "T9",
+    "T16"
+  ],
+  "modes": [
+    "hybrid"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Hermes-4-70B-4bit",
+  "runs_per_task": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 1,
+      "pass_rate": 0.3333333333333333,
+      "neutral_pass_count": 1,
+      "neutral_pass_rate": 0.3333333333333333,
+      "avg_elapsed_seconds": 98.19666666666667,
+      "avg_tool_calls": 3.3333333333333335,
+      "avg_bytes_output": 2940.0,
+      "avg_bytes_observation": 4110.333333333333,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 2.6666666666666665,
+      "avg_invalid_responses": 1.3333333333333333,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "hybrid": {
+        "runs": 3,
+        "pass_count": 1,
+        "pass_rate": 0.3333333333333333,
+        "neutral_pass_count": 1,
+        "neutral_pass_rate": 0.3333333333333333,
+        "avg_elapsed_seconds": 98.19666666666667,
+        "avg_tool_calls": 3.3333333333333335,
+        "avg_bytes_output": 2940.0,
+        "avg_bytes_observation": 4110.333333333333,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 2.6666666666666665,
+        "avg_invalid_responses": 1.3333333333333333,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

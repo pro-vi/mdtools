@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import json
 import subprocess
+import threading
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+WATCHDOG_MARGIN_SECONDS = 30
 
 
 ACTION_PROTOCOL = """\
@@ -199,6 +203,47 @@ def run_oai_loop(
 
 
 def _request_json(
+    api_base: str,
+    api_key: str,
+    path: str,
+    payload: dict[str, Any] | None,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    # urllib's socket timeout doesn't reliably fire on streaming chat completions
+    # when keepalives reset the read timer (observed on Hermes-4-70B-4bit via OMLX:
+    # the harness sat on a single POST for 10+ minutes with timeout=300). Enforce
+    # a hard wall-time bound in a worker thread so a stuck request surfaces as a
+    # bounded TimeoutError the harness can record as runner_error instead of a
+    # silent hang that forces the whole iteration to be re-run.
+    deadline = max(timeout_seconds + WATCHDOG_MARGIN_SECONDS, 1)
+    result_holder: list[dict[str, Any]] = []
+    error_holder: list[BaseException] = []
+
+    def _worker() -> None:
+        try:
+            result_holder.append(
+                _do_request_json(api_base, api_key, path, payload, timeout_seconds)
+            )
+        except BaseException as exc:  # noqa: BLE001 — must capture everything the worker raises
+            error_holder.append(exc)
+
+    thread = threading.Thread(target=_worker, daemon=True, name="oai-req")
+    thread.start()
+    thread.join(timeout=deadline)
+
+    if thread.is_alive():
+        raise TimeoutError(
+            f"OAI request to {path} exceeded wall-time deadline of {deadline}s "
+            f"(socket timeout={timeout_seconds}s did not fire)"
+        )
+    if error_holder:
+        raise error_holder[0]
+    if not result_holder:
+        raise RuntimeError(f"OAI request to {path} returned no result")
+    return result_holder[0]
+
+
+def _do_request_json(
     api_base: str,
     api_key: str,
     path: str,

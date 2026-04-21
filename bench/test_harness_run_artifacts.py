@@ -4,8 +4,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from bench.harness import BenchResult, build_run_metadata, write_run_artifacts
+from bench import harness
+from bench.harness import BenchResult, build_run_metadata, load_tasks, run_agent, select_tasks, write_run_artifacts
 
 
 class HarnessRunArtifactTests(unittest.TestCase):
@@ -159,6 +161,51 @@ class HarnessRunArtifactTests(unittest.TestCase):
             # No .tmp residue from the atomic write pattern.
             residue = sorted(p.name for p in Path(tmpdir).iterdir() if p.name.endswith(".tmp"))
             self.assertEqual(residue, [])
+
+    def test_run_agent_records_runner_error_when_oai_loop_raises(self) -> None:
+        """A hung or failed oai-loop request becomes a recorded runner_error
+        on the BenchResult, so the outer harness loop can continue to the next
+        task with per-task incremental durability (instead of the whole run
+        aborting and losing prior tasks' results)."""
+        md_binary = "target/release/md"
+        if not Path(md_binary).exists():
+            self.skipTest(f"{md_binary} not built")
+
+        tasks = load_tasks("bench/tasks/tasks.json")
+        task = select_tasks(tasks, ["T7"])[0]
+
+        def boom(**_kwargs):
+            raise TimeoutError(
+                "OAI request to /chat/completions exceeded wall-time deadline of 90s"
+            )
+
+        with patch.object(harness, "run_oai_loop", side_effect=boom):
+            result = run_agent(
+                task,
+                "mdtools",
+                agent_cmd="unused",
+                md_binary=md_binary,
+                model="Hermes-4-70B-4bit",
+                runner="oai-loop",
+                executor="guarded",
+                log_dir=None,
+                max_turns=30,
+                oai_api_base="http://127.0.0.1:10240/v1",
+                oai_api_key="test-key",
+                oai_request_timeout=60,
+                oai_tool_timeout=30,
+            )
+
+        self.assertFalse(result.correct)
+        self.assertIsNotNone(result.runner_error)
+        self.assertIn("oai_loop_error", result.runner_error)
+        self.assertIn("TimeoutError", result.runner_error)
+        self.assertIn("wall-time deadline", result.runner_error)
+        self.assertEqual(result.task_id, "T7")
+        self.assertEqual(result.mode, "mdtools")
+        self.assertEqual(result.tool_calls, 0)
+        self.assertEqual(result.turns, 0)
+        self.assertEqual(result.model, "Hermes-4-70B-4bit")
 
 
 if __name__ == "__main__":

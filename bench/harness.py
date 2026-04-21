@@ -1026,27 +1026,33 @@ def run_agent(
         if not model:
             raise RuntimeError("oai-loop runner requires a resolved model id")
 
-        trace = run_oai_loop(
-            api_base=oai_api_base,
-            api_key=oai_api_key,
-            model=model,
-            prompt=prompt,
-            workdir=workdir_path,
-            env=child_env,
-            max_turns=max_turns,
-            request_timeout_seconds=oai_request_timeout,
-            tool_timeout_seconds=oai_tool_timeout,
-        )
-        raw_stdout = trace.raw_output
         resolved_model = model
-        bytes_output = trace.bytes_output
-        tool_calls = trace.tool_calls
-        num_turns = trace.turns
-        bytes_observation = trace.bytes_observation
-        invalid_responses = trace.invalid_responses
-        all_tool_outputs = trace.tool_outputs
-        all_text_outputs = trace.text_outputs
-        stdout = "\n".join(all_tool_outputs + all_text_outputs)
+        bytes_output = 0
+        try:
+            trace = run_oai_loop(
+                api_base=oai_api_base,
+                api_key=oai_api_key,
+                model=model,
+                prompt=prompt,
+                workdir=workdir_path,
+                env=child_env,
+                max_turns=max_turns,
+                request_timeout_seconds=oai_request_timeout,
+                tool_timeout_seconds=oai_tool_timeout,
+            )
+        except Exception as exc:  # noqa: BLE001 — surface any loop failure as a recorded runner_error
+            runner_error = f"oai_loop_error: {type(exc).__name__}: {exc}"
+            raw_stdout = ""
+        else:
+            raw_stdout = trace.raw_output
+            bytes_output = trace.bytes_output
+            tool_calls = trace.tool_calls
+            num_turns = trace.turns
+            bytes_observation = trace.bytes_observation
+            invalid_responses = trace.invalid_responses
+            all_tool_outputs = trace.tool_outputs
+            all_text_outputs = trace.text_outputs
+            stdout = "\n".join(all_tool_outputs + all_text_outputs)
     else:
         cmd = _build_agent_cmd(agent_cmd, mode, local_md, model, max_turns)
         try:
