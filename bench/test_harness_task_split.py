@@ -37,15 +37,24 @@ class HarnessTaskSplitTests(unittest.TestCase):
     def test_mutation_pilot_manifest_is_search_subset(self) -> None:
         self._assert_pilot_manifest("bench/search/mutation_pilot.json")
 
+    def test_multistep_pilot_manifest_is_search_subset(self) -> None:
+        self._assert_pilot_manifest("bench/search/multistep_pilot.json")
+
     def test_pilot_manifests_are_disjoint(self) -> None:
-        extraction = set(load_task_ids("bench/search/extraction_pilot.json"))
-        mutation = set(load_task_ids("bench/search/mutation_pilot.json"))
-        overlap = extraction & mutation
-        self.assertEqual(
-            overlap,
-            set(),
-            f"pilot manifests overlap: {overlap} — each pilot anchors a distinct task family",
-        )
+        manifests = {
+            "extraction": set(load_task_ids("bench/search/extraction_pilot.json")),
+            "mutation": set(load_task_ids("bench/search/mutation_pilot.json")),
+            "multistep": set(load_task_ids("bench/search/multistep_pilot.json")),
+        }
+        names = sorted(manifests)
+        for i, a in enumerate(names):
+            for b in names[i + 1 :]:
+                overlap = manifests[a] & manifests[b]
+                self.assertEqual(
+                    overlap,
+                    set(),
+                    f"pilot manifests {a} and {b} overlap: {overlap} — each pilot anchors a distinct task family",
+                )
 
     def _assert_pilot_manifest(self, manifest_path: str) -> None:
         search_ids = set(load_task_ids("bench/search/task_ids.json"))

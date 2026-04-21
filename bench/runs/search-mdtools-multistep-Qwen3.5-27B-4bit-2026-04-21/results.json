@@ -1,0 +1,42 @@
+[
+  {
+    "task_id": "T15",
+    "mode": "mdtools",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "bytes_prompt": 4471,
+    "bytes_output": 800,
+    "bytes_observation": 2892,
+    "tool_calls": 5,
+    "turns": 6,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 84.28,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "mdtools",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "bytes_prompt": 4513,
+    "bytes_output": 812,
+    "bytes_observation": 6015,
+    "tool_calls": 5,
+    "turns": 6,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 43.15,
+    "diff_report": "",
+    "runner_error": null
+  }
+]

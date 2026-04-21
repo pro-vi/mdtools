@@ -1,0 +1,42 @@
+[
+  {
+    "task_id": "T15",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "bytes_prompt": 4825,
+    "bytes_output": 967,
+    "bytes_observation": 4103,
+    "tool_calls": 6,
+    "turns": 7,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 73.72,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "bytes_prompt": 4867,
+    "bytes_output": 817,
+    "bytes_observation": 6017,
+    "tool_calls": 5,
+    "turns": 6,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 44.13,
+    "diff_report": "",
+    "runner_error": null
+  }
+]
