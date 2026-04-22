@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 24 tasks, with published cross-model results on the historical 20-task snapshot.
+> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 24 tasks, with published frontier-model results on the historical 20-task snapshot and committed local-model search-pilot evidence under `bench/runs/`.
 
 Structural access to Markdown for LLM agents.
 
@@ -215,6 +215,8 @@ The current default corpus is 24 tasks in `bench/tasks/tasks.json`. To reduce vi
 
 The published aggregate numbers below were generated on April 2, 2026 against the historical 20-task snapshot preserved in `bench/tasks/tasks_v1.json`, before the explicit search/holdout split existed.
 
+The repo also now includes committed local OpenAI-compatible search-pilot bundles under `bench/runs/` for the extraction, targeted mutation, and multistep families. Those runs are narrower than the published 20-task snapshot and should be read as search-split evidence, not as a replacement for the historical frontier-model table below.
+
 Benchmark runs now default to a guarded executor that constrains the Bash tool to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
 
 ### Results
@@ -236,12 +238,12 @@ Sonnet 4.6      80%     85%    +5pp    Speed (3-5x faster)
 Opus 4.6        89%     83%    -6pp    Efficiency only
 ```
 
-**Tool benefit is inversely proportional to model capability.** Weaker models gain correctness. Stronger models gain speed.
+**Tool benefit is not monotonic with model strength.** The published frontier-model snapshot still suggests weaker frontier models gain correctness while stronger ones mostly gain speed, but the committed local search pilots show clear model-family and task-family interactions.
 
 Key findings from the published 20-task snapshot:
 - **+37pp correctness on Haiku.** Fails 10/20 tasks in unix mode but only 3/20 with hybrid tools. Structural extraction (T1, T5, T9), aggregation (T11), and multi-step workflows (T15) flip from FAIL to PASS.
 - **3-5x faster on Sonnet.** Slight correctness lift (+5pp) plus structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
-- **Hybrid > pure.** Agents perform best when they can choose between `md` for structural operations and `sed` for simple text edits.
+- **Hybrid is not a universal win.** On the committed local search pilots, Qwen-family models match `mdtools` in hybrid, Hermes regresses in hybrid on extraction and mutation but ties on multistep, and magnum stays mixed by family.
 - The current default corpus adds T21-T24 to cover `frontmatter`, `links`, `table`, and `set`. The aggregate tables below have not yet been rerun on that expanded set.
 
 ### Published Snapshot Categories

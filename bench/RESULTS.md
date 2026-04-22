@@ -64,5 +64,40 @@ Sonnet timing evidence (N=1, selected structural tasks):
 | T12 (batch) | 149s / 6 calls | 26s / 3 calls | 5.7x |
 | T18 (re-query) | 72s / 10 calls | 22s / 4 calls | 3.3x |
 
-The benefit is inversely proportional to model capability.
-Weaker models gain correctness. Stronger models gain speed.
+The historical frontier-model snapshot suggests weaker frontier models gain more correctness while stronger ones mostly gain speed, but the local search-pilot matrix below shows that mode choice also depends strongly on model family and task family.
+
+## Local OAI search-pilot matrix (2026-04-21, search split)
+
+These results come from committed durable bundles under `bench/runs/` on the default 24-task corpus's search split. They are narrower pilot manifests, not a rerun of the full 20-task v1 snapshot above.
+
+### Extraction pilot (T1, T9, T16)
+
+| Model | unix | mdtools | hybrid | Notes |
+|-------|-----:|--------:|-------:|-------|
+| Qwen3.5-27B-4bit | 0% (0/3, 411s) | 100% (3/3, 70s) | 100% (3/3, 71s) | Clear tool-value lift over unix; hybrid ties mdtools |
+| Qwen3.5-122B-A10B-4bit | — | 100% (3/3, 30s) | 100% (3/3, 34s) | Fastest passing local model on the committed extraction pilot |
+| Hermes-4-70B-4bit | — | 67% (2/3, 169s) | 33% (1/3, 98s) | Hybrid underperforms mdtools on extraction |
+| magnum-v4-123b-4bit | — | 33% (1/3, 621s) | 33% (1/3, 358s) | Hybrid fails faster, but does not improve correctness |
+
+### Targeted mutation pilot (T7, T10, T13)
+
+| Model | mdtools | hybrid | Requery | Notes |
+|-------|--------:|-------:|--------:|-------|
+| Qwen3.5-27B-4bit | 100% (3/3, 41s) | 100% (3/3, 41s) | 67% / 67% | Stable tie between mdtools and hybrid |
+| Qwen3.5-122B-A10B-4bit | 100% (3/3, 33s) | 100% (3/3, 29s) | 100% / 100% | Strongest committed mutation cell |
+| Hermes-4-70B-4bit | 67% (2/3, 28s) | 33% (1/3, 126s) | 0% / 0% | Hybrid underperforms mdtools on mutation too |
+| magnum-v4-123b-4bit | 100% (3/3, 128s) | 100% (3/3, 145s) | 67% / 33% | Correct in both modes, slower in hybrid |
+
+### Multistep pilot (T15, T18)
+
+| Model | mdtools | hybrid | Requery | Notes |
+|-------|--------:|-------:|--------:|-------|
+| Qwen3.5-27B-4bit | 100% (2/2, 64s) | 100% (2/2, 59s) | 100% / 100% | First executable moat-use evidence on the search split |
+| Hermes-4-70B-4bit | 100% (2/2, 34s) | 100% (2/2, 29s) | 100% / 100% | Removes the Hermes hybrid deficit on this family |
+
+### Local search-pilot takeaways
+
+- `mdtools` materially improves the extraction pilot for Qwen3.5-27B-4bit versus raw unix (`0/3` to `3/3`).
+- `hybrid` is not a universal upgrade: it ties `mdtools` for the Qwen-family pilots, underperforms for Hermes on extraction and mutation, and is correctness-neutral but slower for magnum on mutation.
+- Qwen3.5-122B-A10B-4bit is strong and fast across every committed pilot cell in this branch.
+- magnum-v4-123b-4bit is strong on mutation but weak on extraction, with the failure mode now visible in durable bundle metrics instead of only raw logs.
