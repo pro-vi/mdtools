@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-21T14:49:05Z",
+  "finished_at": "2026-04-21T14:50:32Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": "bench/search/mutation_pilot.json",
+  "selected_task_ids": [
+    "T7",
+    "T10",
+    "T13"
+  ],
+  "modes": [
+    "hybrid"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-122B-A10B-4bit",
+  "runs_per_task": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 3,
+      "pass_rate": 1.0,
+      "neutral_pass_count": 3,
+      "neutral_pass_rate": 1.0,
+      "avg_elapsed_seconds": 28.97666666666667,
+      "avg_tool_calls": 3.3333333333333335,
+      "avg_bytes_output": 703.6666666666666,
+      "avg_bytes_observation": 8224.666666666666,
+      "avg_mutations": 1.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 0.0,
+      "requery_rate": 1.0,
+      "avg_unique_invalid_responses": 0.0
+    },
+    "by_mode": {
+      "hybrid": {
+        "runs": 3,
+        "pass_count": 3,
+        "pass_rate": 1.0,
+        "neutral_pass_count": 3,
+        "neutral_pass_rate": 1.0,
+        "avg_elapsed_seconds": 28.97666666666667,
+        "avg_tool_calls": 3.3333333333333335,
+        "avg_bytes_output": 703.6666666666666,
+        "avg_bytes_observation": 8224.666666666666,
+        "avg_mutations": 1.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 0.0,
+        "requery_rate": 1.0,
+        "avg_unique_invalid_responses": 0.0
+      }
+    }
+  }
+}

@@ -31,6 +31,46 @@ class HarnessTaskSplitTests(unittest.TestCase):
         self.assertEqual(search_ids & holdout_ids, set())
         self.assertEqual(search_ids | holdout_ids, all_task_ids)
 
+    def test_extraction_pilot_manifest_is_search_subset(self) -> None:
+        self._assert_pilot_manifest("bench/search/extraction_pilot.json")
+
+    def test_mutation_pilot_manifest_is_search_subset(self) -> None:
+        self._assert_pilot_manifest("bench/search/mutation_pilot.json")
+
+    def test_multistep_pilot_manifest_is_search_subset(self) -> None:
+        self._assert_pilot_manifest("bench/search/multistep_pilot.json")
+
+    def test_pilot_manifests_are_disjoint(self) -> None:
+        manifests = {
+            "extraction": set(load_task_ids("bench/search/extraction_pilot.json")),
+            "mutation": set(load_task_ids("bench/search/mutation_pilot.json")),
+            "multistep": set(load_task_ids("bench/search/multistep_pilot.json")),
+        }
+        names = sorted(manifests)
+        for i, a in enumerate(names):
+            for b in names[i + 1 :]:
+                overlap = manifests[a] & manifests[b]
+                self.assertEqual(
+                    overlap,
+                    set(),
+                    f"pilot manifests {a} and {b} overlap: {overlap} — each pilot anchors a distinct task family",
+                )
+
+    def _assert_pilot_manifest(self, manifest_path: str) -> None:
+        search_ids = set(load_task_ids("bench/search/task_ids.json"))
+        pilot_ids = load_task_ids(manifest_path)
+
+        self.assertTrue(pilot_ids, f"{manifest_path} must be non-empty")
+        self.assertEqual(len(pilot_ids), len(set(pilot_ids)))
+        self.assertTrue(
+            set(pilot_ids).issubset(search_ids),
+            f"{manifest_path} escapes the search split: {set(pilot_ids) - search_ids}",
+        )
+
+        tasks_by_id = {task.id: task for task in load_tasks("bench/tasks/tasks.json")}
+        for task_id in pilot_ids:
+            self.assertIn(task_id, tasks_by_id)
+
 
 if __name__ == "__main__":
     unittest.main()

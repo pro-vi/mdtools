@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+import signal
 import subprocess
+import threading
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+WATCHDOG_MARGIN_SECONDS = 30
 
 
 ACTION_PROTOCOL = """\
@@ -36,6 +41,8 @@ class LoopTrace:
     bytes_observation: int
     tool_calls: int
     turns: int
+    invalid_responses: int = 0
+    unique_invalid_responses: int = 0
 
 
 @dataclass
@@ -43,6 +50,22 @@ class LoopAction:
     action_type: str
     command: str | None = None
     output: Any = None
+
+
+class LoopError(Exception):
+    """Raised by run_oai_loop when the inner request/response cycle fails.
+
+    Carries a `partial` LoopTrace built from whatever counters had accumulated
+    before the failure, so the harness can record per-turn diagnostic state
+    (tool_calls, invalid_responses, unique_invalid_responses, turns, bytes_*)
+    alongside the runner_error instead of losing everything to all-zero
+    defaults on watchdog/timeout.
+    """
+
+    def __init__(self, cause: BaseException, partial: LoopTrace) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+        self.partial = partial
 
 
 def normalize_api_base(api_base: str) -> str:
@@ -119,81 +142,126 @@ def run_oai_loop(
     bytes_output = 0
     bytes_observation = 0
     tool_calls = 0
+    invalid_responses = 0
+    invalid_response_seen: set[str] = set()
+    turn = 0
 
-    for turn in range(1, max_turns + 1):
-        response = _request_json(
-            base,
-            api_key,
-            "/chat/completions",
-            {
-                "model": model,
-                "messages": messages,
-                "temperature": 0,
-                "max_tokens": 1024,
-                "response_format": {"type": "json_object"},
-            },
-            request_timeout_seconds,
+    def _snapshot() -> LoopTrace:
+        return LoopTrace(
+            raw_output=json.dumps(transcript, indent=2, ensure_ascii=False),
+            text_outputs=list(text_outputs),
+            tool_outputs=list(tool_outputs),
+            bytes_output=bytes_output,
+            bytes_observation=bytes_observation,
+            tool_calls=tool_calls,
+            turns=turn,
+            invalid_responses=invalid_responses,
+            unique_invalid_responses=len(invalid_response_seen),
         )
-        assistant_text = _extract_assistant_text(response)
-        bytes_output += len(assistant_text.encode())
-        transcript.append({"turn": turn, "assistant": assistant_text})
 
-        try:
-            action = parse_action_text(assistant_text)
-        except (json.JSONDecodeError, ValueError) as exc:
-            correction = (
-                "Your last response was invalid. "
-                "Reply again with exactly one JSON object matching the required schema. "
-                f"Error: {exc}"
+    try:
+        for turn in range(1, max_turns + 1):
+            response = _request_json(
+                base,
+                api_key,
+                "/chat/completions",
+                {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": 0,
+                    "max_tokens": 1024,
+                    "response_format": {"type": "json_object"},
+                },
+                request_timeout_seconds,
             )
+            assistant_text = _extract_assistant_text(response)
+            bytes_output += len(assistant_text.encode())
+            transcript.append({"turn": turn, "assistant": assistant_text})
+
+            try:
+                action = parse_action_text(assistant_text)
+            except (json.JSONDecodeError, ValueError) as exc:
+                invalid_responses += 1
+                invalid_response_seen.add(assistant_text)
+                correction = (
+                    "Your last response was invalid. "
+                    "Reply again with exactly one JSON object matching the required schema. "
+                    f"Error: {exc}"
+                )
+                messages.append({"role": "assistant", "content": assistant_text})
+                messages.append({"role": "user", "content": correction})
+                transcript.append({"turn": turn, "user": correction})
+                continue
+
             messages.append({"role": "assistant", "content": assistant_text})
-            messages.append({"role": "user", "content": correction})
-            transcript.append({"turn": turn, "user": correction})
-            continue
 
-        messages.append({"role": "assistant", "content": assistant_text})
+            if action.action_type == "final":
+                final_output = format_final_output(action.output)
+                text_outputs.append(final_output)
+                transcript.append({"turn": turn, "final": final_output})
+                return _snapshot()
 
-        if action.action_type == "final":
-            final_output = format_final_output(action.output)
-            text_outputs.append(final_output)
-            transcript.append({"turn": turn, "final": final_output})
-            return LoopTrace(
-                raw_output=json.dumps(transcript, indent=2, ensure_ascii=False),
-                text_outputs=text_outputs,
-                tool_outputs=tool_outputs,
-                bytes_output=bytes_output,
-                bytes_observation=bytes_observation,
-                tool_calls=tool_calls,
-                turns=turn,
+            tool_calls += 1
+            observation = _run_bash_command(
+                action.command or "",
+                workdir=workdir,
+                env=env,
+                timeout_seconds=tool_timeout_seconds,
             )
-
-        tool_calls += 1
-        observation = _run_bash_command(
-            action.command or "",
-            workdir=workdir,
-            env=env,
-            timeout_seconds=tool_timeout_seconds,
-        )
-        tool_outputs.append(observation)
-        bytes_observation += len(observation.encode())
-        transcript.append({"turn": turn, "tool_result": observation})
-        messages.append({"role": "user", "content": f"Tool result:\n{observation}"})
+            tool_outputs.append(observation)
+            bytes_observation += len(observation.encode())
+            transcript.append({"turn": turn, "tool_result": observation})
+            messages.append({"role": "user", "content": f"Tool result:\n{observation}"})
+    except BaseException as exc:  # noqa: BLE001 — preserve partial trace for non-interrupt failures
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
+        raise LoopError(exc, _snapshot()) from exc
 
     timeout_note = "MAX_TURNS_EXCEEDED"
     text_outputs.append(timeout_note)
     transcript.append({"turn": max_turns, "final": timeout_note})
-    return LoopTrace(
-        raw_output=json.dumps(transcript, indent=2, ensure_ascii=False),
-        text_outputs=text_outputs,
-        tool_outputs=tool_outputs,
-        bytes_output=bytes_output,
-        bytes_observation=bytes_observation,
-        tool_calls=tool_calls,
-        turns=max_turns,
-    )
+    return _snapshot()
 
 
 def _request_json(
+    api_base: str,
+    api_key: str,
+    path: str,
+    payload: dict[str, Any] | None,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    # urllib's socket timeout doesn't reliably fire on streaming chat completions
+    # when keepalives reset the read timer (observed on Hermes-4-70B-4bit via OMLX:
+    # the harness sat on a single POST for 10+ minutes with timeout=300). Enforce
+    # a hard wall-time bound in-process so a stuck request surfaces as a bounded
+    # TimeoutError the harness can record as runner_error instead of a silent
+    # hang that forces the whole iteration to be re-run.
+    deadline = max(timeout_seconds + WATCHDOG_MARGIN_SECONDS, 1)
+    if (
+        not hasattr(signal, "SIGALRM")
+        or not hasattr(signal, "setitimer")
+        or threading.current_thread() is not threading.main_thread()
+    ):
+        return _do_request_json(api_base, api_key, path, payload, timeout_seconds)
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+
+    def _alarm_handler(_signum: int, _frame: object | None) -> None:
+        raise TimeoutError(
+            f"OAI request to {path} exceeded wall-time deadline of {deadline}s "
+            f"(socket timeout={timeout_seconds}s did not fire)"
+        )
+
+    signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.setitimer(signal.ITIMER_REAL, deadline)
+    try:
+        return _do_request_json(api_base, api_key, path, payload, timeout_seconds)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
+def _do_request_json(
     api_base: str,
     api_key: str,
     path: str,

@@ -31,11 +31,11 @@ from typing import Literal
 
 try:
     from bench.command_policy import create_restricted_shell_env, load_guard_events
-    from bench.oai_loop import resolve_oai_model, run_oai_loop
+    from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import create_restricted_shell_env, load_guard_events
-    from bench.oai_loop import resolve_oai_model, run_oai_loop
+    from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
 
 # ── Independent scorer (no md dependency) ─────────────────────
 
@@ -151,6 +151,8 @@ class BenchResult:
     mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
     policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
+    invalid_responses: int = 0   # oai-loop parse_action_text failures (action-format adherence)
+    unique_invalid_responses: int = 0  # distinct assistant texts among the invalid_responses (deterministic-lock signal)
     elapsed_seconds: float = 0.0
     diff_report: str = ""
     runner_error: str | None = None
@@ -695,6 +697,8 @@ def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
             "avg_bytes_observation": 0.0,
             "avg_mutations": 0.0,
             "avg_policy_violations": 0.0,
+            "avg_invalid_responses": 0.0,
+            "avg_unique_invalid_responses": 0.0,
             "requery_rate": 0.0,
         }
 
@@ -710,6 +714,8 @@ def aggregate_results(results: list[BenchResult]) -> dict[str, float | int]:
         "avg_bytes_observation": sum(result.bytes_observation for result in results) / total,
         "avg_mutations": sum(result.mutations for result in results) / total,
         "avg_policy_violations": sum(result.policy_violations for result in results) / total,
+        "avg_invalid_responses": sum(result.invalid_responses for result in results) / total,
+        "avg_unique_invalid_responses": sum(result.unique_invalid_responses for result in results) / total,
         "requery_rate": sum(1 for result in results if result.requeried) / total,
     }
 
@@ -767,6 +773,12 @@ def build_run_metadata(
     }
 
 
+def _write_atomic(path: Path, content: str) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(content)
+    tmp.replace(path)
+
+
 def write_run_artifacts(
     results_dir: str,
     *,
@@ -776,9 +788,9 @@ def write_run_artifacts(
 ) -> None:
     output_dir = Path(results_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "run.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    (output_dir / "results.json").write_text(json.dumps([asdict(result) for result in results], indent=2) + "\n")
-    (output_dir / "task_ids.json").write_text(json.dumps(selected_task_ids, indent=2) + "\n")
+    _write_atomic(output_dir / "run.json", json.dumps(metadata, indent=2) + "\n")
+    _write_atomic(output_dir / "results.json", json.dumps([asdict(result) for result in results], indent=2) + "\n")
+    _write_atomic(output_dir / "task_ids.json", json.dumps(selected_task_ids, indent=2) + "\n")
 
 
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
@@ -1002,6 +1014,8 @@ def run_agent(
     mutations = 0
     policy_violations = 0
     requeried = False
+    invalid_responses = 0
+    unique_invalid_responses = 0
     runner_error = None
     resolved_model = model
     all_tool_outputs: list[str] = []
@@ -1016,26 +1030,43 @@ def run_agent(
         if not model:
             raise RuntimeError("oai-loop runner requires a resolved model id")
 
-        trace = run_oai_loop(
-            api_base=oai_api_base,
-            api_key=oai_api_key,
-            model=model,
-            prompt=prompt,
-            workdir=workdir_path,
-            env=child_env,
-            max_turns=max_turns,
-            request_timeout_seconds=oai_request_timeout,
-            tool_timeout_seconds=oai_tool_timeout,
-        )
-        raw_stdout = trace.raw_output
         resolved_model = model
-        bytes_output = trace.bytes_output
-        tool_calls = trace.tool_calls
-        num_turns = trace.turns
-        bytes_observation = trace.bytes_observation
-        all_tool_outputs = trace.tool_outputs
-        all_text_outputs = trace.text_outputs
-        stdout = "\n".join(all_tool_outputs + all_text_outputs)
+        bytes_output = 0
+        trace = None
+        try:
+            trace = run_oai_loop(
+                api_base=oai_api_base,
+                api_key=oai_api_key,
+                model=model,
+                prompt=prompt,
+                workdir=workdir_path,
+                env=child_env,
+                max_turns=max_turns,
+                request_timeout_seconds=oai_request_timeout,
+                tool_timeout_seconds=oai_tool_timeout,
+            )
+        except LoopError as exc:
+            # The loop body raised mid-turn; preserve accumulated per-turn
+            # counters (tool_calls, invalid_responses, turns, bytes_*) from
+            # the partial trace so runner_error rows still carry diagnostic
+            # signal instead of all-zero defaults.
+            runner_error = f"oai_loop_error: {type(exc.cause).__name__}: {exc.cause}"
+            trace = exc.partial
+        except Exception as exc:  # noqa: BLE001 — surface any other loop failure as a recorded runner_error
+            runner_error = f"oai_loop_error: {type(exc).__name__}: {exc}"
+            raw_stdout = ""
+
+        if trace is not None:
+            raw_stdout = trace.raw_output
+            bytes_output = trace.bytes_output
+            tool_calls = trace.tool_calls
+            num_turns = trace.turns
+            bytes_observation = trace.bytes_observation
+            invalid_responses = trace.invalid_responses
+            unique_invalid_responses = trace.unique_invalid_responses
+            all_tool_outputs = trace.tool_outputs
+            all_text_outputs = trace.text_outputs
+            stdout = "\n".join(all_tool_outputs + all_text_outputs)
     else:
         cmd = _build_agent_cmd(agent_cmd, mode, local_md, model, max_turns)
         try:
@@ -1178,6 +1209,8 @@ def run_agent(
         mutations=mutations,
         policy_violations=policy_violations,
         requeried=requeried,
+        invalid_responses=invalid_responses,
+        unique_invalid_responses=unique_invalid_responses,
         elapsed_seconds=round(elapsed, 2),
         diff_report=report,
         runner_error=runner_error,
@@ -1414,6 +1447,28 @@ def main():
                       f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
                       f"~{result.tool_calls} calls | {result.mutations} mut | "
                       f"deny:{result.policy_violations} {rq}{err}")
+                if args.results_dir:
+                    partial_metadata = build_run_metadata(
+                        run_kind="agent-track",
+                        tasks_path=args.tasks_path,
+                        task_ids_path=args.task_ids_path,
+                        selected_task_ids=selected_task_ids,
+                        modes=modes,
+                        md_binary=args.md_binary,
+                        runner=args.runner,
+                        executor=args.executor,
+                        model=args.model,
+                        runs_per_task=args.N,
+                        results=all_results,
+                        started_at=started_at,
+                        finished_at=time.time(),
+                    )
+                    write_run_artifacts(
+                        args.results_dir,
+                        metadata=partial_metadata,
+                        results=all_results,
+                        selected_task_ids=selected_task_ids,
+                    )
 
     # Summary
     print("\n=== SUMMARY ===\n")

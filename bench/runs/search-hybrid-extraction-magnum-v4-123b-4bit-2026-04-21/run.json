@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-21T15:53:37Z",
+  "finished_at": "2026-04-21T16:11:31Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": "bench/search/extraction_pilot.json",
+  "selected_task_ids": [
+    "T1",
+    "T9",
+    "T16"
+  ],
+  "modes": [
+    "hybrid"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "magnum-v4-123b-4bit",
+  "runs_per_task": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 1,
+      "pass_rate": 0.3333333333333333,
+      "neutral_pass_count": 1,
+      "neutral_pass_rate": 0.3333333333333333,
+      "avg_elapsed_seconds": 358.0833333333333,
+      "avg_tool_calls": 2.3333333333333335,
+      "avg_bytes_output": 3751.3333333333335,
+      "avg_bytes_observation": 2613.6666666666665,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.6666666666666666,
+      "avg_invalid_responses": 10.0,
+      "requery_rate": 0.0,
+      "avg_unique_invalid_responses": 0.3333333333333333
+    },
+    "by_mode": {
+      "hybrid": {
+        "runs": 3,
+        "pass_count": 1,
+        "pass_rate": 0.3333333333333333,
+        "neutral_pass_count": 1,
+        "neutral_pass_rate": 0.3333333333333333,
+        "avg_elapsed_seconds": 358.0833333333333,
+        "avg_tool_calls": 2.3333333333333335,
+        "avg_bytes_output": 3751.3333333333335,
+        "avg_bytes_observation": 2613.6666666666665,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.6666666666666666,
+        "avg_invalid_responses": 10.0,
+        "requery_rate": 0.0,
+        "avg_unique_invalid_responses": 0.3333333333333333
+      }
+    }
+  }
+}

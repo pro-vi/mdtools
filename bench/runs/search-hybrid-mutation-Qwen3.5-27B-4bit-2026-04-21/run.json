@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-21T12:02:37Z",
+  "finished_at": "2026-04-21T12:04:41Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": "bench/search/mutation_pilot.json",
+  "selected_task_ids": [
+    "T7",
+    "T10",
+    "T13"
+  ],
+  "modes": [
+    "hybrid"
+  ],
+  "md_binary": "target/debug/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-27B-4bit",
+  "runs_per_task": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 3,
+      "pass_rate": 1.0,
+      "neutral_pass_count": 3,
+      "neutral_pass_rate": 1.0,
+      "avg_elapsed_seconds": 40.98666666666667,
+      "avg_tool_calls": 3.3333333333333335,
+      "avg_bytes_output": 537.3333333333334,
+      "avg_bytes_observation": 10416.333333333334,
+      "avg_mutations": 1.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 0.0,
+      "requery_rate": 0.6666666666666666,
+      "avg_unique_invalid_responses": 0.0
+    },
+    "by_mode": {
+      "hybrid": {
+        "runs": 3,
+        "pass_count": 3,
+        "pass_rate": 1.0,
+        "neutral_pass_count": 3,
+        "neutral_pass_rate": 1.0,
+        "avg_elapsed_seconds": 40.98666666666667,
+        "avg_tool_calls": 3.3333333333333335,
+        "avg_bytes_output": 537.3333333333334,
+        "avg_bytes_observation": 10416.333333333334,
+        "avg_mutations": 1.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 0.0,
+        "requery_rate": 0.6666666666666666,
+        "avg_unique_invalid_responses": 0.0
+      }
+    }
+  }
+}
