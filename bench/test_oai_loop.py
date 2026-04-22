@@ -126,11 +126,12 @@ class OAILoopTests(unittest.TestCase):
         # when keepalives reset the socket read timer (observed on Hermes-4-70B
         # via OMLX: harness sat on a single POST for 10+ min). The watchdog
         # enforces a hard wall-time bound so a stuck request becomes a recorded
-        # runner_error rather than a silent hang.
-        release = threading.Event()
+        # runner_error rather than a silent hang, and it must not leave a
+        # background request worker alive after the timeout fires.
+        worker_threads_before = [t.ident for t in threading.enumerate() if t.name == "oai-req"]
 
         def blocking(*_args, **_kwargs):
-            release.wait(timeout=5)
+            time.sleep(5)
             return {"ok": True}
 
         with patch.object(oai_loop, "_do_request_json", side_effect=blocking), \
@@ -145,10 +146,11 @@ class OAILoopTests(unittest.TestCase):
                     timeout_seconds=1,
                 )
             elapsed = time.monotonic() - started
-        release.set()  # let the abandoned worker finish
+            worker_threads_after = [t.ident for t in threading.enumerate() if t.name == "oai-req"]
 
         self.assertIn("wall-time deadline", str(ctx.exception))
         self.assertLess(elapsed, 3.0)
+        self.assertEqual(worker_threads_after, worker_threads_before)
 
     def test_request_json_returns_fast_response_without_tripping_watchdog(self) -> None:
         fixture = {"choices": [{"message": {"content": "ok"}}]}
@@ -161,6 +163,22 @@ class OAILoopTests(unittest.TestCase):
                 timeout_seconds=5,
             )
         self.assertEqual(result, fixture)
+
+    def test_run_oai_loop_reraises_keyboard_interrupt(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_interrupt_") as tmpdir, \
+                patch.object(oai_loop, "_request_json", side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                run_oai_loop(
+                    api_base="http://127.0.0.1:10240",
+                    api_key="test-key",
+                    model="test-model",
+                    prompt="task",
+                    workdir=Path(tmpdir),
+                    env={"PATH": "/usr/bin"},
+                    max_turns=5,
+                    request_timeout_seconds=1,
+                    tool_timeout_seconds=1,
+                )
 
     def test_run_oai_loop_attaches_partial_trace_on_mid_task_failure(self) -> None:
         # Before this change, a mid-task request failure (watchdog timeout, HTTP

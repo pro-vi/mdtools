@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import signal
 import subprocess
 import threading
 import urllib.error
@@ -211,7 +212,9 @@ def run_oai_loop(
             bytes_observation += len(observation.encode())
             transcript.append({"turn": turn, "tool_result": observation})
             messages.append({"role": "user", "content": f"Tool result:\n{observation}"})
-    except BaseException as exc:  # noqa: BLE001 — attach partial trace to any failure
+    except BaseException as exc:  # noqa: BLE001 — preserve partial trace for non-interrupt failures
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
         raise LoopError(exc, _snapshot()) from exc
 
     timeout_note = "MAX_TURNS_EXCEEDED"
@@ -230,35 +233,32 @@ def _request_json(
     # urllib's socket timeout doesn't reliably fire on streaming chat completions
     # when keepalives reset the read timer (observed on Hermes-4-70B-4bit via OMLX:
     # the harness sat on a single POST for 10+ minutes with timeout=300). Enforce
-    # a hard wall-time bound in a worker thread so a stuck request surfaces as a
-    # bounded TimeoutError the harness can record as runner_error instead of a
-    # silent hang that forces the whole iteration to be re-run.
+    # a hard wall-time bound in-process so a stuck request surfaces as a bounded
+    # TimeoutError the harness can record as runner_error instead of a silent
+    # hang that forces the whole iteration to be re-run.
     deadline = max(timeout_seconds + WATCHDOG_MARGIN_SECONDS, 1)
-    result_holder: list[dict[str, Any]] = []
-    error_holder: list[BaseException] = []
+    if (
+        not hasattr(signal, "SIGALRM")
+        or not hasattr(signal, "setitimer")
+        or threading.current_thread() is not threading.main_thread()
+    ):
+        return _do_request_json(api_base, api_key, path, payload, timeout_seconds)
 
-    def _worker() -> None:
-        try:
-            result_holder.append(
-                _do_request_json(api_base, api_key, path, payload, timeout_seconds)
-            )
-        except BaseException as exc:  # noqa: BLE001 — must capture everything the worker raises
-            error_holder.append(exc)
+    previous_handler = signal.getsignal(signal.SIGALRM)
 
-    thread = threading.Thread(target=_worker, daemon=True, name="oai-req")
-    thread.start()
-    thread.join(timeout=deadline)
-
-    if thread.is_alive():
+    def _alarm_handler(_signum: int, _frame: object | None) -> None:
         raise TimeoutError(
             f"OAI request to {path} exceeded wall-time deadline of {deadline}s "
             f"(socket timeout={timeout_seconds}s did not fire)"
         )
-    if error_holder:
-        raise error_holder[0]
-    if not result_holder:
-        raise RuntimeError(f"OAI request to {path} returned no result")
-    return result_holder[0]
+
+    signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.setitimer(signal.ITIMER_REAL, deadline)
+    try:
+        return _do_request_json(api_base, api_key, path, payload, timeout_seconds)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def _do_request_json(
