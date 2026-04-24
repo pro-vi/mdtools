@@ -1,3 +1,7 @@
+## Legacy N=3 Haiku snapshot (2026-04-02)
+
+> **Split disclosure:** this snapshot predates the search/holdout split and uses `bench/tasks/tasks_v1.json` (20-task corpus). T4, T14, T20 appear here among search-mixed rows; they are now members of the current holdout set (`bench/holdout/task_ids.json`), and T22–T24 did not exist yet. Treat the snapshot's per-task numbers as pre-split observations, not as a validated split result for the current thesis.
+
 ### Per-task results (N=3, 20-task v1 snapshot)
 
 | Task | hybrid pass | hybrid time | hybrid calls | mdtools pass | mdtools time | mdtools calls | unix pass | unix time | unix calls |
@@ -70,6 +74,8 @@ The historical frontier-model snapshot suggests weaker frontier models gain more
 
 These results come from committed durable bundles under `bench/runs/` on the default 24-task corpus's search split. They are narrower pilot manifests, not a rerun of the full 20-task v1 snapshot above.
 
+> **Holdout status (2026-04-24):** first holdout run against Qwen3.5-122B-A10B-4bit (both modes) scored **50%** against the search-pilot's 100%. The drop traces primarily to scorer-surface defects surfaced for the first time; see the "Holdout confirmation" section at the bottom of this file. Remaining cells are search-split observations without matching holdout bundles and are not durable claims.
+
 ### Extraction pilot (T1, T9, T16)
 
 | Model | unix | mdtools | hybrid | Notes |
@@ -99,5 +105,44 @@ These results come from committed durable bundles under `bench/runs/` on the def
 
 - `mdtools` materially improves the extraction pilot for Qwen3.5-27B-4bit versus raw unix (`0/3` to `3/3`).
 - `hybrid` is not a universal upgrade: it ties `mdtools` for the Qwen-family pilots, underperforms for Hermes on extraction and mutation, and is correctness-neutral but slower for magnum on mutation.
-- Qwen3.5-122B-A10B-4bit is strong and fast across every committed pilot cell in this branch.
+- Qwen3.5-122B-A10B-4bit is strong and fast across every committed pilot cell in this branch; its 100% search-pilot number dropped to 50% on holdout. The holdout gap is unresolved pending a mode-neutral scorer fix (F3 in `bench/ledger.md`). See "Holdout confirmation" below.
 - magnum-v4-123b-4bit is strong on mutation but weak on extraction, with the failure mode now visible in durable bundle metrics instead of only raw logs.
+
+## Holdout confirmation (2026-04-24, holdout split)
+
+The holdout split is `bench/holdout/task_ids.json` (T4, T14, T20, T22, T23, T24). It is disjoint from the search pilots above and was not optimized against during search. Bundles land under `bench/runs/holdout-*`.
+
+> **Process note (2026-04-24):** an earlier iteration edited T22's task description after observing its holdout failure. T22 is in the holdout set, so that edit constituted post-hoc tuning of a holdout task and the subsequent "post-fix" bundles are **not valid holdout confirmation**. T22's description has been reverted to its original wording. The four invalid bundles have been moved to `bench/retracted_2026-04-24/` (outside `bench/runs/`) so automated analysis tools do not pick them up; see that directory's `README.md` for details.
+
+### Qwen3.5-122B-A10B-4bit (the best-in-class search cell)
+
+| Mode | Search pilots (N=1) | Holdout (N=1, valid) | Δ |
+|------|-----:|-----:|---:|
+| mdtools | 100% (6/6, ~32s avg) | 50% (3/6, 73s avg) | **−50pp** |
+| hybrid  | 100% (6/6, ~32s avg) | 50% (3/6, 68s avg) | **−50pp** |
+
+Valid bundles: `bench/runs/holdout-{mdtools,hybrid}-Qwen3.5-122B-A10B-4bit-2026-04-24/`.
+
+**Per-task failure analysis (mode-independent — identical pass/fail across mdtools and hybrid):**
+
+| Task | Result | Root cause | Appropriate fix layer |
+|------|:---:|---|---|
+| T4  | FAIL | Text-manipulation family — documented weak cell; agent thrashed at 8/10 mutations. | Product / planning (out of scope this iteration) |
+| T22 | FAIL | Task description says "correctness is the ordered list of link kinds and destinations" → agent emits `[{kind, destination}]` list; structural scorer requires a top-level `mdtools.v1` envelope object. | Mode-neutral: scorer should accept semantically equivalent shapes, or system prompt's `json_envelope` instruction should describe envelope shape mode-agnostically. **Not** task-description rewrite (that contaminates the holdout task and leaks mdtools-specific guidance into unix mode). Currently OPEN as F3. |
+| T23 | FAIL pre-fix | Agent emitted 54 bytes vs 55 expected (trailing-newline off-by-one); `raw_bytes` scorer had `ignore_trailing_whitespace: true` but implemented per-line rstrip only, ignoring end-of-file whitespace. | `bench/harness.py:339-341` — rstrip the whole string after per-line rstrip. This is a mode-neutral scorer correction (accepted). |
+
+### Retracted bundles (moved to `bench/retracted_2026-04-24/`)
+
+Four bundles produced after the T22 description edit have been moved out of `bench/runs/` so `bench/analyze.py`, `bench/report.py`, and glob-based tooling do not treat them as valid evidence. See `bench/retracted_2026-04-24/README.md` for the full list and reason. Do not cite any pass rate from those bundles.
+
+### Current holdout coverage (valid bundles only)
+
+| Cell | Search → holdout | Status |
+|------|---|---|
+| Qwen3.5-122B-A10B-4bit mdtools | 100% → 50% | **Valid; −50pp drop unconfirmed as product vs scorer because T22 scorer-layer fix is pending** |
+| Qwen3.5-122B-A10B-4bit hybrid  | 100% → 50% | Valid; same caveat |
+| Qwen3.5-27B-4bit (either mode) | — | No valid holdout bundle |
+| Hermes-4-70B-4bit (either mode) | — | No holdout bundle |
+| magnum-v4-123b-4bit (either mode) | — | No holdout bundle |
+
+**What this confirms honestly.** The un-run holdout was hiding evaluator-trust defects that the search split happened not to exercise. The first holdout run made those defects visible. Two of three failures (T22, T23) trace to scorer surfaces; one (T23) has a mode-neutral fix that is retained. T22 still needs a mode-neutral resolution before any holdout rerun can validly reconfirm Qwen3.5-122B-A10B-4bit search-pilot numbers. Until then, the published holdout pass rates stand at 50% for both modes.

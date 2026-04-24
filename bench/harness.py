@@ -337,8 +337,8 @@ def score_task(
             a = a.replace("\r\n", "\n")
             e = e.replace("\r\n", "\n")
         if policy.ignore_trailing_whitespace:
-            a = "\n".join(line.rstrip() for line in a.split("\n"))
-            e = "\n".join(line.rstrip() for line in e.split("\n"))
+            a = "\n".join(line.rstrip() for line in a.split("\n")).rstrip()
+            e = "\n".join(line.rstrip() for line in e.split("\n")).rstrip()
         ok = a == e
         if not ok:
             report.append(f"raw_bytes: MISMATCH ({len(e)}b expected, {len(a)}b actual)")
