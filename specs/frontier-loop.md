@@ -2,7 +2,7 @@
 
 ## Rationale
 
-`mdtools` is suitable for a benchmark-driven frontier loop because it already has a working cheap inner channel (`cargo test`, harness unit tests, scorer validation), a real expensive outer channel (the agent benchmark corpus and mode/model matrix), and typed machine-derived run artifacts (`prompt.txt`, `agent_output.txt`, `guard.log`, JSON output from the harness). The repo is not in closure mode. It still has both product and evaluator frontier to move. I classify evaluator maturity at `T5`: search-style benchmark work and surfaced efficiency metrics exist, but there is no explicit search/holdout split yet, so anti-overfitting coverage is incomplete. That makes this a `mixed` loop with an evaluator-heavy opening, not a pure closure loop and not a blind benchmark-optimization loop.
+`mdtools` is suitable for a benchmark-driven frontier loop because it already has a working cheap inner channel (`cargo test`, harness unit tests, scorer validation), a real expensive outer channel (the benchmark corpus, search pilots, and mode/model matrix), an explicit search/holdout split, and durable typed run bundles under `bench/runs/`. The repo is not in closure mode. It still has both product and evaluator frontier to move. I classify evaluator maturity at `T6`: search-style benchmark work, surfaced efficiency / failure metrics, and holdout protection now exist. The main remaining risk is not missing evaluator substrate, but failing to use the holdout as a real acceptance gate. That makes this a `mixed` loop with a cash-out bias toward trustworthy benchmark and product moves, not an evaluator-bootstrap loop.
 
 ## Prompt
 
@@ -32,13 +32,13 @@ Valid progress is any small reversible change that does at least one of:
 
 ## Evaluator maturity
 
-Current tier: T5.
-The loop is above ramp threshold, but anti-overfitting coverage is incomplete until the benchmark corpus is split into a search set and a holdout set and those artifacts are persisted cleanly.
+Current tier: T6.
+The loop is above ramp threshold. Search/holdout and durable artifact organization now exist. The main anti-overfitting risk is procedural: accepting search-set wins without actually confirming them on holdout.
 
 ## Reward channels
 
-- **Cheap inner channel:** `cargo test -q`, `python3 -m unittest bench.test_command_policy bench.test_oai_loop bench.test_harness_json`, and `python3 bench/harness.py --md-binary target/debug/md` or `target/release/md`. Run every iteration.
-- **Expensive outer channel:** `python3 bench/harness.py --run ...` on the benchmark matrix across selected task subsets, modes, harnesses, and models, with persisted logs and JSON summaries. Run on accepted changes or at checkpoints.
+- **Cheap inner channel:** `cargo test -q`, `python3 -m unittest bench.test_command_policy bench.test_oai_loop bench.test_harness_json bench.test_harness_run_artifacts bench.test_harness_task_split bench.test_analyze_inputs bench.test_report_inputs`, and `python3 bench/harness.py --md-binary target/release/md`. Run every iteration.
+- **Expensive outer channel:** `python3 bench/harness.py --run ...` on search manifests under `bench/search/` with persisted `bench/runs/` bundles, followed by `bench/holdout/task_ids.json` confirmation after any accepted search-set gain. Run on accepted changes or at checkpoints.
 
 ## Signal hierarchy
 
@@ -54,7 +54,7 @@ The iteration trusts memory surfaces in this order:
    anti-repetition signal, never as positive generative evidence for
    the next intervention.
 
-Strong typed surfaces exist, but they are not yet durably organized as a clean in-repo findings surface. Creating and maintaining that surface is itself valid evaluator work. Do not pretend holdout protection exists until it actually exists.
+Strong typed surfaces exist in-repo under `bench/runs/`, and external review findings can be layered on top of them. Anti-collapse can key on those typed surfaces directly. `bench/ledger.md` does not exist yet; if a concise human-memory surface becomes useful, treat it as auxiliary memory rather than as stronger evidence than the run bundles.
 
 ## Homeostasis
 
@@ -68,7 +68,7 @@ shape labels the correction.
 
 - **Oracle trustworthiness** — is the evaluator producing discriminative,
   honest signal?
-  Disturbance signs: benchmark wins on the visible corpus without search/holdout separation, scorer blind spots, mode comparisons that are not apples-to-apples, claim inflation from incomplete matrices, false greens, or policy-deny behavior that is not accounted for in analysis.
+  Disturbance signs: search-set wins that are not reconfirmed on holdout, scorer blind spots, mode/model comparisons that are not apples-to-apples, claim inflation from pilot manifests being narrated as full-corpus wins, false greens, or policy-deny / parser-failure behavior that is not accounted for in analysis.
 
 - **Product capability** — does the product do what the motive says?
   Disturbance signs: benchmark failures on hard tasks, regressions in existing CLI behavior, missing Markdown operations that block benchmark task families, or real-world Markdown cases that the current command set cannot express cleanly.
@@ -83,7 +83,7 @@ shape labels the correction.
 
 - **Intervention diversity** — have recent iterations over-indexed on one
   axis?
-  Disturbance signs: repeated same-family benchmark polish, repeated prompt tweaks without evaluator hardening, repeated scorer or log work without cashing out into better measured product capability, or repeated product tweaks against the same visible tasks without improving anti-overfitting protection.
+  Disturbance signs: repeated matrix-filling or metric polish without cashing out into holdout-confirmed claims, repeated scorer or log work without a fresh blocked benchmark move, or repeated product tweaks against the same search tasks without widening or validating the claim.
 
 ### Iteration protocol
 
@@ -118,6 +118,7 @@ Stay inside the benchmark and harness thesis unless strong evidence shows the th
 Allowed focus areas:
 
 - `bench/**`
+- `specs/**`
 - `README.md`
 - `CLAUDE.md`
 - `src/**`
@@ -168,7 +169,7 @@ Every accepted change must cite a live frontier anchor:
 - an unsatisfied benchmark claim or matrix cell,
 - an OPEN finding in the findings / ledger surface,
 - a failing trace or selector from the current iteration,
-- a missing evaluator artifact such as search/holdout split, structured summary, or comparable harness axis,
+- a missing evaluator artifact such as a holdout confirmation bundle, a comparable harness axis, or a durable summary for a newly-run comparison,
 - or a benchmark category whose measured outcomes are not yet trustworthy enough to support the repo's stated claim.
 
 Free-floating hardening, refactoring, or legibility polish without an
@@ -181,7 +182,7 @@ disturbed and the work is the cheapest restoration.
 - Treat the loop as a Pareto frontier, not a single scalar.
 - Prefer additive ratchets over broad rewrites unless evidence strongly
   favors a rewrite.
-- A benchmark gain on the visible corpus is not a durable win unless the evaluator surface gets at least as strong as the product claim being made.
+- A search-set gain is not a durable win unless the holdout stays green, or the loop explicitly records why holdout could not yet be run.
 - Compare harnesses and models fairly. If a comparison is not apples-to-apples, treat evaluator repair as higher priority than product iteration.
 - Policy violations, retries, and observation volume are part of the behavioral story, not incidental noise.
 
@@ -207,35 +208,37 @@ or emit `stop-and-summarize`.
 
 Location:
 
-- benchmark task corpora: `bench/tasks/`
+- benchmark task corpora: `bench/tasks/`, `bench/search/`, `bench/holdout/`
 - benchmark harness and analysis: `bench/harness.py`, `bench/analyze.py`, `bench/report.py`
 - published narrative results: `bench/RESULTS.md`, `README.md`
-- live per-run artifacts: `--log-dir` output directories containing `prompt.txt`, `agent_output.txt`, and `guard.log`
-- preferred durable findings surface to build or maintain: `bench/runs/` for machine-readable summaries and `bench/ledger.md` for concise human memory
+- durable per-run bundles: `bench/runs/` containing `run.json`, `results.json`, and `task_ids.json`
+- local debug residue: `bench/runs/**/logs/` containing `prompt.txt`, `agent_output.txt`, and `guard.log` when enabled; do not treat these logs as commit-worthy evidence by default
+- optional human-memory surface: `bench/ledger.md` if repeated loops need concise unresolved-findings prose
 ```
 
-## Suggested Artifact Contract
+## Current Artifact Contract
 
-This repo already has most of the harness logic. The missing piece is durable organization, not fresh invention.
+This repo now has the core artifact contract in place. The missing pieces are operational discipline and, optionally, a lightweight human-memory layer.
 
-Suggested additions:
+Current structure:
 
 - `bench/runs/`
-  Persist machine-readable benchmark outputs per run or per matrix slice instead of relying on `/tmp`.
+  Machine-readable benchmark outputs per run or matrix slice.
 - `bench/search/`
-  The visible search set the loop is allowed to optimize against.
+  The visible search set the loop is allowed to optimize against, including pilot manifests.
 - `bench/holdout/`
-  The hidden or at least iteration-forbidden validation set for anti-overfitting checks.
+  The iteration-forbidden validation set for anti-overfitting checks.
 - `bench/ledger.md`
-  Concise findings and unresolved questions. This stays weaker than typed artifacts.
+  Optional concise findings and unresolved questions. This stays weaker than typed artifacts and does not yet exist.
 
 Known false-green zone:
 
-- benchmark wins on the currently visible corpus can overstate the claim until search/holdout is real.
+- benchmark wins on the search split can still overstate the claim if the holdout is declared but not actually run after accepted search-set changes.
 
 Forbidden shortcuts:
 
 - claiming benchmark improvement from incomplete matrices
 - changing tasks and then presenting old results as if they still certify the claim
+- treating a declared holdout split as real anti-overfitting protection without actually exercising it
 - comparing different harnesses or models without normalizing the benchmark setup
 - treating README prose as stronger evidence than run artifacts
