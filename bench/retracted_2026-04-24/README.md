@@ -22,5 +22,10 @@ evidence. They are retained here only as a record of what happened.
 Do not cite any of these pass rates as evidence for durability or model
 capability. The only valid holdout bundles from this day are the two pre-fix
 bundles under `bench/runs/holdout-{mdtools,hybrid}-Qwen3.5-122B-A10B-4bit-2026-04-24/`
-(both 50%). See `bench/ledger.md` F3 for the ongoing scorer-layer fix requirement
-and L1 for the loop-level learning.
+(both 50%). See `bench/ledger.md` F3 for the scorer-layer fix (CLOSED
+2026-04-26; end-to-end-verified through a real frontier model on the actual
+T22 holdout task in
+`bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`) and L1 for the
+loop-level learning (CLOSED 2026-04-26 via the holdout-immutability fingerprint
+guard at `bench/holdout/fingerprints.json` and `verify_holdout_fingerprints`
+in `bench/harness.py`).

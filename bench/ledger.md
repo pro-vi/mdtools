@@ -89,6 +89,62 @@ discharge (2026-04-26 iter 7)" below):
   Route B justification under `bench/probes/anchor-validation/`, which
   still does not exist.
 
+### Specification coherence cleanup (2026-04-26 iter 9)
+
+`bench/retracted_2026-04-24/README.md` line 25 carried a stale "See
+`bench/ledger.md` F3 for the ongoing scorer-layer fix requirement and L1
+for the loop-level learning" reference — same disturbance pattern that
+iter 8 swept out of `bench/RESULTS.md`, but on a sibling published
+artifact that iter 8 did not touch. F3 has been CLOSED since iter 1
+(ratified iter 3 review pass, end-to-end-verified iter 7) and L1 has been
+CLOSED since iter 2 (ratified iter 3 review pass). Calling either
+"ongoing" contradicts the ledger CLOSED status.
+
+- **Disturbance:** specification coherence — `bench/retracted_2026-04-24/README.md`,
+  the canonical pointer for readers landing on the four retracted holdout
+  bundles, framed F3 as an ongoing requirement and L1 as a generic
+  "learning" without acknowledging the holdout-immutability mechanical
+  guard that closes it.
+- **Anchor:** same as iter 8 — the spec's "missing evaluator artifact …
+  durable summary for a newly-run comparison" frontier anchor, applied to
+  the retracted-bundles README. The iter-7 PI bundle is the durable
+  end-to-end verification of F3 and the `fingerprints.json` +
+  `verify_holdout_fingerprints` pair is the durable mechanical closure of
+  L1; neither was cited from the retracted README before this edit.
+- **Change:** one targeted edit in `bench/retracted_2026-04-24/README.md`
+  replacing "ongoing scorer-layer fix requirement" with "scorer-layer fix
+  (CLOSED 2026-04-26; end-to-end-verified through a real frontier model
+  on the actual T22 holdout task in `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`)"
+  and "L1 for the loop-level learning" with "L1 for the loop-level
+  learning (CLOSED 2026-04-26 via the holdout-immutability fingerprint
+  guard at `bench/holdout/fingerprints.json` and
+  `verify_holdout_fingerprints` in `bench/harness.py`)". The "do not cite"
+  instruction and the per-bundle invalid-pass-rate listing are
+  unchanged — readers are still warned off the retracted bundles, and no
+  pass rate is restated.
+- **Cheap channel:** green before and after (`cargo test -q` all suites
+  pass, 59 python unittests OK across the 8 spec-named modules,
+  `harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer with
+  `link_destinations: OK` on T22).
+- **Iter-8 RESULTS.md cleanup ratified during this pass:** as part of
+  this iteration's spec-coherence sweep, the four lines edited in iter 8
+  (`bench/RESULTS.md:118, :141, :152, :158`) were re-read against the F3
+  CLOSED entry and the iter-7 PI bundle. All four updates remain
+  consistent with current ledger state (F3 CLOSED, F3-a CLOSED, iter-7
+  PI bundle present and parseable, published 50% Qwen pass rates
+  unchanged with the "fresh-Qwen-run-pending-environment" caveat
+  preserved). The iter-8 invitation to "treat the RESULTS.md cleanup as
+  `FIXED_PENDING_CONFIRMATION`-equivalent and ratify it by re-reading
+  the four updated lines against this ledger entry and the iter-7
+  bundle" is hereby discharged.
+- **Verdict:** specification restored on the retracted README; iter-8
+  RESULTS.md cleanup ratified. No new finding opened, no holdout artifact
+  touched (`bench/retracted_2026-04-24/README.md` is published narrative
+  about retracted-and-quarantined bundles, not a holdout artifact under
+  `bench/holdout/`). This completes the broader specification-coherence
+  sweep that iter 8 began. A future review pass need not re-ratify
+  either edit unless the underlying ledger state changes.
+
 ### Specification coherence cleanup (2026-04-26 iter 8)
 
 `bench/RESULTS.md` carried four references describing F3 (T22 structural-array
