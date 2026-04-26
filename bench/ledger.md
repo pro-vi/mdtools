@@ -14,6 +14,276 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 27)
+
+Closure-discipline review of iter-26's substantive `bench/RESULTS.md`
+fifth-row publication (the additive T9 row in the cross-executor
+same-task table, parallel in shape to iter-19's T18 row addition and
+iter-11's original 3-row publication). Parallels iter 24's review of
+iter 23, iter 22's review of iter 21, iter 20's review of iter 19, and
+iter 12/13's reviews of iter 11/12: typed-artifact claims in the
+iter-26 entry are checked against the underlying bundle files, the
+published-narrative additions at `bench/RESULTS.md:56` / `:62` /
+`:66` / `:68`, and the cross-executor ratio computations. The
+verification surfaces a fresh failing trace inside the **iter-25**
+entry's own prose (a code-path claim that iter 26's ratification
+verified abstractly but did not specifically dispute), parallel in
+shape to iter 26's own forward-pointing scan-methodology correction
+of iter 25.
+
+Cheap channel green at review time: `cargo test -q` all suites pass
+(non-zero counts: 36, 13, 37, 32, 37, 12, 7, 24, 32, 37, 16 across the
+13 lib + integration test binaries — total ~280, matching the
+"282 integration tests" claim in `CLAUDE.md`); 68 python unittests OK
+across the 8 spec-named modules; `bench/harness.py --md-binary
+target/release/md` dry-run all 24 tasks PASS dual-scorer (`md=PASS
+neutral=PASS` for T1–T24, with `json_canonical: OK` on T9 and the
+other relevant scorer branches OK on their tasks).
+
+What was checked:
+
+- **Cross-executor table values, all five rows** — re-read each row
+  against the underlying bundle `results.json` files (T1, T7, T9, T22,
+  T18 — both PI and OAI sides, 10 cells total). Every `bytes_output`,
+  `bytes_observation`, `tool_calls`, and `mutations` value in
+  `bench/RESULTS.md:60–64` reproduces bit-exact. Computed ratios
+  reproduce: T1 `5,975,843 / 2,702 = 2,212.0` → ~2,212×;
+  T7 `1,172,040 / 699 = 1,676.7` → ~1,677×;
+  T9 `3,177,953 / 2,169 = 1,465.2` → ~1,465×;
+  T22 `671,515 / 488 = 1,375.6` → ~1,376×;
+  T18 `844,124 / 812 = 1,039.6` → ~1,040×.
+  All match the table's published ratios.
+- **iter-26 T9 cell data points** —
+  `bench/runs/checkpoint-pi-T9-mdtools-gpt5.4mini-2026-04-26/results.json`
+  re-read: `task_id=T9`, `mode=mdtools`, `correct=true`,
+  `correct_neutral=true`, `tool_calls=2`, `mutations=0`,
+  `bytes_observation=6675`, `bytes_output=3177953`,
+  `elapsed_seconds=14.39`, `diff_report="json_canonical: OK"`,
+  `model="openai-codex/gpt-5.4-mini"`, `thinking_level="minimal"`,
+  `requeried=false`, `policy_violations=0`. All iter-26 typed-artifact
+  citations reproduce bit-exact.
+- **iter-26 T9 OAI cell data points** —
+  `bench/runs/search-mdtools-extraction-Qwen3.5-122B-A10B-4bit-2026-04-21/results.json`
+  re-read: T9 mdtools cell carries `bytes_output=2169`,
+  `bytes_observation=7100`, `tool_calls=2`, `mutations=0`,
+  `correct=true`, `correct_neutral=true`,
+  `model="Qwen3.5-122B-A10B-4bit"`. The bundle's results.json array
+  contains T1, T9, T16 mdtools cells (verified by enumerating
+  `task_id` values), confirming iter-26's "the same OAI bundle file
+  carries both T1 and T9 cells in its `results.json` array" claim.
+- **`bytes_observation` delta computation for T9** —
+  `|6675 - 7100| = 425`; `425 / 7100 = 5.99%` → ~6%. iter-26's "the
+  T9 row tightens this to ~6%" claim reproduces. The bytes_observation
+  rule's matched-tool-call-count subset is now: T1 ~7%, T7 ~19%,
+  T9 ~6% (the smallest of the three).
+- **iter-26 T9 run.json line-20 stamp** — `holdout_version: 1` confirmed
+  on line 20 of
+  `bench/runs/checkpoint-pi-T9-mdtools-gpt5.4mini-2026-04-26/run.json`.
+  Cross-checked against T2 (iter 18 — first stamp) and T21
+  (iter 21 — second stamp): both also carry `holdout_version: 1` on
+  line 20. T9 is the **third** durable bundle with the iter-17 stamp;
+  the first four PI bundles (T1 iter 4, T22 iter 7, T7 iter 10, T18
+  iter 14) have `holdout_version: None` because they predate iter 17's
+  stamping wiring. iter-26's "third durable bundle" claim reproduces.
+- **iter-26 pi-audit.jsonl event histogram** —
+  `bench/runs/checkpoint-pi-T9-mdtools-gpt5.4mini-2026-04-26/logs/T9_mdtools_1777221491/pi-audit.jsonl`
+  has exactly 6 lines. Event-type histogram via `event` field:
+  `{model_change: 1, thinking_level_change: 1, tool_call: 2, tool_result: 2}`.
+  The two `tool_call` events carry
+  `input.command="./md tasks <temp> --status pending --json"` and
+  `input.command="./md tasks <temp> --status pending --json | jq '[.results[0].tasks[] | {loc, nearest_heading, summary_text}]'"`.
+  The two `tool_result` events have `outputBytes=4686` and `outputBytes=1989`,
+  summing to `bytes_observation=6675`. iter-26's claim reproduces.
+- **iter-26 PiAuditCounters output** — re-ran
+  `bench.pi_audit_adapter.summarize_pi_audit_events` against the live
+  events. Output: `tool_calls=2, tool_results=2, tool_errors=0,
+  bytes_observation=6675, blocked=0, policy_violations=0, mutations=0,
+  requeried=False, model='openai-codex/gpt-5.4-mini',
+  thinking_level='minimal', bash_commands=[<two commands>]`. iter-26's
+  claim reproduces bit-exact.
+- **iter-26 published-narrative line-position citations** — re-read
+  `bench/RESULTS.md:54` (executor description with `:1282` / `:1318`
+  bytes_output citations), `:56` (caption "(2026-04-26 iters 11, 19,
+  26)" + "Five `mdtools` cells"), `:58` (table header), `:60–64`
+  (table body, T1/T7/T9/T22/T18 rows), `:66` (commentary "all five
+  pairs" + "T1, T7, and T9" + "(the T9 row tightens this to ~6%)"),
+  `:68` (PI/OAI bundle pointers list with iter-25 T9 entry, T2 / T21
+  not-yet-eligible parentheticals preserved). All line positions cited
+  by iter 26 are accurate.
+- **iter-26 corpus-vacuous-path verification** — re-ran the corpus
+  scan: no task in `bench/tasks/tasks.json` has
+  `compare_block_order=true` OR `compare_block_text=true` under
+  `kind=structural`; every task with those flags uses
+  `kind=normalized_text` (T2, T3, T4, T6, T7, T8). iter-25's forward-
+  pointing observation about the iter-21 framing being corpus-vacuous,
+  carried into iter-26's ratification, reproduces.
+- **iter-26 forward-pointing OAI-T9 scan correction** — re-ran
+  `grep -l '"task_id": "T9"' bench/runs/*/results.json`: returns 11
+  bundles (the iter-25 PI checkpoint, the dry-run, and 9 search-* /
+  search-mdtools-* / search-hybrid-* / search-unix-* OAI bundles
+  including the four `search-mdtools-extraction-*` bundles that
+  iter-26 specifically named). The OAI T9 mdtools cell at
+  `search-mdtools-extraction-Qwen3.5-122B-A10B-4bit-2026-04-21/`
+  carries `task_id=T9`, `mode=mdtools`, predating iter 25 by five
+  days (file mtime 2026-04-21 per the directory name suffix).
+  iter-26's correction stands: iter 25's directory-name scan missed
+  the multi-task aggregation pattern; iter 26's `grep -l '"task_id":
+  "TX"' bench/runs/*/results.json` is the correct discovery query.
+
+Forward-pointing correction surfaced during the verification (per
+iter-15 / iter-22 / iter-24 / iter-26 "never silently edit historical
+entries" discipline; correction recorded here, no historical edits to
+iter 25 or iter 26):
+
+- **Iter-25's `bench/harness.py:378` routing claim for T18 was
+  incorrect, and iter-25 made a corpus-vacuous-code-path mis-
+  identification of the same shape iter-25 itself caught in iter-21's
+  prose.** In the "What this exercises that prior PI cells did not"
+  section of the iter-25 entry, iter 25 wrote "and the raw_bytes
+  branch via the `else` arm at `bench/harness.py:378` (T18)" while
+  enumerating the three scorer functions covered by the six prior PI
+  bundles. The actual routing for T18 (`scorer.kind="raw_bytes"`,
+  `expected_artifact="file_contents"`) is through the explicit
+  early-return branch at `bench/harness.py:340–352`
+  (`if policy.kind == "raw_bytes": ... return ok, ok, "\n".join(report)`),
+  not through line 378's else-arm catch-all
+  (`ok = a.strip() == e.strip()`). Verified by re-reading
+  `bench/harness.py:340–352` and `:378–379` and tracing all 24 tasks
+  through the dispatcher: every task has
+  `scorer.kind ∈ {raw_bytes, structural, normalized_text}` and routes
+  to one of the four explicit branches (lines 340 / 363 / 367 / 371).
+  No task in the current corpus reaches line 378's else-arm — it is
+  corpus-vacuous in `bench/tasks/tasks.json`. This is the same
+  "corpus-vacuous code path" defect class that iter 25 itself
+  surfaced about iter-21's "compare_block_order/compare_block_text in
+  isolation under kind=structural" framing (corrected forward-pointing
+  in iter 25's own entry); iter 25 then made the same kind of error
+  in the very next paragraph of its own prose. iter-26's ratification
+  used the more abstract format "T18 (raw_bytes / file_contents,
+  iter 14)" without naming a routing line, so iter 26 did not
+  specifically verify or dispute the iter-25 line-378 claim. iter-25
+  also wrote "Routing through `bench/harness.py:355`'s scorer
+  dispatcher" — line 355 is in fact `a, e = actual, expected` (start
+  of the post-raw_bytes-branch normalization), not the dispatcher
+  function declaration; the function `score_task` is declared at
+  line 329. Both citations were imprecise from inception.
+- **Discipline-correct preservation of iter-25 / iter-26 entries
+  remains intact.** The iter-25 entry's prose at the "Routing
+  through ... scorer dispatcher" / "raw_bytes branch via the `else`
+  arm at line 378" sentences is preserved unchanged per iter-15
+  discipline. The forward-pointing correction lives in this iter-27
+  entry as a cross-referenced observation. Future readers of the
+  iter-25 line-378 sentence should consult this iter-27 forward-
+  pointer.
+
+Rationale for forward-pointing only:
+
+Per iter 15 (second-opinion-ratified at 0.9 confidence), the iter-25
+and iter-26 entry text is preserved unchanged. The forward-pointing
+correction below names the iter-25 prose claim and explains why it is
+inaccurate, with no edits to historical iter-25 / iter-26 prose.
+Future readers of the iter-25 routing claim should consult this
+iter-27 forward-pointer.
+
+Structural lesson — and why this is a real fresh failing trace:
+
+The "corpus-vacuous code path" defect class previously surfaced in
+iter 25 (about iter 21's framing) is now seen to be self-similar at
+the meta-level: the iteration that surfaces the defect can itself
+make the same kind of error in unrelated prose. iter-25 caught
+iter-21's `compare_block_order/compare_block_text in isolation under
+kind=structural` framing as corpus-vacuous, then in the very next
+paragraph mis-identified line 378 as T18's routing path when line
+378 is itself corpus-vacuous. The correction discipline is:
+ratifications should specifically check any "task X routes through
+code path Y" claim against the live dispatcher, not just against the
+abstract scorer-branch label. iter-26's abstract "T18 (raw_bytes /
+file_contents, iter 14)" wording is correct; iter-25's specific
+"line 378 else arm" wording is not. Recording the lesson here, not
+as a new finding (no measurement, scorer, or product surface is
+affected; only iter-25 prose accuracy about the dispatch routing).
+
+Verdict — iter-26's substantive `bench/RESULTS.md` fifth-row
+publication and cross-executor table extension ratified bit-exact.
+The closure-discipline rule's "next pass not re-raising the finding"
+criterion is satisfied for the publication half. iter-26's ratification
+of iter-25's typed-artifact claims (results.json, run.json,
+pi-audit.jsonl, adapter counters, the seven-PI-bundle scorer-branch
+inventory at the abstract level, the corpus-vacuous-path verification,
+and the forward-pointing scan-methodology correction) all reproduce.
+The fresh failing trace is in iter-25's specific code-path prose
+(line 378 / line 355 citations) which iter 26 did not repeat — so
+the trace is contained at iter-25's authoring time and does not
+propagate forward in iter 26. No new finding opened, no holdout
+artifact touched, no published-narrative file edited.
+
+- **Frontier anchor (review pass):** *closure-discipline rule applied
+  to substantive published-narrative edit* + *fresh failing trace in
+  iter-25's specific code-path prose surfaced during the routing
+  spot-check*. iter 26 made specific typed-artifact claims (the
+  cross-executor table values for T9 + the four ratios for the prior
+  rows + the corpus-vacuous-path verification + the OAI scan
+  methodology correction) that needed independent verification.
+  iter 27 discharges this by reading typed artifacts (results.json
+  for both T9 sides, run.json line 20, pi-audit.jsonl event count
+  and shape, adapter PiAuditCounters, the corpus task scan, the
+  bench/harness.py dispatcher routing trace) rather than narrative.
+  Same shape as iter 24 / iter 22 (closure-discipline ledger-only
+  ratification + forward-pointing citation correction).
+- **Same-family-rule discharge:** iter 23 was specification coherence
+  (substantive RESULTS.md:67 publication paired with closure-discipline
+  ratification of iter 22), iter 24 was closure-discipline (ledger-only
+  ratification of iter 23 paired with one forward-pointing citation
+  accuracy correction), iter 25 was intervention-diversity (expensive
+  outer channel run + new durable PI bundle on a previously-uncovered
+  scorer cell shape), iter 26 was specification coherence (additive
+  measurement publication of the iter-25 T9 PI bundle as a fifth row
+  in the cross-executor table, paired with closure-discipline
+  ratification of iter 25). iter 27 returns to a ledger-only
+  closure-discipline ratification entry parallel to iter 24 / iter 22 /
+  iter 15. The fresh-failing-trace escape clause additionally applies:
+  the iter-25 line-378 / line-355 prose-accuracy defect is the fourth
+  "ratification surfaces a code-path / citation-accuracy defect" in
+  this gnhf run (after iter 13 / iter 20 line-drift in RESULTS.md,
+  iter 22 typos in iter-21 ledger prose, iter 24 citation accuracy of
+  iter-22's forward-pointers, iter 26 scan methodology error in
+  iter-25 prose; this iter-27 trace is in iter-25's code-path-routing
+  prose). The chain (intervention-diversity → spec-coherence →
+  closure-discipline) is alternating, not concentrated; the
+  "ledger-only changes do not break concentration" caveat does not
+  block this iteration because there is no concentration to break.
+- **Comparability framing:** the ratification is a ledger-only
+  verification with one forward-pointing code-path-routing correction
+  surfaced from re-reading the bench/harness.py dispatcher against the
+  iter-25 prose. It does not change any data, ratio, rule conclusion,
+  pass rate, bundle, scorer, or holdout artifact. It does not bump
+  `holdout_version` (still 1). It does not run the expensive outer
+  channel. It does not edit any published-narrative file
+  (`bench/RESULTS.md`, `README.md`, `CLAUDE.md`,
+  `bench/retracted_2026-04-24/README.md`, `specs/**`). The only file
+  modified is `bench/ledger.md` itself, with two additions: this
+  iter-27 entry and an updated halt-condition / quiet-signal status
+  block.
+- **Closure-discipline status:** this is a non-finding ledger-only
+  ratification entry, parallel to iter 22 / iter 24. Per iter-15's
+  labeling discipline, this is **not frontier expansion** in the
+  sense of evaluator repair, product change, or measurement
+  publication. It procedurally ratifies iter 26's substantive
+  publication and records one forward-pointing code-path-routing
+  correction in iter-25's prose. The 23rd consecutive zero-OPEN
+  review round holds.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not run the expensive outer channel. Does not edit
+  any historical ledger entry inline. Does not amend any pass-rate
+  claim. Does not modify any bundle, scorer, harness, or test code.
+  Does not extend the cross-executor table. Does not touch any
+  holdout artifact. Does not extend `bench/probes/`,
+  `bench/search/candidates/`, or any other not-yet-existing T7
+  directory. The only sanctioned artifact change is the new ledger
+  entry plus the halt-condition / quiet-signal status block update.
+
 ### Cross-executor same-task measurement extension (2026-04-26 iter 26)
 
 Specification-coherence move: extending the cross-executor same-task
@@ -2132,32 +2402,37 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 26)
+### Halt-condition / quiet-signal status (after iter 27)
 
-After iter 26's specification-coherence cash-out of the iter-25 T9
-PI bundle into the cross-executor same-task table (extending it from
-4 rows to 5 by pairing the iter-25 PI bundle with the pre-existing
-OAI Qwen3.5-122B-A10B-4bit T9 mdtools cell) paired with closure-
-discipline ratification of iter 25 — see "Cross-executor same-task
-measurement extension (2026-04-26 iter 26)" above:
+After iter 27's ledger-only closure-discipline ratification of iter
+26's substantive `bench/RESULTS.md` fifth-row publication, paired with
+one forward-pointing correction surfacing iter-25's incorrect
+`bench/harness.py:378` routing claim for T18 (T18 actually routes
+through the explicit early-return branch at lines 340–352;
+line 378's else-arm catch-all is corpus-vacuous in the current task
+set) — see "Confirmation review pass (2026-04-26 iter 27)" above:
 
-- **OPEN findings count:** 0. Iter 26's specification-coherence move
-  surfaced no scorer / measurement / product defect; iter-25's
-  typed-bundle claims (results.json, run.json, pi-audit.jsonl,
-  adapter counters, the seven-PI-bundle scorer-branch inventory, the
-  corpus-vacuous-path verification) all reproduce bit-exact in the
-  closure-discipline ratification half. The forward-pointing
-  correction recorded (iter 25's "no `search-mdtools-extraction-*`
-  OAI bundle exists for T9" framing was a scan methodology error —
-  iter 25 scanned directory names for "T9" rather than scanning
-  `results.json` contents for `task_id == "T9"`; the OAI T9 cell
-  has existed in the multi-task `search-mdtools-extraction-Qwen3.5-122B-A10B-4bit-2026-04-21/`
-  bundle since 2026-04-21) is recorded forward-pointing per iter-15
-  / iter-22 / iter-24 discipline. Not a new finding because no
-  measurement, scorer, or product surface is affected — only iter
-  25's prose framing of the cash-out potential. The zero-OPEN state
-  holds through iters 8–26 — the **twenty-second** consecutive
-  zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 27's closure-discipline move
+  surfaced no scorer / measurement / product defect; iter-26's
+  cross-executor table values, ratios, bundle data points, and
+  published-narrative line citations all reproduce bit-exact. The
+  forward-pointing correction recorded (iter 25's
+  "raw_bytes branch via the `else` arm at `bench/harness.py:378`
+  (T18)" prose was an incorrect routing claim — T18 has
+  `scorer.kind="raw_bytes"` and routes through the explicit
+  `if policy.kind == "raw_bytes":` early-return branch at
+  `bench/harness.py:340–352`, not through the line-378 else-arm
+  fallback; iter-25 also wrote "Routing through `bench/harness.py:355`'s
+  scorer dispatcher" but line 355 is `a, e = actual, expected`, not
+  the dispatcher function declaration at line 329) is recorded
+  forward-pointing per iter-15 / iter-22 / iter-24 / iter-26
+  discipline. Not a new finding because no measurement, scorer, or
+  product surface is affected — only iter-25 prose accuracy about
+  the dispatch routing. iter-26's ratification used the abstract
+  format "T18 (raw_bytes / file_contents, iter 14)" without naming
+  a routing line, so iter 26 did not repeat the iter-25 mistake.
+  The zero-OPEN state holds through iters 8–27 — the
+  **twenty-third** consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -2181,7 +2456,10 @@ measurement extension (2026-04-26 iter 26)" above:
   (cheap-channel-only specification-coherence cash-out of iter-25 T9
   PI bundle into the cross-executor table as a fifth row, paired with
   closure-discipline ratification of iter 25; counter increments to
-  **1**). Iters 27–28 are now admissible quiet, iter 29 the next
+  **1**), iter 27 quiet (ledger-only closure-discipline ratification
+  of iter 26 paired with one forward-pointing code-path-routing
+  correction in iter-25 prose; counter increments to **2**). Iter 28
+  is admissibly quiet (would push counter to 3), iter 29 the next
   forced expensive-or-halt point.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
@@ -2201,6 +2479,31 @@ measurement extension (2026-04-26 iter 26)" above:
   cell to exercise scorer cell shape X (where X is grounded in an
   actual `bench/tasks/tasks.json` task config)" or a task-family /
   cross-mode / cross-model gap.
+- **Iter-27 same-family-rule discharge:** iter 24 was closure-
+  discipline (ledger-only ratification of iter 23 + forward-pointing
+  citation accuracy correction), iter 25 was intervention-diversity
+  (expensive outer channel run + new durable PI bundle), iter 26 was
+  specification coherence (additive measurement publication of the
+  iter-25 T9 PI bundle as a fifth row in the cross-executor table,
+  paired with closure-discipline ratification of iter 25). Iter 27
+  is closure-discipline (ledger-only ratification of iter 26's
+  substantive RESULTS.md publication + one forward-pointing
+  code-path-routing correction in iter-25 prose). Parallel in
+  structural position to iter 24 (after iter 23 cash-out + iter 22
+  ratification, iter 24 was ledger-only ratification + forward-pointing
+  correction), iter 22 (after iter 21 expensive, iter 22 was
+  ledger-only ratification + forward-pointing corrections), and iter
+  15 (after iter 14 expensive, iter 15 was ledger-only ratification
+  with no fresh trace). The fresh-failing-trace escape clause applies:
+  the iter-25 line-378 / line-355 prose-accuracy defect is the first
+  "code-path-routing accuracy" defect surfaced via ratification in
+  this run (prior shapes: line-drift in RESULTS.md at iter 13 / iter
+  20, ledger typos at iter 22, ledger citation accuracy at iter 24,
+  scan methodology error at iter 26). The chain
+  (intervention-diversity → spec-coherence → closure-discipline) is
+  alternating, not concentrated; the "ledger-only changes do not
+  break concentration" caveat does not block this iteration because
+  there is no concentration to break.
 - **Iter-26 same-family-rule discharge:** iter 23 was specification
   coherence (substantive RESULTS.md:67 publication + closure-discipline
   ratification of iter 22), iter 24 was closure-discipline (ledger-only
