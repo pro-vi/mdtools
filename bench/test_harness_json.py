@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import json
 import unittest
+from pathlib import Path
 
 from bench.harness import (
     StructuralDiffPolicy,
     extract_last_json,
+    load_tasks,
     parse_agent_output,
     score_structural_json,
+    score_task,
     select_json_envelope_actual,
 )
+from bench.pi_runner import parse_pi_json_output
 
 
 def _link_only_policy() -> StructuralDiffPolicy:
@@ -246,6 +250,48 @@ class JsonEnvelopeActualSelectionTests(unittest.TestCase):
             [], [], json.dumps({"x": 1}), expected
         )
         self.assertEqual(json.loads(actual), {"x": 1})
+
+
+class F4ClosureBundleReplayTests(unittest.TestCase):
+    """F4 closure end-to-end (iter 32) — replay the iter-29 T16 PI bundle's
+    durable agent_output.txt through parse_pi_json_output +
+    select_json_envelope_actual + score_task and assert PASS on both md and
+    neutral scorers. Promotes iter-30 + iter-31 ledger-prose REPL replay
+    claims to a typed cheap-channel assertion against the actual failing
+    artifact, complementing the synthetic JsonEnvelopeActualSelectionTests
+    above by pinning behaviour on the real-world bundle that motivated F4."""
+
+    BUNDLE_LOG = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26"
+        / "logs/T16_mdtools_1777224275/agent_output.txt"
+    )
+
+    def test_iter_29_t16_bundle_replays_to_dual_scorer_pass(self) -> None:
+        if not self.BUNDLE_LOG.exists():
+            self.skipTest(f"iter-29 T16 PI bundle agent_output not present at {self.BUNDLE_LOG}")
+        raw = self.BUNDLE_LOG.read_text()
+        trace = parse_pi_json_output(raw)
+        self.assertEqual(trace.tool_calls, 4, "iter-29 bundle has 4 tool calls; trace shape changed")
+        self.assertEqual(len(trace.text_outputs), 1, "iter-29 bundle has 1 assistant text message")
+
+        repo_root = Path(__file__).resolve().parents[1]
+        tasks = load_tasks(repo_root / "bench/tasks/tasks.json")
+        task = next(t for t in tasks if t.id == "T16")
+        expected = (repo_root / task.expected_output).read_text()
+
+        actual = select_json_envelope_actual(
+            trace.tool_outputs, trace.text_outputs, trace.stdout, expected
+        )
+        # Schema-aware selector must skip the schema-mismatched md tasks --json
+        # envelope (top keys ['schema_version','results']) and pick the agent's
+        # text answer (top keys ['total_pending','files']).
+        self.assertEqual(json.loads(actual), json.loads(expected))
+
+        ok_md, ok_neutral, report = score_task(task, actual, expected, md_binary="md")
+        self.assertTrue(ok_md, f"md scorer should PASS post-F4; report: {report}")
+        self.assertTrue(ok_neutral, f"neutral scorer should PASS post-F4; report: {report}")
+        self.assertIn("json_canonical: OK", report)
 
 
 if __name__ == "__main__":

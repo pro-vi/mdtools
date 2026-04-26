@@ -10,6 +10,165 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### F4 closure trail extension: bundle-replay typed cheap-channel assertion (2026-04-26 iter 32)
+
+Promoted iter 30's and iter 31's REPL-recorded replay claim — that
+the iter-29 T16 PI bundle's durable `agent_output.txt`, when re-run
+through `parse_pi_json_output` + `select_json_envelope_actual` +
+`score_task`, scores `md=PASS neutral=PASS` with `json_canonical: OK`
+under the post-iter-30 schema-aware selector — to a typed cheap-channel
+assertion via a new `F4ClosureBundleReplayTests` class with one test in
+`bench/test_harness_json.py`. The test loads the bundle's agent_output
+from disk, asserts the expected trace shape (4 tool outputs, 1 text
+output), runs the post-iter-30 extraction + scoring pipeline, and
+asserts dual-scorer PASS plus `json_canonical: OK` in the report.
+Implicitly ratifies iter 31 by extending the F4 closure trail with a
+stronger typed artifact rather than re-raising the finding.
+
+- **Disturbed axis:** oracle trustworthiness — the iter-30 / iter-31
+  prose replay claim was the strongest evidence on file that the
+  named F4 failure class actually moved on the original failing
+  trace, but it lived only in ledger prose. Promoting it to a
+  cheap-channel test makes future scorer-extraction regressions
+  affecting the iter-29-shaped cell pattern visible immediately,
+  rather than waiting for an expensive PI re-run on T16.
+- **Frontier anchor:** the iter-31 CLOSED entry's "Replay verification
+  of iter-30's typed-artifact attribution probe" bullet, which
+  records the replay outcome but anchors it only in prose; the
+  spec's "test coverage" admissibility under hardening (zero OPEN
+  findings, P0 / P1 not active, but the same allowance applies a
+  fortiori); and the recurring pattern of promoting prose claims to
+  typed cheap-channel assertions established by iter 16 (procedural
+  → mechanical-at-runtime), iter 17 (spec requirement → bundle
+  stamp), iter 28 (iter-27 corpus-vacuous-path prose → typed test).
+  The 8 existing `JsonEnvelopeActualSelectionTests` exercise the
+  selector on synthetic inputs; the new test exercises it on the
+  durable real-world failing trace that motivated F4 in the first
+  place.
+- **Change shape:**
+  - Added `from pathlib import Path`, `load_tasks`, `score_task`, and
+    `bench.pi_runner.parse_pi_json_output` imports at the top of
+    `bench/test_harness_json.py`.
+  - Added `F4ClosureBundleReplayTests` class with one test method,
+    `test_iter_29_t16_bundle_replays_to_dual_scorer_pass`, immediately
+    after `JsonEnvelopeActualSelectionTests` and before `if __name__
+    == "__main__"`. The test resolves the bundle path relative to
+    `Path(__file__).resolve().parents[1]` so it runs from the repo
+    root regardless of caller cwd, and calls `self.skipTest(...)` if
+    the bundle is absent (graceful fork-compat parallel to
+    `check_holdout_integrity`'s missing-config skip at iter 16).
+  - The test asserts:
+    1. `parse_pi_json_output(raw)` returns a trace with `tool_calls=4`
+       and one `text_output` (matches the iter-29 / iter-30 / iter-31
+       prose).
+    2. `select_json_envelope_actual` against T16's expected JSON
+       returns the agent's text answer (top keys
+       `["files", "total_pending"]`), bit-equal as a parsed JSON
+       object to the expected output.
+    3. `score_task(task, actual, expected, md_binary="md")` reports
+       `md=True`, `neutral=True`, with `"json_canonical: OK"` in the
+       returned report (the json_canonical scorer does not invoke
+       the md binary, so an unresolved binary name is harmless).
+- **Tests added (1 new):** `bench/test_harness_json.py`'s
+  `F4ClosureBundleReplayTests.test_iter_29_t16_bundle_replays_to_dual_scorer_pass`.
+  Total python unittest count across the eight spec-named modules
+  rose 78 → **79** (`Ran 79 tests in 1.861s ... OK`).
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: 32 + 37 + 16 + 0.
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports
+    "Ran 79 tests in 1.861s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks (T16 in the
+    dry-run still feeds expected directly as actual; the new test
+    independently exercises the post-iter-30 selector path on the
+    real iter-29 trace).
+- **Closure-discipline ratification of iter 31 (implicit, by typed
+  extension rather than prose re-read):** the new test passing
+  end-to-end requires every iter-31 typed-artifact reference to be
+  correct.
+  - `select_json_envelope_actual` callable from `bench.harness` ✓
+    (test imports it; located at `bench/harness.py:1481`).
+  - `parse_pi_json_output` returns a `PiJsonTrace` whose
+    `tool_outputs` and `text_outputs` lists feed the selector ✓
+    (located at `bench/pi_runner.py:73`).
+  - The iter-29 bundle's `agent_output.txt` exists and contains the
+    JSONL stream iter-31 described ✓ (path
+    `bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/logs/T16_mdtools_1777224275/agent_output.txt`,
+    the same file iter-31 named in its replay-verification bullet).
+  - The trace shape iter-31 described (4 tool outputs, 1 text output)
+    is asserted directly ✓.
+  - The selector returns the text answer with top keys
+    `["files", "total_pending"]` matching `bench/expected/t16_count.json`
+    ✓ (asserted via `json.loads` equality).
+  - `score_task` returns `md=True neutral=True` with
+    `"json_canonical: OK"` in the report ✓ (asserted directly).
+  - F4 is not re-raised (no new failure trace surfaced).
+- **Comparability framing:** this iteration does **not** modify any
+  prior bundle in `bench/runs/` (the iter-29 T16 bundle's
+  `agent_output.txt` is read but not written), does **not** bump
+  `holdout_version` (still 1), does **not** introduce a new product
+  surface or change the agent's action space, does **not** add a new
+  CLI command, does **not** re-score any prior bundle (the iter-29
+  bundle's recorded `correct=False` remains the bundle's frozen
+  truth; the new test verifies the post-iter-30 *selector + scorer
+  pipeline* against the bundle's stored agent outputs without
+  modifying the bundle), does **not** edit any historical ledger
+  entry inline (per iter-15 / iter-22 / iter-24 / iter-26 / iter-27 /
+  iter-28 / iter-30 / iter-31 no-silent-edit discipline), does
+  **not** extend the cross-executor same-task table in
+  `bench/RESULTS.md` (the iter-29 T16 row remains absent for the
+  same reason iter 31 named: the bundle's frozen `correct=False` is
+  preserved as durable truth), does **not** change `README.md`,
+  `CLAUDE.md`, `specs/**`, `bench/tasks/`, `bench/holdout/`, or
+  `bench/expected/`. The only external file edits are: (i)
+  `bench/test_harness_json.py` (3 added imports plus one new test
+  class with one test method), and (ii) this ledger entry plus the
+  (after iter 31) → (after iter 32) status block update.
+- **Closure-discipline status (iter 32's own meta-status):** this
+  iter-32 entry is itself FIXED_PENDING_CONFIRMATION at authoring;
+  the next iteration's review pass either explicitly ratifies by
+  re-reading the typed-artifact references in this entry (the
+  `F4ClosureBundleReplayTests` class definition in
+  `bench/test_harness_json.py`, the 79-test cheap-channel run, the
+  iter-29 bundle path) or simply does not re-raise F4 and does not
+  re-raise the new test's assertions.
+- **Same-family-rule discharge:** iter 28 was oracle-trustworthiness
+  (typed-test promotion of iter-27's prose claim — `ScorerDispatcher
+  BranchTests`), iter 29 was intervention-diversity (forced
+  expensive-or-halt: T16 mdtools PI bundle that surfaced **F4 P1
+  OPEN**), iter 30 was oracle-trustworthiness (F4 closure via
+  schema-aware selector + 8 synthetic tests), iter 31 was
+  closure-discipline ratification paired with `bench/RESULTS.md:72`
+  downgrade. Iter 32 is **oracle-trustworthiness** (typed-test
+  promotion of iter-30 / iter-31 prose replay claim — the
+  `F4ClosureBundleReplayTests` class). This is the third
+  oracle-trustworthiness move in the iter-28..32 window, but the
+  intervening iter-29 expensive run and iter-31 closure-discipline
+  ratification (paired with the `bench/RESULTS.md:72` substantive
+  edit) break any concentration. The structural precedent is iter
+  28's relation to iter 27 (promote prior-iter prose claim about a
+  durable property to a typed cheap-channel assertion), iter 17's
+  relation to the spec's stamping requirement, and iter 16's
+  relation to iter-3's pre-recorded promotion-from-procedural-to-
+  mechanical hint. The fresh-failing-trace escape clause
+  additionally applies through the recurring "prose-only replay
+  claims are weaker than typed-artifact assertions" learning that
+  iter 28 explicitly named ("prose claims about typed-artifact
+  properties are a structurally weaker class of evidence than
+  mechanical cheap-channel assertions").
+- **What this does NOT do:** does not promote any new product
+  anchor (none declared); does not run the expensive outer channel;
+  does not re-score any prior bundle; does not amend any prior
+  pass-rate claim; does not invalidate any cross-executor table row
+  (the rule and all five existing rows remain valid); does not
+  extend the cross-executor table with a new row; does not
+  introduce a new finding (the test ratifies an existing CLOSED
+  finding rather than opening a new one); does not bump
+  `holdout_version`; does not modify `bench/runs/` contents.
+
 ### Confirmation review pass (2026-04-26 iter 31)
 
 Discharged the closure-discipline rule for iter 30's F4 fix by
@@ -3120,28 +3279,27 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 31)
+### Halt-condition / quiet-signal status (after iter 32)
 
-After iter 31's promotion of F4 from FIXED_PENDING_CONFIRMATION to
-**CLOSED** via closure-discipline review pass (typed-artifact
-ratification of iter 30's `select_json_envelope_actual` helper at
-`bench/harness.py:1481` and the 8-test
-`JsonEnvelopeActualSelectionTests` class, plus replay-verification
-of the iter-29 T16 bundle through the new selector returning
-`md=PASS neutral=PASS` with `json_canonical: OK`) — see
-"Confirmation review pass (2026-04-26 iter 31)" CLOSED entry and
-the F4 finding archive entry under "## CLOSED" at the bottom of the
-section with Status now "CLOSED":
+After iter 32's promotion of iter 30 / iter 31 prose-only replay
+verification to a typed cheap-channel assertion via the new
+`F4ClosureBundleReplayTests` class in `bench/test_harness_json.py`
+(one test loading the iter-29 T16 PI bundle's durable
+`agent_output.txt` from disk, parsing via `parse_pi_json_output`,
+running through `select_json_envelope_actual` + `score_task`, and
+asserting `md=PASS neutral=PASS` with `json_canonical: OK` — total
+python unittest count rose 78 → **79**) — see "F4 closure trail
+extension: bundle-replay typed cheap-channel assertion (2026-04-26
+iter 32)" CLOSED entry above:
 
-- **OPEN findings count:** **0** (F4 transitioned from
-  FIXED_PENDING_CONFIRMATION to CLOSED at iter 31). The zero-OPEN
-  state was broken at iter 29 (F4 P1 filed) and rejoined at iter
-  30 (F4 → FIXED_PENDING_CONFIRMATION). The zero-OPEN streak that
-  began at iter 30 now stands at count **2** (iter 30 + iter 31).
+- **OPEN findings count:** **0**. The zero-OPEN streak that began at
+  iter 30 now stands at count **3** (iter 30 + iter 31 + iter 32).
   The "no OPEN findings for 2 consecutive review rounds" halt
-  condition is **met on this counter** at iter 31, but per spec
-  it is one of several halt conditions — the quiet-signal counter
-  and homeostasis balance also gate halt; see below.
+  condition remains met on this counter, but per spec it is one of
+  several halt conditions — the quiet-signal counter and homeostasis
+  balance also gate halt; see below. F4 was not re-raised by iter
+  32's typed-artifact extension; the new test passing end-to-end
+  implicitly ratifies iter 31's closure call.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -3187,10 +3345,14 @@ section with Status now "CLOSED":
   F4-closure paragraph downgrade + one forward-pointing iter-30
   line-1478 citation typo correction; F4 transitioned
   FIXED_PENDING_CONFIRMATION → CLOSED; counter increments to
-  **2**). Iter 32 admissibly quiet, iter 33 the next forced
-  expensive-or-halt point unless another expensive run between
-  now and then independently introduces fresh signal that resets
-  the counter.
+  **2**), iter 32 quiet (cheap-channel-only oracle-trustworthiness
+  hardening — promoting iter 30 / iter 31 prose-only replay claim
+  to a typed cheap-channel assertion via `F4ClosureBundleReplayTests`
+  in `bench/test_harness_json.py`, +1 unit test, no expensive run,
+  F4 not re-raised; counter increments to **3**). Iter 33 the next
+  forced expensive-or-halt point unless another expensive run
+  between now and then independently introduces fresh signal that
+  resets the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -3209,6 +3371,32 @@ section with Status now "CLOSED":
   cross-mode / cross-model gap. F4 closure (iter-29 closure plan
   options (a) / (b) / (c)) is also an admissible iter-30 frontier
   anchor ahead of any further PI coverage extension.
+- **Iter-32 same-family-rule discharge:** iter 28 was oracle-
+  trustworthiness (typed-test promotion of iter-27 corpus-vacuous-
+  path prose claim), iter 29 was intervention-diversity (forced
+  expensive-or-halt: T16 mdtools PI bundle that surfaced **F4 P1
+  OPEN**), iter 30 was oracle-trustworthiness (closing F4 via
+  schema-aware `select_json_envelope_actual` + 8 synthetic tests),
+  iter 31 was closure-discipline ratification paired with
+  `bench/RESULTS.md:72` substantive downgrade. Iter 32 is **oracle-
+  trustworthiness** (typed-test promotion of iter 30 / iter 31
+  prose-only replay claim to a cheap-channel assertion against the
+  durable iter-29 T16 bundle's `agent_output.txt` —
+  `F4ClosureBundleReplayTests`). This is the third oracle-
+  trustworthiness move in the iter-28..32 window, but the
+  intervening iter-29 expensive run and iter-31 closure-discipline
+  ratification (with substantive `bench/RESULTS.md:72` edit) both
+  break the chain. Structural precedent: iter 28's relation to iter
+  27 (same shape — promote prior-iter prose claim about a durable
+  property to a typed cheap-channel assertion), iter 17's relation
+  to the spec stamping requirement, iter 16's relation to iter-3's
+  pre-recorded promotion-from-procedural-to-mechanical hint. The
+  fresh-failing-trace escape clause additionally applies through
+  iter-28's explicit learning that "prose claims about typed-
+  artifact properties are a structurally weaker class of evidence
+  than mechanical cheap-channel assertions" — the iter-30 / iter-31
+  REPL-only replay outputs were exactly that weaker-class evidence,
+  and iter 32 promotes them.
 - **Iter-31 same-family-rule discharge:** iter 28 was oracle-
   trustworthiness (typed-test promotion), iter 29 was
   intervention-diversity (forced expensive-or-halt: T16 mdtools
