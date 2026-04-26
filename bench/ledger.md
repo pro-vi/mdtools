@@ -6,13 +6,51 @@ cleared only after a typed artifact confirms the finding, not by prose alone.
 
 ## OPEN findings
 
-_(none)_
+### P3 — `bytes_output` is not cross-executor comparable
+- **Status:** OPEN (filed 2026-04-26 iter 4; P2 hardening backlog severity)
+- **Axis:** oracle trustworthiness (cross-executor normalization)
+- **Anchor:** the iteration-4 quiet-signal-checkpoint PI smoke (`bench/runs/checkpoint-pi-T1-mdtools-gpt5.4mini-2026-04-26/`) recorded `bytes_output=5,975,843` for T1 mdtools on gpt-5.4-mini. The pre-fix Qwen oai-loop holdout bundle records `bytes_output=679` for T20 mdtools — three orders of magnitude smaller. Root cause: `bench/harness.py:1229` measures pi-json `bytes_output` as `len(raw_stdout.encode())`, which captures the entire `pi --mode json` JSONL stream (per-token deltas, audit envelopes, session-meta events), whereas the oai-loop path captures assistant message content. The two values are not comparable for the same axis.
+- **Effect:** does not gate the current acceptance metric (`pass_rate`), so this is P2-severity hardening backlog, not a P0 / P1 claim block. Cross-executor comparisons that include `bytes_output` (or any derived metric) must be flagged as non-comparable until normalized.
+- **Closure plan:** either (a) record a separate `bytes_assistant_content` field for pi-json by parsing assistant text from the audit stream, or (b) document in `bench/RESULTS.md` that `bytes_output` is executor-local and not cross-executor comparable. (b) is cheaper and aligns with the spec's existing posture ("Cross-executor results are not apples-to-apples without explicit normalization").
 
 ## FIXED_PENDING_CONFIRMATION
 
 _(none — see CLOSED for the 2026-04-26 review pass that promoted F1/F2/F3/F3-a/L1)_
 
 ## CLOSED
+
+### Quiet-signal checkpoint discharge (2026-04-26 iter 4)
+
+Per the spec's "After 3 consecutive iterations …" rule flagged at the end of
+iteration 3, iteration 4 ran the expensive outer channel to introduce fresh
+typed signal. Cheap channel re-verified green before and after the run.
+
+- **Bundle:** `bench/runs/checkpoint-pi-T1-mdtools-gpt5.4mini-2026-04-26/` —
+  first PI runner bundle in `bench/runs/`. Single task (T1, search-split,
+  extraction). Single mode (mdtools). Single run. Model
+  `openai-codex/gpt-5.4-mini` at `thinking_level=minimal`, recorded
+  per-result and per-run on the metadata bundle.
+- **Verdict:** T1 mdtools dual-scorer PASS in 9.83s with 1 tool call
+  (`./md outline … --json`). Pi-audit log preserved at
+  `logs/T1_mdtools_1777209684/pi-audit.jsonl` (4 events:
+  `model_change`, `thinking_level_change`, `tool_call`, `tool_result`),
+  parses cleanly via `bench/pi_audit_adapter.summarize_pi_audit_events`.
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T1, runs_per_task=1,
+  task-set version: live `bench/tasks/tasks.json`). It is **NOT** a
+  reconfirmation of any prior holdout bundle — different executor, different
+  model, different task split (T1 is search-split, not holdout). It is also
+  **NOT** a comparison against any other bundle until normalized on the
+  five spec-required axes. It establishes a single typed datum that the PI
+  runner pipeline (harness ↔ pi --mode json ↔ audit extension ↔ pi_audit_adapter)
+  works end-to-end against the live task corpus.
+- **What this discharges:** the spec's quiet-signal-checkpoint rule, which
+  is satisfied by introducing fresh signal via the expensive channel. It does
+  **not** discharge any product or oracle claim — those still require their
+  own attribution probes and apples-to-apples comparisons.
+- **What it surfaced:** the new P3 finding above (`bytes_output` cross-executor
+  incomparability), which is concrete fresh signal — i.e. the iteration's
+  expensive run did not return null information.
 
 ### Confirmation review pass (2026-04-26)
 
