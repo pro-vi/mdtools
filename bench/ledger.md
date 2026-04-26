@@ -10,6 +10,365 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Specification coherence — iter-49 T12 PI bundle reference extension (2026-04-26 iter 50)
+
+Cashed out iter 49's T12 PI bundle by extending `bench/RESULTS.md`'s
+"Cross-executor comparability (PI runner vs OAI loop)" inventory
+paragraph with a thirteenth-bundle sentence parallel in shape to iter-19's
+fifth-bundle (T2), iter-23's sixth-bundle (T21), iter-34's ninth-bundle
+(T11), iter-38's tenth-bundle (T19), iter-42's eleventh-bundle (T10),
+and iter-46's twelfth-bundle (T15) sentences — but substantively
+distinct in eligibility-cause framing: T12 has no OAI same-task `mdtools`
+cell on file because **no OAI batch-mutation-family manifest exists at
+all** (the OAI search-mdtools-mutation manifest at
+`bench/runs/search-mdtools-mutation-*-2026-04-21/task_ids.json` carries
+`["T7", "T10", "T13"]`, scoped to the targeted-mutation family per
+CLAUDE.md's task-family table), so T12's row would require either
+creating a new OAI batch-mutation manifest scope or extending the
+existing targeted-mutation manifest to cover T12 — **manifest-scope-
+design** ineligibility, structurally distinct from T2 / T21 / T11 / T19
+(missing-from-existing-family-manifest), T10 (model-axis-confound), and
+T15 (compounding two-rule ineligibility). The cash-out additionally
+publishes the iter-49 framing that T12 is the first PI bundle whose
+structural value to the loop's evidence base extends substantially
+beyond cross-executor comparability — five orthogonal coverage axes
+simultaneously closed (with the audit-only-vs-guard-augmented
+`policy_violations` asymmetry described as a within-axis observation
+on the policy-deny axis per iter-49's canonical 5-axis enumeration),
+each candidate evidence for future oracle-trustworthiness typed-test
+promotions. Paired with clean closure-
+discipline ratification of iter 49 by independent re-reading of every
+cited typed-artifact data point. No fresh failing trace surfaced.
+
+- **Disturbed axis:** specification coherence — the iter-49 T12 PI
+  bundle's existence and its five-axis-coverage-gap-closure role
+  (first PI batch-mutation-family bundle + fourth PI raw_bytes-branch
+  bundle + first PI bundle with N>2 mutations PASS + first PI
+  policy-deny + first PI tool_error, with the policy-deny axis
+  additionally exposing the audit-only-vs-guard-augmented
+  `policy_violations` asymmetry as a within-axis observation per
+  iter-49's "What this discharges" bullet's canonical 5-axis
+  enumeration) were durable in
+  `bench/runs/` and in the ledger under the "Quiet-signal checkpoint
+  discharge (2026-04-26 iter 49)" entry, but the published narrative
+  at `bench/RESULTS.md:68` had not yet surfaced the bundle. iter 49's
+  own ledger body explicitly named this as a forward-pointing cash-out
+  hook ("the iter-49 T12 bundle could be cashed out into the
+  cross-executor section as a thirteenth-bundle reference paragraph
+  following the iter-19 / iter-23 / iter-34 / iter-38 / iter-42 /
+  iter-46 pattern, if a future iteration chooses that as its frontier
+  anchor"). iter 19 set the precedent for cashing out T2 (then-fifth
+  PI bundle, no OAI same-task counterpart); iter 23 repeated for T21
+  (then-sixth PI bundle, no OAI same-task counterpart); iter 34
+  repeated for T11 (then-ninth PI bundle, no OAI same-task
+  counterpart); iter 38 repeated for T19 (then-tenth PI bundle, no
+  OAI same-task counterpart); iter 42 repeated for T10 (then-eleventh
+  PI bundle, four OAI same-task counterparts but all
+  model-axis-confounded); iter 46 repeated for T15 (then-twelfth PI
+  bundle, two OAI same-task counterparts that were both
+  model-axis-confounded **and** the PI cell was FAIL while OAI cells
+  were PASS, structurally permanently deferred); iter 50 repeats for
+  T12 (now-thirteenth PI bundle, no OAI batch-mutation manifest
+  exists at all in the entire bundle inventory — manifest-scope-design
+  ineligibility cause).
+- **Frontier anchor:** the spec's "missing evaluator artifact …
+  durable summary for a newly-run comparison" — same anchor as iters
+  19 / 23 / 34 / 38 / 42 / 46. Additionally, the iter-49 ledger
+  entry's "Closure-discipline status: CLOSED at authoring time per
+  the iter-4 / -7 / -10 / -14 / -18 / -21 / -25 / -29 / -33 / -37 /
+  -41 / -45 quiet-signal-discharge pattern … A future review pass
+  should ratify by re-reading every data point in this entry against
+  `results.json`, `run.json`, `pi-audit.jsonl`, and the persisted
+  `agent_output.txt`" is a pre-recorded forcing function for the
+  closure-discipline ratification half of this iteration.
+- **Change shape:**
+  - Appended a "thirteenth PI bundle" sentence to `bench/RESULTS.md:68`
+    inside the inventory paragraph, immediately after the twelfth-
+    bundle (T15) sentence and before the parenthetical aside about
+    table-eligible T9 / F4-closure-note T16, citing
+    `bench/runs/checkpoint-pi-T12-mdtools-gpt5.4mini-2026-04-26/`
+    (iter 49), describing it as the first PI batch-mutation-family
+    bundle (T12 is the only task in CLAUDE.md's "batch mutation"
+    family), fourth PI raw_bytes-branch bundle (T10 + T12 + T15 +
+    T18 = 4 of 10 raw_bytes corpus tasks PI-tested), first PI bundle
+    with N>2 mutations PASS (15 mutations across 14 turns at 41.72s
+    with 26 tool calls, organized as three query+mutation-batch
+    sub-cycles per the kind sequence `[q, q, m×8, q×5, m×6, q×3,
+    m, q]`), first PI bundle exercising the policy-deny guard path
+    (sed at bash_commands[12] denied), first PI bundle with
+    `tool_errors=1`, first PI bundle where audit-only and guard-
+    augmented `summarize_pi_audit_events` paths produce distinct
+    `policy_violations` values, and the ninth durable bundle
+    carrying iter-17's `holdout_version: 1` stamp on `run.json`,
+    with the substantively distinct manifest-scope-design ineligibility
+    cause framing.
+  - No edit to the cross-executor table itself (still 5 rows: T1,
+    T7, T9, T22, T18 — T12 is not added because no OAI T12 mdtools
+    counterpart exists on `gpt-5.4-mini` or any other model). No
+    edit to the F4 closure note at `bench/RESULTS.md:72` (T12 is
+    raw_bytes branch, structurally orthogonal to the F4 attack
+    vector). No edit to `bench/RESULTS.md:54` /:56 measurement-
+    publication caption / commentary text. No edit to any historical
+    ledger entry inline (per iter-15 / -22 / -24 / -26 / -27 / -28 /
+    -30 / -31 / -32 / -33 / -34 / -35 / -36 / -37 / -38 / -40 / -42
+    / -44 / -46 / -48 no-silent-edit discipline).
+- **Data points (typed-artifact ratification of iter 49):** every
+  iter-49 typed-artifact claim re-verified bit-exact:
+  - `results.json`: `task_id=T12`, `mode=mdtools`, `correct=true`,
+    `correct_neutral=true`, `model=openai-codex/gpt-5.4-mini`,
+    `thinking_level=minimal`, `bytes_prompt=4413`,
+    `bytes_output=3963358`, `bytes_observation=19161`,
+    `tool_calls=26`, `turns=14`, `mutations=15`,
+    `policy_violations=1`, `requeried=true`, `invalid_responses=0`,
+    `unique_invalid_responses=0`, `elapsed_seconds=41.72`,
+    `diff_report=""`, `runner_error="tool_error: bash: block index
+    5 out of range (document has 0 blocks) Command exited with code
+    1"` ✓
+  - `run.json`: `schema_version=1`, `kind=agent-track`,
+    `runner=pi-json`, `executor=guarded`,
+    `model=openai-codex/gpt-5.4-mini`, `thinking_level=minimal`,
+    `runs_per_task=1`, `holdout_version=1`,
+    `aggregates.overall.requery_rate=1.0`,
+    `aggregates.overall.avg_mutations=15.0`,
+    `aggregates.overall.pass_rate=1.0`,
+    `aggregates.overall.avg_policy_violations=1.0` ✓
+  - `task_ids.json`: `["T12"]` (single-task selection) ✓
+  - `pi-audit.jsonl`: 54 events parse cleanly via
+    `bench.pi_audit_adapter.summarize_pi_audit_events` —
+    histogram on the `event` field is `{model_change: 1,
+    thinking_level_change: 1, tool_call: 26, tool_result: 25,
+    tool_error: 1}`, confirming iter-49's 54-event /
+    "(`model_change`, `thinking_level_change`, then 26 `tool_call`
+    / 25 `tool_result` / 1 `tool_error` records)" claim bit-exact.
+    `PiAuditCounters(tool_calls=26, tool_results=25, tool_errors=1,
+    bytes_observation=19161, blocked=0, policy_violations=0,
+    mutations=15, requeried=True, model='openai-codex/gpt-5.4-mini',
+    thinking_level='minimal')` plus `bash_commands` of length 26
+    via the audit-only path ✓
+  - `guard.log` preserves 26 entries via
+    `bench.command_policy.load_guard_events` — decision split is
+    `{allow: 25, deny: 1}`, base_command split is
+    `{md: 25, sed: 1}`, confirming iter-49's "25 `allow` + 1 `deny`;
+    base_command split = 25 `md` + 1 `sed`" claim bit-exact ✓
+  - The guard-augmented path:
+    `summarize_pi_audit_events(events, guard_events=guard_events)`
+    returns `policy_violations=1` (counting the single `decision='deny'`
+    entry in guard.log), confirming iter-49's "first PI bundle
+    where audit-only and guard-augmented paths return distinct
+    `policy_violations` values" claim. The asymmetry is structural:
+    the audit events themselves carry no native `policy` field, so
+    the audit-only path returns 0; the guard-augmented path counts
+    deny entries from the `guard.log` artifact ✓
+  - The 26-call kind sequence reproduces from
+    `bench.command_policy.classify_command_kind` against
+    `audit_only.bash_commands` as `[query, query, mutation,
+    mutation, mutation, mutation, mutation, mutation, mutation,
+    mutation, query, query, query, query, query, mutation,
+    mutation, mutation, mutation, mutation, mutation, query,
+    query, query, mutation, query]` — matching iter-49's claimed
+    `[q, q, m×8, q×5, m×6, q×3, m, q]` shape bit-exact (positions
+    0–1 are queries, 2–9 are 8 mutations, 10–14 are 5 queries
+    including the denied sed at index 12 and md block tool_error
+    at index 13, 15–20 are 6 mutations, 21–23 are 3 queries
+    including md block re-issue, 24 is the final mutation, 25 is
+    the final verification query) ✓
+  - The same kind sequence reproduces from `classify_command_kind`
+    against `guard_events.raw_command` — bit-exact match to the
+    audit-events-derived sequence (the chronological ordering of
+    audit events and guard.log entries is consistent for T12 since
+    the deny at index 12 means guard.log preserves the same 26-entry
+    order as the audit-events tool_call sequence) ✓
+  - T12 scorer config in `bench/tasks/tasks.json` is
+    `kind=raw_bytes`, `expected_artifact=file_contents`,
+    `expected_output=bench/expected/t12_batch.md`,
+    `normalize_line_endings=true`, `ignore_trailing_whitespace=true`,
+    `compare_frontmatter_json=false`, `compare_heading_tree=false`,
+    `compare_block_order=false`, `compare_link_destinations=false`,
+    `compare_block_text=false` — confirming iter-49's "raw_bytes
+    early-return at `bench/harness.py:340-352`" routing claim. The
+    F4 selector at `bench/harness.py:1481` is **not** invoked for
+    raw_bytes tasks, structurally orthogonal to the F4 attack vector ✓
+  - The 10 raw_bytes corpus tasks per iter-25's dispatcher
+    classification: T10 / T12 / T13 / T14 / T15 / T17 / T18 / T20 /
+    T23 / T24; PI now covers T10 + T12 + T15 + T18 = **4 of 10**;
+    search-side gaps: T13 / T17; holdout-side gaps: T14 / T20 /
+    T23 / T24 (matching iter 49's coverage-gap-closure framing) ✓
+  - T12 absent from `bench/holdout/task_ids.json` (which is
+    `["T4","T14","T20","T22","T23","T24"]`), confirming iter 49's
+    "T12 is in the search split" claim — `grep -c '"T12"'` returns
+    0 against the holdout manifest ✓
+  - T12 absent from the OAI search-mdtools-mutation manifest
+    `bench/runs/search-mdtools-mutation-*-2026-04-21/task_ids.json`
+    which carries `["T7", "T10", "T13"]` — confirming iter 49's
+    "T12 is **not** included in the OAI search run set" claim and
+    establishing the manifest-scope-design ineligibility cause for
+    the cross-executor table ✓
+  - No OAI same-task T12 mdtools cell exists across any
+    `bench/runs/*/results.json` — verified by enumerating all
+    `results.json` files for `task_id == "T12"`: only the iter-49
+    bundle and the 2026-04-20 dry-run baseline at
+    `default-corpus-dry-run-2026-04-20/results.json` match, and
+    the dry-run cell is `elapsed=0.0` with no agent execution ✓
+  - CLAUDE.md's "Task families" table designates T12 as the only
+    task in the "Batch mutation" family with "Strong — md set-task
+    in a loop" advantage description — confirming iter 49's "T12
+    is the only task in CLAUDE.md's 'batch mutation' family" claim
+    (line 119 in CLAUDE.md, single-row entry under the
+    Batch-mutation column) ✓
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: 32 + 37 + 16 + 0 (parser /
+    integration counts plus benchmarks empty).
+  - `python3 -m unittest bench.test_command_policy
+    bench.test_oai_loop bench.test_pi_audit
+    bench.test_harness_json bench.test_harness_run_artifacts
+    bench.test_harness_task_split bench.test_analyze_inputs
+    bench.test_report_inputs` reports "Ran 86 tests in 1.697s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **Closure-discipline ratification of iter 49 (paired with the
+  substantive RESULTS.md edit):** every iter-49 "Bundle:" / "Verdict:"
+  / "Coverage gap closure" / "Re-query moat at scale" / "F4 non-
+  relevance" / "Comparability framing" data point reproduces bit-exact
+  through independent re-reading of `results.json`, `run.json`,
+  `task_ids.json`, `pi-audit.jsonl`, `guard.log`, `bench/tasks/tasks.json`,
+  `bench/holdout/task_ids.json`, the OAI search-mdtools-mutation
+  manifest, and CLAUDE.md's Task-family table. The five-axis
+  coverage-gap-closure claim (batch-mutation family + raw_bytes
+  branch fourth-bundle + N=15 mutation scale + first PI policy-deny
+  + first PI tool_error, with the audit-only-vs-guard-augmented
+  `policy_violations` asymmetry exposure described as a within-axis
+  observation on the policy-deny axis per iter-49's canonical 5-axis
+  enumeration) verifies via the audit-event
+  histogram, `PiAuditCounters` output through both paths, the
+  `bash_commands` and guard.log raw_command sequences, and the
+  `classify_command_kind` kind sequence. The re-query-moat-at-scale
+  claim (three query+mutation-batch sub-cycles vs iter-41 T10's
+  single q→m→q triple) verifies via the kind sequence's three
+  mutation→query transitions at positions 9→10, 20→21, and 24→25
+  (matching iter-49's prose claim). F4 closure remains anchored by
+  iter 30 / iter 31 / iter 32 / iter 33 / iter 35 / iter 37 /
+  iter 39 / iter 41 / iter 43 / iter 45 / iter 47 and is not
+  re-raised — iter 49 explicitly documented F4 non-relevance for
+  raw_bytes tasks. This is the **sixth** clean ratification of an
+  expensive-channel iteration in this run after iter 15 (ratified
+  iter 14 T18 expensive), iter 34 (ratified iter 33 T11 expensive),
+  iter 38 (ratified iter 37 T19 expensive), iter 42 (ratified iter
+  41 T10 expensive), and iter 46 (ratified iter 45 T15 expensive).
+  The pattern of "every ratification iteration finds at least one
+  navigable claim that doesn't survive verification" (iter 22 /
+  -24 / -26 / -27 / -30 / -31 / -33 / -38 / -48) does not fire on
+  the typed-artifact data points; iter 49's prose was authored
+  carefully (verified bit-exact against the bundle artifacts, the
+  live scorer dispatcher, the holdout split manifest, the OAI
+  search-mdtools-mutation manifest's task scope, and CLAUDE.md's
+  task-family table).
+- **Comparability framing:** this is **NOT** a holdout reconfirmation
+  (T12 is search-side; no holdout cell affected). It is **NOT** an
+  expensive-channel run (no new bundle produced; cheap-channel-only
+  publication + ratification). It is **NOT** a cross-executor table
+  extension (T12's row would require a new OAI batch-mutation manifest
+  scope, which does not exist in the bundle inventory; per the
+  iter-46 manifest-design-ineligibility framing established for T12
+  in this entry, the row is deferred until either a future expensive
+  run produces an OAI batch-mutation T12 mdtools cell on
+  `gpt-5.4-mini` or the existing OAI search-mdtools-mutation manifest
+  is extended to include T12). It does **NOT** discharge the iter-53
+  forced expensive-or-halt point — iter 50 increments the quiet-signal
+  counter from 0 to 1. It does **NOT** re-classify T12's PASS verdict
+  (iter-49's "first PI bundle with N>2 mutations PASS" classification
+  stands; this iteration only publishes the observation in the
+  cross-executor inventory paragraph, it does not file any new
+  finding). It does **NOT** promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist) or bump
+  `holdout_version` (still 1; T12 is search-side).
+- **Closure-discipline status:** iter 50 is **CLOSED at authoring
+  time** under the iter-19 / iter-23 / iter-34 / iter-38 / iter-42 /
+  iter-46 cash-out template (substantive publication + ratification
+  of prior expensive-run entry, no pending fix). The closure-
+  discipline rule's "next pass not re-raising the finding" criterion
+  is naturally satisfied by iter 51 if it does any work that involves
+  verifying iter-50's RESULTS.md edit; explicit ratification is not
+  required. A future iteration that chooses oracle-trustworthiness
+  as its frontier anchor could promote iter-49's prose-only T12
+  trajectory claims to typed cheap-channel assertions (e.g., a
+  `T12BatchMutationCycleTests` class asserting the three-cycle
+  re-query+mutation-batch kind sequence pattern, the audit-only-vs-
+  guard-augmented `policy_violations` asymmetry, the `tool_errors=1`
+  trajectory shape, and the canonical-moat-at-scale invariant),
+  parallel in shape to iter 43's `T10CanonicalReQueryCycleTests` for
+  single-mutation moat and iter 47's `T15ParallelMutationFailureTests`
+  for parallel-mutation FAIL anti-pattern — this would extend the
+  F4-orthogonal closure trail by adding an at-scale variant of the
+  positive-shape pattern detection, completing a structural triad
+  (single-mutation PASS + parallel-mutation FAIL + batch-mutation
+  PASS-at-scale) on the raw_bytes branch. iter 50 explicitly does
+  **not** make this typed-test promotion (the cash-out half is the
+  work of this iteration; the typed-test promotion would be a
+  separate oracle-trustworthiness move, naturally fitting an iter
+  51 / 52 timeslot before iter 53's next forced expensive-or-halt
+  per the iter-42→iter-43 / iter-46→iter-47 paired-cadence-with-
+  typed-test-promotion shape).
+- **Same-family-rule discharge:** iter 45 was intervention-diversity
+  (T15 expensive forced expensive-or-halt), iter 46 was specification
+  coherence (`bench/RESULTS.md:68` twelfth-bundle cash-out + paired
+  clean ratification of iter 45), iter 47 was oracle-trustworthiness
+  (typed-test promotion of iter-45's prose-only T15 parallel-mutation
+  FAIL pattern claim via new `T15ParallelMutationFailureTests` class),
+  iter 48 was closure-discipline ratification of iter 47 (procedural
+  ledger-only), iter 49 was intervention-diversity (T12 expensive
+  forced expensive-or-halt). Iter 50 is **specification coherence**
+  (`bench/RESULTS.md:68` thirteenth-bundle cash-out + paired clean
+  ratification of iter 49), shifting axis cleanly from iter 49's
+  intervention-diversity. Same-family precedent: iter 19 cashed out
+  iter 18's T2 PI bundle one iteration after the expensive run; iter
+  23 cashed out iter 21's T21 PI bundle two iterations after the
+  expensive run (with iter 22 closure-discipline ratification
+  interleaved); iter 34 cashed out iter 33's T11 PI bundle one
+  iteration after the expensive run; iter 38 cashed out iter 37's
+  T19 PI bundle one iteration after the expensive run; iter 42
+  cashed out iter 41's T10 PI bundle one iteration after the
+  expensive run; iter 46 cashed out iter 45's T15 PI bundle one
+  iteration after the expensive run; iter 50 cashes out iter 49's
+  T12 PI bundle one iteration after the expensive run, matching the
+  iter 19 / iter 34 / iter 38 / iter 42 / iter 46 tighter cadence
+  rather than iter 23's. The closure-discipline ratification half
+  is paired with the substantive cash-out (iter 19 / iter 34 /
+  iter 38 / iter 42 / iter 46 paired pattern), not isolated in a
+  separate ledger-only iteration (iter 22 separated pattern); both
+  shapes remain admissible. The substantive eligibility-cause
+  distinction introduced by this entry (T12 is the **first** PI
+  bundle whose cross-executor table ineligibility is caused by
+  **manifest-scope-design** — no OAI batch-mutation manifest exists
+  in the entire bundle inventory) is itself an enrichment of the
+  inventory paragraph beyond iter-19 / -23 / -34 / -38's "no OAI
+  same-task cell" sentence shape, iter-42's "OAI cells exist but
+  model-axis-confounded" sentence shape, and iter-46's "compounding
+  two-rule ineligibility" sentence shape — the cash-out is not
+  formulaic. iter 50 is also the **sixth** clean ratification of an
+  expensive-channel iteration in this run after iters 15 / 34 / 38
+  / 42 / 46.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does not
+  bump `holdout_version` (still 1; T12 is search-side, no holdout-
+  side artifact change). Does not edit any harness production code
+  (only ledger and `bench/RESULTS.md`). Does not modify any
+  pass-rate claim or any model-comparison framing. Does not extend
+  `bench/probes/`, `bench/search/candidates/`, or any other
+  not-yet-existing T7 directory. Does not re-raise F4 — the iter-49
+  bundle is on the raw_bytes scorer branch, structurally orthogonal
+  to the F4 attack vector (json_envelope branch only). Does not
+  re-classify T12's PASS verdict — iter-49's "first PI bundle with
+  N>2 mutations PASS" framing is preserved unchanged. Does not file
+  any P0 / P1 / P2 finding — the bundle is a clean PASS with no
+  oracle/harness/product defect to surface. Does not commit a typed
+  cheap-channel assertion for the iter-49 trace itself — that
+  remains a forward-pointing oracle-trustworthiness opportunity for
+  a future iteration (a candidate `T12BatchMutationCycleTests`
+  class). Does not extend the cross-executor table itself (still 5
+  rows). Does not amend any iter-49 typed-artifact claim (all
+  reproduce bit-exact). Does not produce a fract-ai consumer demand
+  signal — the bundle remains a synthetic benchmark observation.
+
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 49)
 
 Per the spec's "After 3 consecutive iterations with the cheap channel
@@ -7244,43 +7603,51 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 49)
+### Halt-condition / quiet-signal status (after iter 50)
 
-After iter 49's spec-mandated forced expensive-or-halt — produced the
-**thirteenth** PI runner bundle
-(`bench/runs/checkpoint-pi-T12-mdtools-gpt5.4mini-2026-04-26/`),
-**ninth** durable bundle carrying iter-17's `holdout_version=1` stamp:
-T12 mdtools dual-scorer **PASS** in 41.72s on `openai-codex/gpt-5.4-mini`
-at minimal thinking with **15 mutations** (largest mutation count of
-any PI bundle to date), `requeried=true`, `policy_violations=1` (sed
-denied at bash_commands[12] in mdtools mode, correctly blocked by the
-guard), `tool_errors=1` (`md block 5` returned "block index 5 out of
-range" at bash_commands[13]), `bytes_observation=19,161`,
-`bytes_output=3,963,358`. Pi-audit log preserves 54 events parsing
-cleanly via `summarize_pi_audit_events`; guard.log preserves 26
-entries (25 allow + 1 deny; base_command split = 25 md + 1 sed). The
-26-call trajectory's kind sequence `[q, q, m×8, q×5, m×6, q×3, m, q]`
-exhibits **three** query+mutation-batch sub-cycles, demonstrating
-that the canonical re-query mutation cycle (single q→m→q at iter-41
-T10) scales cleanly to N=15 mutations across multiple sub-cycles —
-the quiet-signal counter resets from 3 to 0. iter 48's typed-artifact
-claims implicitly ratified by iter 49 not re-raising any of them
-during authoring (test class structure, helpers, bundle paths,
-counters all bit-exact). F4 closure trail unchanged (T12 is raw_bytes
-branch, structurally orthogonal to the F4 attack vector); the
-F4-orthogonal closure trail gains its third PASS bundle (T10 single-
-mutation + T12 batch-mutation + T18 single-replace-section all PASS
-on raw_bytes branch under PI). No new finding opened. See
-"Quiet-signal checkpoint discharge (2026-04-26 iter 49)" CLOSED entry
+After iter 50's specification-coherence cash-out + paired clean
+closure-discipline ratification of iter 49 —
+`bench/RESULTS.md:68`'s cross-executor inventory paragraph extended
+with a thirteenth-PI-bundle (T12, iter 49) sentence introducing a
+substantively distinct **manifest-scope-design ineligibility**
+framing (T12's row would require either creating a new OAI batch-
+mutation manifest scope or extending the existing OAI search-mdtools-
+mutation manifest beyond its current `["T7", "T10", "T13"]` scope, as
+T12 is the only batch-mutation-family task per CLAUDE.md and no OAI
+batch-mutation manifest exists in the bundle inventory) — distinct
+from iter-23 / -34 / -38's "no OAI same-task cell" default,
+iter-42's "OAI cells exist but model-axis-confounded", and iter-46's
+"compounding two-rule ineligibility". Every iter-49 typed-artifact
+data point reproduces bit-exact (results.json all 16 fields,
+run.json with holdout_version=1, task_ids.json `["T12"]`,
+pi-audit.jsonl 54-event histogram parsing cleanly via
+`summarize_pi_audit_events` with PiAuditCounters bit-exact on both
+audit-only and guard-augmented paths, guard.log 26-entry trace via
+`load_guard_events` with decision split 25 allow + 1 deny and
+base_command split 25 md + 1 sed, the 26-call kind sequence
+`[q, q, m×8, q×5, m×6, q×3, m, q]` reproducing bit-exact via
+`classify_command_kind` against both audit-events bash_commands and
+guard.log raw_command fields, T12's raw_bytes scorer config in
+`bench/tasks/tasks.json`, T12's absence from holdout split,
+the OAI search-mdtools-mutation manifest's task scope, no OAI same-
+task T12 mdtools cell across any prior bundle, and CLAUDE.md's
+batch-mutation family designation). No fresh failing trace surfaced
+— the quiet-signal counter increments from 0 to 1. iter 49's
+typed-artifact claims explicitly ratified by iter 50 via independent
+re-execution of `summarize_pi_audit_events`, `load_guard_events`,
+and `classify_command_kind`. F4 closure trail unchanged (T12 is
+raw_bytes branch, structurally orthogonal to the F4 attack vector).
+No new finding opened. See "Specification coherence — iter-49 T12
+PI bundle reference extension (2026-04-26 iter 50)" CLOSED entry
 above. Iter 53 next forced expensive-or-halt point per the spec's
 3-consecutive-quiet rule unless an expensive run independently
 introduces fresh signal.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **20** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **21** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
   39 + iter 40 + iter 41 + iter 42 + iter 43 + iter 44 + iter 45 +
-  iter 46 + iter 47 + iter 48 + iter 49). The
+  iter 46 + iter 47 + iter 48 + iter 49 + iter 50). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -7579,7 +7946,34 @@ introduces fresh signal.
   selector at `bench/harness.py:1481`); F4 closure remains anchored
   by iter 30/31/32/33/35/37/39; F4 not re-raised; recorded as
   expensive-channel sample with named coverage-gap closure on five
-  structurally orthogonal axes; counter reset to **0**).
+  structurally orthogonal axes; counter reset to **0**), iter 50
+  quiet (cheap-channel-only specification-coherence cash-out of
+  iter-49 T12 PI bundle as the **thirteenth** PI bundle reference
+  in `bench/RESULTS.md:68`'s cross-executor inventory paragraph,
+  paired with clean closure-discipline ratification of iter 49 —
+  every typed-artifact data point reproducing bit-exact
+  (results.json all 16 fields, run.json with holdout_version=1,
+  task_ids.json `["T12"]`, pi-audit.jsonl 54-event histogram
+  parsing cleanly via `summarize_pi_audit_events` with
+  PiAuditCounters bit-exact on both audit-only and guard-augmented
+  paths, guard.log 26-entry trace via `load_guard_events` with
+  decision split 25 allow + 1 deny and base_command split 25 md +
+  1 sed, the 26-call kind sequence
+  `[q, q, m×8, q×5, m×6, q×3, m, q]` reproducing bit-exact via
+  `classify_command_kind` against both audit-events bash_commands
+  and guard.log raw_command fields, T12's raw_bytes scorer config,
+  T12's absence from holdout split, the OAI search-mdtools-mutation
+  manifest's task scope, no OAI same-task T12 mdtools cell across
+  any prior bundle, and CLAUDE.md's batch-mutation family
+  designation), substantive **manifest-scope-design ineligibility**
+  framing introduced (T12's row would require either creating a
+  new OAI batch-mutation manifest scope or extending the existing
+  OAI search-mdtools-mutation manifest beyond its current
+  `["T7", "T10", "T13"]` scope, distinct from iter-23 / -34 / -38's
+  "no OAI same-task cell" default, iter-42's "OAI cells exist but
+  model-axis-confounded", and iter-46's "compounding two-rule
+  ineligibility"); no fresh failing trace surfaced; counter
+  increments to **1**).
   Iter 53 next forced expensive-or-halt point per the
   spec's "3 consecutive iterations with cheap channel green and no
   new finding" rule unless an expensive run independently introduces
@@ -7606,6 +8000,40 @@ introduces fresh signal.
   prefer "first PI cell to exercise scorer cell shape X (where X is
   grounded in an actual `bench/tasks/tasks.json` task config)" or a
   task-family / cross-mode / cross-model gap.
+- **Iter-50 same-family-rule discharge:** Recent axis pattern: iter
+  46 specification coherence (`bench/RESULTS.md:68` twelfth-bundle
+  cash-out + paired clean ratification of iter 45), iter 47
+  oracle-trustworthiness (typed-test promotion of iter-45's prose-
+  only T15 parallel-mutation FAIL pattern claim via new
+  `T15ParallelMutationFailureTests` class), iter 48 closure-discipline
+  ratification of iter 47 (procedural ledger-only), iter 49
+  intervention-diversity (T12 expensive forced expensive-or-halt with
+  first PI batch-mutation family coverage). Iter 50 is **specification
+  coherence** (`bench/RESULTS.md:68` thirteenth-bundle cash-out +
+  paired clean ratification of iter 49), shifting axis cleanly from
+  iter 49's intervention-diversity. Same-family precedent: iter 19
+  cashed out iter 18's T2 PI bundle one iteration after the expensive
+  run; iter 23 cashed out iter 21's T21 PI bundle two iterations
+  after the expensive run (with iter 22 closure-discipline
+  ratification interleaved); iter 34 cashed out iter 33's T11 PI
+  bundle one iteration after; iter 38 cashed out iter 37's T19 PI
+  bundle one iteration after; iter 42 cashed out iter 41's T10 PI
+  bundle one iteration after; iter 46 cashed out iter 45's T15 PI
+  bundle one iteration after; iter 50 cashes out iter 49's T12 PI
+  bundle one iteration after, matching the iter 19 / iter 34 /
+  iter 38 / iter 42 / iter 46 tighter cadence rather than iter 23's.
+  The substantive eligibility-cause distinction introduced (T12 is
+  the first PI bundle whose cross-executor table ineligibility is
+  caused by **manifest-scope-design** — no OAI batch-mutation
+  manifest exists in the entire bundle inventory) is itself an
+  enrichment of the inventory paragraph beyond prior shapes — the
+  cash-out is not formulaic. Iter 50 is also the **sixth** clean
+  ratification of an expensive-channel iteration in this run after
+  iters 15 / 34 / 38 / 42 / 46. Closure-discipline ratification of
+  iter 49 is paired with the substantive cash-out (iter 19 / iter
+  34 / iter 38 / iter 42 / iter 46 paired pattern), not isolated in
+  a separate ledger-only iteration (iter 22 separated pattern); both
+  shapes remain admissible.
 - **Iter-49 same-family-rule discharge:** Recent axis pattern: iter
   45 intervention-diversity (T15 expensive forced expensive-or-halt),
   iter 46 specification coherence (`bench/RESULTS.md:68` twelfth-
