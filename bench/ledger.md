@@ -14,6 +14,125 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 20)
+
+Closure-discipline review of iter-19's cross-executor measurement
+extension paired with a corrective line-number drift fix surfaced
+during the verification: `bench/RESULTS.md:54` cited
+`bench/harness.py:1229` (pi-json) and `:1265` (oai-loop) for the
+`bytes_output = len(raw_stdout.encode())` lines, but those lines are
+now at 1282 and 1318 — a 53-line forward drift introduced by iter-16's
+`check_holdout_integrity` wrapper (~30 new lines at 747-775 + main()
+wiring at 1597-1599) and iter-17's `read_holdout_version` helper
+(~17 new lines at 778-794 + `build_run_metadata` modifications). A
+reader following the published citation `bench/harness.py:1229` would
+land on `workdir=workdir_path,` (an oai_loop kwarg) instead of the
+bytes_output computation; `:1265` would land on
+`session_dir=pi_session_dir,` (a pi-json kwarg). Same shape as iter
+13's stale `bench/harness.py:339-341` → `347-348` fix at RESULTS.md:152
+for the F3-a rstrip body, with the same drift-after-upstream-edits
+origin pattern.
+
+- **Disturbance:** specification coherence — line-number drift in
+  published-narrative typed-artifact pointer. The pointer was added at
+  iter 5 (commit `b10d8b8`) when the lines were genuinely at 1229 and
+  1265; the iter-16/17 oracle hardening work added code above them
+  without any line-citation update. This is structurally identical to
+  iter 13's `RESULTS.md:152` drift caused by edits before line 339-341.
+- **Anchor:** *fresh failing trace* — the citations point to wrong
+  lines in the current `bench/harness.py`. A reader following the
+  published references lands on unrelated kwargs, not the bytes_output
+  computation the prose describes. Verified by reading the actual lines
+  at the cited offsets and the actual `bytes_output = len(raw_stdout.encode())`
+  body in the current file.
+- **Change shape:** one targeted edit to `bench/RESULTS.md:54`,
+  replacing `bench/harness.py:1229` with `:1282` (pi-json) and `:1265`
+  with `:1318` (oai-loop). All other prose unchanged.
+- **Drift origin (verified by git history):**
+  - iter 5 commit `b10d8b8`: `bench/harness.py` lines 1229 (pi-json)
+    and 1265 (oai-loop) carried `bytes_output = len(raw_stdout.encode())`,
+    matching the published citation.
+  - iter 16 commit `75115c7`: added `check_holdout_integrity` wrapper
+    at `bench/harness.py:747-775` (28 new lines) plus 3-line
+    `parser.error(...)` block at `:1597-1599`. Cumulative drift on
+    bytes_output lines: ~31 lines forward.
+  - iter 17 commit `7b36502`: added `read_holdout_version` at
+    `:778-794` (17 new lines) plus modifications to `build_run_metadata`
+    signature/body and three call-site `holdout_version=...` arguments
+    in main() at lines around 1648, 1714, 1773. Cumulative drift on
+    bytes_output lines: ~53 lines forward (1229 → 1282; 1265 → 1318).
+- **Closure-discipline ratification of iter 19 paired with the
+  fix:** independent re-reading of every iter-19 typed-artifact claim
+  against the cited bundles:
+  - All four published table rows reproduce bit-exact from the
+    bundles' `results.json` files: T1 (PI 1/0, OAI 1/0,
+    bytes_output 5,975,843 vs 2,702, bytes_observation 2,266 vs
+    2,436 — ratio 2,211.64× → published ~2,212×); T7 (PI 3/1, OAI
+    3/1, 1,172,040 vs 699, 16,219 vs 13,671 — 1,676.74× →
+    ~1,677×); T22 (PI 1/0, OAI 2/0, 671,515 vs 488, 514 vs 1,036 —
+    1,376.06× → ~1,376×); T18 (PI 10/2, OAI 5/2, 844,124 vs 812,
+    14,858 vs 6,015 — 1,039.56× → ~1,040×). ✓
+  - PI bundle pointers list correctly enumerates iters 4, 7, 10, 14
+    in the table and cites iter 18 separately as fifth PI bundle. ✓
+  - OAI bundle pointers list correctly enumerates the four cells
+    used (extraction-122B for T1, mutation-122B for T7,
+    holdout-122B for T22, multistep-27B for T18). ✓
+  - Iter 19's claim that no comparable OAI same-task `mdtools` cell
+    exists for T2: verified by scanning all `search-mdtools-*` and
+    `holdout-mdtools-*` and `search-hybrid-*` and `holdout-hybrid-*`
+    bundles for any T2 result row — none exist. ✓
+  - Iter 19's data points (`bytes_output=844,124` and
+    `bytes_observation=14,858` for PI T18; `bytes_output=812` and
+    `bytes_observation=6,015` for OAI T18) reproduce bit-exact from
+    `bench/runs/checkpoint-pi-T18-mdtools-gpt5.4mini-2026-04-26/results.json`
+    and `bench/runs/search-mdtools-multistep-Qwen3.5-27B-4bit-2026-04-21/results.json`. ✓
+  All claims reproduce bit-exact. The drift fix surfaced during
+  cross-checking the published prose against the actual file
+  surface — no claim in iter 19's data needed correction; only the
+  iter-5-era pointer citations.
+- **Cheap channel:** green before and after (cargo: 32+37+16+0 across
+  integration suites; python: 68 tests OK across the 8 spec-named
+  modules; `harness.py --md-binary` dry-run all 24 tasks PASS
+  dual-scorer).
+- **Comparability framing:** this is a corrective specification
+  coherence change. It does **not** change any data, any pass rate,
+  any executor behavior, any bundle, or any scorer. It does **not**
+  bump `holdout_version` (still 1). It does **not** run the expensive
+  outer channel. It does **not** introduce or modify any product
+  surface. The only edit is the line-number citation in the published
+  narrative. Per the spec's "telemetry-only instrumentation" /
+  "harness assertions" / "specification coherence" allowances, the
+  change is squarely within the admissible work envelope. The
+  closure-discipline ratification half discharges iter 19's invitation
+  to "ratify by re-reading the cited bundles' results.json files
+  against the new table row and the updated bundle-pointer list" —
+  every datum reproduces bit-exact.
+- **Same-family-rule discharge:** iter 19 was specification coherence
+  (additive measurement publication); iter 20 is also specification
+  coherence (corrective reference fix). Two same-axis moves in a row
+  is borderline, but iter 20 cites a fresh failing trace — the
+  drifted line-number citations at RESULTS.md:54 are a real defect a
+  reader following the published reference would hit, not a cosmetic
+  refresh. Per the same-family rule's "cite a fresh failing trace,
+  external finding, or blocked claim" escape clause, the trace makes
+  the same-axis move admissible. Structurally identical to iter 13's
+  pairing of line-drift fix with iter-12 ratification, which itself
+  paired typo fix with iter-11 ratification.
+- **Closure-discipline status:** this is a substantive
+  published-narrative edit authored by iter 20, parallel to iter 13's
+  RESULTS.md:152 fix. Per the FIXED ≠ CLOSED rule, the entry is
+  `FIXED_PENDING_CONFIRMATION`-shaped; a future review pass should
+  ratify by re-reading `bench/harness.py:1282` and `:1318` against
+  this entry's claims and verifying both lines carry
+  `bytes_output = len(raw_stdout.encode())`.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not run the expensive outer channel. Does not
+  amend any pass-rate claim. Does not retroactively modify any
+  bundle or any historical ledger entry. Does not touch any holdout
+  artifact.
+
 ### Cross-executor same-task measurement extension (2026-04-26 iter 19)
 
 Iter 19 cashed out iter 14's PI T18 multistep bundle by extending the
@@ -938,20 +1057,20 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 19)
+### Halt-condition / quiet-signal status (after iter 20)
 
-After the iter-19 cross-executor measurement-publication and paired
-closure-discipline ratification of iter 18 (see "Cross-executor
-same-task measurement extension (2026-04-26 iter 19)" above):
+After the iter-20 closure-discipline ratification of iter 19 paired
+with corrective line-number drift fix at `bench/RESULTS.md:54` (see
+"Confirmation review pass (2026-04-26 iter 20)" above):
 
-- **OPEN findings count:** 0. Iter 19's specification-coherence
-  publication surfaced no new defect — the iter-18 typed-artifact
-  claims all reproduce bit-exact, and the iter-14 T18 PI bundle's
-  data points reproduce bit-exact through the cross-executor
-  ratio computation (844,124 / 812 = 1,039.56 → ~1,040×; 14,858 /
-  6,015 = 2.470 → ~2.47×). The zero-OPEN state holds through iters
-  8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, and 19 — the
-  fifteenth consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 20's verification surfaced one
+  fresh failing trace (drifted `bench/harness.py:1229` and `:1265`
+  citations at RESULTS.md:54) which iter 20 corrected in the same
+  iteration; iter-19's data claims all reproduce bit-exact (T1, T7,
+  T22, T18 table rows; PI bundle pointers; OAI bundle pointers; T2
+  no-comparable-cell claim). The zero-OPEN state holds through iters
+  8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, and 20 — the
+  sixteenth consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -960,11 +1079,29 @@ same-task measurement extension (2026-04-26 iter 19)" above):
   telemetry stamping, no expensive run), iter 18 expensive
   (content-delivery-family coverage extension + first stamped
   bundle), iter 19 quiet (cheap-channel-only specification-coherence
-  publication, no expensive run; counter at **1**). Iters 20–21
-  admissible quiet; iter 22 is the next forced expensive-or-halt
-  point per the spec's "3 consecutive iterations with the cheap
-  channel green, no new failing trace, and no new finding added"
-  rule.
+  publication, no expensive run), iter 20 quiet (cheap-channel-only
+  closure-discipline ratification + corrective line-drift fix; counter
+  at **2**). Iter 21 admissible quiet; iter 22 is the next forced
+  expensive-or-halt point per the spec's "3 consecutive iterations
+  with the cheap channel green, no new failing trace, and no new
+  finding added" rule.
+- **Iter-20 same-family-rule discharge:** iter 19 was specification
+  coherence (additive measurement publication); iter 20 is also
+  specification coherence (corrective line-number drift fix paired
+  with closure-discipline ratification of iter 19). Two same-axis
+  moves in a row is borderline, but iter 20 cites a fresh failing
+  trace — the drifted `bench/harness.py:1229` and `:1265` citations
+  at RESULTS.md:54 point to wrong lines (the actual bytes_output
+  computation is at 1282 and 1318 in the current file, after iter 16
+  and iter 17 added ~53 lines of code above). Per the same-family
+  rule's "cite a fresh failing trace" escape clause, the trace makes
+  the same-axis move admissible. Structurally identical to iter 13's
+  pairing of line-drift fix with iter-12 ratification (which itself
+  paired typo fix with iter-11 ratification). Three line-numberic-or-
+  argparse-citation drift fixes paired with ratification passes is
+  the same pattern repeating with new triggers (iter 12 typo, iter 13
+  rstrip line drift, iter 20 bytes_output line drift), each surfaced
+  as a fresh trace by the verification step itself.
 - **Iter-19 same-family-rule discharge:** iter 16 was oracle
   hardening (runtime guard), iter 17 was oracle hardening
   (holdout_version stamping), iter 18 was the expensive channel
