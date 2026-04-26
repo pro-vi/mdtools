@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T1",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "openai-codex/gpt-5.4-mini",
+    "thinking_level": "minimal",
+    "bytes_prompt": 721,
+    "bytes_output": 1228098,
+    "bytes_observation": 554,
+    "tool_calls": 1,
+    "turns": 2,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 7.47,
+    "diff_report": "heading_tree [md]: MISMATCH\nheading_tree [neutral]: MISMATCH",
+    "runner_error": null
+  }
+]

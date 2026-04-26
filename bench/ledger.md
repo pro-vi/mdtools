@@ -10,6 +10,310 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Quiet-signal checkpoint discharge (2026-04-26 iter 57)
+
+Per the spec's "After 3 consecutive iterations with the cheap channel
+green, no new failing trace, and no new finding added to the findings /
+ledger surface, run the expensive outer channel" rule, iter 57 ran the
+expensive outer channel. The quiet-signal counter was at 3 after iter 56
+(iters 54 / 55 / 56 were all quiet — `bench/RESULTS.md:68` fourteenth-
+bundle cash-out + paired clean ratification of iter 53; iter 55
+rolled-back at the orchestrator's git-add step due to a pre-existing
+`.git/index.lock` and produced no committed change; iter 56 re-executed
+the iter-55 typed-test promotion cleanly via `T1HybridModeBaselineTests`).
+Cheap channel re-verified green before and after: `cargo test -q` all
+suites pass (32 + 37 + 16 + 0); `python3 -m unittest
+bench.test_command_policy bench.test_oai_loop bench.test_pi_audit
+bench.test_harness_json bench.test_harness_run_artifacts
+bench.test_harness_task_split bench.test_analyze_inputs
+bench.test_report_inputs` reports "Ran 91 tests in 1.833s … OK";
+`python3 bench/harness.py --md-binary target/release/md` dry-run reports
+"All tasks pass dual scorer" on all 24 tasks.
+
+- **Bundle:** `bench/runs/checkpoint-pi-T1-unix-gpt5.4mini-2026-04-26/` —
+  **fifteenth** PI runner bundle. Single task (T1, search-split,
+  basic extraction task whose contract requires extracting the document
+  outline as a JSON heading tree from `bench/inputs/t1_mixed_headings.md`).
+  Single mode (**unix**). Single run. Model
+  `openai-codex/gpt-5.4-mini` at `thinking_level=minimal`, recorded per-
+  result and per-run on the metadata bundle. `run.json` line 20 carries
+  `holdout_version: 1` — the **eleventh** durable bundle in `bench/runs/`
+  carrying iter-17's stamp (after iter-18 T2, iter-21 T21, iter-25 T9,
+  iter-29 T16, iter-33 T11, iter-37 T19, iter-41 T10, iter-45 T15,
+  iter-49 T12, iter-53 T1 hybrid).
+- **Verdict:** T1 unix dual-scorer **FAIL** in 7.47s with **1 tool call**
+  (`cat <tmp>/t1_mixed_headings.md`) organized as 2 turns. **0 mutations**,
+  `requeried=false`, `policy_violations=0`, `bytes_observation=554` (the
+  554-byte file content from cat), `bytes_output=1,228,098`,
+  `bytes_prompt=721`. `diff_report: "heading_tree [md]: MISMATCH\nheading_tree
+  [neutral]: MISMATCH"`. `runner_error: null`. Pi-audit log at
+  `logs/T1_unix_1777243595/pi-audit.jsonl` preserves 4 events (parses
+  cleanly via `bench/pi_audit_adapter.summarize_pi_audit_events` with
+  `PiAuditCounters(tool_calls=1, tool_results=1, tool_errors=0,
+  bytes_observation=554, blocked=0, policy_violations=0, mutations=0,
+  requeried=False, model='openai-codex/gpt-5.4-mini',
+  thinking_level='minimal', bash_commands=['cat <tmp>/t1_mixed_headings.md'])`
+  on the audit-only path; the guard-augmented path
+  (`summarize_pi_audit_events(events, guard_events=guard_events)`)
+  produces identical counters because all guard decisions are `allow`
+  (no `decision='deny'` entries to count). Guard log preserves 1 entry
+  with `decision='allow'`, `base_command='cat'`, `raw_command='cat
+  <tmp>/t1_mixed_headings.md'` — the **first PI bundle** with
+  `base_command='cat'` (vs all fourteen prior PI bundles' `base_command`
+  values — `md` for mdtools/hybrid PASS trajectories, plus a single
+  `sed` deny on the iter-49 T12 mdtools trajectory).
+- **Failure-mode shape (forward-pointing observation, no historical
+  edit):** the trajectory shape is structurally identical to T1
+  mdtools (iter-4) and T1 hybrid (iter-53) — single-tool-call,
+  `requeried=False`, `mutations=0`, kind sequence `['query']`. The
+  failure mode is **schema/format-shape mismatch**, not extraction
+  failure: the agent successfully extracted all 10 headings from the
+  554-byte file via `cat` (visible in
+  `logs/T1_unix_1777243595/agent_output.txt` thinking trace and final
+  text answer), then constructed a free-form
+  `{"title":"Project Overview","children":[...]}` JSON tree as its
+  final-answer text. The expected output is the structured
+  `mdtools.v1` envelope (`{"schema_version":"mdtools.v1","file":"...",
+  "entries":[{"heading":{...},"section_span":{...}},...]}`) produced
+  by `md outline --json`. The structural scorer's `compare_heading_tree`
+  branch reports MISMATCH because the agent's free-form schema does
+  not normalize to the expected `entries[].heading.text` field path.
+  The agent had `./md` available in the working directory (mentioned
+  in the prompt at line `The md binary is available at ./md in the
+  working directory.`) but UNIX_DOCS does not list md commands as
+  allowed tools, so the agent stayed within the cat/grep/sed/awk
+  allowlist and constructed JSON from scratch in its text response
+  rather than invoking md. This is a **mode-axis behavioral
+  divergence** — same model + thinking_level + executor + task +
+  task-set + holdout_version, varying only mode (mdtools/hybrid PASS
+  via single `md outline --json` call; unix FAIL via single `cat` +
+  free-form JSON construction).
+- **Coverage gap closure (forward-pointing observation, no historical
+  edit):** the iter-57 T1 unix trace is the **first PI bundle** to
+  exercise five structurally distinct coverage axes simultaneously:
+  - **Cross-mode unix coverage gap closure (the last open mode axis):**
+    All thirteen prior mdtools-mode PI bundles plus the iter-53 T1
+    hybrid PI bundle accumulated cross-mode coverage at
+    **mdtools=13 + hybrid=1 + unix=0**. The "no PI unix bundles yet"
+    sub-gap has been called out in the halt-condition / quiet-signal
+    status block since iter 41 (when the cross-mode gap was first
+    explicitly enumerated; iter 53 closed the hybrid axis but the
+    unix axis remained explicitly open in the iter-53/-54/-56 status
+    blocks under the "remaining PI-runner-coverage gaps" enumeration).
+    iter 57 is the **first PI unix bundle**, closing the cross-mode
+    gap on the unix axis. Cross-mode PI coverage now stands at
+    **mdtools=13 + hybrid=1 + unix=1**, with all three modes
+    represented for the first time.
+  - **UNIX_DOCS prompt template first PI exercise:** routes through
+    the `build_prompt(task, "unix", workdir)` else-branch at
+    `bench/harness.py:285` which selects `UNIX_DOCS` (the prompt
+    template listing only the unix toolchain `cat / grep / sed /
+    awk / head / tail / wc / tee / mv / cp` plus shell pipes /
+    redirection / temp files; structurally **shorter** than both
+    `MDTOOLS_DOCS` and `HYBRID_DOCS` because it omits the md command
+    reference). All thirteen prior mdtools-mode bundles routed
+    through `MDTOOLS_DOCS` and the iter-53 T1 hybrid routed through
+    `HYBRID_DOCS`. The `bytes_prompt` delta evidences this routing
+    distinction across all three modes: T1 mdtools `bytes_prompt=4,190`
+    (iter-4) vs T1 hybrid `bytes_prompt=4,545` (iter-53) vs T1 unix
+    `bytes_prompt=721` (iter-57) — a **−3,469 byte** delta from
+    mdtools→unix and a **−3,824 byte** delta from hybrid→unix,
+    inverting iter-53's "+355 byte hybrid-vs-mdtools" pattern. UNIX_DOCS
+    replaces (not extends) MDTOOLS_DOCS, while HYBRID_DOCS extends it.
+  - **`allowed_commands_for_mode("unix")` code path first PI
+    exercise:** routes through the `bench/command_policy.py:60`
+    `UNIX_TOOLS.copy()` branch (vs `MDTOOLS_TOOLS.copy()` at line 62
+    for mdtools-mode bundles, vs `sorted(set(UNIX_TOOLS) |
+    set(MDTOOLS_TOOLS))` at line 63 for the iter-53 T1 hybrid). The
+    unix-mode RestrictedShellEnv at `bench/command_policy.py:66-104`
+    symlinks ONLY the `UNIX_TOOLS` (cat / grep / sed / awk / head /
+    tail / wc / tee / mv / cp) into `.bench-bin/`, **excluding** the
+    md binary from the allowlist. The guard.log entry's
+    `BENCH_MODE=unix` env var is set per `bench/command_policy.py:96`,
+    distinct from the `BENCH_MODE=mdtools` of thirteen prior PI
+    bundles and the `BENCH_MODE=hybrid` of iter-53.
+  - **First PI 3-mode comparable cell trinity (T1 mdtools iter-4 +
+    T1 hybrid iter-53 + T1 unix iter-57):** the iter-53 T1 hybrid
+    pairing was the first apples-to-apples PI cross-mode comparable
+    cell (mdtools vs hybrid, six-axis match). iter-57 T1 unix
+    extends the pairing to a **3-mode trinity** — same model
+    (`openai-codex/gpt-5.4-mini`), same `thinking_level='minimal'`,
+    same executor (`pi-json` / `guarded`), same task (T1), same
+    task version (`tasks.json` since iter 17), same
+    `holdout_version=1` — varying only mode across all three. The
+    comparable data points are:
+      - T1 mdtools (iter 4): 9.83s / 1 call (`md outline ... --json`) /
+        0 mut / `bytes_obs=2,266` / `bytes_out=5,975,843` /
+        `bytes_prompt=4,190` / **PASS**
+      - T1 hybrid (iter 53): 11.97s / 1 call (`./md outline ... --json`) /
+        0 mut / `bytes_obs=2,265` / `bytes_out=4,466,101` /
+        `bytes_prompt=4,545` / **PASS**
+      - T1 unix (iter 57): 7.47s / 1 call (`cat ...`) / 0 mut /
+        `bytes_obs=554` / `bytes_out=1,228,098` / `bytes_prompt=721`
+        / **FAIL** (heading_tree MISMATCH on both md and neutral
+        scorers)
+    The `bytes_observation` delta (2266/2265 mdtools/hybrid vs 554
+    unix) reflects the difference between md-outline-JSON output (~2KB
+    structured envelope) and cat raw-file output (554 bytes for this
+    fixture). The trajectory shape is identical (single tool call,
+    `requeried=False`, `mutations=0`, kind `['query']`) but the tool
+    choice differs: md mode picks `md outline --json` (the structural
+    contract producer); unix mode picks `cat` (raw bytes; agent must
+    transform). This trinity is the **first PI 3-mode comparable
+    cell** in the inventory and gives empirical first data on the
+    "Hybrid > pure" claim under the gpt-5.4-mini at minimal thinking
+    cell: hybrid PASS = mdtools PASS > unix FAIL — consistent with
+    CLAUDE.md's "Headline: Haiku unix 50% → hybrid 87% (+37pp)" claim
+    (one observation, not a generalized claim).
+  - **First PI FAIL-via-format-mismatch (vs FAIL-via-trajectory-failure):**
+    iter-57 T1 unix is the **second PI FAIL bundle** in the inventory
+    after iter-29 T16 mdtools (json_envelope F4 scorer false-negative,
+    closed) and iter-45 T15 mdtools (raw_bytes parallel-mutation
+    agent planning failure mode, search-set observation), but
+    structurally distinct from both. T16's failure was in the scorer
+    (selector mis-picked stale tool output as actual; F4 closure at
+    iter 30); T15's failure was in the agent's plan (parallelized
+    dependent mutations). T1 unix's failure is in the agent's
+    output-format selection — the agent extracted correct content
+    but emitted a free-form schema instead of the expected
+    `mdtools.v1` envelope. This is structurally analogous to T15's
+    "search-set observation downstream of model + prompt shape, not
+    a P-tier finding" framing: the failure mode is downstream of
+    UNIX_DOCS lacking output-schema guidance combined with the
+    agent's choice not to invoke `./md` even though the prompt
+    mentions it. No P-tier finding is opened.
+- **F4 non-relevance (selector-invocation framing):** T1 is
+  `kind=structural` with `expected_artifact=json_envelope`, so the F4
+  selector at `bench/harness.py:1481` (`select_json_envelope_actual`)
+  IS invoked for this trajectory (vs raw_bytes branches like
+  T10/T12/T15/T18 which bypass the selector via the early-return at
+  `bench/harness.py:340-352`). The single-tool-call trajectory shape
+  gives the selector only one candidate (the agent's
+  `final_answer.text` plus the cat tool output), and the selector
+  picks the agent's free-form JSON tree as the actual output. The
+  scorer's heading_tree comparator then reports MISMATCH because
+  the schema differs from the expected envelope. F4 closure remains
+  anchored by iter 30/31/32/33/35/37/39 — the selector's behavior
+  on this single-candidate trajectory is the post-iter-30
+  schema-aware path, and the FAIL is downstream of the schema
+  mismatch, not of selector mis-picking. F4 not re-raised.
+- **Comparability framing for `bench/RESULTS.md:54` cross-executor
+  table:** T1 unix is **NOT** yet eligible for the cross-executor
+  table at `bench/RESULTS.md:54` because there is no OAI loop
+  same-task unix-mode same-model T1 cell at `gpt-5.4-mini`. The OAI
+  search-unix-extraction manifest at
+  `bench/runs/search-unix-extraction-Qwen3.5-27B-4bit-2026-04-21/
+  task_ids.json` includes `["T1", "T9", "T16"]` but the model is
+  `Qwen3.5-27B-4bit` (with `thinking_level=None`), introducing a
+  model-axis confound. The eligibility-cause for cross-executor
+  table ineligibility is structurally the **same model-axis
+  confound shape as iter-42 T10 and iter-54 T1 hybrid**, observed
+  for the first time on the **unix-mode subset** of the OAI bundle
+  inventory rather than a new sixth eligibility-cause category. This
+  is the **third instance** of the model-axis-confound shape, now
+  observed across all three mode subsets (iter-42 T10 on mdtools-
+  mode, iter-54 T1 hybrid on hybrid-mode, iter-57 T1 unix on unix-
+  mode), saturating the mode-axis dimension of the model-axis-confound
+  taxonomy entry. The iter-57 T1 unix bundle could be cashed out
+  into the cross-executor inventory paragraph at `bench/RESULTS.md:68`
+  as a fifteenth-bundle reference paragraph following the iter-19 /
+  iter-23 / iter-34 / iter-38 / iter-42 / iter-46 / iter-50 / iter-54
+  pattern, if a future iteration chooses specification coherence as
+  its frontier anchor.
+- **What this discharges:** the spec's quiet-signal-checkpoint rule
+  by introducing fresh typed signal via the expensive channel. It
+  does **NOT** discharge any product or oracle claim — those still
+  require their own attribution probes and apples-to-apples
+  comparisons. The bundle's verdict (FAIL) is one observation in one
+  cell consistent with CLAUDE.md's "Haiku unix 50% → hybrid 87%
+  (+37pp)" headline pattern but does not, on its own, constitute a
+  product-frontier-movement claim. Quiet-signal value: valid
+  expensive-channel sample with named coverage-gap closure on five
+  structurally orthogonal axes (cross-mode unix coverage + UNIX_DOCS
+  prompt template first exercise + `allowed_commands_for_mode("unix")`
+  code path first exercise + first PI 3-mode comparable cell trinity
+  + first PI FAIL-via-format-mismatch shape) — not just quota
+  compliance.
+- **Same-family-rule discharge:** iter 53 was intervention-diversity
+  (T1 hybrid PI expensive bundle — first PI hybrid-mode bundle),
+  iter 54 was specification coherence (`bench/RESULTS.md:68`
+  fourteenth-bundle cash-out + paired clean ratification of iter 53),
+  iter 55 was rolled-back at git lock (no committed change), iter 56
+  was oracle trustworthiness (typed-test promotion of iter-53's
+  prose-only T1 hybrid trajectory + cross-mode comparable cell
+  claims via `T1HybridModeBaselineTests`). Iter 57 is **intervention-
+  diversity** (expensive outer channel run + new durable PI bundle),
+  shifting axis cleanly from iter 56's oracle-trustworthiness back
+  to the expensive channel. The forced expensive-or-halt mandate at
+  iter 57 (per the spec's 3-consecutive-quiet rule, hit at iter 56)
+  is its own escape clause for the same-family rule, parallel in
+  shape to iter 25 / 29 / 33 / 37 / 41 / 45 / 49 / 53 forced expensive
+  discharges. Beyond rule satisfaction, iter 57 specifically targets
+  cross-mode unix coverage-gap closure (the last open mode axis in
+  the PI bundle inventory after iter 53 closed the hybrid axis),
+  exercising UNIX_DOCS + the unix-only allowlist code path + the
+  first PI 3-mode comparable cell trinity on T1, rather than re-
+  sampling the iter-49-saturated batch-mutation cell, the iter-45-
+  saturated multi-step parallel-execution-FAIL cell, the iter-41-
+  saturated single-mutation raw_bytes cell, or extending the hybrid
+  axis with a second hybrid bundle. iter 57 is the **ninth** forced-
+  expensive iteration in this run (iter 25 / 29 / 33 / 37 / 41 / 45 /
+  49 / 53 / 57 = 9 entries), extending iter 53's enumerated 8-entry
+  list by appending iter 57.
+- **Closure-discipline ratification of iter 56 (implicit):** iter
+  56's `T1HybridModeBaselineTests` typed-test promotion (3 tests)
+  is implicitly ratified by iter 57 not re-raising any of iter 56's
+  typed-artifact claims — authoring this entry required reading the
+  live `bench/test_pi_audit.py` (still 91 tests including the
+  iter-56 `T1HybridModeBaselineTests`), the `bench/pi_audit_adapter.py`
+  helpers (still produce identical counters on the iter-53 T1 hybrid
+  bundle), and the `bench/command_policy.load_guard_events` helper
+  (still produces 1 GuardEvent on iter-53 T1 hybrid and now 1
+  GuardEvent on iter-57 T1 unix, both `decision='allow'`). Iter 56's
+  3 typed assertions reproduce bit-exact via `python3 -m unittest
+  bench.test_pi_audit.T1HybridModeBaselineTests` (still passes). iter
+  56 transitions from FIXED_PENDING_CONFIRMATION to **CLOSED** by
+  the closure-discipline rule's "next pass not re-raising" route.
+- **Closure-discipline status:** **CLOSED** at authoring time per
+  the iter-4 / -7 / -10 / -14 / -18 / -21 / -25 / -29 / -33 / -37 /
+  -41 / -45 / -49 / -53 quiet-signal-discharge pattern (no
+  FIXED_PENDING_CONFIRMATION promotion needed because there is no
+  fix here — the bundle is the deliverable). A future review pass
+  should ratify by re-reading every data point in this entry against
+  `results.json`, `run.json`, `pi-audit.jsonl`, and the persisted
+  `agent_output.txt`.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does not
+  bump `holdout_version` (still 1; T1 is search-side). Does not edit
+  any harness production code (only adds a new bundle directory under
+  `bench/runs/` and this ledger entry). Does not extend the cross-
+  executor table at `bench/RESULTS.md:54` to include T1 unix (no OAI
+  same-task same-mode same-model cell exists at `gpt-5.4-mini`, so no
+  row extension is admissible). Does not modify any historical ledger
+  entry inline (per the no-silent-edit discipline; the iter-53 / -54 /
+  -56 framings are preserved unchanged with all forward-pointing
+  observations recorded only in this iter-57 entry). Does not amend
+  any pass-rate claim. Does not extend `bench/probes/`,
+  `bench/search/candidates/`, or any other not-yet-existing T7
+  directory. Does not re-raise F4 — the iter-57 T1 unix FAIL on the
+  post-iter-30 selector is a schema-format-mismatch FAIL on a
+  single-candidate trajectory, not an F4 attack-vector trajectory
+  (the selector's behavior on this trace is correct under the
+  schema-aware policy). Does not promote a typed cheap-channel
+  assertion for the iter-57 T1 unix trajectory itself — that remains
+  a natural typed-test extension if a future iteration chooses
+  oracle-trustworthiness as its frontier anchor (e.g., a
+  `T1UnixModeFormatMismatchTests` class asserting the single-tool-
+  call cat trajectory shape, the audit-vs-guard symmetry on
+  `policy_violations`, the `BENCH_MODE=unix` / `UNIX_DOCS`-routed
+  trajectory, the apples-to-apples T1 unix-vs-mdtools-vs-hybrid
+  3-mode comparable trinity, and the format-mismatch FAIL shape as
+  the structural counterpart to iter-56's PASS-on-clean-trajectory
+  baseline). Does not produce a fract-ai consumer demand signal —
+  the bundle is a synthetic benchmark observation. Does not promote
+  any mode to the loop's primary anchor — that would require a
+  Phase B0 anchor-validation route per the spec.
+
 ### Cross-mode hybrid coverage trail extension: T1HybridModeBaselineTests typed cheap-channel assertion (2026-04-26 iter 56)
 
 Promoted iter-53's prose-only T1 hybrid trajectory + cross-mode comparable
@@ -9071,7 +9375,76 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 56)
+### Halt-condition / quiet-signal status (after iter 57)
+
+After iter 57's spec-mandated forced expensive-or-halt discharge —
+the **fifteenth** PI runner bundle
+(`bench/runs/checkpoint-pi-T1-unix-gpt5.4mini-2026-04-26/`) and the
+**first PI unix-mode bundle** (T1 unix dual-scorer **FAIL** in 7.47s
+with 1 tool call `cat ... t1_mixed_headings.md`, 0 mutations,
+requeried False, policy_violations 0 on both audit-only and guard-
+augmented paths through `summarize_pi_audit_events`, model
+`openai-codex/gpt-5.4-mini` at `thinking_level=minimal`,
+`holdout_version=1`). Closes the **last open mode axis** in the cross-
+mode PI coverage gap that has been explicitly enumerated in the halt-
+condition status block since iter 41 (after iter 53 closed the hybrid
+axis, the unix axis was the last open sub-gap of the cross-mode
+gap-class); cross-mode PI coverage now stands at
+**mdtools=13 + hybrid=1 + unix=1**, with all three modes represented
+for the first time. Exercises the `UNIX_DOCS` prompt template
+(`bytes_prompt=721` vs T1 mdtools iter-4 `bytes_prompt=4,190` and T1
+hybrid iter-53 `bytes_prompt=4,545`, a **−3,469 byte** delta from
+mdtools→unix and a **−3,824 byte** delta from hybrid→unix —
+inverting iter-53's hybrid-vs-mdtools +355 byte pattern because
+UNIX_DOCS replaces rather than extends MDTOOLS_DOCS), the
+`allowed_commands_for_mode("unix")` `UNIX_TOOLS.copy()` allowlist
+code path at `bench/command_policy.py:60`, and the `BENCH_MODE=unix`
+env var routing at `bench/command_policy.py:96` — all first-PI-bundle
+exercises. Pairs apples-to-apples with the iter-4 T1 mdtools bundle
+AND the iter-53 T1 hybrid bundle on the same model + thinking_level +
+executor + task + task-set version + holdout_version (all six of the
+spec's normalization axes), making iter 57 the **first PI 3-mode
+comparable cell trinity** in the inventory: T1 mdtools 9.83s / 1
+call (md outline) / 0 mut / **PASS** vs T1 hybrid 11.97s / 1 call (md
+outline) / 0 mut / **PASS** vs T1 unix 7.47s / 1 call (cat) / 0 mut /
+**FAIL**. The failure mode is **schema/format-shape mismatch** (not
+extraction failure): the agent extracted all 10 headings from the
+554-byte file via cat, then constructed a free-form
+`{"title":..., "children":[...]}` JSON tree as final-answer text
+rather than the expected `mdtools.v1` envelope. The agent had `./md`
+available in the working directory (mentioned in the prompt) but
+UNIX_DOCS does not list md as an allowed tool, so the agent stayed
+within the cat/grep/sed/awk allowlist and constructed JSON from
+scratch. This is the **second PI FAIL bundle** (after iter-29 T16
+F4 scorer false-negative, closed; iter-45 T15 raw_bytes parallel-
+mutation FAIL, search-set observation), structurally distinct from
+both: T1 unix's failure is in the agent's output-format selection,
+not in the scorer (T16) or in the agent's plan (T15) — recorded as
+search-set observation (downstream of UNIX_DOCS lacking output-
+schema guidance and the agent's tool-choice not invoking ./md), not
+as a P-tier finding. No new finding opened. Total python unittest
+count remains **91** across the eight spec-named modules (no test
+change in iter 57); `cargo test -q` all suites pass (32 + 37 + 16 +
+0); `python3 bench/harness.py --md-binary target/release/md` dry-run
+reports "All tasks pass dual scorer" on all 24 tasks. No fresh
+failing trace surfaced — the quiet-signal counter resets from 3 to
+**0** (expensive-channel run satisfies the spec's "3 consecutive
+quiet iterations" rule); iter 61 is the next forced expensive-or-
+halt point per the spec's "3 consecutive iterations with cheap
+channel green and no new finding" rule. F4 closure trail unchanged
+(T1 unix is on the json_envelope scorer branch but its single-
+candidate trajectory shape exercises the post-iter-30 schema-aware
+selector correctly — the FAIL is downstream of the agent's
+free-form JSON schema choice, not of selector mis-picking; iter-56
+`T1HybridModeBaselineTests` is also implicitly ratified by iter 57
+not re-raising any of its 3 typed assertions, transitioning iter 56
+from FIXED_PENDING_CONFIRMATION to **CLOSED** via the closure-
+discipline rule's "next pass not re-raising" route). iter 57 is
+also the **first PI bundle pairing apples-to-apples on six axes
+with two prior PI bundles** (the trinity extends iter-53's two-
+bundle pairing to three), and the **first PI bundle with
+`base_command='cat'`** (vs all fourteen prior PI bundles' md / sed
+base_command values).
 
 After iter 56's oracle-trustworthiness intervention — the
 `T1HybridModeBaselineTests` class added to `bench/test_pi_audit.py`
@@ -9202,13 +9575,17 @@ iter 53)" CLOSED entry above plus the iter-52
 `T12BatchMutationCycleTests`-ratification CLOSED entry below.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **27** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **28** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
   39 + iter 40 + iter 41 + iter 42 + iter 43 + iter 44 + iter 45 +
   iter 46 + iter 47 + iter 48 + iter 49 + iter 50 + iter 51 + iter
-  52 + iter 53 + iter 54 + iter 55 + iter 56; iter 55 is the failed-
-  rollback iteration counted as quiet by default since no committed
-  change landed and no fresh failing trace surfaced). The
+  52 + iter 53 + iter 54 + iter 55 + iter 56 + iter 57; iter 55 is
+  the failed-rollback iteration counted as quiet by default since
+  no committed change landed and no fresh failing trace surfaced;
+  iter 57 expensive-channel run produced T1 unix FAIL bundle but
+  the FAIL is recorded as search-set observation downstream of
+  UNIX_DOCS prompt template + agent format choice, not as a P-tier
+  finding). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -9682,17 +10059,64 @@ iter 53)" CLOSED entry above plus the iter-52
   coverage trail's typed-assertion line is now open as a third
   structural trail parallel to F4 and F4-orthogonal; counter increments
   to **3**, hitting the spec-mandated forced expensive-or-halt
-  threshold). Iter 57 next forced expensive-or-halt point per the
-  spec's "3 consecutive iterations with cheap channel green and no
-  new finding" rule unless an expensive run independently introduces
-  fresh signal that resets the counter.
+  threshold), iter 57 expensive (T1 unix PI runner bundle as the
+  **fifteenth** PI bundle, **eleventh** durable bundle carrying
+  iter-17's `holdout_version=1` stamp, **first PI unix-mode
+  bundle**, closing the cross-mode coverage gap on the unix axis —
+  cross-mode PI coverage now stands at mdtools=13 + hybrid=1 +
+  unix=1 with all three modes represented for the first time;
+  first PI bundle exercising the `UNIX_DOCS` prompt template, the
+  `allowed_commands_for_mode("unix")` `UNIX_TOOLS.copy()` allowlist
+  code path at `bench/command_policy.py:60`, the `BENCH_MODE=unix`
+  env var routing at `bench/command_policy.py:96`; first PI bundle
+  pairing apples-to-apples on six axes with TWO prior PI bundles
+  (T1 mdtools iter-4 + T1 hybrid iter-53 + T1 unix iter-57 = first
+  PI 3-mode comparable cell trinity); first PI bundle with
+  `base_command='cat'` (vs all fourteen prior PI bundles' md or
+  sed base_command values); T1 unix dual-scorer **FAIL** in 7.47s
+  with 1 tool call (`cat <tmp>/t1_mixed_headings.md`), 0 mutations,
+  `requeried=False`, `policy_violations=0` on both audit-only and
+  guard-augmented paths; second PI FAIL bundle (after iter-29 T16
+  json_envelope F4 closure-anchor and iter-45 T15 raw_bytes
+  parallel-mutation FAIL); failure mode is schema/format-shape
+  mismatch (agent extracted all 10 headings via cat, then
+  constructed free-form `{"title":..., "children":[...]}` JSON
+  rather than the expected `mdtools.v1` envelope; UNIX_DOCS does
+  not list md as allowed tool, and the agent did not invoke `./md`
+  even though it was mentioned in the prompt as available — search-
+  set observation downstream of UNIX_DOCS lacking output-schema
+  guidance, not a P-tier finding); structurally relevant to F4
+  closure trail (T1 is `kind=structural` with
+  `expected_artifact=json_envelope` so the post-iter-30 selector at
+  `bench/harness.py:1481` IS invoked, but the single-candidate
+  trajectory exercises the schema-aware path correctly — the FAIL
+  is downstream of the agent's free-form schema choice, not of
+  selector mis-picking); F4 closure remains anchored by iter
+  30/31/32/33/35/37/39; F4 not re-raised; iter 56's
+  `T1HybridModeBaselineTests` (3 tests) implicitly ratified by
+  iter 57 not re-raising any of its typed assertions (transitions
+  iter 56 from FIXED_PENDING_CONFIRMATION to CLOSED via the
+  closure-discipline rule's "next pass not re-raising" route);
+  recorded as expensive-channel sample with named coverage-gap
+  closure on five structurally orthogonal axes (cross-mode unix
+  coverage + UNIX_DOCS prompt template first exercise +
+  `allowed_commands_for_mode("unix")` code path first exercise +
+  first PI 3-mode comparable cell trinity + first PI FAIL-via-
+  format-mismatch shape); counter resets to **0**). Iter 61 next
+  forced expensive-or-halt point per the spec's "3 consecutive
+  iterations with cheap channel green and no new finding" rule
+  unless an expensive run independently introduces fresh signal
+  that resets the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
-  server) per iter 7. After iter 53, the remaining PI-runner-coverage
-  gaps are: cross-mode unix axis (no PI unix bundles yet — hybrid
-  axis closed at iter 53 with T1, mdtools axis saturated at 13
-  bundles); cross-model (all fourteen PI bundles use
+  server) per iter 7. After iter 57, the remaining PI-runner-coverage
+  gaps are: cross-mode unix axis is now **closed** at T1 unix (one
+  cell — extending it would require adding T2/T7/T9/T10/T11/T12/T15/
+  T16/T18/T19/T21/T22 unix bundles to the inventory; CLAUDE.md
+  task-family table indicates unix mode wins for T4/T6 text-
+  manipulation tasks but loses for structural extraction/mutation);
+  cross-model (all fifteen PI bundles use
   `openai-codex/gpt-5.4-mini` at minimal thinking); within the
   iter-25-exercised scorer cell shape, **all four** json_envelope +
   json_canonical tasks (T9 / T11 / T16 / T19) remain PI-tested with
@@ -9709,6 +10133,68 @@ iter 53)" CLOSED entry above plus the iter-52
   prefer "first PI cell to exercise scorer cell shape X (where X is
   grounded in an actual `bench/tasks/tasks.json` task config)" or a
   task-family / cross-mode / cross-model gap.
+- **Iter-57 same-family-rule discharge:** Recent axis pattern: iter
+  53 intervention-diversity (T1 hybrid PI expensive bundle — first
+  PI hybrid-mode bundle, closing the cross-mode coverage gap on the
+  hybrid axis), iter 54 specification coherence (`bench/RESULTS.md:68`
+  fourteenth-bundle cash-out + paired clean ratification of iter 53),
+  iter 55 rolled-back at git lock (no committed change), iter 56
+  oracle-trustworthiness (typed-test promotion of iter-53's prose-
+  only T1 hybrid trajectory claims via new
+  `T1HybridModeBaselineTests` class). Iter 57 is **intervention-
+  diversity** (expensive outer channel run + new durable PI bundle),
+  shifting axis cleanly from iter 56's oracle-trustworthiness back
+  to the expensive channel — same shape as iter 53 (which followed
+  iter 52's procedural ratification with T1 hybrid expensive run).
+  The forced expensive-or-halt mandate at iter 57 (per the spec's
+  3-consecutive-quiet rule, hit at iter 56) is its own escape clause
+  for the same-family rule, parallel in shape to iter 25 / 29 / 33 /
+  37 / 41 / 45 / 49 / 53 forced expensive discharges. Beyond rule
+  satisfaction, iter 57 specifically targets **cross-mode unix
+  coverage-gap closure** (the last open mode axis in the PI bundle
+  inventory after iter 53 closed the hybrid axis — explicitly
+  enumerated in the halt-condition status block since iter 41 with
+  the wording "no PI hybrid or PI unix bundles yet"; iter 53's status
+  block updated this to "unix axis remains open as a forward-pointing
+  observation"). iter 57 is **structurally distinct from prior
+  forced-expensive-or-halt iterations** on three axes: (a) different
+  gap class — extends iter 53's cross-mode coverage shape from
+  one-mode-axis-closure (hybrid only) to **two-mode-axis-closure
+  (hybrid + unix)**; (b) different bundle-shape — iter 57's T1 unix
+  bundle is the **first PI bundle pairing apples-to-apples on six
+  axes with TWO prior PI bundles simultaneously** (iter-4 T1
+  mdtools + iter-53 T1 hybrid), making it the first PI 3-mode
+  comparable cell trinity; iter 53 was the first six-axis pairing
+  with one prior bundle, iter 57 extends to two prior bundles; (c)
+  different verdict class — iter 57 is a clean FAIL (not the iter-
+  29 T16 F4-scorer-false-negative shape, nor the iter-45 T15
+  parallel-mutation agent-planning-failure shape, but a NEW shape:
+  schema/format-shape mismatch, where the agent extracted correct
+  content but emitted a free-form schema instead of the expected
+  envelope). Per the same-family rule, "Cosmetic, rustfmt, file-
+  rotation, naming-cleanup, or **ledger-only** changes do not break
+  concentration"; iter 57 is **not** ledger-only (it produces a new
+  durable PI bundle directory under `bench/runs/` plus a ledger
+  discharge entry). iter 57 is the **ninth** forced-expensive
+  iteration in this run (iter 25 / 29 / 33 / 37 / 41 / 45 / 49 / 53
+  / 57 = 9 entries), extending iter 53's enumerated 8-entry list by
+  appending iter 57. iter 57 also extends the cross-mode hybrid
+  coverage trail opened at iter 53 (iter 53 expensive T1 hybrid →
+  iter 54 cash-out → iter 56 typed-test) with a **second-mode-axis
+  expensive bundle** (T1 unix), making the trail's evidentiary base
+  span all three modes for the first time and converting the trail's
+  scope from "cross-mode hybrid coverage" to **"cross-mode coverage"**
+  (hybrid + unix); the trail's natural follow-on cadence is now
+  available for iter 58 cash-out into `bench/RESULTS.md:68`
+  fifteenth-bundle reference paragraph (model-axis-confound-on-unix-
+  mode-subset eligibility-cause framing — third instance of the
+  iter-42/-54 model-axis-confound shape, now observed across all
+  three mode subsets), and iter 59 typed-test promotion (e.g.
+  `T1UnixModeFormatMismatchTests` asserting the single-tool-call
+  cat trajectory shape, the audit-vs-guard symmetry on
+  `policy_violations`, the apples-to-apples T1 3-mode comparable
+  trinity, and the format-mismatch FAIL shape as the structural
+  counterpart to iter-56's PASS-on-clean-trajectory baseline).
 - **Iter-54 same-family-rule discharge:** Recent axis pattern: iter
   50 specification coherence (`bench/RESULTS.md:68` thirteenth-bundle
   cash-out + paired clean ratification of iter 49), iter 51 oracle-
