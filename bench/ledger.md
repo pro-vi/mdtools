@@ -14,6 +14,97 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### L1 mechanical-guard runtime promotion (2026-04-26 iter 16)
+
+The L1 closure (iter 2) landed `verify_holdout_fingerprints` as a function
+plus a cheap-channel unit test, but the iter-3 review-pass learning #3
+and the iter-6 ledger entry both explicitly recorded that the function
+was *not* invoked by the harness at runtime — protection was procedural
+(cheap channel before expensive channel), not mechanical at the runtime
+boundary. Iter 16 closes that recorded gap by wiring a runtime invocation
+of the guard into `bench/harness.py`'s `main()`, gating any benchmark
+invocation on holdout integrity rather than relying on the unit-test
+pathway having been run first.
+
+- **Disturbed axis:** oracle trustworthiness — recorded harness-assertion
+  gap from iter-3 learning #3 ("Adding a runtime invocation is a viable
+  additive ratchet") and iter-6 finding ("verify_holdout_fingerprints
+  is correctly defensive against four drift classes (...) but is not
+  auto-invoked by the harness when --task-ids-path bench/holdout/task_ids.json
+  is selected. The protection is therefore procedural ... not mechanical
+  at the runtime boundary").
+- **Frontier anchor:** *missing evaluator artifact — harness assertion*.
+  The spec's "What counts as 'hardening'" list explicitly names
+  "harness assertions" as allowed work, and the iter-15 entry's
+  "Iters 16-17 should expect to do frontier work" framing required
+  iter 16 to author frontier-shifting work rather than another
+  ratification entry. The mechanical-guard promotion is the smallest
+  pre-recorded available frontier move.
+- **Change shape:** added `check_holdout_integrity(...)` wrapper at
+  `bench/harness.py:747-775` that returns `None` on clean state /
+  missing-files (skipped silently for forks without holdout
+  configuration) or the breach message string on drift. Wired into
+  `main()` at `bench/harness.py:1597-1599` immediately after
+  `load_tasks(args.tasks_path)` and before any task selection or
+  scoring, surfacing failure via `parser.error(...)` (exits with code 2
+  and the self-describing breach message).
+- **Tests added (3 new):**
+  `bench/test_harness_task_split.py:HarnessRuntimeHoldoutGuardTests` —
+  (a) clean-repo invocation returns `None`,
+  (b) tampered-tasks.json invocation returns the breach message
+  containing `holdout-immutability breach` and the drifted task ID
+  (T22), (c) missing holdout files (no `task_ids.json`, no
+  `fingerprints.json`) returns `None` so forks without holdout
+  configuration are not blocked. Test count rose from 59 to 62 across
+  the 8 spec-named modules.
+- **Subprocess-level proof of mechanical fire:** invoked
+  `python3 bench/harness.py --md-binary target/release/md --tasks-path /tmp/tasks-tampered.json`
+  with a copy of `bench/tasks/tasks.json` whose T22 description was
+  edited (sneak-edit). The harness exited with code 2 and stderr line
+  `harness.py: error: holdout-immutability breach (holdout_version=1):
+  T22: fingerprint drift in fields ['task_json_sha256'] — follow the
+  holdout-repair exception path before reporting holdout results.`
+  No tasks were scored. The mechanical guard fired before any agent
+  invocation could begin.
+- **Cheap channel:** green before and after (cargo: 32+37+16+0 across
+  integration suites; python: 62 tests OK across the 8 spec-named
+  modules — was 59 before iter 16, +3 from new
+  `HarnessRuntimeHoldoutGuardTests`; `harness.py --md-binary`
+  dry-run: all 24 tasks PASS dual-scorer).
+- **Comparability framing:** this is a harness-assertion hardening
+  change. It does **not** change the agent's action space, does not
+  introduce a new product surface, does not touch any holdout
+  artifact (the holdout ID list, fingerprints manifest, expected
+  outputs, and tasks corpus are unchanged), does not change any
+  scorer, and does not affect any pass rate. It is an additive
+  ratchet on the oracle: future harness invocations now fail-fast on
+  holdout drift rather than relying on the unit test pathway. Per the
+  spec's "hardening allowed during P0/P1" rule (currently no P0/P1
+  open, so this rule is permissive), and the spec's "telemetry-only
+  instrumentation" / "harness assertions" allowance, the change is
+  squarely within the admissible work envelope.
+- **Closure-discipline status:** this is a substantive fix authored by
+  iter 16, not a ratification. Per the FIXED ≠ CLOSED rule, the entry
+  is `FIXED_PENDING_CONFIRMATION`-shaped; a future review pass should
+  ratify by re-reading `bench/harness.py` lines 747-775 and 1597-1599
+  + `bench/test_harness_task_split.py:HarnessRuntimeHoldoutGuardTests`
+  against this entry. Per L1 spec language ("the cheapest reachable
+  probe"), the new test class now subsumes the role of "the unit test
+  pathway pinning runtime guarding." Since the change is in CLOSED
+  ledger position above (not OPEN or FIXED_PENDING_CONFIRMATION), it
+  is filed as a non-finding harness-assertion improvement rather than
+  a finding; the closure-discipline rule's "FIXED_PENDING_CONFIRMATION"
+  ledger position applies to OPEN findings, not to substantive
+  hardening additions, parallel to iter-1's F3 fix structure.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not run the expensive outer
+  channel. Does not bump `holdout_version`. Does not amend any
+  published claim. Does not modify any prior bundle. The
+  `holdout-repair exception path` is not invoked because the holdout
+  is *not* being repaired — its fingerprints are untouched, only the
+  guard's runtime invocation surface is added.
+
 ### Confirmation review pass (2026-04-26 iter 15)
 
 Closure-discipline review of iter-14's quiet-signal-checkpoint discharge
@@ -464,25 +555,37 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 15)
+### Halt-condition / quiet-signal status (after iter 16)
 
-After the iter-15 closure-discipline ratification of iter-14's
-quiet-signal-checkpoint discharge (see "Confirmation review pass
-(2026-04-26 iter 15)" above):
+After the iter-16 mechanical-guard runtime promotion (see "L1
+mechanical-guard runtime promotion (2026-04-26 iter 16)" above):
 
-- **OPEN findings count:** 0. Iter 15 ratified iter-14's typed-artifact
-  claims by reading bundle results.json + run.json + pi-audit.jsonl +
-  adapter output; all reproduced bit-exact. No defect surfaced. The
-  zero-OPEN state holds through iters 8, 9, 10, 11, 12, 13, 14, and 15
-  — the eleventh consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 16 authored a substantive
+  harness-assertion hardening (runtime invocation of
+  `verify_holdout_fingerprints`) — not a finding (no defect uncovered;
+  the change closes a documented gap from iter-3 and iter-6 ledger
+  entries by adding the missing harness-assertion). The zero-OPEN state
+  holds through iters 8, 9, 10, 11, 12, 13, 14, 15, and 16 — the
+  twelfth consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
-  ratification). Counter at **1** after iter 15. Iters 16–17 are
-  admissible as quiet iterations under the still-low counter. Iter 18
-  would be the forced expensive-or-halt point if iters 16–17 stay
-  quiet.
-- **Iter-15 same-family-rule discharge:** iter 14 was an
+  ratification), iter 16 quiet (cheap-channel-only oracle hardening,
+  no expensive run). Counter at **2** after iter 16. Iter 17 is
+  admissible as quiet but iter 18 is the forced expensive-or-halt
+  point if iter 17 stays quiet.
+- **Iter-16 same-family-rule discharge:** iter 14 was an
+  expensive-channel run (intervention diversity), iter 15 was a
+  ledger-only closure-discipline ratification (which the rule
+  explicitly says does *not* break concentration), and iter 16 is an
+  oracle-trustworthiness hardening change with substantive code edits
+  + new unit tests. Iter 14 already broke any prior concentration;
+  iter 15 left it broken; iter 16's harness-assertion change is the
+  first substantive code edit since iter 13's RESULTS.md line-number
+  fix (3 iterations earlier) and the first oracle-axis code edit
+  since iter 2's L1 closure (14 iterations earlier). No same-family
+  concentration to discharge.
+- **Iter-15 same-family-rule discharge (preserved):** iter 14 was an
   expensive-channel run (intervention diversity), which broke the
   iters 11–13 spec-coherence concentration. Iter 15 returns to a
   ledger-only ratification entry (parallel to iter 12's review of

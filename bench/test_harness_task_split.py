@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from bench.harness import (
+    check_holdout_integrity,
     compute_task_fingerprint,
     load_holdout_fingerprints,
     load_task_ids,
@@ -138,6 +139,50 @@ class HoldoutImmutabilityTests(unittest.TestCase):
         first = compute_task_fingerprint(by_id["T22"])
         second = compute_task_fingerprint(by_id["T22"])
         self.assertEqual(first, second)
+
+
+class HarnessRuntimeHoldoutGuardTests(unittest.TestCase):
+    """Runtime mechanical invocation of the holdout-immutability guard.
+
+    The L1 closure landed verify_holdout_fingerprints as a function plus
+    a cheap-channel unit test (above). This class pins the harness's
+    runtime wrapper check_holdout_integrity, so any harness invocation
+    that runs against a configured holdout split is mechanically gated
+    on holdout integrity, not just on the unit test having been run
+    first.
+    """
+
+    def test_clean_repo_returns_none(self) -> None:
+        self.assertIsNone(check_holdout_integrity())
+
+    def test_drift_returns_breach_message(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_runtime_drift_") as tmpdir:
+            tmp = Path(tmpdir)
+            raw_tasks = json.loads(Path("bench/tasks/tasks.json").read_text())
+            for entry in raw_tasks:
+                if entry["id"] == "T22":
+                    entry["description"] = entry["description"] + "  (sneak edit)"
+            tasks_path = tmp / "tasks.json"
+            tasks_path.write_text(json.dumps(raw_tasks))
+            breach = check_holdout_integrity(
+                tasks_path=str(tasks_path),
+                holdout_ids_path="bench/holdout/task_ids.json",
+                fingerprints_path="bench/holdout/fingerprints.json",
+            )
+            self.assertIsNotNone(breach)
+            self.assertIn("holdout-immutability breach", breach)
+            self.assertIn("T22", breach)
+
+    def test_missing_holdout_files_skipped_silently(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_no_holdout_") as tmpdir:
+            tmp = Path(tmpdir)
+            self.assertIsNone(
+                check_holdout_integrity(
+                    tasks_path="bench/tasks/tasks.json",
+                    holdout_ids_path=str(tmp / "missing_task_ids.json"),
+                    fingerprints_path=str(tmp / "missing_fingerprints.json"),
+                )
+            )
 
 
 if __name__ == "__main__":

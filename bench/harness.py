@@ -744,6 +744,37 @@ def load_holdout_fingerprints(path: str = "bench/holdout/fingerprints.json") -> 
     return data
 
 
+def check_holdout_integrity(
+    tasks_path: str = "bench/tasks/tasks.json",
+    holdout_ids_path: str = "bench/holdout/task_ids.json",
+    fingerprints_path: str = "bench/holdout/fingerprints.json",
+) -> str | None:
+    """Runtime wrapper around verify_holdout_fingerprints for harness invocation.
+
+    Returns None if no drift was detected or if the holdout split is not
+    configured in this checkout (either holdout_ids_path or fingerprints_path
+    missing). Returns the breach message string when drift is detected, so
+    the caller can surface it via parser.error or equivalent.
+
+    Skipped silently for missing files because mdtools forks may opt out of
+    the holdout split entirely; the cheap-channel unit test still pins live
+    repo integrity. The runtime check exists to convert L1 from procedural
+    to mechanical for any harness invocation that runs against a configured
+    holdout split.
+    """
+    if not (os.path.exists(holdout_ids_path) and os.path.exists(fingerprints_path)):
+        return None
+    try:
+        verify_holdout_fingerprints(
+            tasks_path=tasks_path,
+            holdout_ids_path=holdout_ids_path,
+            fingerprints_path=fingerprints_path,
+        )
+    except ValueError as exc:
+        return str(exc)
+    return None
+
+
 def verify_holdout_fingerprints(
     tasks_path: str = "bench/tasks/tasks.json",
     holdout_ids_path: str = "bench/holdout/task_ids.json",
@@ -1562,6 +1593,9 @@ def main():
 
     started_at = time.time()
     tasks = load_tasks(args.tasks_path)
+    holdout_breach = check_holdout_integrity(tasks_path=args.tasks_path)
+    if holdout_breach is not None:
+        parser.error(holdout_breach)
     if args.task_ids_path:
         try:
             tasks = select_tasks(tasks, load_task_ids(args.task_ids_path))
