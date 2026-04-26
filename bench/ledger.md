@@ -10,6 +10,438 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 52)
+
+Discharged the closure-discipline rule for iter 51's typed-test
+promotion (`T12BatchMutationCycleTests` in `bench/test_pi_audit.py`,
+2 tests pinning the at-scale positive-shape batch-mutation moat
+invariant on the iter-49 T12 PI bundle plus the audit-only-vs-guard-
+augmented `policy_violations` asymmetry) by re-reading every typed-
+artifact claim bit-exact and re-running the cheap channel — no fresh
+failing trace surfaced. iter 51 transitions FIXED_PENDING_CONFIRMATION
+→ CLOSED via explicit ratification under the spec's "FIXED ≠ CLOSED"
+rule, parallel in shape to iter 48's explicit ratification of iter 47,
+iter 44's of iter 43, iter 40's of iter 39, iter 36's of iter 35, and
+iter 31's of iter 30. With this entry, the F4-orthogonal closure
+trail's structural triad on the raw_bytes scorer branch is fully
+ratified end-to-end: positive-shape (`T10CanonicalReQueryCycleTests`
+ratified at iter 44), negative-shape (`T15ParallelMutationFailureTests`
+ratified at iter 48), at-scale positive-shape
+(`T12BatchMutationCycleTests` ratified at iter 52).
+
+- **Disturbed axis:** closure-discipline (procedural) — iter 51's
+  typed-test promotion landed as **FIXED_PENDING_CONFIRMATION** at
+  authoring time, requiring the next pass to either explicitly ratify
+  (re-reading the bundle artifacts + adapter helpers + test bit-exact)
+  or implicitly ratify by not re-raising. iter 52 chooses **explicit
+  ratification** because iter 51's body invited it ("iter 52+'s
+  closure-discipline ratification can run `python3 -m unittest
+  bench.test_pi_audit -k T12BatchMutationCycleTests` and observe
+  the same green output (2 tests, all pass), promoting iter 51 to
+  CLOSED").
+- **Frontier anchor:** the spec's "FIXED ≠ CLOSED" rule explicitly
+  requires either "the next iteration's review pass explicitly
+  confirming, or the next pass not re-raising the finding". iter 52
+  is the next pass and satisfies both clauses (re-reading the typed
+  artifacts independently + not re-raising any iter-51 claim).
+- **Change shape:**
+  - Added this iter-52 ratification entry at the top of "## CLOSED"
+    above the iter-51 entry, following the iter-48 / iter-44 / iter-40
+    / iter-36 / iter-31 / iter-15 / iter-22 / iter-27 / iter-34
+    confirmation-review-pass template.
+  - Updated the halt-condition / quiet-signal status block from
+    (after iter 51) to (after iter 52).
+  - **No edit** to iter-51's body (per iter-15 / -22 / -24 / -26 /
+    -27 / -28 / -30 / -31 / -32 / -33 / -34 / -35 / -36 / -37 / -38 /
+    -39 / -40 / -42 / -44 / -46 / -48 / -50 no-silent-edit discipline:
+    the **Closure-discipline status** field on iter 51's body records
+    its state *at authoring time* — FIXED_PENDING_CONFIRMATION; the
+    CLOSED state is recorded in this iter-52 entry, not by editing
+    iter-51).
+  - **No edit** to `bench/test_pi_audit.py`,
+    `bench/pi_audit_adapter.py`, `bench/command_policy.py`,
+    `bench/harness.py`, `bench/RESULTS.md`, `README.md`, or any other
+    narrative file. No code change. No test change. No
+    published-narrative change.
+- **Data points (typed-artifact ratification of iter 51):** every
+  iter-51 typed-artifact claim re-verified bit-exact against the live
+  repository:
+  - `bench/test_pi_audit.py:330` is `class
+    T12BatchMutationCycleTests(unittest.TestCase)` with the docstring
+    naming the iter-49 forcing claim ("15 mutations across 14 turns
+    at 41.72s with 26 tool calls, organized as three query+mutation-
+    batch sub-cycles per the kind sequence `[q, q, m×8, q×5, m×6,
+    q×3, m, q]` … first PI bundle exercising the policy-deny guard
+    path, first PI bundle with tool_errors=1, first PI bundle where
+    audit-only and guard-augmented summarize_pi_audit_events paths
+    produce distinct policy_violations values") and explicitly framing
+    the structural triad relationship ("complementing
+    T10CanonicalReQueryCycleTests' single-mutation positive shape and
+    T15ParallelMutationFailureTests' parallel-mutation negative shape
+    — completing the F4-orthogonal closure trail's structural triad
+    on the raw_bytes scorer branch") ✓
+  - `bench/test_pi_audit.py:9` carries the iter-47 import extension
+    `from bench.command_policy import GuardEvent,
+    classify_command_kind, load_guard_events` (used by both new test
+    methods to compute the kind sequence from `bash_commands` and
+    guard.log raw commands) — unchanged since iter 47, sufficient for
+    iter 51's new test methods ✓
+  - `BUNDLE_DIR` resolves to
+    `bench/runs/checkpoint-pi-T12-mdtools-gpt5.4mini-2026-04-26/logs/T12_mdtools_1777237571`
+    with both `pi-audit.jsonl` and `guard.log` present on disk per
+    `ls`. The bundle directory also carries `agent_output.txt`,
+    `pi-sessions/`, and `prompt.txt` consistent with iter-49's
+    bundle-shape claim ✓
+  - Two test methods exist:
+    `test_audit_only_summary_pins_batch_mutation_at_scale` (line
+    373) and `test_guard_events_expose_policy_violations_asymmetry`
+    (line 457), each carrying a `skipTest` for fork-compat when the
+    bundle is missing — parallel in shape to
+    `T10CanonicalReQueryCycleTests` (skipTest-guarded at
+    `bench/test_pi_audit.py:174`),
+    `T15ParallelMutationFailureTests` (skipTest-guarded at
+    `bench/test_pi_audit.py:243`), and `F4ClosureBundleReplayTests`
+    (skipTest-guarded at `bench/test_harness_json.py:272`) ✓
+  - `EXPECTED_KIND_SEQUENCE` class attribute at
+    `bench/test_pi_audit.py:363-371` is the construction
+    `["query"] * 2 + ["mutation"] * 8 + ["query"] * 5 + ["mutation"]
+    * 6 + ["query"] * 3 + ["mutation"] + ["query"]` (26 entries),
+    shared across both test methods so the audit-derived and
+    guard-derived kind sequences reference a single source-of-truth
+    structural shape per iter-51 learning #3 ✓
+  - `python3 -m unittest bench.test_pi_audit
+    -k T12BatchMutationCycleTests -v` runs two tests in 0.016s with
+    `OK` (`test_audit_only_summary_pins_batch_mutation_at_scale ...
+    ok`, `test_guard_events_expose_policy_violations_asymmetry ...
+    ok`) ✓
+  - `python3 -m unittest bench.test_pi_audit.T10CanonicalReQueryCycleTests
+    bench.test_pi_audit.T15ParallelMutationFailureTests
+    bench.test_pi_audit.T12BatchMutationCycleTests -v` runs all six
+    F4-orthogonal closure trail tests in 0.017s with `OK`, confirming
+    that the iter-43 single-mutation positive-shape, the iter-47
+    parallel-mutation negative-shape, and the iter-51 batch-mutation
+    at-scale positive-shape typed assertions all coexist green on
+    the same bundle adapter surface ✓
+  - Total python unittest count = **88**, sustained across the eight
+    spec-named modules (`bench.test_command_policy`,
+    `bench.test_oai_loop`, `bench.test_pi_audit`,
+    `bench.test_harness_json`, `bench.test_harness_run_artifacts`,
+    `bench.test_harness_task_split`, `bench.test_analyze_inputs`,
+    `bench.test_report_inputs`); `python3 -m unittest …` reports "Ran
+    88 tests in 1.607s … OK" ✓
+  - `cargo test -q` all suites green (32 + 37 + 16 + 0 — parser /
+    integration counts plus benchmarks empty) ✓
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks ✓
+  - **Independent re-execution of `summarize_pi_audit_events` against
+    the iter-49 T12 bundle's `pi-audit.jsonl` (audit-only path)**
+    returns `PiAuditCounters(tool_calls=26, tool_results=25,
+    tool_errors=1, bytes_observation=19161, blocked=0,
+    policy_violations=0, mutations=15, requeried=True,
+    model='openai-codex/gpt-5.4-mini', thinking_level='minimal')`
+    plus `bash_commands` of length 26 — bit-exact match to iter-51's
+    first test's assertion list ✓
+  - **Independent re-execution of `load_guard_events` against
+    `guard.log`** returns 26 GuardEvents with decision split = 25
+    `allow` + 1 `deny`, base_command split = 25 `md` + 1 `sed`. The
+    sole deny is at chronological index 12 with `base_command='sed'`
+    — bit-exact match to iter-51's second test's assertions on
+    `len(guard_events)`, `decisions.count('allow')`,
+    `decisions.count('deny')`, `base_commands.count('md')`,
+    `base_commands.count('sed')`, `guard_events[12].decision`,
+    `guard_events[12].base_command` ✓
+  - **Independent re-execution of `summarize_pi_audit_events(events,
+    guard_events=guard_events)` (guard-augmented path)** returns
+    `mutations=15`, `requeried=True`, `policy_violations=1`,
+    `blocked=0` — bit-exact match to iter-51's second test's
+    assertions, surfacing the audit-only-vs-guard-augmented asymmetry
+    (0 vs 1) inferred from `bench/pi_audit_adapter.py:103-106` (the
+    `for guard_event in guard_events: if guard_event.decision !=
+    "allow": counters.policy_violations += 1; continue` loop is only
+    entered when the caller passes `guard_events=...`; on the
+    audit-only path the loop body never executes because
+    `guard_events` defaults to an empty tuple) and
+    `bench/pi_audit_adapter.py:113`
+    (`effective_sequence = guard_sequence or call_sequence` —
+    Python short-circuit `or` selects `guard_sequence` when
+    non-empty) ✓
+  - **Independent re-execution of `classify_command_kind` against
+    both bash_commands and guard.log raw_command fields** returns
+    `[query, query, mutation, mutation, mutation, mutation, mutation,
+    mutation, mutation, mutation, query, query, query, query, query,
+    mutation, mutation, mutation, mutation, mutation, mutation,
+    query, query, query, mutation, query]` for both paths — bit-exact
+    match to iter-51's `EXPECTED_KIND_SEQUENCE` class attribute
+    construction `[query×2, mutation×8, query×5, mutation×6, query×3,
+    mutation, query]` (26 entries). The audit-events-derived kinds
+    and guard-events-derived kinds are identical because every audit
+    `tool_call` in this trajectory was guarded in turn — the sed
+    deny did not short-circuit the guard pipeline. The three
+    mutation→query transition boundaries surface at positions
+    `[9, 20, 24]` (proving each sub-cycle ends with a re-query before
+    the next mutation batch) — bit-exact match to iter-51's first
+    test's `assertEqual(mutation_to_query_boundaries, [9, 20, 24])`
+    assertion ✓
+  - The 54 audit events parse cleanly with histogram
+    `{model_change: 1, thinking_level_change: 1, tool_call: 26,
+    tool_result: 25, tool_error: 1}` — confirming iter-51's first-test
+    comment `"# 54 events: model_change + thinking_level_change + 26
+    tool_call + 25 tool_result + 1 tool_error (the md block 5
+    out-of-range error at bash_commands[13] routes to a tool_error
+    event, not tool_result)"` is bit-exact accurate ✓
+  - The 14-turn trajectory shape claimed by iter-49's coverage-gap-
+    closure section ("the agent issued 8 mutations in the first
+    batch (handling top-level + nested + grandchild tasks), then
+    re-queried, then 6 more mutations (likely picking up tasks the
+    first batch missed including the blockquote tasks at loc 6.0.0),
+    then re-queried, then 1 final mutation, then re-queried to
+    verify") reproduces bit-exact via the chronological event
+    sequence: bash_commands[0..1] turn-1 outline + tasks queries;
+    bash_commands[2..9] first 8-mutation set-task batch (eight
+    `./md set-task <loc> -i --status done` calls in succession);
+    bash_commands[10..14] second sub-cycle re-queries (tasks +
+    tasks + denied sed + md block 5 + md block 6 — the sed at
+    index 12 was denied by command_policy in mdtools mode, the md
+    block 5 returned tool_error for "out of range"); bash_commands[15..20]
+    second 6-mutation set-task batch (six `./md set-task` calls);
+    bash_commands[21..23] third sub-cycle re-queries (tasks + md
+    block 5 + md block 6 — the second md block call succeeded after
+    the first batch landed); bash_commands[24] final set-task;
+    bash_commands[25] final tasks re-query ✓
+  - The three mutation→query transition boundaries assertion in
+    iter-51's first test (`mutation_to_query_boundaries = [i for i
+    in range(len(kinds)-1) if kinds[i] == "mutation" and kinds[i+1]
+    == "query"]; self.assertEqual(mutation_to_query_boundaries, [9,
+    20, 24])`) holds bit-exact (the structural signature of the
+    canonical re-query mutation cycle scaling cleanly across N=15
+    mutations in three sub-cycles, complementing T10's single
+    `[q, m, q]` boundary at position 1 and T15's parallel-mutation
+    boundary-anti-pattern with adjacent mutations at positions 2,3) ✓
+  - T12 scorer config in `bench/tasks/tasks.json` confirmed
+    `kind=raw_bytes`, `expected_artifact=file_contents`,
+    `expected_output=bench/expected/t12_batch.md`,
+    `normalize_line_endings=true`, `ignore_trailing_whitespace=true`
+    — F4 selector at `bench/harness.py:1481` is **not** invoked for
+    raw_bytes tasks, confirming iter-51's "structurally orthogonal
+    to the F4 attack vector" framing on the production-code routing
+    axis ✓
+  - T12 absent from `bench/holdout/task_ids.json` (which is
+    `["T4","T14","T20","T22","T23","T24"]`), confirming iter-51's
+    "T12 is search-side; no holdout cell affected" comparability
+    claim ✓
+  - `bench/probes/anchor-validation/` confirmed absent — iter-51's
+    "Does not promote any product anchor (`bench/probes/anchor-validation/`
+    still does not exist)" claim verified ✓
+  - Bundle artifacts (`pi-audit.jsonl`, `guard.log`, `results.json`,
+    `run.json`, `task_ids.json`) on disk match the iter-49 bundle
+    state via `sha256sum` — `pi-audit.jsonl` and `guard.log` are
+    `bench/runs/**/logs/` debug residue not committed to git per
+    spec (they parse cleanly via the live adapters and their content
+    matches iter-49's claims bit-exact); `results.json`, `run.json`,
+    `task_ids.json` are committed on `fb4c716` (iter 49) and reproduce
+    iter-49's claim of `correct=true`, `correct_neutral=true`,
+    `mutations=15`, `policy_violations=1`, `tool_calls=26`, `turns=14`,
+    `runner_error="tool_error: bash: block index 5 out of range
+    (document has 0 blocks) Command exited with code 1"`,
+    `holdout_version=1` ✓
+  - Production code unchanged since iter 51 commit 73ca8ac — `git
+    show 73ca8ac:bench/test_pi_audit.py | sha256sum` produces
+    `71a2f3728737d091a63807f4a559711c51380aca32024eb4269c570b99ace6ac`,
+    matching the working-tree file's hash bit-exact; same for
+    `bench/pi_audit_adapter.py` (hash
+    `0abc11e09d10a1f43f36b6f3fc7c620fedf90998174e07cc19f7230c0eb97fc0`),
+    `bench/command_policy.py` (hash
+    `df3b00ecd40be6983123e5f9e8b650cf0952a6803738ee78c3e7febc20df0955`),
+    and `bench/harness.py` (hash
+    `4ffbd069646a8d95aff185d4a24a9707bde0ebabdae96ca3a7cfb63ac0645cdb`)
+    ✓
+- **Cheap channel:** green before and after this iteration (no code
+  change in iter 52).
+  - `cargo test -q` all suites pass (32 + 37 + 16 + 0).
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports "Ran
+    88 tests in 1.607s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **No fresh failing trace surfaced.** The pattern of "every
+  ratification iteration finds at least one navigable claim that
+  doesn't survive verification" (iters 22 / -24 / -26 / -27 / -30 /
+  -31) does **not** fire here. Same shape as iter 15 (clean
+  ratification of iter 14), iter 34 (clean ratification of iter 33),
+  iter 36 (clean ratification of iter 35), iter 38 (clean
+  ratification of iter 37), iter 40 (clean ratification of iter 39),
+  iter 42 (clean ratification of iter 41), iter 44 (clean
+  ratification of iter 43), iter 46 (clean ratification of iter 45),
+  iter 48 (clean ratification of iter 47), and iter 50 (clean
+  ratification of iter 49) — iter 51's prose was authored carefully
+  (verified bit-exact against the test class structure, the imported
+  helpers, the bundle paths, the `summarize_pi_audit_events` /
+  `load_guard_events` / `classify_command_kind` invocation contracts,
+  the `bench/pi_audit_adapter.py:103-106` policy-violations-counting
+  loop and `bench/pi_audit_adapter.py:113` guard-sequence-wins line
+  citations, and the iter-49 T12 PI bundle's typed artifacts including
+  the 54 audit events and 26 guard.log entries). This is the
+  **fifth** explicit clean ratification of an oracle-trustworthiness
+  typed-test-promotion iteration in this run by sequential count
+  (iter 31 / -36 / -40 / -44 / -48 / -52 = 6 entries; per the iter-48
+  enumeration that included implicit ratifications via "next pass not
+  re-raising" through iter-29's expensive run and iter-33's expensive
+  run, iter 52 would be the **seventh** if implicit predecessors are
+  counted: iter 29 implicit / iter 31 explicit / iter 33 implicit /
+  iter 36 explicit / iter 40 explicit / iter 44 explicit / iter 48
+  explicit / iter 52 explicit = 8 entries; iter 48's "sixth clean
+  ratification" claim with only 4 enumerated explicit entries (iter
+  35→36, iter 39→40, iter 43→44, iter 47→48) appears to use a count
+  inclusive of iter-29 / iter-33 implicit predecessors, putting iter
+  48 at sixth and iter 52 at seventh under the implicit-inclusive
+  convention; both counts are explicitly enumerated here so the
+  reader can verify either convention).
+- **Comparability framing:** This iteration introduces no expensive
+  channel run, no new claim, no holdout exercise, no new product
+  surface, no scorer change, no new search-set or holdout-set bundle,
+  and no edit to any code or published-narrative file. The
+  ratification is procedural — re-reading durable typed artifacts
+  already on disk and recording the verification in this entry. It
+  is **NOT** an extension of the F4 closure trail (T12 is
+  `kind=raw_bytes` with `expected_artifact=file_contents`,
+  structurally orthogonal to the F4 attack vector); F4 closure
+  remains anchored by iter 30 / 31 / 32 / 33 / 35 / 37 / 39 / 40.
+  It **is** the **third** ratification entry on the F4-orthogonal
+  closure trail (re-query mutation moat invariant) — iter 44 was
+  the first (ratifying the positive-shape iter-43
+  `T10CanonicalReQueryCycleTests` for T10's single-mutation
+  canonical re-query cycle), iter 48 was the second (ratifying the
+  negative-shape iter-47 `T15ParallelMutationFailureTests` for T15's
+  parallel-mutation FAIL anti-pattern), and iter 52 ratifies the
+  at-scale positive-shape iter-51 `T12BatchMutationCycleTests` for
+  T12's batch-mutation moat-at-scale invariant plus the previously-
+  untested audit-only-vs-guard-augmented `policy_violations`
+  asymmetry. With this entry, the F4-orthogonal closure trail's
+  structural triad on the raw_bytes scorer branch is **fully ratified
+  end-to-end**: each of the three typed-assertion classes
+  (single-mutation PASS / parallel-mutation FAIL / batch-mutation
+  PASS-at-scale) has its expensive bundle (iter 41 / 45 / 49), its
+  RESULTS.md inventory cash-out + paired clean ratification (iter 42 /
+  46 / 50), its typed cheap-channel assertion class (iter 43 / 47 /
+  51), and its closure-discipline ratification entry (iter 44 / 48 /
+  52). The trail's 12-iteration lifecycle (iter 41 through iter 52)
+  is structurally complete, parallel in shape to the F4 trail's
+  iter-30-through-iter-40 lifecycle on the json_envelope scorer
+  branch (which carries two typed-assertion classes —
+  `F4ClosureBundleReplayTests` for post-fix PASS + `F4PreFixCounterfactualTests`
+  for pre-fix FAIL — versus the F4-orthogonal trail's three classes),
+  but exceeds the F4 trail in coverage by carrying a structural
+  triad rather than just a positive+negative pair.
+- **Closure-discipline status:** **CLOSED at authoring time**
+  (iter 52 ratifies iter 51; no further pending fix). With iter 52's
+  explicit ratification, iter 51's closure-discipline state is now
+  CLOSED. All three typed-assertion classes on the F4-orthogonal
+  closure trail are now mechanically pinned and explicitly ratified:
+  `T10CanonicalReQueryCycleTests` (iter 43, 2 tests on the iter-41
+  T10 PI bundle, ratified at iter 44) for the canonical re-query
+  mutation cycle PASS; `T15ParallelMutationFailureTests` (iter 47, 2
+  tests on the iter-45 T15 PI bundle, ratified at iter 48) for the
+  parallel-mutation FAIL anti-pattern; `T12BatchMutationCycleTests`
+  (iter 51, 2 tests on the iter-49 T12 PI bundle, ratified at iter
+  52) for the batch-mutation moat-at-scale PASS plus the audit-only-
+  vs-guard-augmented `policy_violations` asymmetry. Both audit-only
+  and guard-augmented call paths through `summarize_pi_audit_events`
+  remain mechanically pinned against all three bundles.
+- **Iter-52 same-family-rule discharge:** Recent axis pattern: iter
+  48 closure-discipline ratification of iter 47, iter 49
+  intervention-diversity (T12 expensive forced expensive-or-halt
+  with first PI batch-mutation family coverage), iter 50
+  specification coherence (`bench/RESULTS.md:68` thirteenth-bundle
+  cash-out + paired clean ratification of iter 49), iter 51
+  oracle-trustworthiness (typed-test promotion of iter-49's prose-
+  only T12 batch-mutation trajectory claims via new
+  `T12BatchMutationCycleTests` class). Iter 52 is **closure-
+  discipline ratification** — procedurally distinct from any
+  homeostasis-axis intervention; structurally analogous to iter 36
+  (ratified iter 35 typed-test promotion), iter 40 (ratified iter
+  39 typed-test extension), iter 44 (ratified iter 43 typed-test
+  promotion), and iter 48 (ratified iter 47 typed-test promotion);
+  all four named analogues plus iter 52 itself (five total in this
+  typed-test-promotion-ratification subseries) ratified an
+  oracle-trustworthiness typed-test promotion one iteration after
+  authoring with no fresh trace surfacing. iter 52 is the
+  **twelfth** closure-discipline ratification iteration in this run
+  by sequential count (iter 15 / -20 / -22 / -24 / -27 / -31 / -34
+  / -36 / -40 / -44 / -48 / -52 = 12 entries, extending iter 48's
+  enumerated 11-entry list by appending iter 52), where iter 34
+  ratified the iter-33 expensive run via cash-out rather than a
+  typed-test promotion. Per the same-family rule, "Cosmetic,
+  rustfmt, file-rotation, naming-cleanup, or **ledger-only** changes
+  do not break concentration"; iter 52 is ledger-only with no code
+  or test change. The closure-discipline ratification iteration
+  shape is the spec-required follow-up to any
+  FIXED_PENDING_CONFIRMATION entry, not a homeostasis-axis
+  correction subject to the rule's escape clause; with no fresh
+  trace surfacing during verification, iter 52 is admissible by the
+  spec-procedural-requirement route. iter 52 is also the **third**
+  closure-discipline ratification on the F4-orthogonal closure trail
+  (raw_bytes branch / re-query mutation moat invariant) — iter 44
+  was the first (ratifying the positive-shape iter-43 T10 typed
+  test), iter 48 was the second (ratifying the negative-shape iter-47
+  T15 typed test), iter 52 ratifies the at-scale positive-shape
+  iter-51 T12 typed test, completing the matched-ratification
+  structure across all three roles of the structural triad on this
+  trail. Forward-pointing observations: (a) iter 36's bullet at
+  `bench/ledger.md:4101-4102` claims "iter 36 is the seventh
+  closure-discipline ratification iteration in this run" for an
+  8-item list (iter 15, 20, 22, 24, 27, 31, 34, 36) — a possible
+  off-by-one similar in shape to iter 44's; (b) iter 40's bullet at
+  `bench/ledger.md:3239-3240` claims "iter 40 is the **eighth**
+  closure-discipline ratification iteration in this run" for a
+  9-item list (iter 15, 20, 22, 24, 27, 31, 34, 36, 40) — also a
+  possible off-by-one of the same shape; both preserved unchanged
+  per no-silent-edit discipline (extending iter 48's iter-44
+  observation back through the cumulative-count-spanning-historical-
+  iterations error class introduced in iter 48 learning #1).
+- **What this does NOT do:**
+  - Does not edit `bench/test_pi_audit.py` — no test change.
+    `T12BatchMutationCycleTests` (2 tests / 1 bundle from iter 51),
+    `T15ParallelMutationFailureTests` (2 tests / 1 bundle from iter
+    47), `T10CanonicalReQueryCycleTests` (2 tests / 1 bundle from
+    iter 43), `PiAuditAdapterTests`, `PiRunnerTests` are all
+    unchanged. Total python unittest count remains **88**.
+  - Does not edit `bench/pi_audit_adapter.py` — no adapter change.
+    The `summarize_pi_audit_events` function, the `for guard_event
+    in guard_events: if guard_event.decision != "allow":
+    counters.policy_violations += 1; continue` loop at
+    `bench/pi_audit_adapter.py:103-106`, and the `effective_sequence
+    = guard_sequence or call_sequence` line at
+    `bench/pi_audit_adapter.py:113` remain unchanged since iter 44's
+    verification.
+  - Does not edit `bench/command_policy.py` — no policy change.
+    `classify_command_kind`, `load_guard_events`, the mdtools-mode
+    allowlist that produces the sed-deny verdict, and the `GuardEvent`
+    dataclass remain unchanged.
+  - Does not edit `bench/harness.py` — no harness change. The F4
+    selector at `bench/harness.py:1481`
+    (`select_json_envelope_actual`) remains unchanged since iter 30,
+    and is **not** invoked for raw_bytes tasks like T12.
+  - Does not edit `bench/RESULTS.md`, `README.md`, `CLAUDE.md`,
+    `bench/retracted_2026-04-24/README.md`, or `specs/**`. No
+    published-narrative claim re-classified.
+  - Does not edit any prior ledger entry inline (per no-silent-edit
+    discipline). iter-51's body remains unchanged with its
+    "FIXED_PENDING_CONFIRMATION" Closure-discipline status; the
+    CLOSED state is recorded in this iter-52 entry. iter 36 / iter
+    40's possible off-by-one count claims remain unchanged with
+    forward-pointing observations recorded here per iter-48
+    learning #1's no-silent-edit discipline pattern.
+  - Does not produce any new `bench/runs/` bundle. Does not run
+    the expensive channel. Does not bump `holdout_version` (still
+    1). Does not promote any product anchor
+    (`bench/probes/anchor-validation/` still does not exist).
+  - Does not file any P0 / P1 / P2 finding. iter-49's "PASS verdict,
+    no oracle/harness/product defect to surface" classification
+    stands; iter 52's verification does not surface any new failing
+    trace or P-tier finding.
+
 ### F4-orthogonal closure trail extension: T12 batch-mutation moat at scale typed cheap-channel assertion (2026-04-26 iter 51)
 
 Promoted iter-49's prose-only ledger claim ("15 mutations across 14
@@ -7906,45 +8338,58 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 51)
+### Halt-condition / quiet-signal status (after iter 52)
 
-After iter 51's oracle-trustworthiness typed-test promotion of iter-49's
-prose-only T12 batch-mutation trajectory claims via new
-`T12BatchMutationCycleTests` class in `bench/test_pi_audit.py` (2 tests
-covering both audit-only and guard-augmented call paths through
-`summarize_pi_audit_events`) — pinning the at-scale positive-shape
-batch-mutation moat invariant (kind sequence `[query×2, mutation×8,
-query×5, mutation×6, query×3, mutation, query]` with three
-mutation→query transitions at positions 9→10, 20→21, 24→25 proving
-the canonical re-query mutation cycle scales beyond the single-mutation
-case to N=15 mutations across three sub-cycles) plus the previously-
-untested audit-only-vs-guard-augmented `policy_violations` asymmetry
-(audit-only path returns 0; guard-augmented path returns 1 by counting
-the single `decision='deny'` entry from `guard.log`) — completing the
-F4-orthogonal closure trail's structural triad on the raw_bytes scorer
-branch (single-mutation PASS / parallel-mutation FAIL / batch-mutation
-PASS-at-scale). Total python unittest count rose from 86 to **88** across
-the eight spec-named modules; `cargo test -q` all suites pass (32 + 37 +
-16 + 0); `python3 bench/harness.py --md-binary target/release/md` dry-run
-reports "All tasks pass dual scorer" on all 24 tasks. No fresh failing
-trace surfaced — the quiet-signal counter increments from 1 to 2. iter
-50's specification-coherence cash-out implicitly ratified by iter 51's
-test authoring requiring bit-exact reading of the iter-49 T12 PI bundle
-artifacts (`pi-audit.jsonl`, `guard.log`) and the live
-`summarize_pi_audit_events`, `load_guard_events`, and
-`classify_command_kind` helpers. F4 closure trail unchanged (T12 is
-raw_bytes branch, structurally orthogonal to the F4 attack vector). No
-new finding opened. See "F4-orthogonal closure trail extension: T12
-batch-mutation moat at scale typed cheap-channel assertion (2026-04-26
-iter 51)" CLOSED entry above. Iter 53 next forced expensive-or-halt
-point per the spec's 3-consecutive-quiet rule unless an expensive run
-independently introduces fresh signal.
+After iter 52's closure-discipline ratification of iter 51's
+`T12BatchMutationCycleTests` typed-test promotion (2 tests pinning the
+at-scale positive-shape batch-mutation moat invariant on the iter-49
+T12 PI bundle plus the audit-only-vs-guard-augmented
+`policy_violations` asymmetry) — every typed-artifact data point
+re-verified bit-exact via independent re-execution of
+`summarize_pi_audit_events` (audit-only path: tool_calls=26 /
+tool_results=25 / tool_errors=1 / mutations=15 / requeried=True /
+policy_violations=0 / blocked=0 / bytes_observation=19161 /
+model='openai-codex/gpt-5.4-mini' / thinking_level='minimal'; guard-
+augmented path: mutations=15 / requeried=True / policy_violations=1 /
+blocked=0), `load_guard_events` (26 GuardEvents with decision split 25
+allow + 1 deny, base_command split 25 md + 1 sed, sole deny at
+chronological index 12 with base_command='sed'), and
+`classify_command_kind` (audit-derived and guard-derived 26-entry
+sequences both reproduce as `[query×2, mutation×8, query×5,
+mutation×6, query×3, mutation, query]` with three mutation→query
+transition boundaries at `[9, 20, 24]`); plus production-code
+unchanged-since-iter-51 verification via sha256sum hash equality
+across `bench/test_pi_audit.py`, `bench/pi_audit_adapter.py`,
+`bench/command_policy.py`, and `bench/harness.py` between the working
+tree and commit `73ca8ac`. iter 51 transitions
+FIXED_PENDING_CONFIRMATION → CLOSED via explicit ratification under
+the spec's "FIXED ≠ CLOSED" rule. With this entry, the F4-orthogonal
+closure trail's structural triad on the raw_bytes scorer branch is
+**fully ratified end-to-end**: single-mutation PASS
+(`T10CanonicalReQueryCycleTests` ratified at iter 44), parallel-
+mutation FAIL (`T15ParallelMutationFailureTests` ratified at iter
+48), at-scale positive-shape batch-mutation PASS
+(`T12BatchMutationCycleTests` ratified at iter 52). Total python
+unittest count remains **88** across the eight spec-named modules
+(no test change in iter 52); `cargo test -q` all suites pass (32 +
+37 + 16 + 0); `python3 bench/harness.py --md-binary target/release/md`
+dry-run reports "All tasks pass dual scorer" on all 24 tasks. No fresh
+failing trace surfaced — the quiet-signal counter increments from 2
+to 3, hitting the spec-mandated forced expensive-or-halt threshold;
+iter 53 is the next forced expensive-or-halt point per the spec's
+"3 consecutive iterations with cheap channel green and no new finding"
+rule. F4 closure trail unchanged (T12 is raw_bytes branch,
+structurally orthogonal to the F4 attack vector). No new finding
+opened. See "Confirmation review pass (2026-04-26 iter 52)" CLOSED
+entry above plus the iter-51
+`T12BatchMutationCycleTests`-promotion CLOSED entry below.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **22** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **23** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
   39 + iter 40 + iter 41 + iter 42 + iter 43 + iter 44 + iter 45 +
-  iter 46 + iter 47 + iter 48 + iter 49 + iter 50 + iter 51). The
+  iter 46 + iter 47 + iter 48 + iter 49 + iter 50 + iter 51 + iter
+  52). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -8016,7 +8461,20 @@ independently introduces fresh signal.
   candidate evidence for further oracle-trustworthiness typed-test
   promotion at a future iteration, but the iter-51
   `T12BatchMutationCycleTests` already pins `tool_errors=1` as part
-  of its `PiAuditCounters` assertion shape.
+  of its `PiAuditCounters` assertion shape. After iter 52, the
+  F4-orthogonal closure trail's structural triad is **fully ratified
+  end-to-end** — each of the three typed-assertion classes has its
+  expensive bundle (iter 41 T10 / iter 45 T15 / iter 49 T12), its
+  RESULTS.md inventory cash-out + paired clean ratification (iter 42 /
+  46 / 50), its typed cheap-channel assertion class (iter 43 T10
+  positive-shape / iter 47 T15 negative-shape / iter 51 T12 at-scale
+  positive-shape), and its closure-discipline ratification entry
+  (iter 44 / 48 / 52). The trail's full 12-iteration lifecycle (iter
+  41 through iter 52) parallels the F4 trail's iter-30-through-iter-40
+  lifecycle on the json_envelope scorer branch (which carries two
+  typed-assertion classes versus this trail's three) but exceeds it
+  in coverage by carrying a structural triad rather than just a
+  positive+negative pair.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -8301,7 +8759,35 @@ independently introduces fresh signal.
   previously-untested audit-only-vs-guard-augmented
   `policy_violations` asymmetry (0 vs 1) in
   `bench/pi_audit_adapter.summarize_pi_audit_events`; counter
-  increments to **2**).
+  increments to **2**), iter 52 quiet (cheap-channel-only
+  closure-discipline ratification of iter 51 — typed-artifact
+  re-verification bit-exact via re-running
+  `T12BatchMutationCycleTests` (2 tests, all pass) plus independent
+  re-execution of `summarize_pi_audit_events` (audit-only +
+  guard-augmented), `load_guard_events`, and `classify_command_kind`
+  against the iter-49 T12 PI bundle's `pi-audit.jsonl` (54 events
+  with histogram `{model_change: 1, thinking_level_change: 1,
+  tool_call: 26, tool_result: 25, tool_error: 1}`) and `guard.log`
+  (26 entries with decision split 25 allow + 1 deny, base_command
+  split 25 md + 1 sed, sole deny at chronological index 12); both
+  audit-only and guard-augmented paths produce `mutations=15`,
+  `requeried=True`, `tool_calls=26`, `tool_errors=1`, with the
+  audit-only-vs-guard-augmented `policy_violations` asymmetry
+  preserved bit-exact (0 vs 1); both audit-events-derived and
+  guard-events-derived 26-entry kind sequences reproduce as
+  `[query×2, mutation×8, query×5, mutation×6, query×3, mutation,
+  query]` bit-exact with three mutation→query transition boundaries
+  at `[9, 20, 24]`; production code (`bench/test_pi_audit.py`,
+  `bench/pi_audit_adapter.py`, `bench/command_policy.py`,
+  `bench/harness.py`) verified unchanged-since-iter-51 via sha256sum
+  hash equality between the working tree and commit `73ca8ac`; no
+  expensive run, no fresh failing trace surfaced, iter 51 transitioned
+  FIXED_PENDING_CONFIRMATION → CLOSED via explicit ratification; the
+  F4-orthogonal closure trail's structural triad on the raw_bytes
+  branch is now fully ratified end-to-end (iter 44 / 48 / 52 ratify
+  iter 43 T10 / 47 T15 / 51 T12 typed-assertion classes
+  respectively); counter increments to **3**, hitting the spec-
+  mandated forced expensive-or-halt threshold).
   Iter 53 next forced expensive-or-halt point per the
   spec's "3 consecutive iterations with cheap channel green and no
   new finding" rule unless an expensive run independently introduces
@@ -8328,6 +8814,55 @@ independently introduces fresh signal.
   prefer "first PI cell to exercise scorer cell shape X (where X is
   grounded in an actual `bench/tasks/tasks.json` task config)" or a
   task-family / cross-mode / cross-model gap.
+- **Iter-52 same-family-rule discharge:** Recent axis pattern: iter
+  48 closure-discipline ratification of iter 47 (procedural
+  ledger-only), iter 49 intervention-diversity (T12 expensive forced
+  expensive-or-halt with first PI batch-mutation family coverage),
+  iter 50 specification coherence (`bench/RESULTS.md:68` thirteenth-
+  bundle cash-out + paired clean ratification of iter 49), iter 51
+  oracle-trustworthiness (typed-test promotion of iter-49's prose-
+  only T12 batch-mutation trajectory claims via new
+  `T12BatchMutationCycleTests` class). Iter 52 is **closure-
+  discipline ratification** of iter 51 — procedurally distinct from
+  any homeostasis-axis intervention; structurally analogous to iter
+  36 (ratified iter 35 typed-test promotion), iter 40 (ratified iter
+  39 typed-test extension), iter 44 (ratified iter 43 typed-test
+  promotion), and iter 48 (ratified iter 47 typed-test promotion);
+  all four named analogues plus iter 52 itself (five total in this
+  typed-test-promotion-ratification subseries on the F4 trail and
+  F4-orthogonal trail combined) ratified an oracle-trustworthiness
+  typed-test promotion one iteration after authoring with no fresh
+  trace surfacing. Per the same-family rule, "Cosmetic, rustfmt,
+  file-rotation, naming-cleanup, or **ledger-only** changes do not
+  break concentration"; iter 52 is ledger-only with no code or test
+  change. The closure-discipline ratification iteration shape is the
+  spec-required follow-up to any FIXED_PENDING_CONFIRMATION entry,
+  not a homeostasis-axis correction subject to the rule's escape
+  clause; with no fresh trace surfacing during verification, iter 52
+  is admissible by the spec-procedural-requirement route. iter 52 is
+  the **twelfth** closure-discipline ratification iteration in this
+  run by sequential count (iter 15 / -20 / -22 / -24 / -27 / -31 /
+  -34 / -36 / -40 / -44 / -48 / -52 = 12 entries, extending iter
+  48's enumerated 11-entry list by appending iter 52). iter 52 is
+  also the **third** closure-discipline ratification on the
+  F4-orthogonal closure trail (raw_bytes branch / re-query mutation
+  moat invariant) — iter 44 was the first (ratifying the
+  positive-shape iter-43 T10 typed test), iter 48 was the second
+  (ratifying the negative-shape iter-47 T15 typed test), iter 52
+  ratifies the at-scale positive-shape iter-51 T12 typed test,
+  completing the matched-ratification structure across all three
+  roles of the structural triad on this trail. With this entry,
+  **the F4-orthogonal closure trail's full 12-iteration lifecycle
+  (iter 41 expensive T10 → iter 42 RESULTS.md cash-out + ratification
+  → iter 43 typed-test promotion → iter 44 ratification → iter 45
+  expensive T15 FAIL → iter 46 RESULTS.md cash-out + ratification
+  → iter 47 typed-test promotion → iter 48 ratification → iter 49
+  expensive T12 → iter 50 RESULTS.md cash-out + ratification → iter
+  51 typed-test promotion → iter 52 ratification) is structurally
+  complete**, parallel in shape to the F4 trail's iter-30-through-
+  iter-40 lifecycle on the json_envelope scorer branch but exceeding
+  it in coverage by carrying a structural triad rather than just a
+  positive+negative pair.
 - **Iter-51 same-family-rule discharge:** Recent axis pattern: iter
   47 oracle-trustworthiness (typed-test promotion of iter-45's prose-
   only T15 parallel-mutation FAIL pattern claim via new
