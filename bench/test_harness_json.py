@@ -331,13 +331,14 @@ def _pre_iter30_select_json_envelope_actual(
 
 
 class F4PreFixCounterfactualTests(unittest.TestCase):
-    """F4 closure trail counterfactual (iter 35) — promotes iter-33's
+    """F4 closure trail counterfactual (iter 35 + iter 39) — promotes iter-33's
     prose-only ledger claim ('the pre-iter-30 selector logic against the
     iter-33 trajectory selects tool 1 with keys [results, schema_version]
-    and FAILs dual-scorer') to a typed cheap-channel assertion across both
-    F4-relevant durable bundles (T16 from iter 29, T11 from iter 33). If the
-    schema-aware select_json_envelope_actual at bench/harness.py:1481 is
-    ever reverted toward the pre-iter-30 loop shape, these tests fail."""
+    and FAILs dual-scorer') to a typed cheap-channel assertion across all
+    three F4-relevant durable bundles (T16 from iter 29, T11 from iter 33,
+    T19 from iter 37). If the schema-aware select_json_envelope_actual at
+    bench/harness.py:1481 is ever reverted toward the pre-iter-30 loop
+    shape, these tests fail."""
 
     REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -354,6 +355,13 @@ class F4PreFixCounterfactualTests(unittest.TestCase):
             REPO_ROOT
             / "bench/runs/checkpoint-pi-T11-mdtools-gpt5.4mini-2026-04-26"
             / "logs/T11_mdtools_1777227478/agent_output.txt",
+            ["phases", "totals"],
+        ),
+        (
+            "T19",
+            REPO_ROOT
+            / "bench/runs/checkpoint-pi-T19-mdtools-gpt5.4mini-2026-04-26"
+            / "logs/T19_mdtools_1777230034/agent_output.txt",
             ["phases", "totals"],
         ),
     ]
@@ -396,6 +404,10 @@ class F4PreFixCounterfactualTests(unittest.TestCase):
 
     def test_iter_33_t11_bundle_fails_under_pre_fix_selector(self) -> None:
         task_id, bundle_log, expected_top_keys = self.BUNDLES[1]
+        self._replay_pre_fix(task_id, bundle_log, expected_top_keys)
+
+    def test_iter_37_t19_bundle_fails_under_pre_fix_selector(self) -> None:
+        task_id, bundle_log, expected_top_keys = self.BUNDLES[2]
         self._replay_pre_fix(task_id, bundle_log, expected_top_keys)
 
 

@@ -10,6 +10,227 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### F4 closure trail extension: iter-37 T19 counterfactual typed cheap-channel assertion (2026-04-26 iter 39)
+
+Promoted iter-37's prose-only counterfactual claim ("the pre-iter-30
+selector logic from `git show 7b36502:bench/harness.py:1404-1429`
+against the iter-37 T19 trajectory selects tool 1 with keys
+`['results','schema_version']` and FAILs dual-scorer with
+`json_canonical: MISMATCH at line 2 expected: 'phases': [ actual:
+'results': [`") to a typed cheap-channel assertion by extending
+`F4PreFixCounterfactualTests` in `bench/test_harness_json.py` with a
+third bundle entry and a third test method covering the iter-37 T19
+PI bundle, parallel in shape to iter-35's coverage of iter-29 T16 +
+iter-33 T11. Iter 37's same-family-rule-discharge entry explicitly
+named this extension as the natural next typed-test promotion ("the
+new T19 bundle adds a third F4-attack-vector trajectory whose pre-fix
+counterfactual is bit-identical in mismatch shape to T11's,
+structurally inviting a future iteration to extend
+`F4PreFixCounterfactualTests` to cover all three bundles"); iter
+38's "What this does NOT do" pre-recorded the same forcing function
+("a natural typed-test extension if a future iteration chooses
+oracle-trustworthiness as its frontier anchor, parallel in shape to
+iter 35's promotion of iter-33's prose-only counterfactual to the
+typed test"). Iteration is implicit closure-discipline ratification
+of iter 38 via the closure-discipline rule's "next pass not
+re-raising" route — verifying iter 38's typed-artifact claims
+against `bench/RESULTS.md:68` and the live
+`select_json_envelope_actual` selector by re-running the post-fix
+selector replay against T19 during test authoring.
+
+- **Disturbed axis:** oracle trustworthiness — the F4 closure trail
+  has positive regression evidence pinned mechanically across all
+  three trajectories (iter 32's `F4ClosureBundleReplayTests` for T16
+  positive case + the post-fix selector replays against T11 and T19
+  exercised during iter 33 / iter 35 / iter 36 / iter 37 / iter 38
+  verification work) and negative regression evidence pinned
+  mechanically for two of the three trajectories (iter 35's
+  `F4PreFixCounterfactualTests` covering T16 + T11). The third
+  trajectory's pre-fix-FAIL claim was recorded mechanically by iter 37
+  and re-executed mechanically by iter 38, but only as one-off
+  verification runs in ledger prose — no typed test pinned the T19
+  negative case until iter 39. The structural gap is identical in
+  shape to the gap iter 35 closed for T11: ledger-memory verdict
+  versus typed-artifact verdict. Per the spec's signal hierarchy,
+  promoting the verdict to a typed cheap-channel assertion narrows
+  the gap.
+- **Frontier anchor:** the spec's "missing evaluator artifact …
+  attribution probes recording the named failure class, the variant
+  outputs, and the verdict" — iter-37's prose-only T19 counterfactual
+  is the verdict for the third F4 negative-case variant; promoting it
+  to a typed test makes the variant outputs durable and machine-
+  derivable. Same-shape precedent: iter 28 promoted iter-27's corpus-
+  vacuous-path prose claim to `ScorerDispatcherBranchTests`; iter 30
+  promoted F4 identification to 8 synthetic
+  `JsonEnvelopeActualSelectionTests`; iter 32 promoted iter-30 / iter-31
+  prose-only positive replay claim to `F4ClosureBundleReplayTests`
+  against the iter-29 T16 bundle; iter 35 promoted iter-33's prose-
+  only negative-case counterfactual to `F4PreFixCounterfactualTests`
+  covering iter-29 T16 + iter-33 T11. Iter 39 is the fifth instance
+  of the same shape, applied to the third F4-relevant durable bundle.
+  Additionally, iter-37's same-family-rule-discharge entry and
+  iter-38's "What this does NOT do" both explicitly identified this
+  extension as a forward-pointing forcing function.
+- **Change shape:**
+  - Extended `F4PreFixCounterfactualTests.BUNDLES` in
+    `bench/test_harness_json.py` from a 2-tuple list to a 3-tuple
+    list, appending an entry for the iter-37 T19 PI bundle:
+    `("T19",
+    REPO_ROOT / "bench/runs/checkpoint-pi-T19-mdtools-gpt5.4mini-2026-04-26"
+    / "logs/T19_mdtools_1777230034/agent_output.txt",
+    ["phases", "totals"])`. The expected-top-keys field matches the
+    iter-37 / iter-38 ratification's recorded value for
+    `bench/expected/t19_summary.json`.
+  - Added a third test method
+    `test_iter_37_t19_bundle_fails_under_pre_fix_selector` that
+    delegates to the existing `_replay_pre_fix` helper with
+    `BUNDLES[2]` (the T19 entry). The helper itself is unchanged from
+    iter 35; the same assertion structure (parsed selector output is
+    a JSON dict with top keys exactly `['results','schema_version']`,
+    `score_task` returns `ok_md=False`, `ok_neutral=False`, with
+    `'json_canonical: MISMATCH'` in the report, plus
+    `expected_output` top-level keys match the rationale) applies to
+    T19 because T19's trajectory shape is structurally analogous to
+    T11's (intermediate `md tasks --json` envelope + matching text
+    answer), with the addition of one empty list `[]` from a `jq`
+    filter at tool[2] and one non-JSON tab-separated text at tool[3].
+    The pre-fix helper's `len(parsed) > 0` check (load-bearing per
+    iter 37's learning #2) skips tool 2's empty list and tool 3's
+    JSON-decode error, so the loop correctly identifies tool 1 as
+    the first non-empty parseable JSON dict in reversed order.
+  - Updated the `F4PreFixCounterfactualTests` class docstring from
+    "(iter 35) — promotes iter-33's prose-only ledger claim … across
+    both F4-relevant durable bundles (T16 from iter 29, T11 from
+    iter 33)" to "(iter 35 + iter 39) — promotes iter-33's prose-
+    only ledger claim … across all three F4-relevant durable bundles
+    (T16 from iter 29, T11 from iter 33, T19 from iter 37)".
+  - No edit to the `_pre_iter30_select_json_envelope_actual` helper —
+    the historical-code reproduction is unchanged from iter 35; the
+    git ref `7b36502:bench/harness.py:1404-1429` is the same source
+    of truth for the T19 counterfactual as for the T16 / T11
+    counterfactuals. No edit to `bench/harness.py` — the live
+    `select_json_envelope_actual` selector at line 1481 is unchanged.
+    No edit to `bench/RESULTS.md`. No edit to the F4 finding body
+    archived under "## CLOSED" or to any historical iter entry inline
+    (per iter-15 / -22 / -24 / -26 / -27 / -28 / -30 / -31 / -32 /
+    -33 / -34 / -35 / -36 / -37 / -38 no-silent-edit discipline).
+- **Tests added:** 1 — `F4PreFixCounterfactualTests
+  .test_iter_37_t19_bundle_fails_under_pre_fix_selector`. Total
+  python unittest count rose from 81 (post-iter-32 / post-iter-35,
+  sustained through iter 38) to **82**, sustained across the eight
+  spec-named modules (`bench.test_command_policy`,
+  `bench.test_oai_loop`, `bench.test_pi_audit`,
+  `bench.test_harness_json`, `bench.test_harness_run_artifacts`,
+  `bench.test_harness_task_split`, `bench.test_analyze_inputs`,
+  `bench.test_report_inputs`).
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: 32 + 37 + 16 + 0 (parser /
+    integration counts plus benchmarks empty).
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports "Ran
+    82 tests in 2.256s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+  - The new test runs deterministically in well under 100ms via
+    `_replay_pre_fix` (file I/O + JSON parsing + scorer invocation,
+    no network calls, no model invocations, no md_binary shell-out
+    because T19 routes to `score_json_canonical` per iter-25's
+    dispatcher classification).
+- **Closure-discipline ratification of iter 38 (implicit):** iter 38's
+  closure-discipline ratification of iter 37 is implicitly ratified
+  by iter 39 not re-raising any of iter 38's typed-artifact claims —
+  authoring the new test required reading the iter-37 T19 bundle's
+  `agent_output.txt` (parsed via `parse_pi_json_output`, yielding 4
+  tool outputs and 1 text output exactly as iter 38 cited: tool 0
+  `['entries','file','schema_version']`, tool 1
+  `['results','schema_version']`, tool 2 empty list `[]`, tool 3
+  non-JSON tab-separated text starting `Phase 0: Schema Normalization
+  …`, text[0] starting `{"phases":[…`), confirming
+  `bench/expected/t19_summary.json` has top keys `['phases','totals']`
+  bit-exact, and observing the live `select_json_envelope_actual` at
+  `bench/harness.py:1481` (still at the same line; no drift since iter
+  31's authoring), all of which match iter 38's citations bit-exact.
+  Iter 38's forward-pointing observation about iter-37's "eleventh
+  bundle reference paragraph" wording typo (actual count is **tenth**)
+  is recorded in iter 38's body and not addressed here per
+  no-silent-edit discipline; the count is now self-evident to any
+  reader since iter 38's edit to `bench/RESULTS.md:68` landed.
+- **Comparability framing:** This iteration introduces no expensive
+  channel run, no new claim, no holdout exercise, no new product
+  surface, no scorer change, no new search-set or holdout-set bundle.
+  The counterfactual is over a **durable artifact already on disk**
+  (the iter-37 T19 PI bundle's `agent_output.txt` file) plus the
+  faithful reconstruction of historical code that lived in the
+  repository at git ref 7b36502 (unchanged since iter 35). No
+  floating-point comparisons, no network calls, no model invocations.
+  This is **NOT** a holdout reconfirmation (T19 is search-side; no
+  holdout cell affected). It is **NOT** a cross-executor table
+  extension. It does **NOT** discharge the iter-41 forced
+  expensive-or-halt point — iter 39 increments the quiet-signal
+  counter from 1 to 2.
+- **Closure-discipline status:** **FIXED_PENDING_CONFIRMATION** at
+  authoring time. Per the spec's "FIXED ≠ CLOSED" rule, the next
+  iteration's review pass either explicitly ratifies (re-reading the
+  bundle + helper + new test bit-exact) or, by not re-raising the
+  claim, implicitly ratifies. The new test is itself the FIXED state:
+  iter 40+'s closure-discipline ratification can run `python3 -m
+  unittest bench.test_harness_json -k F4PreFixCounterfactualTests`
+  and observe the same green output (3 tests, all pass).
+- **Iter-39 same-family-rule discharge:** iter 35 was oracle-
+  trustworthiness (typed-test promotion of iter-33's prose-only
+  counterfactual to `F4PreFixCounterfactualTests` covering T16 + T11),
+  iter 36 was closure-discipline ratification of iter 35 (procedural
+  ledger-only), iter 37 was intervention-diversity (T19 expensive
+  forced expensive-or-halt), iter 38 was specification coherence
+  (`bench/RESULTS.md:68` cash-out + paired clean ratification of
+  iter 37). Iter 39 is **oracle trustworthiness** (typed-test
+  promotion of iter-37's prose-only counterfactual claim, extending
+  the iter-35 test class with a T19 case). The axis returns to
+  oracle-trustworthiness but with three intervening different-axis
+  iterations (iter 36 closure-discipline, iter 37 intervention-
+  diversity, iter 38 specification coherence) breaking same-family
+  concentration cleanly — no 2+ consecutive same-axis chain triggers
+  the rule. Same shape as iter 35's discharge of any prior pressure:
+  an oracle-trustworthiness typed-test promotion landing one
+  iteration after a non-oracle-trustworthiness iteration is
+  admissible without invoking an escape clause. Closure-discipline
+  ratification of iter 38 is implicit (paired with the substantive
+  test addition, not isolated as a separate ledger-only iteration —
+  iter 19 / iter 34 / iter 38 paired pattern, not iter 22 / iter 27 /
+  iter 31 / iter 36 separated pattern).
+- **What this does NOT do:**
+  - Does not change the live `select_json_envelope_actual` selector at
+    `bench/harness.py:1481` — F4 closure semantics are unchanged.
+  - Does not change the `_pre_iter30_select_json_envelope_actual`
+    helper — the historical-code reproduction is unchanged from iter
+    35; the git ref `7b36502:bench/harness.py:1404-1429` reproduction
+    is bit-exact and applies identically to all three durable
+    bundles. The helper docstring's "T11 and T16" note is unchanged
+    (the T19 coverage is recorded on the test class docstring above
+    it, not in the helper that does the actual reproduction work).
+  - Does not add a new claim to `bench/RESULTS.md` or `README.md` —
+    no published-narrative edit. The cross-executor inventory
+    paragraph at `bench/RESULTS.md:68` still cites ten PI bundles
+    with the same not-yet-eligible-for-the-table caveat for T2 / T11
+    / T19 / T21; the F4 closure note at `bench/RESULTS.md:72` is
+    unchanged.
+  - Does not exercise any expensive channel — no PI runner invocation,
+    no OAI loop run, no holdout reconfirmation. Quiet-signal counter
+    increments accordingly (1 → 2).
+  - Does not produce a new `bench/runs/` bundle — works exclusively
+    against the iter-37 T19 durable bundle that already exists on
+    disk under `bench/runs/checkpoint-pi-T19-mdtools-gpt5.4mini-2026-04-26/`.
+  - Does not promote any candidate product surface to anchor status
+    — no `bench/probes/` directory work, no Phase B0 justification
+    needed because no new primitive is proposed. The
+    `bench/probes/anchor-validation/` directory still does not exist.
+  - Does not bump `holdout_version` (still 1; T19 is search-side, no
+    holdout-side artifact change). Does not re-raise F4 or any other
+    CLOSED finding. Does not edit `README.md`, `CLAUDE.md`,
+    `bench/retracted_2026-04-24/README.md`, or `specs/**`.
+
 ### Specification coherence — iter-37 T19 PI bundle reference extension (2026-04-26 iter 38)
 
 Cashed out iter 37's T19 PI bundle by extending `bench/RESULTS.md`'s
@@ -4415,27 +4636,33 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 38)
+### Halt-condition / quiet-signal status (after iter 39)
 
-After iter 38's specification-coherence cash-out of iter-37's T19 PI
-bundle into `bench/RESULTS.md:68`'s cross-executor inventory paragraph
-as the tenth-bundle reference, paired with closure-discipline
-ratification of iter 37 (every typed-artifact claim and the post-/
-pre-iter-30 selector counterfactual reproducing bit-exact, no fresh
-failing trace surfaced; one forward-pointing observation on iter-37's
-"eleventh bundle reference paragraph" wording recorded per no-silent-
-edit discipline) — see "Specification coherence — iter-37 T19 PI
-bundle reference extension (2026-04-26 iter 38)" CLOSED entry above:
+After iter 39's oracle-trustworthiness hardening — extending
+`F4PreFixCounterfactualTests` in `bench/test_harness_json.py` with a
+third bundle entry and a third test method covering the iter-37 T19
+PI bundle (parallel to iter-35's coverage of iter-29 T16 + iter-33
+T11), promoting iter-37's prose-only counterfactual claim to a typed
+cheap-channel assertion. Implicit closure-discipline ratification of
+iter 38 via the closure-discipline rule's "next pass not re-raising"
+route — verifying iter 38's typed-artifact claims against
+`bench/RESULTS.md:68` and the live `select_json_envelope_actual`
+selector by re-running the post-fix selector replay against T19
+during test authoring. See "F4 closure trail extension: iter-37 T19
+counterfactual typed cheap-channel assertion (2026-04-26 iter 39)"
+CLOSED entry above.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **9** (iter 30 + iter 31 + iter 32 +
-  iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38). The
+  iter 30 now stands at count **10** (iter 30 + iter 31 + iter 32 +
+  iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
+  39). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
   gate halt; see below. F4 was not re-raised by iter 33's expensive-
-  channel extension, iter 37's T19 expensive run, or iter 38's
-  cash-out + ratification; the new T19 PI bundle's PASS on a third
+  channel extension, iter 37's T19 expensive run, iter 38's cash-out
+  + ratification, or iter 39's typed-test promotion of iter-37's
+  prose-only counterfactual; the new T19 PI bundle's PASS on a third
   agent trajectory exhibiting the same recovery shape (intermediate
   JSON tool outputs + text answer in assistant turn) that originally
   caused F4 on T16 further confirms iter 31's closure call by
@@ -4444,7 +4671,12 @@ bundle reference extension (2026-04-26 iter 38)" CLOSED entry above:
   (iter 37) all PI-tested, the json_envelope + json_canonical scorer
   cell shape is now exhaustively covered under PI; the published-
   narrative `bench/RESULTS.md:68` paragraph as of iter 38 explicitly
-  records this coverage closure.
+  records this coverage closure. After iter 39, the
+  `F4PreFixCounterfactualTests` class now mechanically pins the
+  pre-iter-30 selector counterfactual against all three F4-relevant
+  durable bundles (T16 + T11 + T19), making the negative-case
+  rationale machine-derivable for every F4 attack-vector trajectory
+  surfaced under PI to date.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -4543,28 +4775,59 @@ bundle reference extension (2026-04-26 iter 38)" CLOSED entry above:
   fresh failing trace surfaced on the typed-artifact data points,
   one forward-pointing observation on iter-37's "eleventh bundle
   reference paragraph" wording recorded; counter increments to
-  **1**). Iter 41 the next forced expensive-or-halt point per the
+  **1**), iter 39 quiet (cheap-channel-only oracle-trustworthiness
+  hardening — promoting iter-37's prose-only T19 counterfactual
+  claim to a typed cheap-channel assertion via extending
+  `F4PreFixCounterfactualTests` from 2 bundle entries (T16 + T11) to
+  3 (T16 + T11 + T19) with one new test method, +1 unit test
+  bringing the total from 81 to **82**, no expensive run, F4 not
+  re-raised, iter 38 implicitly ratified by the closure-discipline
+  rule's "next pass not re-raising" route via bit-exact verification
+  of `bench/RESULTS.md:68` and the live selector at
+  `bench/harness.py:1481` during test authoring; counter increments
+  to **2**). Iter 41 the next forced expensive-or-halt point per the
   spec's "3 consecutive iterations with cheap channel green and no
   new finding" rule unless an expensive run independently introduces
   fresh signal that resets the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
-  server) per iter 7. After iter 38, the remaining PI-runner-coverage
+  server) per iter 7. After iter 39, the remaining PI-runner-coverage
   gaps are: cross-mode (no PI hybrid or PI unix bundles yet — all
   ten PI bundles are mdtools mode); cross-model (all ten use
   `openai-codex/gpt-5.4-mini` at minimal thinking); within the
   iter-25-exercised scorer cell shape, **all four** json_envelope +
   json_canonical tasks (T9 / T11 / T16 / T19) are now PI-tested
   (T9 PASS iter 25, T11 PASS iter 33, T16 FAIL frozen iter 29 as the
-  original F4 trace, T19 PASS iter 37); T3 / T5 add their own
-  scorer-branch combinations (still uncovered); the raw_bytes branch
-  beyond T18 could be extended via T10 / T12 / T13 / T15 / T17.
-  Note for future named-cheapest-probe entries: avoid the iter-21-
-  style framing that names a corpus-vacuous code path; prefer "first
-  PI cell to exercise scorer cell shape X (where X is grounded in an
-  actual `bench/tasks/tasks.json` task config)" or a task-family /
-  cross-mode / cross-model gap.
+  original F4 trace, T19 PASS iter 37) and three of the four are
+  also typed-test-pinned in negative-case (T16 + T11 + T19 covered
+  by `F4PreFixCounterfactualTests` after iter 39); T3 / T5 add their
+  own scorer-branch combinations (still uncovered); the raw_bytes
+  branch beyond T18 could be extended via T10 / T12 / T13 / T15 /
+  T17. Note for future named-cheapest-probe entries: avoid the
+  iter-21-style framing that names a corpus-vacuous code path;
+  prefer "first PI cell to exercise scorer cell shape X (where X is
+  grounded in an actual `bench/tasks/tasks.json` task config)" or a
+  task-family / cross-mode / cross-model gap.
+- **Iter-39 same-family-rule discharge:** iter 35 was oracle-
+  trustworthiness (typed-test promotion of pre-iter-30 selector
+  counterfactual to `F4PreFixCounterfactualTests` covering T16 +
+  T11), iter 36 was closure-discipline ratification of iter 35
+  (procedural ledger-only), iter 37 was intervention-diversity (T19
+  expensive forced expensive-or-halt), iter 38 was specification
+  coherence (`bench/RESULTS.md:68` cash-out + paired clean
+  ratification of iter 37). Iter 39 is **oracle trustworthiness**
+  (typed-test promotion of iter-37's prose-only counterfactual claim,
+  extending the iter-35 test class with a T19 case), shifting axis
+  cleanly from iter 38's specification coherence. The axis returns to
+  oracle-trustworthiness but with three intervening different-axis
+  iterations (iter 36 closure-discipline, iter 37 intervention-
+  diversity, iter 38 specification coherence) breaking same-family
+  concentration cleanly. Closure-discipline ratification of iter 38
+  is implicit (paired with the substantive test addition, not
+  isolated as a separate ledger-only iteration — iter 19 / iter 34 /
+  iter 38 paired pattern, not iter 22 / iter 27 / iter 31 / iter 36
+  separated pattern).
 - **Iter-38 same-family-rule discharge:** iter 33 was intervention-
   diversity (T11 expensive), iter 34 was specification coherence
   (cash-out of T11 + paired clean ratification of iter 33), iter 35
