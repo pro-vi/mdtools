@@ -14,6 +14,182 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 22)
+
+Closure-discipline review of iter-21's `comparable-harness-axis cell
+coverage extension` (T21 mdtools PI bundle, frontmatter_json scorer
+branch). Parallels iter 15's review of iter-14's quiet-signal-checkpoint
+discharge (also a non-finding bundle introduction): typed-artifact
+claims in the iter-21 entry are checked against the underlying bundle
+files. Differs from iter 15 in that two fresh failing traces surfaced
+during verification — both are citation errors **inside the iter-21
+ledger entry itself**, recorded forward-pointing here per iter-15's
+"do not silently edit historical entries" discipline. Cheap channel
+green at review time (`cargo test --quiet` all suites pass:
+24+32+37+16+0+0; 68 python unittests OK across the 8 spec-named
+modules; `harness.py --md-binary` dry-run all 24 tasks PASS
+dual-scorer).
+
+What was checked:
+
+- **Bundle metrics in `results.json`** —
+  `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/results.json`
+  re-read. Every iter-21-published number matches bit-exact:
+  `task_id=T21`, `mode=mdtools`, `correct=true`, `correct_neutral=true`,
+  `elapsed_seconds=6.7`, `tool_calls=1`, `turns=2`, `mutations=0`,
+  `requeried=false`, `bytes_observation=565`, `bytes_output=801952`,
+  `policy_violations=0`, `invalid_responses=0`,
+  `unique_invalid_responses=0`, `diff_report="frontmatter_json: OK"`,
+  `runner_error=null`, `model="openai-codex/gpt-5.4-mini"`,
+  `thinking_level="minimal"`.
+- **Run metadata in `run.json`** — re-read. Confirms
+  `runner=pi-json`, `executor=guarded`, `model=openai-codex/gpt-5.4-mini`,
+  `thinking_level=minimal`, `runs_per_task=1`, `modes=["mdtools"]`,
+  `selected_task_ids=["T21"]`, `holdout_version=1`. The
+  `holdout_version` field is on **line 20** of the file (not line 18 as
+  the iter-21 entry claims; see correction below). Aggregates section
+  reproduces the same numbers as the per-result entry.
+- **Pi-audit JSONL event count and shape** —
+  `logs/T21_mdtools_1777219293/pi-audit.jsonl` has exactly 4 lines.
+  Event-type histogram: `{model_change: 1, thinking_level_change: 1,
+  tool_call: 1, tool_result: 1}`. Matches the iter-21 entry's "4
+  events: `model_change`, `thinking_level_change`, `tool_call`,
+  `tool_result`" claim exactly.
+- **Tool-call command** — the single `tool_call` event carries
+  `input.command="./md frontmatter
+  /var/folders/sw/.../t21_frontmatter.md --json"`. Matches iter-21's
+  "(`./md frontmatter <input> --json`)" enumeration with `<input>`
+  abstracting the temp-dir path. The single `tool_result` event has
+  `outputBytes=565` matching `bytes_observation=565` exactly.
+- **Adapter summary** —
+  `bench.pi_audit_adapter.summarize_pi_audit_events` invoked on the
+  parsed event list returns `PiAuditCounters(tool_calls=1,
+  tool_results=1, tool_errors=0, bytes_observation=565, mutations=0,
+  requeried=False, policy_violations=0,
+  model='openai-codex/gpt-5.4-mini', thinking_level='minimal')`. Every
+  reported counter matches the iter-21 entry's enumeration.
+- **`compare_frontmatter_json` corpus uniqueness** — re-verified by
+  scanning `bench/tasks/tasks.json` for tasks where
+  `scorer.compare_frontmatter_json is True`: result `['T21']`. T21 is
+  the only task with that flag set; the iter-21 claim "first PI bundle
+  exercising the `compare_frontmatter_json` scorer branch" reproduces.
+- **Iter-21's implicit ratification of iter 20** —
+  `bench/harness.py:1282` and `:1318` re-read in the current file:
+  both lines carry `bytes_output = len(raw_stdout.encode())` bit-exact.
+  Iter-20's `RESULTS.md:54` line-citation correction (1229/1265 →
+  1282/1318) remains valid; iter-21's implicit ratification holds
+  through iter-22 verification.
+- **Second durable stamped bundle claim** — re-verified that
+  `bench/runs/checkpoint-pi-T2-mdtools-gpt5.4mini-2026-04-26/run.json`
+  has `holdout_version: 1` on line 20 (the iter-18 first stamped
+  bundle), and `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/run.json`
+  has `holdout_version: 1` on line 20 (the iter-21 second stamped
+  bundle). The iter-21 claim "second durable bundle in `bench/runs/`
+  carrying the iter-17 stamp on a real benchmark cell (after iter
+  18's T2 bundle)" reproduces.
+
+Forward-pointing corrections to iter-21 ledger entry (per iter-15
+"never silently edit historical entries" discipline; cross-references
+preserved instead of inline edits):
+
+- **At `bench/ledger.md:54`** — the iter-21 entry text reads
+  "parallel to iter 14's first raw_bytes coverage and **iter 22's**
+  link_destinations coverage." This is a clerical typo: the
+  T22-link_destinations PI bundle was introduced in **iter 7**, not
+  iter 22. Iter 22 is the current iteration (this confirmation review
+  pass) and produced no link_destinations bundle. The phrase should
+  read "iter 7's link_destinations coverage" (matching the established
+  pattern "iter X's Y coverage" at line 53). Verified by reading the
+  iter-7 ledger entry "Quiet-signal checkpoint discharge (2026-04-26
+  iter 7)" which describes the T22-mdtools PI bundle exercising the
+  post-F3 `compare_link_destinations` envelope normalization.
+- **At `bench/ledger.md:61–62`** — the iter-21 entry text reads
+  "`run.json` line **18** reads `\"holdout_version\": 1`". This is an
+  off-by-two error: in
+  `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/run.json`
+  the `holdout_version` field is on **line 20**, not line 18. Line 18
+  reads `"thinking_level": "minimal"`. A reader following the iter-21
+  citation would land on the wrong field. The iter-17, iter-18, and
+  iter-19 ledger entries (lines 362, 460, 539) all correctly cite
+  "line 20" for the same field on the same shape of run.json.
+  Verified by `grep -n "holdout_version"` against the bundle file
+  and the iter-21 commit (`6a81800`), confirming line 20 was the
+  position both at commit time and currently.
+
+Rationale for forward-pointing only:
+
+Per iter 15 ("Editing historical ledger entries silently is incorrect
+amendment discipline; recording corrections in the current iteration's
+entry is the correct pattern" — second-opinion ratified at 0.9
+confidence), the iter-21 entry text is preserved unchanged. Both
+corrections live in this iter-22 entry as cross-referenced
+observations. Future readers of the iter-21 entry should consult this
+iter-22 forward-pointer when reading lines 54 and 61–62.
+
+Verdict — iter-21 comparable-harness-axis cell coverage extension
+ratified, but with two ledger-internal citation corrections recorded
+forward-pointing. The bundle data itself (`results.json`, `run.json`,
+`pi-audit.jsonl`, `guard.log`, `task_ids.json`) reproduces bit-exact
+against every claim in the iter-21 entry; only the cite-line numbers
+within the iter-21 narrative prose contain typos. The closure-discipline
+rule's "next pass not re-raising the finding" criterion is satisfied
+for the bundle-introduction half; the citation typos are the kind of
+fresh failing trace that previous iterations (iter 12, iter 13, iter
+20) surfaced during ratification, here recorded as forward-pointing
+observations rather than direct edits because the trace is in the
+ledger (auxiliary memory) rather than the published narrative
+(consumer-facing). No new finding opened, no holdout artifact touched,
+no published-narrative file edited.
+
+- **Frontier anchor (review pass):** *closure-discipline rule applied
+  to bundle introduction* + *fresh failing traces in iter-21 entry*.
+  Iter 21 made specific typed-artifact claims (event count, tool-call
+  command, adapter counters, scorer-branch uniqueness, second-stamped-
+  bundle assertion, line citations to the bundle) that needed
+  independent verification. Iter 22 discharges this by reading typed
+  artifacts (results.json + run.json + pi-audit.jsonl +
+  bench/tasks/tasks.json + adapter output + bench/harness.py:1282,1318
+  + iter-7 ledger entry) rather than narrative.
+- **Same-family discharge:** iters 19–20 were two consecutive
+  spec-coherence iterations (publication, line-drift fix +
+  ratification); iter 21 broke the chain with an expensive-channel
+  frontmatter_json-coverage bundle. Iter 22 returns to a ledger-only
+  ratification entry — the same-family rule's concentration was
+  already broken by iter 21, so a single ratification entry is
+  admissible. Differs from iter 15 (no fresh trace) in that iter 22
+  surfaces two citation typos (parallel to iter 12's argparse-typo
+  and iter 13/20's line-drift corrections), but the corrections are
+  recorded forward-pointing rather than as direct edits because they
+  are in the ledger (auxiliary memory), not in published narrative.
+- **Comparability framing:** the ratification is a ledger-only
+  verification with two ledger-internal forward-pointing corrections.
+  It does not change any data, ratio, rule conclusion, pass rate,
+  bundle, scorer, or holdout artifact. It does not bump
+  `holdout_version` (still 1). It does not run the expensive outer
+  channel. It does not edit any published-narrative file
+  (`bench/RESULTS.md`, `README.md`, `CLAUDE.md`,
+  `bench/retracted_2026-04-24/README.md`, `specs/**`). The only file
+  modified is `bench/ledger.md` itself, with two additions: this
+  iter-22 entry and an updated halt-condition / quiet-signal status
+  block.
+- **Closure-discipline status:** this is a non-finding ledger-only
+  ratification entry, parallel to iter 15. Per iter-15's labeling
+  discipline, this is **not frontier expansion** in the sense of
+  evaluator repair, product change, or measurement publication. It
+  procedurally ratifies iter 21's typed-artifact claims and records
+  two forward-pointing citation corrections. The 18th consecutive
+  zero-OPEN review round holds.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not run the expensive outer channel. Does not edit
+  any historical ledger entry inline. Does not amend any pass-rate
+  claim. Does not modify any bundle or any published-narrative file.
+  Does not touch any holdout artifact. Does not extend the
+  cross-executor same-task table (no new same-task pair was made
+  available by iter-21 — T21 has no oai-loop counterpart on file,
+  per iter-21's own framing).
+
 ### Comparable-harness-axis cell coverage extension (2026-04-26 iter 21)
 
 Iter 21 broke the iters 19–20 specification-coherence chain by running
@@ -1210,22 +1386,31 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 21)
+### Halt-condition / quiet-signal status (after iter 22)
 
-After the iter-21 proactive expensive-channel run on T21 mdtools PI
-(scorer-branch coverage extension to `compare_frontmatter_json`,
-implicit ratification of iter 20; see "Comparable-harness-axis cell
-coverage extension (2026-04-26 iter 21)" above):
+After the iter-22 closure-discipline ratification of iter-21's T21
+mdtools PI bundle paired with two forward-pointing citation
+corrections to the iter-21 ledger entry (no historical entry edited
+inline, no published-narrative file modified; see "Confirmation
+review pass (2026-04-26 iter 22)" above):
 
-- **OPEN findings count:** 0. Iter 21's pre-iteration verification
-  swept all `bench/harness.py:LINE` references in published narrative
-  and all `bench/oai_loop.py` / `bench/pi_audit_adapter.py` references
-  in the ledger; every citation reproduces bit-exact against the
-  current code. Iter-20's `FIXED_PENDING_CONFIRMATION`-shaped fix
-  (RESULTS.md:54 line citations `:1282`/`:1318`) is implicitly
-  ratified by not being re-raised. The zero-OPEN state holds through
-  iters 8–21 — the **seventeenth** consecutive zero-OPEN review
-  round.
+- **OPEN findings count:** 0. Iter 22's verification re-read every
+  bundle field in
+  `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/`
+  (results.json, run.json, pi-audit.jsonl, guard.log, task_ids.json)
+  and every typed-artifact claim in the iter-21 entry against the
+  bundle and against `bench/tasks/tasks.json` and `bench/harness.py`;
+  every claim about the bundle reproduces bit-exact, two clerical
+  citation typos in the iter-21 entry's narrative prose surfaced and
+  are recorded forward-pointing in the iter-22 entry rather than as
+  silent edits to the iter-21 entry. The bundle data is the
+  authoritative typed artifact and it remains intact; the citations
+  are auxiliary memory. Iter-21's bundle introduction is implicitly
+  ratified by the bundle data check, and iter-21's implicit
+  ratification of iter-20 (`bench/harness.py:1282`/`:1318` carrying
+  `bytes_output = len(raw_stdout.encode())`) is independently
+  re-verified. The zero-OPEN state holds through iters 8–22 — the
+  **eighteenth** consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -1236,10 +1421,34 @@ coverage extension (2026-04-26 iter 21)" above):
   specification-coherence publication), iter 20 quiet
   (cheap-channel-only closure-discipline ratification + corrective
   line-drift fix), iter 21 expensive (frontmatter_json scorer-branch
-  coverage extension; counter reset to **0**). Iters 22–24 admissible
-  quiet; iter 25 is the next forced expensive-or-halt point per the
-  spec's "3 consecutive iterations with the cheap channel green, no
-  new failing trace, and no new finding added" rule.
+  coverage extension; counter reset to 0), iter 22 quiet
+  (ledger-only closure-discipline ratification + two forward-pointing
+  citation corrections; counter increments to **1**). Iters 23–24
+  admissible quiet; iter 25 is the next forced expensive-or-halt
+  point per the spec's "3 consecutive iterations with the cheap
+  channel green, no new failing trace, and no new finding added"
+  rule.
+- **Iter-22 same-family-rule discharge:** iter 19 was specification
+  coherence (additive measurement publication), iter 20 was also
+  specification coherence (corrective line-drift fix paired with
+  iter-19 ratification), iter 21 was intervention-diversity
+  (expensive channel frontmatter_json bundle). Iter 22 is a
+  ledger-only closure-discipline ratification (parallel to iter 15's
+  relation to iter 14): the iter-21 expensive run already broke any
+  prior concentration, so iter 22's single ratification entry is
+  admissible. Differs from iter 15 (no fresh trace surfaced) in that
+  iter 22 surfaces two citation typos in the iter-21 entry —
+  parallel in shape to iter 12 (argparse `--executor pi-json` typo
+  in iter-11's RESULTS.md edit), iter 13 (line-drift in RESULTS.md:152
+  for F3-a rstrip), and iter 20 (line-drift in RESULTS.md:54 for
+  bytes_output). Differs from iters 12/13/20 in that the typos are
+  in the ledger (auxiliary memory) rather than in published narrative
+  (consumer-facing), so the iter-15 "do not silently edit historical
+  entries" discipline applies and the corrections are recorded
+  forward-pointing rather than as direct edits to the iter-21 entry.
+  The "ledger-only changes do not break concentration" caveat does
+  not block this iteration because there is no concentration to break
+  (iter 21 reset it).
 - **Iter-21 same-family-rule discharge:** iter 19 was specification
   coherence (additive measurement publication), iter 20 was also
   specification coherence (corrective line-drift fix paired with
