@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from bench.command_policy import GuardEvent, load_guard_events
+from bench.command_policy import GuardEvent, classify_command_kind, load_guard_events
 from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
 from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 
@@ -210,6 +210,121 @@ class T10CanonicalReQueryCycleTests(unittest.TestCase):
         self.assertEqual(counters.mutations, 1)
         self.assertTrue(counters.requeried)
         self.assertEqual(counters.policy_violations, 0)
+
+
+class T15ParallelMutationFailureTests(unittest.TestCase):
+    """Parallel-mutation FAIL pattern (iter 47) — promotes iter-45's
+    prose-only ledger claim about T15's trajectory ('the agent
+    parallelized two dependent mutations in the same turn —
+    delete-section "Notes" and set-task 9.1 with stale loc 9.1 from
+    the pre-delete query — then re-queried and observed the failure
+    but did not recover with a third mutation') to a typed
+    cheap-channel assertion against the iter-45 T15 PI bundle. Pins
+    the dependent-mutation parallelization detection (two consecutive
+    "mutation" entries in the kind sequence with no intervening
+    "query") — the negative-shape counterpart to
+    T10CanonicalReQueryCycleTests' positive-shape canonical re-query
+    mutation cycle. Both tests anchor the F4-orthogonal closure trail
+    on the raw_bytes scorer branch (as opposed to F4ClosureBundle/
+    PreFixCounterfactual on the json_envelope branch). If the
+    adapter's classify_command_kind ever drifts such that
+    delete-section or set-task no longer classifies as "mutation",
+    or if pi_audit_adapter no longer preserves bash_command order in
+    PiAuditCounters, this test fails."""
+
+    BUNDLE_DIR = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T15-mdtools-gpt5.4mini-2026-04-26"
+        / "logs/T15_mdtools_1777234559"
+    )
+    AUDIT_PATH = BUNDLE_DIR / "pi-audit.jsonl"
+    GUARD_PATH = BUNDLE_DIR / "guard.log"
+
+    def test_audit_only_summary_pins_parallel_mutation_pattern(self) -> None:
+        if not self.AUDIT_PATH.exists():
+            self.skipTest(f"iter-45 T15 PI bundle audit not present at {self.AUDIT_PATH}")
+        events = load_pi_audit_events(self.AUDIT_PATH)
+        # 16 events: model_change + thinking_level_change + 7×(tool_call + tool_result)
+        self.assertEqual(len(events), 16)
+
+        counters = summarize_pi_audit_events(events)
+        self.assertEqual(counters.tool_calls, 7)
+        self.assertEqual(counters.tool_results, 7)
+        self.assertEqual(counters.tool_errors, 0)
+        self.assertEqual(counters.mutations, 2)
+        self.assertTrue(counters.requeried)
+        self.assertEqual(counters.policy_violations, 0)
+        self.assertEqual(counters.blocked, 0)
+        self.assertEqual(counters.bytes_observation, 4987)
+        self.assertEqual(counters.model, "openai-codex/gpt-5.4-mini")
+        self.assertEqual(counters.thinking_level, "minimal")
+        # 7-call FAIL trajectory (4-turn): turn-1 outline+tasks (queries),
+        # turn-2 delete-section + set-task (parallel mutations on stale loc),
+        # turn-3 outline + tasks --status pending + cat (queries), turn-4 stop.
+        self.assertEqual(len(counters.bash_commands), 7)
+        self.assertIn("./md outline", counters.bash_commands[0])
+        self.assertIn("--json", counters.bash_commands[0])
+        self.assertIn("./md tasks", counters.bash_commands[1])
+        self.assertIn("./md delete-section 'Notes'", counters.bash_commands[2])
+        self.assertIn("-i", counters.bash_commands[2])
+        self.assertTrue(counters.bash_commands[3].startswith("./md set-task 9.1"))
+        self.assertIn("--status done", counters.bash_commands[3])
+        self.assertIn("./md outline", counters.bash_commands[4])
+        self.assertIn("--status pending", counters.bash_commands[5])
+        self.assertTrue(counters.bash_commands[6].startswith("cat "))
+        # Parallel-mutation anti-pattern: classify each bash_command and assert
+        # the kind sequence is exactly the [q,q,m,m,q,q,q] shape, with positions
+        # 2,3 forming an adjacent-mutation pair — the structural signature
+        # distinguishing this FAIL trace from T10's canonical PASS [q,m,q].
+        kinds = [classify_command_kind(cmd) for cmd in counters.bash_commands]
+        self.assertEqual(
+            kinds,
+            ["query", "query", "mutation", "mutation", "query", "query", "query"],
+        )
+        self.assertTrue(
+            any(kinds[i] == "mutation" and kinds[i + 1] == "mutation" for i in range(len(kinds) - 1)),
+            "expected adjacent mutation pair (parallel-execution anti-pattern) in kind sequence",
+        )
+
+    def test_guard_events_preserve_parallel_mutation_pattern(self) -> None:
+        if not self.AUDIT_PATH.exists() or not self.GUARD_PATH.exists():
+            self.skipTest(f"iter-45 T15 PI bundle artifacts not present at {self.BUNDLE_DIR}")
+        events = load_pi_audit_events(self.AUDIT_PATH)
+        guard_events = load_guard_events(self.GUARD_PATH)
+        # 7 guard.log entries — all allow, base_command split = 6×md + 1×cat
+        # (the cat appears at chronological position 5 in the guard.log because
+        # the turn-3 cat verification fired before the turn-3 outline + tasks
+        # --status pending re-queries were guarded; this differs from the
+        # audit-event order, which lists cat last among turn-3 tool_calls).
+        self.assertEqual(len(guard_events), 7)
+        self.assertTrue(all(e.decision == "allow" for e in guard_events))
+        base_commands = [e.base_command for e in guard_events]
+        self.assertEqual(base_commands.count("md"), 6)
+        self.assertEqual(base_commands.count("cat"), 1)
+
+        counters = summarize_pi_audit_events(events, guard_events=guard_events)
+        # Per pi_audit_adapter.py:113 the guard sequence wins over the call
+        # sequence when present. Both paths must produce mutations=2 and
+        # requeried=True for this trajectory; the kind sequence in guard
+        # chronological order is [q,q,m,m,q,q,q] — same shape as the audit-
+        # only path despite the different mid-trajectory ordering of cat.
+        self.assertEqual(counters.mutations, 2)
+        self.assertTrue(counters.requeried)
+        self.assertEqual(counters.policy_violations, 0)
+        guard_kinds = [
+            classify_command_kind(e.raw_command, e.base_command) for e in guard_events
+        ]
+        self.assertEqual(
+            guard_kinds,
+            ["query", "query", "mutation", "mutation", "query", "query", "query"],
+        )
+        self.assertTrue(
+            any(
+                guard_kinds[i] == "mutation" and guard_kinds[i + 1] == "mutation"
+                for i in range(len(guard_kinds) - 1)
+            ),
+            "expected adjacent mutation pair (parallel-execution anti-pattern) in guard sequence",
+        )
 
 
 if __name__ == "__main__":

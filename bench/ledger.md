@@ -10,6 +10,264 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### F4-orthogonal closure trail extension: T15 parallel-mutation FAIL pattern typed cheap-channel assertion (2026-04-26 iter 47)
+
+Promoted iter-45's prose-only ledger claim ("the agent parallelized
+two dependent mutations in the same turn — `delete-section 'Notes'`
+and `set-task 9.1` — where the second command's `9.1` loc was derived
+from the pre-delete file … the agent then re-queried (`md tasks
+--status pending --json` returned loc 4.1 for the same task in the
+post-delete state) and observed the failure, but did not recover with
+a third mutation") to a typed cheap-channel assertion via new
+`T15ParallelMutationFailureTests` class in `bench/test_pi_audit.py`
+with 2 tests covering both audit-only and guard-augmented call paths
+through `summarize_pi_audit_events`. Pins the dependent-mutation
+parallelization detection (kind sequence
+`[query, query, mutation, mutation, query, query, query]`, with
+positions 2 and 3 forming an adjacent-mutation pair without
+intervening query) — the **negative-shape** counterpart to iter 43's
+`T10CanonicalReQueryCycleTests` positive-shape canonical re-query
+mutation cycle (kind sequence `[query, mutation, query]`). Both
+classes anchor the F4-orthogonal closure trail on the raw_bytes
+scorer branch, complementing the F4 closure trail
+(`F4ClosureBundleReplayTests` / `F4PreFixCounterfactualTests`) on the
+json_envelope branch. Implicit ratification of iter 46 by re-reading
+the iter-45 T15 PI bundle's typed artifacts during test authoring;
+no fresh failing trace surfaced.
+
+- **Disturbed axis:** oracle-trustworthiness — iter 45's prose claims
+  about T15's parallel-execution-failure trajectory shape (`tool_calls=7`,
+  `mutations=2`, `requeried=True`, the 7-call bash command sequence,
+  the parallel-mutation anti-pattern at turn-2) lived as ledger-prose
+  only. Per iter-15 / -28 / -30 / -32 / -35 / -39 / -43 "promote prose
+  claim to typed cheap-channel test" pattern, prose claims about
+  typed-artifact properties are a structurally weaker class of evidence
+  than mechanical cheap-channel assertions, and promoting the prose
+  claim to a unit test is the natural T7 move whenever the property is
+  invariant on the bundle × adapter interaction.
+- **Frontier anchor:** iter 45's "Coverage gap closure" and "F4
+  non-relevance" sections pre-recorded the parallel-mutation pattern
+  explicitly, and iter 46's "Closure-discipline status" section
+  pre-recorded the forcing function: "A future iteration that chooses
+  oracle-trustworthiness as its frontier anchor could promote
+  iter-45's prose-only parallel-execution-failure-pattern detection to
+  a typed cheap-channel assertion (e.g., `T15ParallelMutationFailureTests`
+  class asserting the dependent-mutation parallelization detection on
+  the iter-45 PI bundle artifacts), parallel in shape to iter 43's
+  `T10CanonicalReQueryCycleTests` for the canonical re-query mutation
+  cycle — this would extend the F4-orthogonal closure trail by adding
+  a negative-shape pattern detection to complement iter 43's
+  positive-shape pattern detection." iter 47 takes that invitation
+  and follows the iter-43 / iter-45 cadence (typed-test promotion two
+  iterations after the originating expensive run, with iter-46
+  cash-out interleaved — same shape as iter 33→35, iter 37→39, iter
+  41→43).
+- **Change shape:**
+  - Extended `from bench.command_policy import GuardEvent,
+    load_guard_events` import in `bench/test_pi_audit.py:9` to
+    additionally include `classify_command_kind` (used by the new
+    test methods to compute the kind sequence from the bash_commands
+    and guard.log raw commands).
+  - Added `T15ParallelMutationFailureTests` class to
+    `bench/test_pi_audit.py` with 2 test methods:
+    `test_audit_only_summary_pins_parallel_mutation_pattern` and
+    `test_guard_events_preserve_parallel_mutation_pattern`. Both
+    load the durable iter-45 T15 bundle artifacts (`pi-audit.jsonl`
+    and `guard.log`), parse via `load_pi_audit_events` /
+    `load_guard_events`, run `summarize_pi_audit_events` (without
+    and with `guard_events=...`), and assert the parallel-mutation
+    FAIL pattern detection: `tool_calls=7`, `mutations=2`,
+    `requeried=True`, `policy_violations=0`, `bytes_observation=4987`,
+    `model='openai-codex/gpt-5.4-mini'`,
+    `thinking_level='minimal'`, plus the 7-call bash command sequence
+    pattern and the bit-exact kind sequence
+    `[query, query, mutation, mutation, query, query, query]`. Each
+    test carries a `skipTest` for fork-compat when the bundle is
+    missing, parallel in shape to `T10CanonicalReQueryCycleTests` and
+    `F4ClosureBundleReplayTests`.
+  - **No edit** to `bench/pi_audit_adapter.py`,
+    `bench/command_policy.py`, `bench/harness.py`, or any other
+    production code. No edit to `bench/RESULTS.md`. No edit to any
+    historical ledger entry inline (per iter-15 / -22 / -24 / -26 /
+    -27 / -28 / -30 / -31 / -32 / -33 / -34 / -35 / -36 / -37 / -38 /
+    -40 / -42 / -44 / -46 no-silent-edit discipline).
+- **Tests added (typed cheap-channel assertions, +2):**
+  - `T15ParallelMutationFailureTests
+    .test_audit_only_summary_pins_parallel_mutation_pattern`:
+    asserts that loading the iter-45 T15 bundle's `pi-audit.jsonl`
+    yields 16 events, and `summarize_pi_audit_events(events)` (no
+    guard-events fallback) returns `PiAuditCounters(tool_calls=7,
+    tool_results=7, tool_errors=0, bytes_observation=4987,
+    blocked=0, policy_violations=0, mutations=2, requeried=True,
+    model='openai-codex/gpt-5.4-mini', thinking_level='minimal')`
+    plus `bash_commands` matching the 7-call FAIL trajectory shape
+    (turn-1 outline + tasks queries; turn-2 delete-section + set-task
+    parallel mutations on stale loc 9.1; turn-3 outline + tasks
+    --status pending + cat queries; turn-4 stop), and the
+    audit-events-derived kind sequence
+    `[query, query, mutation, mutation, query, query, query]` with
+    explicit assertion of the adjacent-mutation pair at positions
+    2,3 (the parallel-execution anti-pattern signature).
+  - `T15ParallelMutationFailureTests
+    .test_guard_events_preserve_parallel_mutation_pattern`: asserts
+    that `load_guard_events(guard.log)` yields 7 GuardEvents (all
+    `decision='allow'`, base_command split = 6×md + 1×cat), and that
+    `summarize_pi_audit_events(events, guard_events=guard_events)`
+    preserves `mutations=2`, `requeried=True`, `policy_violations=0`
+    via the guard-sequence-wins-over-call-sequence path at
+    `bench/pi_audit_adapter.py:113`. Additionally asserts the
+    guard-events-derived kind sequence
+    `[query, query, mutation, mutation, query, query, query]` —
+    same shape as the audit-events-derived sequence despite the
+    different chronological ordering of `cat` mid-trajectory (the
+    guard.log places cat between turn-2 mutations and turn-3
+    re-queries, while the audit events list cat last among turn-3
+    parallel tool_calls; both orderings preserve the structural
+    [q,q,m,m,q,q,q] kind shape because all three turn-3 commands are
+    queries).
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: 32 + 37 + 16 + 0 (parser /
+    integration / benchmarks).
+  - `python3 -m unittest bench.test_command_policy
+    bench.test_oai_loop bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports
+    "Ran 86 tests in 1.760s … OK" (was 84 before iter 47; +2 tests
+    in `T15ParallelMutationFailureTests`).
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **Closure-discipline ratification of iter 46 (implicit):** iter
+  46's specification-coherence cash-out is implicitly ratified by
+  iter 47 not re-raising any of its typed-artifact claims —
+  authoring this entry required reading the live iter-45 T15 PI
+  bundle artifacts (`pi-audit.jsonl`, `guard.log`, `results.json`,
+  `run.json`) bit-exact during test authoring, plus the live
+  `summarize_pi_audit_events`, `load_guard_events`, and
+  `classify_command_kind` helpers, plus the 7-call bash command
+  sequence cited in iter-45's Verdict and iter-46's Data-points
+  sections. All match iter 46's citations bit-exact (16 audit
+  events, 7 guard entries all allow with the 6×md + 1×cat split,
+  `PiAuditCounters(tool_calls=7, tool_results=7, tool_errors=0,
+  bytes_observation=4987, blocked=0, policy_violations=0,
+  mutations=2, requeried=True, model='openai-codex/gpt-5.4-mini',
+  thinking_level='minimal')` bit-exact). The pattern of "every
+  ratification iteration finds at least one navigable claim that
+  doesn't survive verification" (iters 22 / -24 / -26 / -27 / -30 /
+  -31) does not fire here — iter 46 was authored carefully (verified
+  bit-exact against the bundle artifacts, the live scorer dispatcher,
+  the holdout split manifest, and the four OAI counterpart bundles),
+  consistent with iter 15 / 34 / 36 / 38 / 40 / 42 / 44's clean
+  ratification sub-shape. Same-shape ratification carryover as iter
+  43 (which implicitly ratified iter 42 through bit-exact reading of
+  the iter-41 T10 bundle artifacts during test authoring); the
+  iter-46 → iter-47 implicit ratification is the second instance of
+  this paired-cadence-with-typed-test-promotion shape on the
+  F4-orthogonal closure trail.
+- **Comparability framing:** this is **NOT** an expensive-channel
+  run (no new `bench/runs/` bundle produced; cheap-channel-only
+  oracle hardening). It is **NOT** a holdout reconfirmation (T15 is
+  search-side; no holdout cell affected). It is **NOT** an
+  extension of the F4 closure trail (T15 is `kind=raw_bytes` with
+  `expected_artifact=file_contents`, structurally orthogonal to the
+  F4 attack vector — the F4 selector at `bench/harness.py:1481` is
+  not invoked for raw_bytes tasks); F4 closure remains anchored by
+  iter 30 / 31 / 32 / 33 / 35 / 37 / 39. It is an **extension of
+  the F4-orthogonal closure trail** for the canonical re-query
+  mutation moat invariant, anchored by iter 41 (T10 expensive
+  bundle, single-mutation PASS), iter 42 (RESULTS.md eleventh-bundle
+  inventory cash-out + ratification), iter 43 (`T10CanonicalReQueryCycleTests`
+  positive-shape typed assertion), iter 44 (closure-discipline
+  ratification of iter 43), iter 45 (T15 expensive bundle,
+  multi-mutation FAIL, demonstrating the moat invariant is
+  necessary-but-not-sufficient under parallel-execution), iter 46
+  (RESULTS.md twelfth-bundle inventory cash-out + ratification),
+  and iter 47 (`T15ParallelMutationFailureTests` negative-shape
+  typed assertion). This does **NOT** re-classify T15's failure
+  mode — iter-45's "search-set observation, not a P-tier finding"
+  framing is preserved unchanged (the failure is downstream of model
+  + prompt shape, not in this repository's oracle / harness /
+  product). It does **NOT** discharge the iter-49 forced
+  expensive-or-halt point — iter 47 increments the quiet-signal
+  counter from 1 to 2.
+- **Closure-discipline status:** **FIXED_PENDING_CONFIRMATION** at
+  authoring time. iter 48+'s closure-discipline ratification can run
+  `python3 -m unittest bench.test_pi_audit -k
+  T15ParallelMutationFailureTests` and observe the same green output
+  (2 tests, all pass), promoting iter 47 to **CLOSED**. Parallel in
+  shape to iter 28 (`ScorerDispatcherBranchTests` ratification by
+  iter 29's expensive run not re-raising), iter 32
+  (`F4ClosureBundleReplayTests` → iter 33 implicit ratification),
+  iter 35 (`F4PreFixCounterfactualTests` T16+T11 → iter 36 explicit
+  ratification), iter 39 (`F4PreFixCounterfactualTests` T19
+  extension → iter 40 explicit ratification), iter 43
+  (`T10CanonicalReQueryCycleTests` → iter 44 explicit ratification).
+- **Iter-47 same-family-rule discharge:** iter 43 was
+  oracle-trustworthiness (typed-test promotion of iter-41's
+  prose-only T10 canonical re-query mutation cycle claim via new
+  `T10CanonicalReQueryCycleTests` class), iter 44 was
+  closure-discipline ratification of iter 43 (procedural
+  ledger-only), iter 45 was intervention-diversity (T15 expensive
+  forced expensive-or-halt), iter 46 was specification coherence
+  (`bench/RESULTS.md:68` twelfth-bundle cash-out + paired clean
+  ratification of iter 45). Iter 47 is **oracle-trustworthiness**
+  (typed cheap-channel assertion promoting iter-45's prose-only T15
+  parallel-mutation FAIL pattern claim), shifting axis cleanly from
+  iter 46's specification coherence. The "promote prose claim to
+  typed cheap-channel test" pattern has now fired **seven** times
+  in this run (iters 28 / 30 / 32 / 35 / 39 / 43 / 47) with
+  consistent shape: disturbed axis = oracle-trustworthiness,
+  frontier anchor = a prose claim about typed-artifact properties
+  surfaced by a prior expensive-channel iteration, change shape =
+  either a new test class or extending an existing one with a new
+  bundle entry, success criterion = unit test count rises by 1-8,
+  closure-discipline status = FIXED_PENDING_CONFIRMATION at
+  authoring time. The iter-47 case is structurally distinct from
+  the iter-28 / -30 / -32 / -35 / -39 / -43 cases on three axes:
+  (a) different invariant — pins the **negative-shape** parallel-
+  mutation FAIL pattern rather than positive-shape moat or F4
+  selector; (b) different bundle — anchored on iter-45 T15 (FAIL,
+  raw_bytes branch, multi-mutation) rather than iter-29 T16 (FAIL,
+  json_envelope branch, no mutations) or iter-41 T10 (PASS,
+  raw_bytes branch, single mutation); (c) different test-class role
+  — the first negative-shape pattern detection on the F4-orthogonal
+  closure trail (iter 35/39's `F4PreFixCounterfactualTests` is the
+  closest analogue on the F4 trail itself, but T15's failure is a
+  search-set observation about model+prompt-shape rather than an
+  in-repo defect, so the negative shape is a behavioral
+  invariant-of-failure rather than a regression-protection invariant).
+- **What this does NOT do:** does not modify any production code
+  (`bench/pi_audit_adapter.py`, `bench/command_policy.py`,
+  `bench/harness.py` all unchanged). Does not edit any historical
+  ledger entry inline. Does not edit any published-narrative file
+  (`bench/RESULTS.md`, `README.md`, `CLAUDE.md`,
+  `bench/retracted_2026-04-24/README.md`, `specs/**`). Does not
+  produce any new `bench/runs/` bundle. Does not bump
+  `holdout_version` (still 1). Does not extend the
+  `F4PreFixCounterfactualTests` or `F4ClosureBundleReplayTests`
+  classes — T15 is structurally orthogonal to F4 (raw_bytes
+  branch). Does not extend the `T10CanonicalReQueryCycleTests`
+  class either — T15 is the negative-shape counterpart, and
+  bundling positive and negative shapes in one class would conflate
+  two structurally distinct invariants. Does not promote any
+  product anchor (`bench/probes/anchor-validation/` still does not
+  exist). Does not amend any pass-rate claim or any model-comparison
+  framing. Does not file any P0 / P1 / P2 finding — iter 45's
+  "search-set observation, not a P-tier finding" classification
+  stands; this iteration only typed-pins the observation, it does
+  not re-classify the failure mode. Does not assert on the
+  post-mutation file contents (the bundle preserves only
+  `agent_output.txt` + `pi-audit.jsonl`, not the post-mutation
+  `t15_line_drift.md` workdir state — a "post-mutation file
+  contents match expected golden" assertion would require additional
+  bundle-side preservation infrastructure not present in iter 45).
+  Does not assert on the *recovery-failure* invariant directly (the
+  fact that turn-4 emits no third mutation after the turn-3
+  re-query observed the parallel-mutation failure) — that
+  observation is preserved as ledger prose; the typed assertion is
+  bounded to the parallel-mutation kind-sequence shape detectable
+  via classify_command_kind on the bash_commands and guard.log
+  raw_command fields, which is the minimal portable invariant.
+
 ### Specification coherence — iter-45 T15 PI bundle reference extension (2026-04-26 iter 46)
 
 Cashed out iter 45's T15 PI bundle by extending `bench/RESULTS.md`'s
@@ -6322,29 +6580,36 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 46)
+### Halt-condition / quiet-signal status (after iter 47)
 
-After iter 46's specification-coherence cash-out — twelfth-PI-bundle
-reference paragraph extension at `bench/RESULTS.md:68` for the iter-45
-T15 PI bundle, paired with clean closure-discipline ratification of
-iter 45 (every typed-artifact data point reproducing bit-exact, no
-fresh failing trace surfaced) — the quiet-signal counter increments
-from 0 to 1. The cash-out introduces a substantively distinct
-two-rule ineligibility framing (model-axis confound + PI-FAIL/OAI-PASS
-asymmetry → structurally permanently deferred) that enriches the
-inventory paragraph beyond the prior iter-23 / iter-34 / iter-38 /
-iter-42 cash-out shape. F4 closure trail unchanged; F4-orthogonal
-closure trail (re-query mutation moat invariant) unchanged from
-iter 45's "necessary but not sufficient" framing for parallel-
-execution-of-dependent-mutations cases. No new finding opened. See
-"Specification coherence — iter-45 T15 PI bundle reference extension
-(2026-04-26 iter 46)" CLOSED entry above.
+After iter 47's oracle-trustworthiness typed-test promotion — new
+`T15ParallelMutationFailureTests` class in `bench/test_pi_audit.py`
+with 2 tests pinning iter-45's prose-only parallel-mutation FAIL
+pattern claim to typed assertions on the iter-45 T15 PI bundle's
+`pi-audit.jsonl` (16 events) and `guard.log` (7 entries) artifacts,
+extending the F4-orthogonal closure trail with a negative-shape
+pattern detection complementing iter 43's positive-shape
+`T10CanonicalReQueryCycleTests`; total python unittest count rises
+from 84 to **86** across the eight spec-named modules — the
+quiet-signal counter increments from 1 to 2. iter 46 implicitly
+ratified by the closure-discipline rule's "next pass not re-raising"
+route via bit-exact verification of the iter-45 T15 PI bundle
+artifacts and the live `summarize_pi_audit_events` /
+`load_guard_events` / `classify_command_kind` helpers during test
+authoring; no fresh failing trace surfaced. F4 closure trail
+unchanged; F4-orthogonal closure trail extended with the second
+typed test class on the raw_bytes scorer branch (positive-shape
+T10CanonicalReQueryCycleTests at iter 43 + negative-shape
+T15ParallelMutationFailureTests at iter 47). No new finding opened.
+See "F4-orthogonal closure trail extension: T15 parallel-mutation
+FAIL pattern typed cheap-channel assertion (2026-04-26 iter 47)"
+CLOSED entry above.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **17** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **18** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
   39 + iter 40 + iter 41 + iter 42 + iter 43 + iter 44 + iter 45 +
-  iter 46). The
+  iter 46 + iter 47). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -6375,7 +6640,18 @@ execution-of-dependent-mutations cases. No new finding opened. See
   iter-29 frozen FAIL on json_envelope branch + T15 iter-45 FAIL on
   raw_bytes branch), each surfacing a structurally distinct failure
   class (F4 scorer logic on T16; agent parallel-execution planning
-  failure mode on T15).
+  failure mode on T15). After iter 47, the F4-orthogonal closure
+  trail on the raw_bytes scorer branch carries matched positive-
+  shape (`T10CanonicalReQueryCycleTests` at iter 43, pinning T10's
+  `[query, mutation, query]` canonical re-query cycle) and
+  negative-shape (`T15ParallelMutationFailureTests` at iter 47,
+  pinning T15's `[query, query, mutation, mutation, query, query,
+  query]` parallel-mutation anti-pattern) typed assertions —
+  structurally parallel to the F4 trail's positive-shape
+  (`F4ClosureBundleReplayTests` at iter 32, pinning T16 PASS under
+  the post-fix selector) + negative-shape (`F4PreFixCounterfactualTests`
+  at iter 35 / 39, pinning T16+T11+T19 FAIL under the pre-fix
+  selector) typed assertions on the json_envelope branch.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -6565,7 +6841,23 @@ execution-of-dependent-mutations cases. No new finding opened. See
   bundle where two compounding ineligibility rules apply
   simultaneously (model-axis confound + PI-FAIL/OAI-PASS asymmetry
   → structurally permanently deferred); counter increments to
-  **1**). Iter 49 next forced expensive-or-halt point per the
+  **1**), iter 47 quiet (cheap-channel-only oracle-trustworthiness
+  hardening — promoting iter-45's prose-only T15 parallel-mutation
+  FAIL pattern claim to a typed cheap-channel assertion via new
+  `T15ParallelMutationFailureTests` class in `bench/test_pi_audit.py`
+  covering both audit-only and guard-augmented call paths through
+  `summarize_pi_audit_events`; +2 unit tests bringing the total
+  from 84 to **86**, no expensive run, F4 not re-raised, iter 46
+  implicitly ratified by the closure-discipline rule's "next pass
+  not re-raising" route via bit-exact verification of the iter-45
+  T15 PI bundle artifacts and the live `summarize_pi_audit_events`
+  / `load_guard_events` / `classify_command_kind` helpers during
+  test authoring; the F4-orthogonal closure trail now carries
+  matched positive-shape (iter-43 T10 PASS canonical re-query
+  cycle) + negative-shape (iter-47 T15 FAIL parallel-mutation
+  anti-pattern) typed assertions, both anchored on the raw_bytes
+  scorer branch; counter increments to **2**). Iter 49 next forced
+  expensive-or-halt point per the
   spec's "3 consecutive iterations with cheap channel green and no
   new finding" rule unless an expensive run independently introduces
   fresh signal that resets the counter.
@@ -6589,6 +6881,45 @@ execution-of-dependent-mutations cases. No new finding opened. See
   cell to exercise scorer cell shape X (where X is grounded in an
   actual `bench/tasks/tasks.json` task config)" or a task-family /
   cross-mode / cross-model gap.
+- **Iter-47 same-family-rule discharge:** iter 43 was
+  oracle-trustworthiness (typed-test promotion of iter-41's
+  prose-only T10 canonical re-query mutation cycle claim via new
+  `T10CanonicalReQueryCycleTests` class), iter 44 was
+  closure-discipline ratification of iter 43 (procedural
+  ledger-only), iter 45 was intervention-diversity (T15 expensive
+  forced expensive-or-halt), iter 46 was specification coherence
+  (`bench/RESULTS.md:68` twelfth-bundle cash-out + paired clean
+  ratification of iter 45). Iter 47 is **oracle-trustworthiness**
+  (typed cheap-channel assertion promoting iter-45's prose-only T15
+  parallel-mutation FAIL pattern claim via new
+  `T15ParallelMutationFailureTests` class), shifting axis cleanly
+  from iter 46's specification coherence. The axis returns to
+  oracle-trustworthiness after three intervening different-axis
+  iterations (iter 44 closure-discipline, iter 45
+  intervention-diversity, iter 46 specification coherence), so no 2+
+  consecutive same-axis chain triggers the rule. The "promote prose
+  claim to typed cheap-channel test" pattern has now fired **seven**
+  times in this run (iters 28 / 30 / 32 / 35 / 39 / 43 / 47), but
+  iter 47 is structurally distinct from the iter-28 / -30 / -32 /
+  -35 / -39 / -43 cases on three axes: (a) different invariant —
+  pins the **negative-shape** parallel-mutation FAIL pattern rather
+  than positive-shape moat or F4 selector logic; (b) different
+  bundle — anchored on iter-45 T15 (FAIL, raw_bytes branch,
+  multi-mutation, parallel-execution anti-pattern) rather than
+  iter-29 T16 (FAIL, json_envelope branch, no mutations) or iter-41
+  T10 (PASS, raw_bytes branch, single mutation); (c) different
+  test-class role — the first negative-shape pattern detection on
+  the F4-orthogonal closure trail (iter 35 / 39's
+  `F4PreFixCounterfactualTests` is the closest analogue on the F4
+  trail itself, but T15's failure is a search-set observation about
+  model + prompt-shape rather than an in-repo defect, so the
+  negative shape is a behavioral invariant-of-failure rather than a
+  regression-protection invariant). Closure-discipline ratification
+  of iter 46 is implicit (paired with the substantive test addition,
+  not isolated as a separate ledger-only iteration — iter 19 / iter
+  34 / iter 38 / iter 42 / iter 43 paired pattern, not iter 22 /
+  iter 27 / iter 31 / iter 36 / iter 40 / iter 44 separated
+  pattern).
 - **Iter-46 same-family-rule discharge:** iter 42 was specification
   coherence (`bench/RESULTS.md:68` eleventh-bundle cash-out + paired
   clean ratification of iter 41), iter 43 was oracle-trustworthiness
