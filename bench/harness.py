@@ -1402,30 +1402,9 @@ def run_agent(
             actual = ""
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "json_envelope":
-        # Search tool outputs individually (last non-trivial JSON wins),
-        # then fall back to text outputs, then combined stdout.
-        actual = ""
-        for tool_out in reversed(all_tool_outputs):
-            try:
-                parsed = json.loads(tool_out.strip())
-                if (isinstance(parsed, (list, dict)) and len(parsed) > 0):
-                    actual = tool_out.strip()
-                    break
-            except (json.JSONDecodeError, TypeError):
-                continue
-        if not actual:
-            # Try extracting from text outputs (agent may embed JSON in prose)
-            for text_out in reversed(all_text_outputs):
-                candidate = extract_last_json(text_out)
-                try:
-                    parsed = json.loads(candidate)
-                    if (isinstance(parsed, (list, dict)) and len(parsed) > 0):
-                        actual = candidate
-                        break
-                except (json.JSONDecodeError, TypeError):
-                    continue
-        if not actual:
-            actual = extract_last_json(stdout)
+        actual = select_json_envelope_actual(
+            all_tool_outputs, all_text_outputs, stdout, expected_content
+        )
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "stdout_text":
         actual = extract_final_text(all_tool_outputs, all_text_outputs, stdout)
@@ -1473,6 +1452,78 @@ def run_agent(
         diff_report=report,
         runner_error=runner_error,
     )
+
+
+def _json_top_keys(parsed) -> set[str]:
+    """Top-level key set of a parsed JSON value, used for shape matching.
+
+    Returns a dict's keys, or the first element's keys for a non-empty
+    list of dicts. Empty set otherwise (no observable key shape)."""
+    if isinstance(parsed, dict):
+        return set(parsed.keys())
+    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+        return set(parsed[0].keys())
+    return set()
+
+
+def _expected_json_top_keys(expected_str: str) -> set[str] | None:
+    """Top-level key set of the expected JSON, or None when no
+    parseable shape is available (the caller then falls back to the
+    pre-F4 'first non-empty JSON wins' rule)."""
+    try:
+        parsed = json.loads(expected_str)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    keys = _json_top_keys(parsed)
+    return keys if keys else None
+
+
+def select_json_envelope_actual(
+    all_tool_outputs: list[str],
+    all_text_outputs: list[str],
+    stdout: str,
+    expected_str: str,
+) -> str:
+    """Pick the best `actual` string for a json_envelope task.
+
+    F4 closure (iter 30): when the expected JSON has a discoverable
+    top-level shape, prefer tool outputs whose parsed shape's
+    top-level keys overlap with the expected shape. This protects
+    against intermediate tool calls (e.g. `./md tasks --json` emitting
+    `{"schema_version":..., "results":[...]}`) being captured when the
+    agent's correct projected answer is in assistant text. When no
+    shape-matching tool output exists, fall through to text outputs
+    first, and only then accept any non-empty parseable JSON tool
+    output (preserving pre-F4 behavior as the final fallback)."""
+    expected_top_keys = _expected_json_top_keys(expected_str)
+    fallback_tool_actual = ""
+
+    for tool_out in reversed(all_tool_outputs):
+        try:
+            parsed = json.loads(tool_out.strip())
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(parsed, (list, dict)) or len(parsed) == 0:
+            continue
+        if expected_top_keys is None:
+            return tool_out.strip()
+        if _json_top_keys(parsed) & expected_top_keys:
+            return tool_out.strip()
+        if not fallback_tool_actual:
+            fallback_tool_actual = tool_out.strip()
+
+    for text_out in reversed(all_text_outputs):
+        candidate = extract_last_json(text_out)
+        try:
+            parsed = json.loads(candidate)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(parsed, (list, dict)) and len(parsed) > 0:
+            return candidate
+
+    if fallback_tool_actual:
+        return fallback_tool_actual
+    return extract_last_json(stdout)
 
 
 def extract_last_json(text: str) -> str:
