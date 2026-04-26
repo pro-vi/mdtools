@@ -10,6 +10,187 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### F4-orthogonal closure trail: T10 canonical re-query mutation cycle typed cheap-channel assertion (2026-04-26 iter 43)
+
+Promoted iter-41's prose-only ledger claim ("T10 demonstrates the
+re-query moat in 3 tool calls: `./md tasks --status pending --json` →
+`./md set-task 5.1 -i --status done` → `./md tasks --status done
+--json` — the canonical pattern from CLAUDE.md realized end-to-end
+under PI for the first time") to a typed cheap-channel assertion via
+new `T10CanonicalReQueryCycleTests` class in `bench/test_pi_audit.py`
+with 2 tests covering both audit-only and guard-augmented call paths
+through `summarize_pi_audit_events`. Pins the canonical query →
+mutation → query pattern detection on a structurally orthogonal axis
+from `F4ClosureBundleReplayTests` / `F4PreFixCounterfactualTests`
+(re-query detection vs scorer selection; raw_bytes branch vs
+json_envelope branch). Implicit ratification of iter 42 by re-reading
+the iter-41 T10 PI bundle's typed artifacts during test authoring;
+no fresh failing trace surfaced.
+
+- **Disturbed axis:** oracle-trustworthiness — iter 41's prose claims
+  about T10's canonical re-query mutation cycle (`mutations=1`,
+  `requeried=True`, the 3-call bash command sequence) lived as
+  ledger-prose only. Per iter-15 / -28 / -30 / -32 / -35 / -39
+  "promote prose claim to typed cheap-channel test" pattern, prose
+  claims about typed-artifact properties are a structurally weaker
+  class of evidence than mechanical cheap-channel assertions, and
+  promoting the prose claim to a unit test is the natural T7 move
+  whenever the property is invariant on the bundle × adapter
+  interaction.
+- **Frontier anchor:** iter 41's "Closure-discipline status" entry
+  pre-recorded the forcing function explicitly: "the 3-call sequence
+  (`md tasks --status pending --json` → `md set-task 5.1 -i --status
+  done` → `md tasks --status done --json`) is reproducible from
+  `pi-audit.jsonl`'s `bash_commands` field, and the `requeried=True`
+  / `mutations=1` flags are derivable from the audit event sequence
+  by `bench/pi_audit_adapter.py`'s `summarize_pi_audit_events`."
+  iter 42's "What this does NOT do" further pre-recorded:
+  "[iter 42] Does not introduce a new test (the iter-41 bundle's
+  typed-test extension … is a natural oracle-trustworthiness move if
+  a future iteration chooses that axis as its frontier anchor, but
+  iter 42's axis is specification coherence)." iter 43 takes that
+  invitation.
+- **Change shape:**
+  - Added `from bench.command_policy import GuardEvent,
+    load_guard_events` to `bench/test_pi_audit.py:9` (extending the
+    existing `GuardEvent` import with `load_guard_events`).
+  - Added `T10CanonicalReQueryCycleTests` class to
+    `bench/test_pi_audit.py` with 2 test methods:
+    `test_audit_only_summary_detects_canonical_recquery_cycle` and
+    `test_guard_events_preserve_recquery_detection`. Both load the
+    durable iter-41 T10 bundle artifacts (`pi-audit.jsonl` and
+    `guard.log`), parse via `load_pi_audit_events` /
+    `load_guard_events`, run `summarize_pi_audit_events` (without
+    and with `guard_events=...`), and assert the canonical
+    re-query mutation cycle detection: `tool_calls=3`, `mutations=1`,
+    `requeried=True`, `policy_violations=0`,
+    `model='openai-codex/gpt-5.4-mini'`,
+    `thinking_level='minimal'`, plus the canonical 3-call bash
+    command sequence pattern. Each test carries a `skipTest` for
+    fork-compat when the bundle is missing, parallel in shape to
+    `F4ClosureBundleReplayTests`.
+  - **No edit** to `bench/pi_audit_adapter.py`,
+    `bench/command_policy.py`, `bench/harness.py`, or any other
+    production code. No edit to `bench/RESULTS.md`. No edit to any
+    historical ledger entry inline (per iter-15 / -22 / -24 / -26 /
+    -27 / -28 / -30 / -31 / -32 / -33 / -34 / -35 / -36 / -37 / -38 /
+    -40 no-silent-edit discipline).
+- **Tests added (typed cheap-channel assertions, +2):**
+  - `T10CanonicalReQueryCycleTests
+    .test_audit_only_summary_detects_canonical_recquery_cycle`:
+    asserts that loading the iter-41 T10 bundle's `pi-audit.jsonl`
+    yields 8 events, and `summarize_pi_audit_events(events)` (no
+    guard-events fallback) returns `PiAuditCounters(tool_calls=3,
+    tool_results=3, tool_errors=0, mutations=1, requeried=True,
+    policy_violations=0, blocked=0, model='openai-codex/gpt-5.4-mini',
+    thinking_level='minimal')` plus `bash_commands` matching the
+    canonical 3-call cycle.
+  - `T10CanonicalReQueryCycleTests
+    .test_guard_events_preserve_recquery_detection`: asserts that
+    `load_guard_events(guard.log)` yields 3 GuardEvents (all
+    `decision='allow'`, all `base_command='md'`), and that
+    `summarize_pi_audit_events(events, guard_events=guard_events)`
+    preserves `mutations=1`, `requeried=True`, `policy_violations=0`
+    via the guard-sequence-wins-over-call-sequence path at
+    `bench/pi_audit_adapter.py:113`.
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: 32 + 37 + 16 + 0 (parser /
+    integration / benchmarks).
+  - `python3 -m unittest bench.test_command_policy
+    bench.test_oai_loop bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports
+    "Ran 84 tests in 1.649s … OK" (was 82 before iter 43; +2 tests
+    in `T10CanonicalReQueryCycleTests`).
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **Closure-discipline ratification of iter 42 (implicit):** iter
+  42's specification-coherence cash-out is implicitly ratified by
+  iter 43 not re-raising any of its typed-artifact claims —
+  authoring this entry required reading the live iter-41 T10 PI
+  bundle artifacts (`pi-audit.jsonl`, `guard.log`, `results.json`,
+  `run.json`) bit-exact during test authoring, plus the live
+  `summarize_pi_audit_events` and `load_guard_events` helpers, plus
+  the canonical 3-call bash command sequence cited in iter-41's
+  Verdict and iter-42's Data-points sections. All match iter 42's
+  citations bit-exact. The pattern of "every ratification iteration
+  finds at least one navigable claim that doesn't survive
+  verification" (iters 22 / -24 / -26 / -27 / -30 / -31) does not
+  fire here — iter 42 was authored carefully (verified bit-exact
+  against the bundle artifacts, the live scorer dispatcher, the
+  holdout split manifest, and the four OAI counterpart bundles),
+  consistent with iter 15 / 34 / 36 / 38 / 40's clean ratification
+  sub-shape.
+- **Comparability framing:** this is **NOT** an expensive-channel
+  run (no new `bench/runs/` bundle produced; cheap-channel-only
+  oracle hardening). It is **NOT** a holdout reconfirmation (T10 is
+  search-side; no holdout cell affected). It is **NOT** an
+  extension of the F4 closure trail (T10 is `kind=raw_bytes` with
+  `expected_artifact=file_contents`, structurally orthogonal to the
+  F4 attack vector — the F4 selector at `bench/harness.py:1481` is
+  not invoked for raw_bytes tasks); F4 closure remains anchored by
+  iter 30 / 31 / 32 / 33 / 35 / 37 / 39. It is a **separate
+  closure trail** for the canonical re-query mutation moat
+  invariant, anchored by iter 41 (T10 expensive bundle), iter 42
+  (RESULTS.md inventory cash-out + ratification), and iter 43
+  (typed cheap-channel assertion). It does **NOT** discharge the
+  iter-45 forced expensive-or-halt point — iter 43 increments the
+  quiet-signal counter from 1 to 2.
+- **Closure-discipline status:** **FIXED_PENDING_CONFIRMATION** at
+  authoring time. iter 44+'s closure-discipline ratification can run
+  `python3 -m unittest bench.test_pi_audit -k
+  T10CanonicalReQueryCycleTests` and observe the same green output
+  (2 tests, all pass), promoting iter 43 to **CLOSED**. Parallel in
+  shape to iter 28 (`ScorerDispatcherBranchTests` ratification by
+  iter 29's expensive run not re-raising), iter 32
+  (`F4ClosureBundleReplayTests` ratification by iter 33's expensive
+  run not re-raising), iter 35 (`F4PreFixCounterfactualTests`
+  T16+T11 → iter 36 explicit ratification), iter 39
+  (`F4PreFixCounterfactualTests` T19 extension → iter 40 explicit
+  ratification).
+- **Iter-43 same-family-rule discharge:** iter 41 was intervention-
+  diversity (T10 expensive forced expensive-or-halt), iter 42 was
+  specification coherence (cross-executor inventory paragraph
+  extension + paired clean ratification of iter 41). Iter 43 is
+  **oracle-trustworthiness** (typed cheap-channel assertion
+  promoting iter-41's prose-only T10 canonical re-query cycle
+  claim), shifting axis cleanly from iter 42's specification
+  coherence. The "promote prose claim to typed cheap-channel test"
+  pattern has now fired six times in this run (iters 28 / 30 / 32 /
+  35 / 39 / 43) with consistent shape: disturbed axis = oracle-
+  trustworthiness, frontier anchor = a prose claim about typed-
+  artifact properties surfaced by a prior expensive-channel
+  iteration, change shape = either a new test class or extending an
+  existing one with a new bundle entry, success criterion = unit
+  test count rises by 1-8, closure-discipline status =
+  FIXED_PENDING_CONFIRMATION at authoring time. The iter-43 case is
+  structurally distinct from the iter-28 / -30 / -32 / -35 / -39
+  cases because it pins a re-query/mutation invariant rather than
+  an F4-trail invariant, on a different bundle (T10 vs T16/T11/T19),
+  in a different test file (`test_pi_audit.py` vs
+  `test_harness_json.py`), against a different adapter
+  (`pi_audit_adapter.summarize_pi_audit_events` vs
+  `harness.select_json_envelope_actual` + `score_task`).
+- **What this does NOT do:** does not modify any production code
+  (`bench/pi_audit_adapter.py`, `bench/command_policy.py`,
+  `bench/harness.py` all unchanged). Does not edit any historical
+  ledger entry inline. Does not edit any published-narrative file
+  (`bench/RESULTS.md`, `README.md`, `CLAUDE.md`,
+  `bench/retracted_2026-04-24/README.md`, `specs/**`). Does not
+  produce any new `bench/runs/` bundle. Does not bump
+  `holdout_version` (still 1). Does not extend the
+  `F4PreFixCounterfactualTests` class — T10 is structurally
+  orthogonal to F4 (raw_bytes branch). Does not extend the
+  `F4ClosureBundleReplayTests` class — T10 is not an F4-replay
+  trajectory. Does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does
+  not amend any pass-rate claim or any model-comparison framing.
+  Does not assert on the post-mutation file contents (the bundle
+  preserves only `agent_output.txt`, not the post-mutation
+  `t10_rollout.md` workdir state — a "post-mutation file contents
+  match expected golden" assertion would require additional
+  bundle-side preservation infrastructure not present in iter 41).
+
 ### Specification coherence — iter-41 T10 PI bundle reference extension (2026-04-26 iter 42)
 
 Cashed out iter 41's T10 PI bundle by extending `bench/RESULTS.md`'s
@@ -5313,23 +5494,26 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 42)
+### Halt-condition / quiet-signal status (after iter 43)
 
-After iter 42's specification-coherence cash-out — extending
-`bench/RESULTS.md:68`'s cross-executor inventory paragraph with an
-eleventh-bundle reference for iter 41's T10 PI bundle, paired with
-clean closure-discipline ratification of iter 41 (every typed-artifact
-claim re-verified bit-exact, no fresh failing trace surfaced) — the
-quiet-signal counter increments from 0 to 1. The substantive cash-out
-introduces no new typed signal beyond the published narrative now
-referencing the durable iter-41 bundle; F4 closure trail unchanged; no
-new finding opened. See "Specification coherence — iter-41 T10 PI
-bundle reference extension (2026-04-26 iter 42)" CLOSED entry above.
+After iter 43's oracle-trustworthiness hardening — promoting iter-41's
+prose-only T10 canonical re-query mutation cycle claim to a typed
+cheap-channel assertion via new `T10CanonicalReQueryCycleTests` class
+in `bench/test_pi_audit.py` with 2 tests covering both audit-only and
+guard-augmented call paths through `summarize_pi_audit_events` — the
+quiet-signal counter increments from 1 to 2. The cheap-channel-only
+addition introduces stronger typed evidence for the canonical
+re-query mutation moat invariant (mutations=1, requeried=True, the
+canonical 3-call bash command sequence) on a structurally orthogonal
+axis from the F4 closure trail; F4 closure trail unchanged; no new
+finding opened. See "F4-orthogonal closure trail: T10 canonical
+re-query mutation cycle typed cheap-channel assertion (2026-04-26
+iter 43)" CLOSED entry above.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **13** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **14** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
-  39 + iter 40 + iter 41 + iter 42). The
+  39 + iter 40 + iter 41 + iter 42 + iter 43). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -5489,11 +5673,22 @@ bundle reference extension (2026-04-26 iter 42)" CLOSED entry above.
   run.json, task_ids.json, pi-audit.jsonl, the four OAI 2026-04-21
   T10 mdtools cells, T10's raw_bytes scorer config, T10's absence
   from the holdout split), no fresh failing trace surfaced; counter
-  increments to **1**). Iter 45 next forced expensive-or-halt point
-  per the spec's "3 consecutive iterations with cheap channel green
-  and no new finding" rule unless an expensive run independently
-  introduces fresh signal that resets the counter (iters 43 / 44
-  admissible quiet).
+  increments to **1**), iter 43 quiet (cheap-channel-only
+  oracle-trustworthiness hardening — promoting iter-41's prose-only
+  T10 canonical re-query mutation cycle claim to a typed cheap-channel
+  assertion via new `T10CanonicalReQueryCycleTests` class in
+  `bench/test_pi_audit.py` covering both audit-only and
+  guard-augmented call paths through `summarize_pi_audit_events`,
+  +2 unit tests bringing the total from 82 to **84**, no expensive
+  run, F4 not re-raised, iter 42 implicitly ratified by the
+  closure-discipline rule's "next pass not re-raising" route via
+  bit-exact verification of the iter-41 T10 PI bundle artifacts and
+  the live `summarize_pi_audit_events` / `load_guard_events` helpers
+  during test authoring; counter increments to **2**). Iter 45 next
+  forced expensive-or-halt point per the spec's "3 consecutive
+  iterations with cheap channel green and no new finding" rule
+  unless an expensive run independently introduces fresh signal that
+  resets the counter (iter 44 admissible quiet).
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -5514,6 +5709,37 @@ bundle reference extension (2026-04-26 iter 42)" CLOSED entry above.
   scorer cell shape X (where X is grounded in an actual
   `bench/tasks/tasks.json` task config)" or a task-family / cross-mode
   / cross-model gap.
+- **Iter-43 same-family-rule discharge:** iter 39 was oracle-
+  trustworthiness (typed-test extension of
+  `F4PreFixCounterfactualTests` to T19), iter 40 was closure-
+  discipline ratification of iter 39 (procedural ledger-only), iter
+  41 was intervention-diversity (T10 expensive forced expensive-or-
+  halt), iter 42 was specification coherence (`bench/RESULTS.md:68`
+  eleventh-bundle cash-out + paired clean ratification of iter 41).
+  Iter 43 is **oracle-trustworthiness** (typed-test promotion of
+  iter-41's prose-only T10 canonical re-query mutation cycle claim
+  to a typed cheap-channel assertion via new
+  `T10CanonicalReQueryCycleTests` class), shifting axis cleanly from
+  iter 42's specification coherence. The axis returns to
+  oracle-trustworthiness after three intervening different-axis
+  iterations (iter 40 closure-discipline, iter 41
+  intervention-diversity, iter 42 specification coherence), so no 2+
+  consecutive same-axis chain triggers the rule. The "promote prose
+  claim to typed cheap-channel test" pattern has now fired six times
+  in this run (iters 28 / 30 / 32 / 35 / 39 / 43), but iter 43 is
+  structurally distinct from the iter-28 / -30 / -32 / -35 / -39
+  cases on three axes: (a) different invariant — pins re-query/
+  mutation detection rather than F4-trail scorer selection; (b)
+  different bundle — anchored on iter-41 T10 (raw_bytes branch)
+  rather than T16 / T11 / T19 (json_envelope branch); (c) different
+  test file and adapter — `test_pi_audit.py` exercising
+  `pi_audit_adapter.summarize_pi_audit_events` rather than
+  `test_harness_json.py` exercising `harness.select_json_envelope_actual`
+  + `score_task`. Closure-discipline ratification of iter 42 is
+  implicit (paired with the substantive test addition, not isolated
+  as a separate ledger-only iteration — iter 19 / iter 34 / iter 38
+  / iter 39 paired pattern, not iter 22 / iter 27 / iter 31 / iter 36
+  / iter 40 separated pattern).
 - **Iter-42 same-family-rule discharge:** iter 38 was specification
   coherence (`bench/RESULTS.md:68` tenth-bundle cash-out + paired
   clean ratification of iter 37), iter 39 was oracle-trustworthiness

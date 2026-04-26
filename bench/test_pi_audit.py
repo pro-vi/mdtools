@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from bench.command_policy import GuardEvent
+from bench.command_policy import GuardEvent, load_guard_events
 from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
 from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 
@@ -143,6 +143,73 @@ class PiRunnerTests(unittest.TestCase):
         self.assertEqual(parsed.tool_outputs, ["hi\n"])
         self.assertEqual(parsed.text_outputs, ["DONE"])
         self.assertIn("DONE", parsed.stdout)
+
+
+class T10CanonicalReQueryCycleTests(unittest.TestCase):
+    """Canonical re-query mutation moat (iter 43) — promotes iter-41's
+    prose-only ledger claim ('T10 demonstrates the re-query moat in 3 tool
+    calls: ./md tasks --status pending --json → ./md set-task 5.1 -i
+    --status done → ./md tasks --status done --json — the canonical pattern
+    from CLAUDE.md realized end-to-end under PI for the first time') to a
+    typed cheap-channel assertion against the iter-41 T10 PI bundle. Pins
+    the canonical query → mutation → query pattern detection via
+    summarize_pi_audit_events on a structurally orthogonal axis from
+    F4ClosureBundleReplayTests / F4PreFixCounterfactualTests (re-query
+    detection vs scorer selection; raw_bytes branch vs json_envelope
+    branch). If the adapter's query/mutation classifier or
+    _has_query_after_mutation logic ever drifts, this test fails."""
+
+    BUNDLE_DIR = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T10-mdtools-gpt5.4mini-2026-04-26"
+        / "logs/T10_mdtools_1777232433"
+    )
+    AUDIT_PATH = BUNDLE_DIR / "pi-audit.jsonl"
+    GUARD_PATH = BUNDLE_DIR / "guard.log"
+
+    def test_audit_only_summary_detects_canonical_recquery_cycle(self) -> None:
+        if not self.AUDIT_PATH.exists():
+            self.skipTest(f"iter-41 T10 PI bundle audit not present at {self.AUDIT_PATH}")
+        events = load_pi_audit_events(self.AUDIT_PATH)
+        # 8 events: model_change + thinking_level_change + 3×(tool_call + tool_result)
+        self.assertEqual(len(events), 8)
+
+        counters = summarize_pi_audit_events(events)
+        self.assertEqual(counters.tool_calls, 3)
+        self.assertEqual(counters.tool_results, 3)
+        self.assertEqual(counters.tool_errors, 0)
+        self.assertEqual(counters.mutations, 1)
+        self.assertTrue(counters.requeried)
+        self.assertEqual(counters.policy_violations, 0)
+        self.assertEqual(counters.blocked, 0)
+        self.assertEqual(counters.model, "openai-codex/gpt-5.4-mini")
+        self.assertEqual(counters.thinking_level, "minimal")
+        # The canonical 3-call re-query mutation cycle from CLAUDE.md
+        self.assertEqual(len(counters.bash_commands), 3)
+        self.assertIn("./md tasks", counters.bash_commands[0])
+        self.assertIn("--status pending", counters.bash_commands[0])
+        self.assertTrue(counters.bash_commands[1].startswith("./md set-task 5.1"))
+        self.assertIn("--status done", counters.bash_commands[1])
+        self.assertIn("./md tasks", counters.bash_commands[2])
+        self.assertIn("--status done", counters.bash_commands[2])
+
+    def test_guard_events_preserve_recquery_detection(self) -> None:
+        if not self.AUDIT_PATH.exists() or not self.GUARD_PATH.exists():
+            self.skipTest(f"iter-41 T10 PI bundle artifacts not present at {self.BUNDLE_DIR}")
+        events = load_pi_audit_events(self.AUDIT_PATH)
+        guard_events = load_guard_events(self.GUARD_PATH)
+        # 3 guard.log entries — all allow, all md base-command (no policy violations)
+        self.assertEqual(len(guard_events), 3)
+        self.assertTrue(all(e.decision == "allow" for e in guard_events))
+        self.assertTrue(all(e.base_command == "md" for e in guard_events))
+
+        counters = summarize_pi_audit_events(events, guard_events=guard_events)
+        # Per pi_audit_adapter.py:113 the guard sequence wins over the call
+        # sequence when present, but both paths must produce mutations=1 and
+        # requeried=True for the canonical query → mutation → query trajectory.
+        self.assertEqual(counters.mutations, 1)
+        self.assertTrue(counters.requeried)
+        self.assertEqual(counters.policy_violations, 0)
 
 
 if __name__ == "__main__":
