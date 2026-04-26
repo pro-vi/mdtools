@@ -327,5 +327,181 @@ class T15ParallelMutationFailureTests(unittest.TestCase):
         )
 
 
+class T12BatchMutationCycleTests(unittest.TestCase):
+    """Batch-mutation moat at scale (iter 51) — promotes iter-49's
+    prose-only ledger claim about T12's trajectory ('15 mutations across
+    14 turns at 41.72s with 26 tool calls, organized as three
+    query+mutation-batch sub-cycles per the kind sequence
+    [q, q, m×8, q×5, m×6, q×3, m, q] … first PI bundle exercising the
+    policy-deny guard path, first PI bundle with tool_errors=1, first PI
+    bundle where audit-only and guard-augmented summarize_pi_audit_events
+    paths produce distinct policy_violations values') to a typed
+    cheap-channel assertion against the iter-49 T12 PI bundle. Pins the
+    at-scale positive-shape pattern detection (batch-mutation moat
+    invariant scales to N=15 mutations across three sub-cycles)
+    complementing T10CanonicalReQueryCycleTests' single-mutation positive
+    shape and T15ParallelMutationFailureTests' parallel-mutation negative
+    shape — completing the F4-orthogonal closure trail's structural
+    triad on the raw_bytes scorer branch. The audit-only-vs-guard-
+    augmented policy_violations asymmetry is a previously-untested
+    structural invariant in pi_audit_adapter.summarize_pi_audit_events
+    (audit events have no native policy field; guard.log decision='deny'
+    counts trigger only on the guard-augmented branch). If the adapter's
+    classify_command_kind ever drifts on set-task batches, if the
+    re-query detection logic stops counting query-after-mutation across
+    multiple batches, or if the audit-only path starts inferring
+    policy violations from non-guard sources, this test fails."""
+
+    BUNDLE_DIR = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T12-mdtools-gpt5.4mini-2026-04-26"
+        / "logs/T12_mdtools_1777237571"
+    )
+    AUDIT_PATH = BUNDLE_DIR / "pi-audit.jsonl"
+    GUARD_PATH = BUNDLE_DIR / "guard.log"
+
+    EXPECTED_KIND_SEQUENCE = (
+        ["query"] * 2
+        + ["mutation"] * 8
+        + ["query"] * 5
+        + ["mutation"] * 6
+        + ["query"] * 3
+        + ["mutation"]
+        + ["query"]
+    )
+
+    def test_audit_only_summary_pins_batch_mutation_at_scale(self) -> None:
+        if not self.AUDIT_PATH.exists():
+            self.skipTest(f"iter-49 T12 PI bundle audit not present at {self.AUDIT_PATH}")
+        events = load_pi_audit_events(self.AUDIT_PATH)
+        # 54 events: model_change + thinking_level_change + 26 tool_call +
+        # 25 tool_result + 1 tool_error (the md block 5 out-of-range error
+        # at bash_commands[13] routes to a tool_error event, not tool_result).
+        self.assertEqual(len(events), 54)
+
+        counters = summarize_pi_audit_events(events)
+        self.assertEqual(counters.tool_calls, 26)
+        self.assertEqual(counters.tool_results, 25)
+        self.assertEqual(counters.tool_errors, 1)
+        self.assertEqual(counters.mutations, 15)
+        self.assertTrue(counters.requeried)
+        # Audit-only path: no policy field on audit events themselves, so
+        # policy_violations is structurally 0 even though the agent attempted
+        # a denied sed command at bash_commands[12] mid-trajectory.
+        self.assertEqual(counters.policy_violations, 0)
+        self.assertEqual(counters.blocked, 0)
+        self.assertEqual(counters.bytes_observation, 19161)
+        self.assertEqual(counters.model, "openai-codex/gpt-5.4-mini")
+        self.assertEqual(counters.thinking_level, "minimal")
+        # 26-call PASS trajectory across 14 turns: three query+mutation-batch
+        # sub-cycles separated by re-queries — the at-scale positive-shape
+        # complement to T10's single-mutation [q,m,q] PASS and T15's
+        # parallel-mutation [q,q,m,m,q,q,q] FAIL.
+        self.assertEqual(len(counters.bash_commands), 26)
+        # First sub-cycle: turn-1 outline+tasks queries, then 8-mutation
+        # set-task batch covering top-level + nested + grandchild + blockquote
+        # tasks under "Phase 0".
+        self.assertIn("./md outline", counters.bash_commands[0])
+        self.assertIn("--json", counters.bash_commands[0])
+        self.assertIn("./md tasks", counters.bash_commands[1])
+        for idx in range(2, 10):
+            self.assertTrue(
+                counters.bash_commands[idx].startswith("./md set-task "),
+                f"expected set-task at bash_commands[{idx}], got {counters.bash_commands[idx][:80]!r}",
+            )
+        # Second sub-cycle: tasks re-queries observe the post-batch state,
+        # the agent attempts sed for line-range verification (denied by guard
+        # in mdtools mode — appears at audit position 12 with full command
+        # preserved verbatim by the audit extension), recovers via md block
+        # queries (the first md block returns a tool_error for wrong arg
+        # shape, but the audit event still records the bash_command).
+        self.assertIn("./md tasks", counters.bash_commands[10])
+        self.assertIn("./md tasks", counters.bash_commands[11])
+        self.assertTrue(
+            counters.bash_commands[12].startswith("sed "),
+            f"expected sed at bash_commands[12], got {counters.bash_commands[12][:80]!r}",
+        )
+        self.assertIn("./md block 5", counters.bash_commands[13])
+        self.assertIn("./md block 6", counters.bash_commands[14])
+        # Then 6-mutation set-task batch picking up tasks the first batch
+        # missed (including the blockquote task at loc 6.0.0).
+        for idx in range(15, 21):
+            self.assertTrue(
+                counters.bash_commands[idx].startswith("./md set-task "),
+                f"expected set-task at bash_commands[{idx}], got {counters.bash_commands[idx][:80]!r}",
+            )
+        # Third sub-cycle: tasks + md block re-queries observe the
+        # post-second-batch state, single final set-task at index 24,
+        # final tasks re-query at index 25 to verify the mutation landed.
+        self.assertIn("./md tasks", counters.bash_commands[21])
+        self.assertIn("./md block 5", counters.bash_commands[22])
+        self.assertIn("./md block 6", counters.bash_commands[23])
+        self.assertTrue(counters.bash_commands[24].startswith("./md set-task "))
+        self.assertIn("./md tasks", counters.bash_commands[25])
+        # Batch-mutation moat-at-scale: classify each bash_command and assert
+        # the kind sequence is exactly the [q×2, m×8, q×5, m×6, q×3, m, q]
+        # shape (26 entries) — the structural signature distinguishing this
+        # PASS-at-scale from T10's single-mutation [q,m,q] PASS and T15's
+        # parallel-mutation [q,q,m,m,q,q,q] FAIL.
+        kinds = [classify_command_kind(cmd) for cmd in counters.bash_commands]
+        self.assertEqual(kinds, self.EXPECTED_KIND_SEQUENCE)
+        # Three mutation→query transitions (one per sub-cycle boundary), at
+        # positions 9→10, 20→21, and 24→25 — proving the canonical re-query
+        # mutation cycle scales cleanly across multiple batches.
+        mutation_to_query_boundaries = [
+            i for i in range(len(kinds) - 1)
+            if kinds[i] == "mutation" and kinds[i + 1] == "query"
+        ]
+        self.assertEqual(mutation_to_query_boundaries, [9, 20, 24])
+
+    def test_guard_events_expose_policy_violations_asymmetry(self) -> None:
+        if not self.AUDIT_PATH.exists() or not self.GUARD_PATH.exists():
+            self.skipTest(f"iter-49 T12 PI bundle artifacts not present at {self.BUNDLE_DIR}")
+        events = load_pi_audit_events(self.AUDIT_PATH)
+        guard_events = load_guard_events(self.GUARD_PATH)
+        # 26 guard.log entries — decision split = 25 allow + 1 deny;
+        # base_command split = 25 md + 1 sed. The sole deny is the
+        # sed -n '11,26p' line-range probe at chronological index 12,
+        # blocked by command_policy in mdtools mode (sed is not in the
+        # mdtools-mode allowlist).
+        self.assertEqual(len(guard_events), 26)
+        decisions = [e.decision for e in guard_events]
+        self.assertEqual(decisions.count("allow"), 25)
+        self.assertEqual(decisions.count("deny"), 1)
+        base_commands = [e.base_command for e in guard_events]
+        self.assertEqual(base_commands.count("md"), 25)
+        self.assertEqual(base_commands.count("sed"), 1)
+        # The denied sed is at chronological position 12, matching the audit
+        # bash_commands[12] position (no skew between audit and guard
+        # ordering because all audit tool_calls were guarded in turn).
+        self.assertEqual(guard_events[12].decision, "deny")
+        self.assertEqual(guard_events[12].base_command, "sed")
+
+        counters = summarize_pi_audit_events(events, guard_events=guard_events)
+        # Per pi_audit_adapter.py:113 the guard sequence wins over the call
+        # sequence when present. Both paths must produce mutations=15 and
+        # requeried=True for this trajectory.
+        self.assertEqual(counters.mutations, 15)
+        self.assertTrue(counters.requeried)
+        # Audit-only-vs-guard-augmented policy_violations asymmetry: the
+        # audit-only path returns 0 (audit events have no native policy
+        # field), while the guard-augmented path returns 1 (counting the
+        # single decision='deny' entry from guard.log). T12 is the first PI
+        # bundle to surface this previously-untested structural asymmetry —
+        # T10 and T15 both had policy_violations=0 on both paths because the
+        # agent never attempted a denied command in those trajectories.
+        self.assertEqual(counters.policy_violations, 1)
+        self.assertEqual(counters.blocked, 0)
+        # The guard-derived kind sequence must match the audit-derived one
+        # bit-exact (chronological ordering is identical because every audit
+        # tool_call in this trajectory was guarded — the sed deny did not
+        # short-circuit the guard pipeline; the deny was recorded and the
+        # audit tool_call still surfaced the attempted command).
+        guard_kinds = [
+            classify_command_kind(e.raw_command, e.base_command) for e in guard_events
+        ]
+        self.assertEqual(guard_kinds, self.EXPECTED_KIND_SEQUENCE)
+
+
 if __name__ == "__main__":
     unittest.main()
