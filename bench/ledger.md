@@ -59,23 +59,22 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 10)
+### Halt-condition / quiet-signal status (after iter 11)
 
-After the iter-10 expensive-channel run (see "Comparable-harness-axis cell
-coverage extension (2026-04-26 iter 10)" below):
+After the iter-11 specification-coherence pass (see "Cross-executor
+same-task measurement publication (2026-04-26 iter 11)" below):
 
-- **OPEN findings count:** 0. Iter 10 introduced fresh typed signal — a
-  previously-uncovered PI runner cell on the targeted-mutation family —
-  without surfacing a new defect. The iter-7 status block noted "third
-  consecutive review round"; iters 8, 9, and 10 each preserved the
-  zero-OPEN state without re-raising any cleared finding, so by iter-7's
-  counting convention the count is now in its sixth consecutive
-  zero-OPEN round.
+- **OPEN findings count:** 0. Iter 11 cashed out iter-10's bundle into
+  the published cross-executor section without surfacing a new defect.
+  The zero-OPEN state holds through iters 8, 9, 10, and 11 — the seventh
+  consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters 8–9
   quiet (specification-coherence cleanups on RESULTS.md and the retracted
-  README), iter 10 expensive. Counter resets to 0 after iter 10. Iters
-  11–13 admissible as quiet iterations; iter 14 would otherwise re-trigger
-  the spec's "After 3 consecutive iterations …" rule absent earlier signal.
+  README), iter 10 expensive, iter 11 quiet (specification-coherence
+  publication of the same-task cross-executor evidence iter 10 enabled).
+  Counter at 1 after iter 11. Iters 12–13 admissible as quiet iterations;
+  iter 14 would otherwise re-trigger the spec's "After 3 consecutive
+  iterations …" rule absent earlier signal.
 - **Iter-10 same-family-rule discharge:** iters 8 and 9 were both
   specification-coherence cleanups, so iter 10 was constrained by the
   same-family admissibility rule from a third spec-cleanup absent a fresh
@@ -104,6 +103,95 @@ coverage extension (2026-04-26 iter 10)" below):
   coverage*, not anchor justification — a passing T7 cell does not
   validate any candidate primitive's failure-class fit, and was not
   framed as such.
+- **Iter-11 same-family-rule discharge:** iter 11 published the same-task
+  cross-executor measurement that iter 10's bundle made possible. This is
+  specification-coherence work, the same axis as iters 8 and 9, but the
+  same-family chain was broken by iter 10's expensive-channel run, and
+  the move cites a fresh forcing function (the iter-5 P3 closure entry's
+  learning #1 — "Future cross-executor docs must avoid implying a
+  same-task comparison that does not exist" — became actionable only
+  after iter-10's T7 PI bundle paired with the pre-existing T7 OAI-loop
+  bundle). The intervention upgrades the published rule from
+  code-derived ("the gap is not driven by task or model" — asserted
+  without same-task data) to measurement-validated (three same-task
+  pairs across executors, ratios ~1,376× / ~1,677× / ~2,212×).
+
+### Cross-executor same-task measurement publication (2026-04-26 iter 11)
+
+Iter 11 cashed out iter 10's PI T7 bundle by publishing the first
+same-task cross-executor measurement table in `bench/RESULTS.md`. The
+table pairs three PI bundles (T1, T7, T22 — the only three PI bundles in
+`bench/runs/`) with their pre-existing OAI-loop counterparts and
+validates the published P3 cross-executor comparability rule with
+measurement, not just code-reading.
+
+- **Disturbance:** specification coherence — the published cross-executor
+  section in `bench/RESULTS.md:52-60` made an assertion (`The gap is not
+  driven by task or model`) supported only by a *different-task* pair
+  (T1 PI vs T20 OAI), which the iter-5 P3 closure entry's learning #1
+  flagged as a class of disclosure to avoid. Iter 10's T7 PI bundle was
+  the third PI bundle in the repo, completing the third same-task pair
+  with an existing OAI-loop counterpart. Without an iter-11-shaped
+  publication, the iter-10 bundle would sit unincorporated as a typed
+  artifact whose published implication is uncited.
+- **Anchor:** missing evaluator artifact — *durable summary for a
+  newly-run comparison*. Same anchor wording as iters 8 and 9, but the
+  intervention is *additive measurement publication* (citing new same-task
+  data) rather than *corrective reference removal* (which iters 8 and 9
+  performed). The chain was broken by iter 10's expensive run, so
+  same-axis is admissible per the same-family rule's escape clause.
+- **Change:** one targeted edit in `bench/RESULTS.md` replacing the
+  iter-5-era one-paragraph contrast (T1 PI vs T20 OAI; different cells,
+  three orders of magnitude smaller) with a same-task-validation block
+  containing (a) a 3-row table of T1 / T7 / T22 mdtools cells across
+  executors, (b) explicit acknowledgement of the model confound
+  (gpt-5.4-mini PI vs Qwen3.5-122B-A10B-4bit OAI), (c) the
+  ratio-of-magnitude observation across all three pairs, and (d) the
+  explicit caveat that the T22 OAI cell predates the F3 fix but
+  `bytes_output` / `bytes_observation` / `tool_calls` are behavior
+  measurements unaffected by F3. The **Rule** paragraph was tightened to
+  note that the same-task table corroborates the bytes_observation claim
+  with measurement, scaling with tool-call count rather than executor.
+- **Data points used:**
+  - T1 mdtools: PI (iter 4) `bytes_output=5,975,843`,
+    `bytes_observation=2,266`, 1 tool call, 0 mutations vs OAI
+    `bytes_output=2,702`, `bytes_observation=2,436`, 1 tool call,
+    0 mutations. Ratio: ~2,212×; bytes_observation Δ: −7%.
+  - T7 mdtools: PI (iter 10) `bytes_output=1,172,040`,
+    `bytes_observation=16,219`, 3 tool calls, 1 mutation vs OAI
+    `bytes_output=699`, `bytes_observation=13,671`, 3 tool calls,
+    1 mutation. Ratio: ~1,677×; bytes_observation Δ: +19%.
+  - T22 mdtools: PI (iter 7) `bytes_output=671,515`,
+    `bytes_observation=514`, 1 tool call, 0 mutations vs OAI
+    `bytes_output=488`, `bytes_observation=1,036`, 2 tool calls,
+    0 mutations. Ratio: ~1,376×; bytes_observation scales with tool-call
+    count (OAI cell made an extra read).
+- **Cheap channel:** green before and after (`cargo test -q` all suites
+  pass, 59 python unittests OK across the 8 spec-named modules,
+  `harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer).
+- **Comparability framing:** the published table is **NOT** an
+  apples-to-apples comparison — it is model-confounded across each pair
+  (PI: gpt-5.4-mini at minimal thinking; OAI: Qwen3.5-122B-A10B-4bit).
+  The rule under test is about executor stdout shape, not model. Pass
+  rates are not aggregated across the table — `correct` is a per-cell
+  fact preserved in the underlying results.json files, not republished
+  here. The behavioral consistencies the table surfaces (T1 and T7 both
+  produce the same tool-call and mutation count across executors) are
+  reported as *observations*, not as comparisons; T22's tool-call
+  divergence (1 PI vs 2 OAI) is the data point that surfaces the
+  bytes_observation scaling rule.
+- **Verdict:** specification restored. The published P3 rule is now
+  measurement-validated rather than only code-derived. The future
+  `bytes_assistant_content` ratchet remains unchanged — option (a) from
+  the original P3 entry is still a viable additive ratchet should a
+  fresh failing claim or external finding make it necessary, but no
+  forcing function exists yet. No new finding opened, no holdout
+  artifact touched (`bench/RESULTS.md` is published narrative; the T22
+  OAI-loop bundle is in `bench/runs/holdout-mdtools-...` but iter 11
+  only *cites* it — it does not modify it). A future review pass may
+  treat this measurement-publication as `FIXED_PENDING_CONFIRMATION`-
+  equivalent and ratify it by re-reading the table against the cited
+  results.json files.
 
 ### Comparable-harness-axis cell coverage extension (2026-04-26 iter 10)
 
