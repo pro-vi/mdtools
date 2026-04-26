@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T12",
+    "mode": "mdtools",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "openai-codex/gpt-5.4-mini",
+    "thinking_level": "minimal",
+    "bytes_prompt": 4413,
+    "bytes_output": 3963358,
+    "bytes_observation": 19161,
+    "tool_calls": 26,
+    "turns": 14,
+    "mutations": 15,
+    "policy_violations": 1,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 41.72,
+    "diff_report": "",
+    "runner_error": "tool_error: bash: block index 5 out of range (document has 0 blocks) Command exited with code 1"
+  }
+]
