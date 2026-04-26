@@ -14,6 +14,172 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Quiet-signal checkpoint discharge (2026-04-26 iter 25)
+
+Discharged the spec's mandated quiet-signal checkpoint after iter 22 /
+iter 23 / iter 24 each incremented the counter (1 → 2 → 3) without an
+expensive run. Iter 25 was the next forced expensive-or-halt point per
+the spec's "3 consecutive iterations with the cheap channel green, no
+new failing trace, and no new finding added" rule, parallel in
+structural position to iter 4 (after iters 1–3), iter 7 (after iters
+5–6), iter 10 (after iters 8–9 same-family spec-coherence), iter 14
+(after iters 11–13), iter 18 (after iters 15–17), and iter 21 (after
+iters 19–20).
+
+**Frontier anchor:** missing evaluator artifact — a comparable-harness-
+axis cell coverage extension. PI runner coverage now spans a seventh
+distinct scorer-function path: the `score_json_canonical` function at
+`bench/harness.py:400`, dispatched at `bench/harness.py:363` when
+`policy.kind == "structural"` AND `policy.json_canonical` is truthy
+(canonical-JSON equality with optional `json_required_keys` projection
+at `bench/harness.py:391`). All six prior PI bundles routed through
+either `score_structural_json` (T1 / T22 / T21 — `kind=structural`
+with one `compare_*` flag set and `json_canonical` falsy / unset),
+`score_normalized_text_*` (T7 / T2), or the raw_bytes branch (T18) —
+*none* exercised `score_json_canonical`. Parallel in shape to
+iter-10's anchor framing for T7 (mutation + normalized_text + re-query
+coverage extension) and iter-21's for T21 (frontmatter_json scorer-
+branch coverage extension).
+
+**Bundle citation:** `bench/runs/checkpoint-pi-T9-mdtools-gpt5.4mini-2026-04-26/`
+— seventh PI runner bundle in this repo and the first cell exercising
+the `score_json_canonical` scorer function (with `json_required_keys`
+set on T9: `["loc", "nearest_heading", "summary_text"]`) end-to-end
+through the PI executor. T9 mdtools dual-scorer PASS
+in 14.39s (`md=PASS neutral=PASS`, `diff_report: json_canonical: OK`),
+with 2 tool calls (`./md tasks ... --status pending --json` followed by
+the same command piped to a `jq` projector for the `loc` /
+`nearest_heading` / `summary_text` keys), 0 mutations, `requeried=false`,
+`bytes_observation=6,675`, `bytes_output=3,177,953`. `pi-audit.jsonl`
+preserves 6 events (`model_change` + `thinking_level_change` + 2 ×
+`tool_call` + 2 × `tool_result`) that parse cleanly via
+`bench.pi_audit_adapter.summarize_pi_audit_events` (counters: tool_calls
+2, tool_results 2, tool_errors 0, blocked 0, mutations 0,
+policy_violations 0, requeried False, bytes_observation 6675, model
+`openai-codex/gpt-5.4-mini`, thinking_level minimal,
+bash_commands matches the two issued commands). The bundle's `run.json`
+line 20 carries `holdout_version: 1` — the third durable bundle in
+`bench/runs/` carrying the iter-17 stamp (after iter-18 T2 and iter-21
+T21).
+
+**Normalization-axis disclosure:** PI runner; `model =
+openai-codex/gpt-5.4-mini`; `mode = mdtools`; `executor = guarded`;
+`thinking_level = minimal`; `runs_per_task = 1`; `holdout_version = 1`;
+T9 is on the search side (holdout split is T4/T14/T20/T22/T23/T24), so
+no holdout-repair path is implicated.
+
+**Comparability framing:** This is NOT a holdout reconfirmation
+(T9 is search-side and the cheapest-named-probe of a Qwen3.5-122B-A10B-4bit
+holdout reconfirmation remains environment-blocked per iter 7). It is
+NOT a comparison vs prior PI bundles (different task, different scorer
+function). It is NOT a comparison vs OAI bundles for T9 (no
+`search-mdtools-extraction-*` OAI bundle exists for T9 in this repo;
+scanned `bench/runs/` for T9-named cells, found only the present iter-25
+PI bundle — verified by listing `bench/runs/` and excluding the seven
+PI checkpoint dirs). It is the first PI cell to exercise (a) the
+`score_json_canonical` scorer function at `bench/harness.py:400`,
+(b) the `_project_keys` projection helper at `bench/harness.py:391`
+via the `json_required_keys` policy field, and (c) the mdtools-mode-
+with-jq-projection pattern on a structural-shape task (distinct from
+T7's mdtools-mode mutation-then-jq-free re-query and T21's mdtools-
+mode `--json` direct-extract).
+
+**What this exercises that prior PI cells did not:** Routing through
+`bench/harness.py:355`'s scorer dispatcher, the six prior PI bundles
+cover three distinct scorer functions: `score_structural_json` (T1
+heading_tree, T22 link_destinations, T21 frontmatter_json),
+`score_normalized_text_md` + `score_normalized_text_neutral` (T7
+block_text+block_order+heading_tree, T2 block_text+block_order), and
+the raw_bytes branch via the `else` arm at `bench/harness.py:378`
+(T18). T9 adds a fourth scorer function — `score_json_canonical` at
+`bench/harness.py:400` — which the dispatcher selects when
+`kind=structural` AND `json_canonical` is truthy (line 363, ahead of
+the `score_structural_json` branch at line 367). It also adds the
+first PI demonstration of the canonical mdtools+jq projection pattern
+on a benchmark task (the agent first runs `./md tasks --status pending
+--json` to inspect, then re-issues with `| jq '[.results[0].tasks[] |
+{loc, nearest_heading, summary_text}]'` to project — a pure-extraction
+analog to T7's mutate-then-re-query pattern).
+
+**Forward-pointing observation about iter-21's "compare_block_order /
+compare_block_text in isolation" framing (and iter-24's repetition of
+it):** Iter 21's learning #2 stated "only `compare_block_order` in
+isolation and `compare_block_text` in isolation are not yet exercised
+through PI (T2 and T7 use them via normalized_text but no PI bundle
+uses them via structural+block_text without other branches)." Iter 24's
+halt-condition block carried that framing forward as the named cheapest
+probe ("PI runner extending to compare_block_order/compare_block_text
+isolation cells (T9/T16/T19)"). Inspection of the live corpus
+(`bench/tasks/tasks.json`) shows that *no task in the corpus has
+`compare_block_order=true` in isolation under `kind=structural`*, and
+*no task has `compare_block_text=true` in isolation under
+`kind=structural`*: every task with `compare_block_order=true` or
+`compare_block_text=true` uses `kind=normalized_text`, not `structural`.
+The "in isolation under structural" code path in
+`score_structural_json` is therefore corpus-vacuous — it cannot be
+exercised by any current task. The actual uncovered cell shape that
+T9/T11/T16/T19 share is `kind=structural` + `json_canonical=true` +
+*all* `compare_*` flags false (with optional `json_required_keys` set
+on T9), which is what iter-25's T9 bundle exercises. Recorded
+forward-pointing in iter-25 per iter-15 / iter-22 / iter-24 discipline
+(no silent edits to historical iter-21 / iter-24 prose); the iter-21
+typo class is "framing of a corpus property that doesn't actually hold,"
+distinct from iter-22's clerical-typo class and iter-13/iter-20's
+line-drift class. The iter-24 named-cheapest-probe candidate cells
+(T9 / T16 / T19) were correct as cells; only the gap-naming was wrong.
+
+**Behavioral observation (per-model data, not finding):** gpt-5.4-mini
+at minimal thinking issued 2 tool calls on T9 mdtools — no
+`./md tasks --json` re-query for verification, just inspect-then-project.
+On T1 (iter 4) gpt-5.4-mini also used 1 tool call (extraction); on T22
+(iter 7) 1 call; on T21 (iter 21) 1 call; on T9 (iter 25) 2 calls
+(inspect + project). Only mutation tasks (T7 iter 10, T18 iter 14, T2
+iter 18) trigger the verification re-query pattern in this model. T9 is
+the first PI extraction cell where the agent issues 2 calls (project
+re-issue), refining the iter-10 learning that "the verification
+re-query is emitted spontaneously" — for *mutation* tasks. Pure
+extraction with downstream projection is a 2-call pattern (read +
+project), not a 3-call pattern (read + mutate + verify-read).
+
+**Cheap channel status:** green before and after the run.
+`cargo test -q` all four suites pass (32+37+16+0). `python3 -m unittest`
+68 tests OK across the 8 spec-named modules. `python3 bench/harness.py
+--md-binary target/release/md` dry-run reports "All tasks pass dual
+scorer" on all 24 tasks. The expensive run did not change any code; it
+produced one new directory under `bench/runs/`.
+
+**Closure-discipline status:** FIXED_PENDING_CONFIRMATION at authoring
+time. A future review pass should re-read every typed-artifact claim in
+this entry against the bundle (results.json fields, run.json
+metadata-key completeness, pi-audit.jsonl event count and shapes,
+adapter counter outputs, the seven-PI-bundle scorer-branch inventory,
+the corpus-vacuous-path verification), per the iter-15 / iter-22 / iter-24
+ratification pattern; bit-exact reproduction of every claim with no
+re-raise of a finding promotes this entry to CLOSED.
+
+**Same-family-rule discharge:** iter 22 was closure-discipline (ledger-
+only with forward-pointing typo corrections), iter 23 was specification
+coherence (substantive RESULTS.md:67 publication + closure-discipline
+ratification of iter 22), iter 24 was closure-discipline (ledger-only
+ratification of iter 23 + forward-pointing citation accuracy correction).
+Iter 25 is intervention-diversity (expensive outer channel run + new
+durable bundle), shifting axis cleanly. The quiet-signal rule's
+expensive-or-halt mandate is its own escape clause for the same-family
+rule when the iteration is forced to act, parallel to iter 4 / iter 14 /
+iter 18 / iter 21.
+
+**What this does NOT do:** This entry does not promote any new product
+surface, does not alter any scorer or harness behavior, does not touch
+the holdout split, does not run holdout reconfirmation (Qwen3.5
+environment still blocked), does not establish any cross-executor
+comparison (no OAI T9 mdtools bundle exists for pairing), does not
+discharge any product-anchor justification (no candidate primitive is
+validated by a passing T9 cell), and does not promote any
+FIXED_PENDING_CONFIRMATION entry to CLOSED beyond its own closure-
+discipline status. It only discharges the quiet-signal rule by
+introducing fresh typed signal on a previously-uncovered scorer cell
+shape.
+
 ### Confirmation review pass (2026-04-26 iter 24)
 
 Closure-discipline review of iter-23's substantive `bench/RESULTS.md:67`
@@ -1739,31 +1905,29 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 24)
+### Halt-condition / quiet-signal status (after iter 25)
 
-After the iter-24 closure-discipline review pass that ratified
-iter-23's substantive `bench/RESULTS.md:67` sixth-bundle publication
-bit-exact and surfaced one forward-pointing citation accuracy
-correction spanning iter 22 (whose `bench/ledger.md:54` and
-`:61–62` citations were never accurate at iter-22 commit time)
-and iter 23 (whose verification claim about those lines was
-internally inconsistent at iter-23 commit time); see "Confirmation
-review pass (2026-04-26 iter 24)" above:
+After iter 25's discharge of the spec's mandated quiet-signal
+checkpoint by running the expensive outer channel — produced
+`bench/runs/checkpoint-pi-T9-mdtools-gpt5.4mini-2026-04-26/`,
+the seventh PI runner bundle in this repo and the first cell
+exercising the `score_json_canonical` scorer function (at
+`bench/harness.py:400`, dispatched via the
+`kind=structural` + `json_canonical` branch at line 363) through
+the PI executor — see "Quiet-signal checkpoint discharge
+(2026-04-26 iter 25)" above:
 
-- **OPEN findings count:** 0. Iter 24's verification re-read the
-  iter-23 substantive RESULTS.md:67 sixth-bundle sentence, the
-  iter-23 ratification of iter-22's typed-artifact citations
-  (results.json, run.json, pi-audit.jsonl, harness.py:1282/1318),
-  and the OAI T21 mdtools scan (22 bundles, 0 hits). Every claim
-  reproduces bit-exact. The fresh failing trace surfaced is in the
-  iter-22 / iter-23 ledger-line-citation chain (iter 22's `:54`
-  and `:61–62` were wrong from inception; iter 23's verification
-  claim about lines 54 and 61 was already false at iter-23 commit
-  time). Recorded forward-pointing in iter 24 per iter-15
-  discipline; not a new finding because no measurement, scorer, or
-  product surface is affected — only ledger citation accuracy. The
-  zero-OPEN state holds through iters 8–24 — the **twentieth**
-  consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 25's expensive run produced a
+  `md=PASS neutral=PASS` bundle with `diff_report: json_canonical: OK`
+  and surfaced no scorer / measurement / product defect; the only
+  forward-pointing observation recorded is a structural correction to
+  iter-21's "compare_block_order/compare_block_text in isolation"
+  framing (and iter-24's repetition of it as the named cheapest
+  probe), recorded in iter 25 per the iter-15 / iter-22 / iter-24
+  no-silent-edit discipline; not a new finding because no measurement
+  or product surface is affected — only the gap-naming in the iter-21
+  / iter-24 prose. The zero-OPEN state holds through iters 8–25 —
+  the **twenty-first** consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -1781,17 +1945,49 @@ review pass (2026-04-26 iter 24)" above:
   T21 PI bundle as the sixth PI bundle in the cross-executor section;
   counter increments to 2), iter 24 quiet (ledger-only
   closure-discipline ratification of iter 23 + one forward-pointing
-  citation accuracy correction; counter increments to **3**). Iter
-  25 is now the next forced expensive-or-halt point per the spec's
-  "3 consecutive iterations with the cheap channel green, no new
-  failing trace, and no new finding added" rule. The cheapest
-  reachable expensive probe in this environment remains the PI
-  runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
+  citation accuracy correction; counter increments to **3**), iter 25
+  expensive (T9 mdtools structural-with-no-compare-flags scorer-branch
+  coverage extension; counter reset to **0**). Iters 26–28 are now
+  admissible quiet, iter 29 the next forced expensive-or-halt point.
+  The cheapest reachable expensive probe in this environment remains
+  the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
-  server) per the iter-7 ledger entry. The remaining
-  PI-runner-coverage gap iter-21 noted is `compare_block_order` /
-  `compare_block_text` in isolation, which would point at T9 / T16
-  / T19 as candidate cells.
+  server) per iter 7. After iter 25, the remaining PI-runner-coverage
+  gaps (now correctly cataloged) are: cross-mode (no PI hybrid or PI
+  unix bundles yet — all seven PI bundles are mdtools mode); cross-
+  model (all seven use `openai-codex/gpt-5.4-mini` at minimal
+  thinking); and additional task-family or scorer-cell coverage on
+  the search side (T11 / T16 / T19 share the iter-25-exercised
+  scorer-cell shape so their PI value is task-family / structure-
+  diversity rather than scorer-branch coverage; T3 / T5 add their
+  own scorer-branch combinations; the raw_bytes branch beyond T18
+  could be extended via T10 / T12 / T13 / T15 / T17). Note for
+  future named-cheapest-probe entries: avoid the iter-21-style
+  framing that names a corpus-vacuous code path; prefer "first PI
+  cell to exercise scorer cell shape X (where X is grounded in an
+  actual `bench/tasks/tasks.json` task config)" or a task-family /
+  cross-mode / cross-model gap.
+- **Iter-25 same-family-rule discharge:** iter 22 was closure-
+  discipline (ledger-only forward-pointing typo corrections), iter
+  23 was specification coherence (substantive RESULTS.md:67
+  publication + closure-discipline ratification of iter 22), iter
+  24 was closure-discipline again (ledger-only ratification of iter
+  23 + forward-pointing citation accuracy correction). Iter 25 is
+  intervention-diversity (expensive outer channel run + new durable
+  PI bundle on a previously-uncovered scorer cell shape), shifting
+  axis cleanly. The quiet-signal rule's expensive-or-halt mandate
+  is its own escape clause for the same-family rule when the
+  iteration is forced to act, parallel in structural position to
+  iter 4 (after iters 1–3 oracle-trustworthiness), iter 14 (after
+  iters 11–13 specification coherence), iter 18 (after iters 15–17
+  oracle-trustworthiness + observability), and iter 21 (after iters
+  19–20 specification coherence). The structural pattern "three
+  quiet iterations on adjacent axes followed by a forced expensive
+  axis-shift" has now fired in this run at iter 4, iter 14, iter
+  18, iter 21, and iter 25 — a stable rhythm where ledger-only and
+  cheap-channel-only iterations alternate with intervention-
+  diversity expensive runs at the spec's mandated quiet-signal
+  rule firing.
 - **Iter-24 same-family-rule discharge:** iter 22 was closure-
   discipline (ledger-only with two forward-pointing typo
   corrections), iter 23 was specification coherence (substantive
