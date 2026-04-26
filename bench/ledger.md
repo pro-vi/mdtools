@@ -14,6 +14,99 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 13)
+
+Continuation of the published-narrative-vs-typed-artifact cross-check
+pattern iter 12 began. Iter 13 swept `bench/harness.py:LINE` references
+across all published-narrative files and surfaced one stale
+line-number reference. Cheap channel green at review time and again
+after the edit (`cargo test -q` all suites pass, 59 python unittests OK
+across the 8 spec-named modules, `harness.py --md-binary` dry-run all
+24 tasks PASS dual-scorer).
+
+What was checked:
+
+- **All `harness.py:LINE` references in published-narrative files** — full
+  grep across `bench/RESULTS.md`, `bench/retracted_2026-04-24/README.md`,
+  `README.md`, `CLAUDE.md`, and `specs/**`. Three references found, all
+  in `bench/RESULTS.md`:
+  - `bench/RESULTS.md:54` → `bench/harness.py:1229` and `:1265` for the
+    pi-json and oai-loop `bytes_output = len(raw_stdout.encode())` call
+    sites. Verified — both lines match the current code (confirmed via
+    `grep -n "bytes_output = len" bench/harness.py`).
+  - `bench/RESULTS.md:151` → `bench/harness.py:443-537` for the F3
+    `score_structural_json` envelope-normalization span. Verified — the
+    current `def score_structural_json` runs from line 443 to its
+    closing `return ok_md, ok_neutral` on line 537. Matches the ledger
+    F3 entry's typed-artifact pointer.
+  - `bench/RESULTS.md:152` → `bench/harness.py:339-341` for the F3-a
+    rstrip fix. **Stale.** Current rstrip body lines are at 347-348
+    (confirmed: `git blame -L 347,348 bench/harness.py` returns commit
+    `03af07d0` from 2026-04-24, which is the F3-a FIXED commit).
+    Lines 339-341 in the current file are blank + `if policy.kind ==
+    "raw_bytes":` + `# Normalize before raw comparison if requested` —
+    none of which is the rstrip fix. The ledger F3-a CLOSED entry
+    (lines 656–660) and the iter-3 F3-a re-verification (line 586)
+    both correctly cite `bench/harness.py:347-348`.
+- **Drift origin** — `git show 03af07d:bench/harness.py | sed -n
+  '339,341p'` confirms that at the time `bench/RESULTS.md:152` was
+  authored (2026-04-24, same commit that introduced the F3-a fix), the
+  rstrip body was at lines 339-341. Subsequent edits (most prominently
+  iter 1's F3 fix at `score_structural_json`, which sits *after* the
+  raw_bytes branch in the file) shifted the F3-a rstrip body 8 lines
+  down to 347-348. The ledger entries written 2026-04-26 cite the new
+  correct position; only the published-narrative table was not updated
+  at the same time.
+- **No other `harness.py` line numbers are stale.** `bench/RESULTS.md:54`
+  and `:151` reproduce against the current code bit-exact. Sibling
+  published-narrative files (`bench/retracted_2026-04-24/README.md`,
+  `README.md`, `CLAUDE.md`, `specs/**`) carry zero `harness.py:LINE`
+  citations, so there is no parallel sweep work to do on those files.
+
+What was fixed:
+
+- **Stale line-number reference at `bench/RESULTS.md:152`** — replaced
+  `bench/harness.py:339-341` with `bench/harness.py:347-348` to match
+  the ledger F3-a CLOSED entry's typed-artifact pointer and the actual
+  position of the rstrip body lines in the current file. The narrative
+  description ("rstrip the whole string after per-line rstrip") and
+  the reproducibility-rule conclusion are unchanged. No data, ratios,
+  or pass rates touched.
+- **Frontier anchor (substantive fix):** *fresh failing trace* — a
+  reader following the cited line range lands on
+  `if policy.kind == "raw_bytes":` plus a comment, not on the rstrip
+  fix the narrative describes. This is the same shape of fresh failing
+  trace iter 12 cited for `--executor pi-json`: a published-narrative
+  pointer that does not reproduce against the underlying code. The
+  same-family rule's "cite a fresh failing trace, external finding, or
+  blocked claim" escape clause is therefore satisfied.
+- **Frontier anchor (review pass):** the iter-9 learning #1 invitation
+  to "grep for stale references across all published-narrative files
+  before declaring the sweep complete" — extended from status keywords
+  (F3 / L1 / pending-fix) to file:line citations, which iters 8–12
+  swept for status but did not systematically validate for line-number
+  drift. Iter 13 closes the line-number subset of that sweep.
+- **Comparability framing:** the line-number fix is a published-narrative
+  edit that does not change the data, the ratios, the rule conclusion,
+  or any pass rate. It does not touch any holdout artifact
+  (`bench/RESULTS.md` is published narrative). No new finding opened.
+- **Iter-12 typo-fix ratification (paired):** the iter-12 substantive
+  fix (`--executor pi-json` → `--runner pi-json` at
+  `bench/RESULTS.md:54`) was re-verified during this pass. Current
+  `bench/RESULTS.md:54` reads "selected via `--runner pi-json` on
+  `bench/harness.py`; `--executor` is a separate flag controlling
+  guarded vs legacy shell execution." Matches the iter-12 ledger
+  entry's intended diff. `bench/harness.py:1498` defines `--runner`
+  with choices `['claude-cli', 'oai-loop', 'pi-json']` and
+  `bench/harness.py:1513` defines `--executor` with choices
+  `['guarded', 'legacy']` — both confirmed via
+  `grep -n "add_argument.*runner\\|add_argument.*executor"`. The
+  iter-12 typo fix is hereby treated as having survived a confirmation
+  pass; the closure-discipline rule's "next pass not re-raising the
+  finding" criterion is satisfied. (No FIXED_PENDING_CONFIRMATION
+  ledger entry needed promotion — iter 12's substantive fix was a
+  non-finding-producing edit, not filed as a finding.)
+
 ### Confirmation review pass (2026-04-26 iter 12)
 
 Closure-discipline review of iter-11's measurement-publication, paired
@@ -153,32 +246,51 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 12)
+### Halt-condition / quiet-signal status (after iter 13)
 
-After the iter-12 closure-discipline review pass (see "Confirmation
-review pass (2026-04-26 iter 12)" above):
+After the iter-13 closure-discipline review pass (see "Confirmation
+review pass (2026-04-26 iter 13)" above):
 
-- **OPEN findings count:** 0. Iter 12 ratified iter-11's
-  measurement-publication and fixed one published-narrative typo
-  without surfacing a new defect. The zero-OPEN state holds through
-  iters 8, 9, 10, 11, and 12 — the eighth consecutive zero-OPEN review
+- **OPEN findings count:** 0. Iter 13 ratified iter-12's typo fix and
+  fixed one stale published-narrative line-number reference without
+  surfacing a new defect. The zero-OPEN state holds through iters
+  8, 9, 10, 11, 12, and 13 — the ninth consecutive zero-OPEN review
   round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters 8–9
   quiet (specification-coherence cleanups on RESULTS.md and the
   retracted README), iter 10 expensive, iter 11 quiet
   (specification-coherence publication of the same-task cross-executor
   evidence iter 10 enabled), iter 12 quiet (closure-discipline review
-  pass on iter-11 + small reproducibility typo fix). Counter at 2 after
-  iter 12. Iter 13 admissible as a quiet iteration; iter 14 would
-  otherwise re-trigger the spec's "After 3 consecutive iterations …"
-  rule absent earlier signal.
-- **Iter-12 same-family-rule discharge:** iter 11 was specification
-  coherence (additive measurement publication). Iter 12 is also
-  specification coherence (corrective reference fix), citing a fresh
-  failing trace — the published `--executor pi-json` instruction at
-  `bench/RESULTS.md:54` (added by iter 11) contradicted the harness CLI
-  flag definitions at `bench/harness.py:1498` (`--runner pi-json`) and
-  `:1513` (`--executor` distinct flag for shell mode). An external
+  pass on iter-11 + small reproducibility typo fix), iter 13 quiet
+  (closure-discipline review pass on iter-12 + small line-number drift
+  fix). Counter at 3 after iter 13. **Iter 14 must run the expensive
+  outer channel to introduce fresh signal, or emit
+  `stop-and-summarize`,** per the spec's "After 3 consecutive
+  iterations …" rule.
+- **Iter-13 same-family-rule discharge:** iter 11 was specification
+  coherence (additive measurement publication); iter 12 was
+  closure-discipline review pass + corrective spec-coherence (typo
+  fix); iter 13 is closure-discipline review pass + corrective
+  spec-coherence (line-number drift fix). Three same-axis moves in a
+  row is genuine concentration, but iter 13 cites a fresh failing
+  trace — the published `bench/harness.py:339-341` reference at
+  `bench/RESULTS.md:152` does not point to the F3-a rstrip fix in the
+  current file (the rstrip body is at 347-348, an 8-line drift since
+  the original 2026-04-24 RESULTS.md authoring). A reader following
+  the published citation lands on a comment and a branch entry, not
+  on the rstrip fix. Per the same-family rule's "cite a fresh failing
+  trace" escape clause, the trace makes the same-axis move admissible.
+  The iter-13 work is paired with the closure-discipline ratification
+  of iter 12 (parallel to iter 12's pairing of typo fix with iter-11
+  ratification, and parallel to iter 9's pairing of retracted-README
+  spec-cleanup with iter-8 RESULTS.md ratification).
+- **Iter-12 same-family-rule discharge (preserved):** iter 11 was
+  specification coherence (additive measurement publication). Iter 12
+  is also specification coherence (corrective reference fix), citing a
+  fresh failing trace — the published `--executor pi-json` instruction
+  at `bench/RESULTS.md:54` (added by iter 11) contradicted the harness
+  CLI flag definitions at `bench/harness.py:1498` (`--runner pi-json`)
+  and `:1513` (`--executor` distinct flag for shell mode). An external
   reader following the published instruction would hit argparse
   rejection. Per the same-family rule's "cite a fresh failing trace,
   external finding, or blocked claim" escape clause, the trace makes
