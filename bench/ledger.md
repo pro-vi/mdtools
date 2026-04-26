@@ -14,6 +14,132 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Quiet-signal checkpoint discharge (2026-04-26 iter 18)
+
+Per the spec's "After 3 consecutive iterations with the cheap channel
+green, no new failing trace, and no new finding added" rule flagged at
+the end of iteration 17, iter 18 ran the expensive outer channel to
+introduce fresh typed signal — and incidentally cashed out iter-17's
+holdout-version stamping work as the first durable typed artifact in
+`bench/runs/` that carries the new field. Cheap channel re-verified
+green before and after the run.
+
+- **Disturbed axis:** intervention diversity / failure legibility —
+  the quiet-signal counter at 3 after iter 17 forced an
+  expensive-channel run independently of any fresh failing trace.
+- **Frontier anchor:** *missing evaluator artifact — first PI bundle
+  carrying `holdout_version: 1` in `bench/runs/`*. The four pre-iter-17
+  PI bundles (T1, T7, T18, T22) deliberately remain unstamped (iter
+  17's "Does not modify any prior bundle" carve-out), and the iter-17
+  end-to-end proof was a `/tmp` dry-run not preserved as a checkpoint.
+  Iter 18's run produces the first durable typed artifact under
+  `bench/runs/` that carries the spec-mandated stamp on a real
+  benchmark cell. Parallel to iter 4 (first PI bundle), iter 7 (first
+  holdout PI bundle), iter 10 (first mutation PI bundle), iter 14
+  (first multistep PI bundle).
+- **Bundle:** `bench/runs/checkpoint-pi-T2-mdtools-gpt5.4mini-2026-04-26/`
+  — fifth PI runner bundle in this repo and the first
+  content-delivery-family + `--from` + agent-recovery-from-policy-deny
+  cell. T2 mdtools dual-scorer PASS in 17.72s with 4 tool calls, 1
+  mutation, 1 policy_violation, requeried=true,
+  `bytes_observation=732`, `bytes_output=1,811,504`. `diff_report:
+  block_order [md]: OK; block_text [md]: OK; block_text [neutral]: OK`.
+  pi-audit.jsonl preserves 10 events (model_change +
+  thinking_level_change + 4×tool_call + 4×tool_result), parses
+  cleanly via `bench/pi_audit_adapter.summarize_pi_audit_events`.
+  guard.log records 5 entries: 1 deny on the first attempt's `printf`
+  prefix (stdin pipe), 4 allows including the recovered
+  `--from /tmp/new_section.md` invocation.
+- **End-to-end proof of iter-17 stamping on a durable bundle:** the
+  bundle's `run.json` line 20 reads `"holdout_version": 1` alongside
+  the existing 15 metadata keys, exactly as iter-17's
+  `build_run_metadata` change wires it. This is the first durable
+  bundle-side typed evidence that iter-17's stamping survives
+  end-to-end through `harness.py main()` → `read_holdout_version()` →
+  `build_run_metadata` → `_write_atomic` to disk on a real benchmark
+  invocation (not just the iter-17 `/tmp` dry-run). Pre-iter-17
+  bundles continue to lack the field, intentionally.
+- **Cheap channel:** green before and after (cargo: 32+37+16+0 across
+  integration suites; python: 68 tests OK across the 8 spec-named
+  modules; `harness.py --md-binary` dry-run: all 24 tasks PASS
+  dual-scorer).
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T2, runs_per_task=1,
+  holdout_version=1, task-set version: live `bench/tasks/tasks.json`).
+  - **NOT** a holdout reconfirmation: T2 is search-split, not
+    holdout. The iter-7 T22 bundle remains the only holdout PI cell
+    in the repo.
+  - **NOT** a comparison versus prior PI bundles (iter-4 T1 / iter-7
+    T22 / iter-10 T7 / iter-14 T18) — different task family,
+    different scorer-shape exercise; cross-task aggregate is a
+    search-set observation, not a comparison.
+  - **NOT** a comparison versus existing OAI-loop content-delivery
+    cells (e.g. the search bundles on Hermes-4-70B-4bit /
+    magnum-v4-123b-4bit / Qwen3.5-122B-A10B-4bit / Qwen3.5-27B-4bit
+    from 2026-04-21) — different executor and different model, both
+    of which cross spec-required normalization axes.
+  - **NOT** a product or anchor-validation claim. The benchmark
+    family ('content delivery') is now exercised in PI for the
+    first time, but no candidate primitive is being validated by
+    a passing T2 cell. `bench/probes/anchor-validation/` still
+    does not exist; no Route A or Route B justification is on file.
+- **What this exercises that prior PI bundles did not:**
+  - First content-delivery-family cell on PI (T2/T3/T8/T17 family
+    per CLAUDE.md). Previous PI families: extraction (T1, T22),
+    targeted-mutation (T7), multistep (T18).
+  - First exercise of `insert-block --after N --from PATH` through
+    the PI executor — distinct from prior PI mutations
+    (T7 set-task, T18 delete-section + set-task).
+  - First end-to-end demonstration through PI of the published
+    `--from PATH` recovery pattern after a stdin-pipe policy
+    deny — i.e. the documented stdin-piping weakness fires and
+    the agent recovers via the documented `--from` workaround.
+  - First durable PI bundle under `bench/runs/` carrying the
+    iter-17 `holdout_version: 1` stamp on `run.json`.
+- **Behavioral observation (per-model data, not a finding):**
+  gpt-5.4-mini at minimal thinking on T2 mdtools first attempted
+  `printf '## v2.5\n\nHotfix release for auth regression.\n' | ./md
+  insert-block ... -i --after 2`. The guard policy denied the
+  `printf` prefix (recorded in guard.log as `deny printf`). The agent
+  recovered on the next turn with `cat > /tmp/new_section.md
+  <<'EOF' ... EOF; ./md insert-block ... -i --after 2 --from
+  /tmp/new_section.md`, which the guard allowed and the harness
+  scored as a successful mutation. The verification re-query
+  (`./md blocks ...`) followed, satisfying `requeried=true`. The
+  spec language "Policy violations, retries, and observation
+  volume are part of the behavioral story, not incidental noise"
+  applies — the deny+recovery is recorded as part of this cell's
+  behavioral story rather than as a defect.
+- **Cross-counter measurement note (informational, not a finding):**
+  `results.json:policy_violations=1` (harness's bash-command-level
+  guard-deny counter from `bench_guarded_executor`, see
+  `bench/oai_loop.py` and `bench/harness.py:1229,1265`) and
+  `bench/pi_audit_adapter.py:summarize_pi_audit_events` would also
+  return `policy_violations=1` if invoked with the parsed `guard.log`
+  events (`bench/pi_audit_adapter.py:103-106`). The harness's value
+  is the authoritative cross-executor-comparable counter on
+  `BenchResult.policy_violations`; the adapter's audit-event-only
+  `decision == "block"` path tracks PI's audit-hook layer, which has
+  no `block` event for this run because the `printf|md` was a
+  single PI tool_call observed as a unit at the audit layer and
+  denied later at the bash-command-level guard (one layer below).
+  Both fields measure what they document; the difference is the
+  measurement layer, not a defect. No claim depends on this; no
+  finding is filed.
+- **Closure-discipline status:** parallel to iter-4 / iter-7 /
+  iter-10 / iter-14 entries — this is a non-finding bundle
+  introduction, not a substantive code change, and is not marked
+  FIXED_PENDING_CONFIRMATION. A future review pass may ratify by
+  re-reading the bundle's `run.json` (verifying line 20 carries
+  `holdout_version: 1`), `results.json`, and the 10-event
+  pi-audit.jsonl.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not amend any published claim. Does not add any
+  new typed artifact under `bench/probes/`. Does not retroactively
+  modify any pre-iter-17 bundle.
+
 ### Holdout-version bundle stamping (2026-04-26 iter 17)
 
 The frontier-loop spec's holdout-repair exception path requires bumped
@@ -678,28 +804,45 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 17)
+### Halt-condition / quiet-signal status (after iter 18)
 
-After the iter-17 holdout-version bundle stamping (see
-"Holdout-version bundle stamping (2026-04-26 iter 17)" above):
+After the iter-18 quiet-signal-checkpoint discharge (see
+"Quiet-signal checkpoint discharge (2026-04-26 iter 18)" above):
 
-- **OPEN findings count:** 0. Iter 17 authored a substantive
-  telemetry-stamping hardening (per-bundle `holdout_version` field on
-  run.json) — not a finding (no defect uncovered; the change closes
-  the documented gap from iter-16's "Does not modify any prior bundle"
-  carve-out + the spec's explicit "stamp the new version onto subsequent
-  run bundles" requirement). The zero-OPEN state holds through iters
-  8, 9, 10, 11, 12, 13, 14, 15, 16, and 17 — the thirteenth consecutive
-  zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 18's expensive-channel run
+  surfaced no new defect — the bundle is dual-scorer PASS, the
+  pi-audit.jsonl parses cleanly, and the 1 policy_violation is a
+  documented behavioral pattern (stdin-piping deny + `--from`
+  recovery, well-known from project memory) rather than a defect.
+  The zero-OPEN state holds through iters 8, 9, 10, 11, 12, 13, 14,
+  15, 16, 17, and 18 — the fourteenth consecutive zero-OPEN review
+  round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
   ratification), iter 16 quiet (cheap-channel-only oracle hardening,
   no expensive run), iter 17 quiet (cheap-channel-only oracle
-  telemetry stamping, no expensive run). Counter at **3** after iter 17.
-  Iter 18 is the forced expensive-or-halt point per the spec's
-  "3 consecutive iterations with the cheap channel green, no new
-  failing trace, and no new finding added" rule.
+  telemetry stamping, no expensive run), iter 18 expensive
+  (content-delivery-family coverage extension + first stamped
+  bundle). Counter reset to **0** after iter 18. Iters 19–21
+  admissible quiet; iter 22 is the next forced expensive-or-halt
+  point per the spec's "3 consecutive iterations with the cheap
+  channel green, no new failing trace, and no new finding added"
+  rule.
+- **Iter-18 same-family-rule discharge:** iter 16 was
+  oracle-trustworthiness hardening (runtime-guard mechanical
+  promotion), iter 17 was also oracle-trustworthiness hardening
+  (per-bundle telemetry stamping), iter 18 is an
+  intervention-diversity / failure-legibility move (expensive
+  outer channel introducing fresh signal). The shift from
+  oracle-axis substantive code edits to intervention-diversity is
+  itself the discharge — parallel to iter 4 (after iters 1–3
+  oracle), iter 7 (after iters 5–6 spec-coherence + review),
+  iter 10 (after iters 8–9 spec-coherence), iter 14 (after iters
+  11–13 spec-coherence). The forcing function is the spec's
+  quiet-signal-counter rule firing at 3 after iter 17, which makes
+  the intervention shift independently mandated regardless of the
+  same-family rule's evaluation.
 - **Iter-17 same-family-rule discharge:** iter 14 was an
   expensive-channel run (intervention diversity), iter 15 was a
   ledger-only closure-discipline ratification (rule explicitly
