@@ -14,6 +14,210 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 24)
+
+Closure-discipline review of iter-23's substantive `bench/RESULTS.md:67`
+sixth-bundle publication (the additive sentence citing the iter-21 T21
+PI bundle, parallel in shape to iter-19's relation to the iter-18 T2
+bundle). Parallels iter 22's review of iter 21 (also a substantive
+ratification + forward-pointing correction iteration), iter 13's review
+of iter 12 (line-drift fix), and iter 20's review of iter 19 (line-drift
+fix): typed-artifact claims in the iter-23 entry are checked against
+the underlying bundle files, the published-narrative addition at
+RESULTS.md:67, and the OAI bundle inventory. Differs from iter 15's
+ratification-only-no-fresh-trace shape in that the verification surfaces
+a fresh failing trace inside the iter-22 entry's own citation prose
+(carried forward into iter 23's verification claim about it). Cheap
+channel green at review time (`cargo test --quiet` all suites pass:
+24+32+37+16+0+0; 68 python unittests OK across the 8 spec-named
+modules; `harness.py --md-binary` dry-run all 24 tasks PASS
+dual-scorer).
+
+What was checked:
+
+- **`bench/RESULTS.md:67` sixth-bundle sentence** — re-read. The
+  appended sentence reads "The sixth PI bundle,
+  `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/` (iter
+  21 — first `compare_frontmatter_json` scorer-branch PI cell, and the
+  second durable bundle carrying iter-17's `holdout_version: 1` stamp
+  on `run.json`), is similarly not yet eligible for this table because
+  no OAI same-task `mdtools` cell exists on file." Matches iter-23's
+  claim bit-exact.
+- **Sixth-bundle inventory** — confirmed by enumerating bundle paths
+  in chronological order: T1 (iter 4), T22 (iter 7), T7 (iter 10),
+  T18 (iter 14), T2 (iter 18), T21 (iter 21) = 6 bundles. The
+  iter-23 sentence's "sixth" claim reproduces.
+- **First `compare_frontmatter_json` scorer-branch claim** — the
+  iter-21 / iter-22 corpus uniqueness check (only T21 sets this flag)
+  remains valid; the iter-23 sentence's "first compare_frontmatter_json
+  scorer-branch PI cell" claim reproduces.
+- **Second durable bundle with `holdout_version: 1` stamp** —
+  re-verified: `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/run.json`
+  line 20 reads `"holdout_version": 1`, and
+  `bench/runs/checkpoint-pi-T2-mdtools-gpt5.4mini-2026-04-26/run.json`
+  line 20 reads `"holdout_version": 1`. T21 is the second stamped
+  bundle after T2 (first), matching the iter-23 sentence.
+- **`bench/harness.py:1282` and `:1318` bytes_output** — re-read in
+  the current file: `bytes_output = len(raw_stdout.encode())` on both
+  lines, immediately following `raw_stdout = result.stdout` in the
+  pi-json branch (line 1282) and the oai-loop branch (line 1318). The
+  iter-20 line-citation fix and iter-22's closure-discipline ratification
+  of it both still hold; iter-23's forward-carry of that ratification
+  reproduces.
+- **`pi-audit.jsonl` event count and shape** —
+  `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/logs/T21_mdtools_1777219293/pi-audit.jsonl`
+  has exactly 4 lines. Event-type histogram:
+  `{model_change: 1, thinking_level_change: 1, tool_call: 1, tool_result: 1}`.
+  The single `tool_call` event carries
+  `input.command="./md frontmatter <input> --json"` (full temp-dir
+  path elided). The single `tool_result` event has `outputBytes=565`
+  matching `bytes_observation=565`. Matches iter-23's bullet bit-exact.
+- **OAI T21 `mdtools` scan** — re-ran the scan
+  iter-23 cited (search-mdtools-* / search-hybrid-* /
+  holdout-mdtools-* / holdout-hybrid-* `results.json` for
+  `task_id=T21`): 22 bundles scanned, 0 T21 hits. Confirms
+  iter-23's "no OAI same-task `mdtools` cell on file" claim.
+
+Forward-pointing correction surfaced during the verification (per
+iter-15 "never silently edit historical entries" discipline; correction
+recorded here, no historical edits to iter 22 or iter 23):
+
+- **Iter-22's `bench/ledger.md:54` and `:61–62` citations were never
+  accurate.** Iter 22's forward-pointing correction bullets cite
+  "`bench/ledger.md:54`" (for the iter-21 entry's "iter 22's
+  link_destinations" → should-be "iter 7's" typo) and
+  "`bench/ledger.md:61–62`" (for the iter-21 entry's "`run.json` line
+  18" → should-be "line 20" typo). At iter-22 commit time
+  (`d4547d3`), `bench/ledger.md:54` was inside iter-22's own
+  "What was checked" body (specifically, an `Aggregates section`
+  remark at offset 5 from the iter-22 entry header), and the iter-21
+  typos were actually at lines 230 and 237 — verified via
+  `git show d4547d3:bench/ledger.md | grep -n "iter 22's link_destinations\|run.json.*line 18"`.
+  The miscitation was wrong from inception; iter 22's intended
+  pointer was lines 230 and 237 (offset 37 and 44 from the iter-21
+  entry header at line 193 in the iter-22-commit-time file).
+- **Iter-23's verification claim about lines 54 and 61 was internally
+  inconsistent at iter-23 commit time.** Iter-23 wrote: "re-verified
+  that lines 54 and 61 of the ledger still carry the original iter-21
+  prose with the typos preserved." At iter-23 commit time
+  (`30563dc`), iter 23 had added 148 lines above iter 22, pushing
+  the iter-21 typos to ~378/385 — and lines 54 and 61 were now
+  inside iter-23's own "Change shape" bullet body, not iter-21.
+  Verified via `git show 30563dc:bench/ledger.md | sed -n '50,65p'`
+  showing iter-23's "appending a parallel-shape sixth-bundle
+  sentence" at line 54 of that commit's file. Currently (post
+  iter-23) lines 54 and 61 of the live ledger file are even further
+  inside iter-23's body, the iter-21 typos are at lines 379 and
+  386.
+- **Discipline-correct preservation of iter-21 typos remains
+  intact.** The fresh failing trace is in the citation accuracy of
+  iter-22 / iter-23, not in the typos themselves: iter-21's "iter
+  22's link_destinations coverage" prose is at line 379 and "`run.json`
+  line 18 reads" prose is at line 386 (verified via
+  `grep -n` on the live file), unchanged from iter-22/iter-23
+  commits as the iter-15 discipline requires.
+
+Rationale for forward-pointing only:
+
+Per iter 15 (second-opinion-ratified discipline at 0.9 confidence),
+the iter-22 and iter-23 entry text is preserved unchanged. Both
+correction observations live in this iter-24 entry as
+cross-referenced observations. Future readers of the iter-22
+forward-pointer should consult this iter-24 forward-pointer when
+reading iter-22's `bench/ledger.md:54` and `:61–62` citations.
+
+Structural lesson — and why this is a real fresh failing trace, not
+ratification theater:
+
+Ledger line citations drift faster than file citations because every
+new ledger entry pushed atop CLOSED shifts all lines below by the
+new entry's length. File citations into source code (e.g.
+`bench/harness.py:1282`) drift only when intervening edits touch
+that file (~53 lines over five iterations for iter-20's
+RESULTS.md:54 citation; that drift is still the smallest unit of
+fresh signal in those iterations). Ledger citations drift on every
+single new CLOSED entry (148 lines from iter 22 → iter 23 alone).
+The iter-22 / iter-23 citation defect surfaced here is the
+foreseeable consequence: any ledger citation by absolute line
+number is fragile. Future ledger citations should anchor by entry
+header + content pattern (e.g. "in the iter-21 entry's Anchor
+bullet, the phrase 'iter 22's link_destinations'") rather than by
+absolute line number. This iter-24 entry follows that pattern in
+its own correction prose. Recording the lesson here, not as a new
+finding (no measurement, scorer, or product surface is affected;
+only ledger citation accuracy).
+
+Verdict — iter-23's substantive `bench/RESULTS.md:67` sixth-bundle
+publication ratified, the closure-discipline rule's "next pass not
+re-raising the finding" criterion is satisfied for the publication
+half. Iter-23's coverage of iter-22's typed-artifact citations
+(results.json, run.json, pi-audit.jsonl, harness.py:1282/1318)
+ratified bit-exact; only the iter-22 line-number citation accuracy
+is the fresh failing trace, which propagated forward into iter-23's
+verification claim and is corrected here forward-pointing. No new
+finding opened, no holdout artifact touched, no published-narrative
+file edited.
+
+- **Frontier anchor (review pass):** *closure-discipline rule
+  applied to substantive published-narrative edit* + *fresh failing
+  trace in the iter-22 / iter-23 citation accuracy chain*. Iter 23
+  made specific typed-artifact claims (the RESULTS.md:67 sentence
+  content, the sixth-bundle inventory, the first-frontmatter_json
+  claim, the second-stamped-bundle claim, the OAI scan emptiness,
+  the iter-22 ratification carry-forward) that needed independent
+  verification. Iter 24 discharges this by reading typed artifacts
+  (results.json + run.json + pi-audit.jsonl + RESULTS.md:67 +
+  bench/harness.py:1282/1318 + the OAI bundle scan + git-history
+  spot-checks at d4547d3 and 30563dc) rather than narrative. Same
+  shape as iter 22's relation to iter 21 — both are ratifications
+  of a prior iteration's bundle/publication paired with a
+  forward-pointing citation correction.
+- **Same-family-rule discharge:** iter 22 was closure-discipline
+  (ledger-only with citation corrections), iter 23 was specification
+  coherence (substantive RESULTS.md:67 publication paired with
+  closure-discipline ratification of iter 22). Iter 24 returns to a
+  ledger-only closure-discipline ratification entry parallel to
+  iter 22, but the fresh-failing-trace escape clause additionally
+  applies: the iter-22 / iter-23 citation-accuracy defect is the
+  third instance of this exact "ratification surfaces a citation
+  defect" shape (iter 12 argparse typo, iter 13 / iter 20 line-drift
+  in RESULTS.md, iter 22 typos in iter-21 ledger prose, iter 24
+  citation accuracy of iter-22's forward-pointers). The "ledger-only
+  changes do not break concentration" caveat does not block this
+  iteration because there is no concentration to break: iter 22 was
+  ledger-only-with-corrections, iter 23 was substantive published
+  narrative + ratification, iter 24 is ledger-only-with-corrections
+  again. The chain (closure-discipline → spec-coherence →
+  closure-discipline) is alternating, not concentrated.
+- **Comparability framing:** the ratification is a ledger-only
+  verification with one forward-pointing line-citation correction
+  surfaced from git-history spot-checks. It does not change any
+  data, ratio, rule conclusion, pass rate, bundle, scorer, or
+  holdout artifact. It does not bump `holdout_version` (still 1).
+  It does not run the expensive outer channel. It does not edit
+  any published-narrative file (`bench/RESULTS.md`, `README.md`,
+  `CLAUDE.md`, `bench/retracted_2026-04-24/README.md`, `specs/**`).
+  The only file modified is `bench/ledger.md` itself, with two
+  additions: this iter-24 entry and an updated halt-condition /
+  quiet-signal status block.
+- **Closure-discipline status:** this is a non-finding ledger-only
+  ratification entry, parallel to iter 22. Per iter-15's labeling
+  discipline, this is **not frontier expansion** in the sense of
+  evaluator repair, product change, or measurement publication. It
+  procedurally ratifies iter 23's substantive publication and
+  records one forward-pointing citation accuracy correction
+  spanning iter 22 and iter 23. The 20th consecutive zero-OPEN
+  review round holds.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not run the expensive outer channel. Does not
+  edit any historical ledger entry inline. Does not amend any
+  pass-rate claim. Does not modify any bundle or any
+  published-narrative file. Does not touch any holdout artifact.
+  Does not extend the cross-executor same-task table (no new
+  same-task pair was made available by iter 23).
+
 ### Specification coherence — iter-21 T21 PI bundle reference extension (2026-04-26 iter 23)
 
 Specification-coherence move: extending the published narrative at
@@ -1535,36 +1739,31 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 23)
+### Halt-condition / quiet-signal status (after iter 24)
 
-After the iter-23 specification-coherence publication that extended
-the published narrative at `bench/RESULTS.md:67` to cite the iter-21
-T21 PI bundle as the sixth PI bundle (parallel in shape to iter 19's
-fifth-bundle T2 publication), with paired closure-discipline
-ratification of iter-22 (no historical entry edited inline, no other
-published-narrative file modified; see "Specification coherence —
-iter-21 T21 PI bundle reference extension (2026-04-26 iter 23)"
-above):
+After the iter-24 closure-discipline review pass that ratified
+iter-23's substantive `bench/RESULTS.md:67` sixth-bundle publication
+bit-exact and surfaced one forward-pointing citation accuracy
+correction spanning iter 22 (whose `bench/ledger.md:54` and
+`:61–62` citations were never accurate at iter-22 commit time)
+and iter 23 (whose verification claim about those lines was
+internally inconsistent at iter-23 commit time); see "Confirmation
+review pass (2026-04-26 iter 24)" above:
 
-- **OPEN findings count:** 0. Iter 23's verification re-read the
-  iter-22 entry's typed-artifact citations against the live bundles
-  (`bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/`
-  results.json, run.json, pi-audit.jsonl, plus
-  `bench/runs/checkpoint-pi-T2-mdtools-gpt5.4mini-2026-04-26/run.json`
-  for the second-stamped-bundle claim, plus
-  `bench/harness.py:1282/1318` for the iter-20 line-citation fix);
-  every claim reproduces bit-exact. The iter-22 entry's two
-  forward-pointing citation corrections (iter-21 entry "iter 22's
-  link_destinations" → "iter 7's"; "line 18" → "line 20") were not
-  silently amended and remain visible in the iter-21 entry as iter-22
-  documented; iter 23 confirms the discipline-correct preservation
-  rather than re-raising the typos. No new defect surfaced from the
-  cross-check of the published narrative against the bundle inventory
-  except the missing T21 reference at RESULTS.md:67, which iter 23
-  authored the substantive fix for and the entry is
-  FIXED_PENDING_CONFIRMATION-shaped. The zero-OPEN state holds
-  through iters 8–23 — the **nineteenth** consecutive zero-OPEN
-  review round.
+- **OPEN findings count:** 0. Iter 24's verification re-read the
+  iter-23 substantive RESULTS.md:67 sixth-bundle sentence, the
+  iter-23 ratification of iter-22's typed-artifact citations
+  (results.json, run.json, pi-audit.jsonl, harness.py:1282/1318),
+  and the OAI T21 mdtools scan (22 bundles, 0 hits). Every claim
+  reproduces bit-exact. The fresh failing trace surfaced is in the
+  iter-22 / iter-23 ledger-line-citation chain (iter 22's `:54`
+  and `:61–62` were wrong from inception; iter 23's verification
+  claim about lines 54 and 61 was already false at iter-23 commit
+  time). Recorded forward-pointing in iter 24 per iter-15
+  discipline; not a new finding because no measurement, scorer, or
+  product surface is affected — only ledger citation accuracy. The
+  zero-OPEN state holds through iters 8–24 — the **twentieth**
+  consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -1580,11 +1779,39 @@ above):
   citation corrections; counter increments to 1), iter 23 quiet
   (cheap-channel-only specification-coherence publication of iter-21
   T21 PI bundle as the sixth PI bundle in the cross-executor section;
-  counter increments to **2**). Iter 24 admissibly quiet (would push
-  the counter to 3); iter 25 is the next forced expensive-or-halt
-  point per the spec's "3 consecutive iterations with the cheap
-  channel green, no new failing trace, and no new finding added"
-  rule.
+  counter increments to 2), iter 24 quiet (ledger-only
+  closure-discipline ratification of iter 23 + one forward-pointing
+  citation accuracy correction; counter increments to **3**). Iter
+  25 is now the next forced expensive-or-halt point per the spec's
+  "3 consecutive iterations with the cheap channel green, no new
+  failing trace, and no new finding added" rule. The cheapest
+  reachable expensive probe in this environment remains the PI
+  runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
+  holdout reconfirmation remains environment-blocked (no local LM
+  server) per the iter-7 ledger entry. The remaining
+  PI-runner-coverage gap iter-21 noted is `compare_block_order` /
+  `compare_block_text` in isolation, which would point at T9 / T16
+  / T19 as candidate cells.
+- **Iter-24 same-family-rule discharge:** iter 22 was closure-
+  discipline (ledger-only with two forward-pointing typo
+  corrections), iter 23 was specification coherence (substantive
+  RESULTS.md:67 publication paired with closure-discipline
+  ratification of iter 22). Iter 24 is closure-discipline again
+  (ledger-only ratification of iter 23 paired with one
+  forward-pointing citation accuracy correction). The fresh-
+  failing-trace escape clause applies cleanly: the iter-22 /
+  iter-23 citation accuracy chain is the third instance of
+  "ratification surfaces a citation defect" in this gnhf run,
+  parallel in shape to iter 13 / iter 20 (line-drift in RESULTS.md)
+  and to iter 22 itself (typos in iter-21 ledger prose), but
+  located in iter-22's forward-pointer line numbers rather than in
+  iter-21's prose. The chain (closure-discipline → spec-coherence
+  → closure-discipline) is alternating, not concentrated; the
+  "ledger-only changes do not break concentration" caveat does not
+  block this iteration. Iter 25 cannot continue this pattern
+  without first running the expensive outer channel — the
+  quiet-signal counter has reached 3 for the third time in this
+  run (after iters 13 and 17 prior).
 - **Iter-23 same-family-rule discharge:** iter 21 was
   intervention-diversity (T21 PI bundle expensive run), iter 22 was
   closure-discipline ratification (ledger-only, parallel to iter 15).
