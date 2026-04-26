@@ -294,5 +294,110 @@ class F4ClosureBundleReplayTests(unittest.TestCase):
         self.assertIn("json_canonical: OK", report)
 
 
+def _pre_iter30_select_json_envelope_actual(
+    all_tool_outputs: list[str],
+    all_text_outputs: list[str],
+    stdout: str,
+) -> str:
+    """Faithful reproduction of the pre-iter-30 json_envelope actual selector
+    from `git show 7b36502:bench/harness.py:1404-1429` — the loop that F4
+    identified as preferring any non-empty JSON tool output (last wins) over
+    the agent's matching text answer. Used by F4PreFixCounterfactualTests to
+    pin the regression-protection invariant: if the schema-aware selector at
+    bench/harness.py:1481 is ever reverted to this loop shape, both T11 and
+    T16 PI bundles fail dual-scorer with json_canonical: MISMATCH."""
+    actual = ""
+    for tool_out in reversed(all_tool_outputs):
+        try:
+            parsed = json.loads(tool_out.strip())
+            if isinstance(parsed, (list, dict)) and len(parsed) > 0:
+                actual = tool_out.strip()
+                break
+        except (json.JSONDecodeError, TypeError):
+            continue
+    if not actual:
+        for text_out in reversed(all_text_outputs):
+            candidate = extract_last_json(text_out)
+            try:
+                parsed = json.loads(candidate)
+                if isinstance(parsed, (list, dict)) and len(parsed) > 0:
+                    actual = candidate
+                    break
+            except (json.JSONDecodeError, TypeError):
+                continue
+    if not actual:
+        actual = extract_last_json(stdout)
+    return actual
+
+
+class F4PreFixCounterfactualTests(unittest.TestCase):
+    """F4 closure trail counterfactual (iter 35) — promotes iter-33's
+    prose-only ledger claim ('the pre-iter-30 selector logic against the
+    iter-33 trajectory selects tool 1 with keys [results, schema_version]
+    and FAILs dual-scorer') to a typed cheap-channel assertion across both
+    F4-relevant durable bundles (T16 from iter 29, T11 from iter 33). If the
+    schema-aware select_json_envelope_actual at bench/harness.py:1481 is
+    ever reverted toward the pre-iter-30 loop shape, these tests fail."""
+
+    REPO_ROOT = Path(__file__).resolve().parents[1]
+
+    BUNDLES = [
+        (
+            "T16",
+            REPO_ROOT
+            / "bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26"
+            / "logs/T16_mdtools_1777224275/agent_output.txt",
+            ["files", "total_pending"],
+        ),
+        (
+            "T11",
+            REPO_ROOT
+            / "bench/runs/checkpoint-pi-T11-mdtools-gpt5.4mini-2026-04-26"
+            / "logs/T11_mdtools_1777227478/agent_output.txt",
+            ["phases", "totals"],
+        ),
+    ]
+
+    def _replay_pre_fix(self, task_id: str, bundle_log: Path, expected_top_keys: list[str]) -> None:
+        if not bundle_log.exists():
+            self.skipTest(f"{task_id} PI bundle agent_output not present at {bundle_log}")
+        raw = bundle_log.read_text()
+        trace = parse_pi_json_output(raw)
+
+        tasks = load_tasks(self.REPO_ROOT / "bench/tasks/tasks.json")
+        task = next(t for t in tasks if t.id == task_id)
+        expected = (self.REPO_ROOT / task.expected_output).read_text()
+
+        self.assertEqual(
+            sorted(json.loads(expected).keys()),
+            sorted(expected_top_keys),
+            f"{task_id} expected_output top-level keys drifted; counterfactual rationale stale",
+        )
+
+        pre_actual = _pre_iter30_select_json_envelope_actual(
+            trace.tool_outputs, trace.text_outputs, trace.stdout
+        )
+        pre_parsed = json.loads(pre_actual)
+        self.assertIsInstance(pre_parsed, dict, f"{task_id} pre-fix selector should pick a JSON-dict tool output")
+        self.assertEqual(
+            sorted(pre_parsed.keys()),
+            ["results", "schema_version"],
+            f"{task_id} pre-fix selector should pick the md tasks --json envelope, not the agent text answer",
+        )
+
+        ok_md, ok_neutral, report = score_task(task, pre_actual, expected, md_binary="md")
+        self.assertFalse(ok_md, f"{task_id} md scorer must FAIL under pre-fix selector; report: {report}")
+        self.assertFalse(ok_neutral, f"{task_id} neutral scorer must FAIL under pre-fix selector; report: {report}")
+        self.assertIn("json_canonical: MISMATCH", report)
+
+    def test_iter_29_t16_bundle_fails_under_pre_fix_selector(self) -> None:
+        task_id, bundle_log, expected_top_keys = self.BUNDLES[0]
+        self._replay_pre_fix(task_id, bundle_log, expected_top_keys)
+
+    def test_iter_33_t11_bundle_fails_under_pre_fix_selector(self) -> None:
+        task_id, bundle_log, expected_top_keys = self.BUNDLES[1]
+        self._replay_pre_fix(task_id, bundle_log, expected_top_keys)
+
+
 if __name__ == "__main__":
     unittest.main()
