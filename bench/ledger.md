@@ -89,6 +89,39 @@ discharge (2026-04-26 iter 7)" below):
   Route B justification under `bench/probes/anchor-validation/`, which
   still does not exist.
 
+### Specification coherence cleanup (2026-04-26 iter 8)
+
+`bench/RESULTS.md` carried four references describing F3 (T22 structural-array
+envelope normalization) as OPEN or scorer-fix-pending: lines 118 ("Local
+search-pilot takeaways"), 141 (per-task failure-analysis row for T22), 152
+(Qwen mdtools row in current holdout coverage table), and 158 ("What this
+confirms honestly" paragraph). All four contradicted the ledger CLOSED
+status on F3 (FIXED iter 1, ratified iter 3 review pass, end-to-end-verified
+through a real frontier model in iter 7's
+`bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`).
+
+- **Disturbance:** specification coherence — published narrative
+  contradicted ledger CLOSED on F3, and the iter-7 PI bundle was a durable
+  artifact with no published summary in `bench/RESULTS.md`.
+- **Anchor:** the spec's "missing evaluator artifact … durable summary for
+  a newly-run comparison" frontier anchor.
+- **Change:** four targeted edits in `bench/RESULTS.md` replacing
+  "F3 pending" / "OPEN as F3" / "scorer-layer fix is pending" framing
+  with CLOSED-status citation plus a pointer to the iter-7 PI bundle.
+  Published 50% Qwen holdout pass rates were left unchanged — the
+  original Qwen bundles have not been re-scored, and a fresh Qwen run
+  is pending environment availability.
+- **Cheap channel:** green before and after (`cargo test -q` all suites
+  pass, 59 python unittests OK, `harness.py --md-binary` dry-run all 24
+  tasks PASS dual-scorer).
+- **Verdict:** specification restored. No new finding opened, no holdout
+  artifact touched (`bench/RESULTS.md` is published narrative, not a
+  holdout artifact under `bench/holdout/`). This is a non-finding
+  iter-8 record; a future review pass may treat the
+  RESULTS.md cleanup as `FIXED_PENDING_CONFIRMATION`-equivalent and
+  ratify it by re-reading the four updated lines against this ledger
+  entry and the iter-7 bundle.
+
 ### P3 — `bytes_output` is not cross-executor comparable
 - **Status:** CLOSED (2026-04-26 iter 6 review pass; FIXED 2026-04-26 iter 5 via closure plan option (b); filed 2026-04-26 iter 4; P2 hardening backlog severity)
 - **Axis:** oracle trustworthiness (cross-executor normalization); closure intervention is specification coherence

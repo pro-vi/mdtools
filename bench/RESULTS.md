@@ -115,7 +115,7 @@ These results come from committed durable bundles under `bench/runs/` on the def
 
 - `mdtools` materially improves the extraction pilot for Qwen3.5-27B-4bit versus raw unix (`0/3` to `3/3`).
 - `hybrid` is not a universal upgrade: it ties `mdtools` for the Qwen-family pilots, underperforms for Hermes on extraction and mutation, and is correctness-neutral but slower for magnum on mutation.
-- Qwen3.5-122B-A10B-4bit is strong and fast across every committed pilot cell in this branch; its 100% search-pilot number dropped to 50% on holdout. The holdout gap is unresolved pending a mode-neutral scorer fix (F3 in `bench/ledger.md`). See "Holdout confirmation" below.
+- Qwen3.5-122B-A10B-4bit is strong and fast across every committed pilot cell in this branch; its 100% search-pilot number dropped to 50% on holdout. Two of the three holdout failures traced to mode-neutral scorer defects (F3 for T22, F3-a for T23) which are now CLOSED in `bench/ledger.md` (2026-04-26); the original Qwen bundles have not been re-scored, so the published 50% pass rates above still reflect the pre-fix scorer state. See "Holdout confirmation" below.
 - magnum-v4-123b-4bit is strong on mutation but weak on extraction, with the failure mode now visible in durable bundle metrics instead of only raw logs.
 
 ## Holdout confirmation (2026-04-24, holdout split)
@@ -138,7 +138,7 @@ Valid bundles: `bench/runs/holdout-{mdtools,hybrid}-Qwen3.5-122B-A10B-4bit-2026-
 | Task | Result | Root cause | Appropriate fix layer |
 |------|:---:|---|---|
 | T4  | FAIL | Text-manipulation family — documented weak cell; agent thrashed at 8/10 mutations. | Product / planning (out of scope this iteration) |
-| T22 | FAIL | Task description says "correctness is the ordered list of link kinds and destinations" → agent emits `[{kind, destination}]` list; structural scorer requires a top-level `mdtools.v1` envelope object. | Mode-neutral: scorer should accept semantically equivalent shapes, or system prompt's `json_envelope` instruction should describe envelope shape mode-agnostically. **Not** task-description rewrite (that contaminates the holdout task and leaks mdtools-specific guidance into unix mode). Currently OPEN as F3. |
+| T22 | FAIL | Task description says "correctness is the ordered list of link kinds and destinations" → agent emits `[{kind, destination}]` list; structural scorer requires a top-level `mdtools.v1` envelope object. | Mode-neutral: scorer should accept semantically equivalent shapes, or system prompt's `json_envelope` instruction should describe envelope shape mode-agnostically. **Not** task-description rewrite (that contaminates the holdout task and leaks mdtools-specific guidance into unix mode). CLOSED as F3 in `bench/ledger.md` (2026-04-26, scorer-side `compare_link_destinations` envelope normalization at `bench/harness.py:443-537`); end-to-end verification on the actual T22 holdout task through a real frontier model recorded under `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`. |
 | T23 | FAIL pre-fix | Agent emitted 54 bytes vs 55 expected (trailing-newline off-by-one); `raw_bytes` scorer had `ignore_trailing_whitespace: true` but implemented per-line rstrip only, ignoring end-of-file whitespace. | `bench/harness.py:339-341` — rstrip the whole string after per-line rstrip. This is a mode-neutral scorer correction (accepted). |
 
 ### Retracted bundles (moved to `bench/retracted_2026-04-24/`)
@@ -149,10 +149,10 @@ Four bundles produced after the T22 description edit have been moved out of `ben
 
 | Cell | Search → holdout | Status |
 |------|---|---|
-| Qwen3.5-122B-A10B-4bit mdtools | 100% → 50% | **Valid; −50pp drop unconfirmed as product vs scorer because T22 scorer-layer fix is pending** |
+| Qwen3.5-122B-A10B-4bit mdtools | 100% → 50% | **Valid; −50pp drop product-vs-scorer attribution remains unverified — F3/F3-a scorer fixes now CLOSED but the original bundles have not been re-scored, and a fresh Qwen holdout run is pending environment availability** |
 | Qwen3.5-122B-A10B-4bit hybrid  | 100% → 50% | Valid; same caveat |
 | Qwen3.5-27B-4bit (either mode) | — | No valid holdout bundle |
 | Hermes-4-70B-4bit (either mode) | — | No holdout bundle |
 | magnum-v4-123b-4bit (either mode) | — | No holdout bundle |
 
-**What this confirms honestly.** The un-run holdout was hiding evaluator-trust defects that the search split happened not to exercise. The first holdout run made those defects visible. Two of three failures (T22, T23) trace to scorer surfaces; one (T23) has a mode-neutral fix that is retained. T22 still needs a mode-neutral resolution before any holdout rerun can validly reconfirm Qwen3.5-122B-A10B-4bit search-pilot numbers. Until then, the published holdout pass rates stand at 50% for both modes.
+**What this confirms honestly.** The un-run holdout was hiding evaluator-trust defects that the search split happened not to exercise. The first holdout run made those defects visible. Two of three failures (T22, T23) trace to scorer surfaces; both now have mode-neutral fixes (T22 → F3, T23 → F3-a) CLOSED in `bench/ledger.md` as of 2026-04-26. F3's end-to-end behavior through a real frontier model on the actual T22 holdout task is recorded under `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/` (PASS in 9.63s, `diff_report: link_destinations: OK`). The pre-fix Qwen bundles have not been re-scored, so the published 50% holdout pass rates above still reflect the pre-fix scorer state; a fresh Qwen3.5-122B-A10B-4bit holdout run remains the cleanest reconfirmation path and is pending environment availability (no local LM server reachable in the iter-7 environment — see `bench/ledger.md` "Halt-condition / quiet-signal status (after iter 7)").
