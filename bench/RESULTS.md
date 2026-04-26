@@ -49,6 +49,16 @@
 
 *Generated from N=3 Haiku 4.5 runs on 2026-04-02 against `bench/tasks/tasks_v1.json` (20-task snapshot). Unix mode incomplete — only T1-T5 finished (14/60 runs). T5 run 3/3 timed out. Unix aggregates are over completed runs only.*
 
+## Cross-executor comparability (PI runner vs OAI loop)
+
+The harness runs tasks through one of two executors: the OAI loop runner (`bench/oai_loop.py`) and the PI runner (`bench/pi_runner.py`, selected via `--executor pi-json`). Both branches measure `bytes_output = len(raw_stdout.encode())` (`bench/harness.py:1229` for pi-json, `:1265` for oai-loop), but the *meaning* of `raw_stdout` differs.
+
+The first PI bundle (`bench/runs/checkpoint-pi-T1-mdtools-gpt5.4mini-2026-04-26/`) recorded `bytes_output = 5,975,843` for T1 mdtools on `gpt-5.4-mini` at minimal thinking. By contrast, an oai-loop holdout cell records `bytes_output = 679` for T20 mdtools on `Qwen3.5-122B-A10B-4bit` (`bench/runs/holdout-mdtools-Qwen3.5-122B-A10B-4bit-2026-04-24/results.json`) — three orders of magnitude smaller. The gap is not driven by task or model; it is driven by what each executor's raw stdout *contains*: pi-json's stdout is the entire `pi --mode json` JSONL stream (per-token deltas, audit envelopes, session-meta events), while oai-loop's stdout is the agent's terminal assistant content.
+
+**Rule:** `bytes_output` is **executor-local** and not cross-executor comparable. Do not aggregate or compare it across PI runner and OAI loop bundles, and do not derive a metric from it (e.g. bytes-per-tool-call) without first normalizing on executor. Fields that remain cross-executor comparable today: `correct`, `correct_neutral`, `elapsed_seconds`, `tool_calls`, `mutations`, `policy_violations`, `requeried`, and `bytes_observation` (the latter is reconstructed from parsed tool-result content, not raw stdout, in both branches). Cross-executor comparisons that include `bytes_output` (or any derived metric) must be flagged non-comparable until normalized.
+
+A future iteration may add a `bytes_assistant_content` field for pi-json by parsing assistant text from the audit stream (`bench/pi_audit_adapter.summarize_pi_audit_events`); until then, executor-local treatment is the published norm. Tracked under P3 in `bench/ledger.md`.
+
 ## Cross-model matrix (N=1, 20-task v1 snapshot)
 
 Separate single runs per model. Not part of the N=3 Haiku dataset above.
