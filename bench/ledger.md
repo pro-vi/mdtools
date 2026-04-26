@@ -14,6 +14,100 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 12)
+
+Closure-discipline review of iter-11's measurement-publication, paired
+with one small substantive fix to a published-narrative typo iter 12
+surfaced during the verification pass. Cheap channel green at review
+time and again after the edit (`cargo test -q` all suites pass, 59
+python unittests OK across the 8 spec-named modules,
+`harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer).
+
+What was checked:
+
+- **Iter-11 measurement-publication** — re-read the
+  "Same-task validation (2026-04-26 iter 11)" block in
+  `bench/RESULTS.md:56-66` against the six bundle `results.json` and
+  `run.json` files cited as data sources. Every published number
+  matches bit-exact:
+  - T1 PI `bytes_output=5,975,843`, `bytes_observation=2,266`,
+    `tool_calls=1`, `mut=0`, `correct=True/True`, `elapsed=9.83s`
+    from `bench/runs/checkpoint-pi-T1-mdtools-gpt5.4mini-2026-04-26/results.json`.
+  - T7 PI `bytes_output=1,172,040`, `bytes_observation=16,219`,
+    `tool_calls=3`, `mut=1`, `correct=True/True`, `elapsed=16.45s`
+    from `bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26/results.json`.
+  - T22 PI `bytes_output=671,515`, `bytes_observation=514`,
+    `tool_calls=1`, `mut=0`, `correct=True/True`, `elapsed=9.63s`
+    from `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/results.json`.
+  - T1 OAI `bytes_output=2,702`, `bytes_observation=2,436`,
+    `tool_calls=1`, `mut=0`, `correct=True/True`, `elapsed=23.53s`
+    from `bench/runs/search-mdtools-extraction-Qwen3.5-122B-A10B-4bit-2026-04-21/results.json`.
+  - T7 OAI `bytes_output=699`, `bytes_observation=13,671`,
+    `tool_calls=3`, `mut=1`, `correct=True/True`, `elapsed=39.68s`
+    from `bench/runs/search-mdtools-mutation-Qwen3.5-122B-A10B-4bit-2026-04-21/results.json`.
+  - T22 OAI `bytes_output=488`, `bytes_observation=1,036`,
+    `tool_calls=2`, `mut=0`, `correct=False/False`, `elapsed=21.67s`
+    from `bench/runs/holdout-mdtools-Qwen3.5-122B-A10B-4bit-2026-04-24/results.json`
+    (the `correct=False/False` confirms the published "T22 OAI cell
+    predates the F3 fix" caveat is honest).
+  Ratios: 5,975,843 / 2,702 ≈ 2,212.0 (published ~2,212×); 1,172,040
+  / 699 ≈ 1,676.7 (published ~1,677×); 671,515 / 488 ≈ 1,375.7
+  (published ~1,376×). All three match. Bytes_observation deltas:
+  T1 (2,266-2,436)/2,436 = -7.0% (published -7%); T7
+  (16,219-13,671)/13,671 = +18.6% (published +19%). Both match.
+- **Normalization-axis claim** — verified against `run.json` for each
+  of the 6 bundles. All six share `modes=['mdtools']`,
+  `executor=guarded`, `runs_per_task=1`. The three PI bundles share
+  `runner=pi-json`, `model=openai-codex/gpt-5.4-mini`,
+  `thinking_level=minimal`. The three OAI bundles share
+  `runner=oai-loop`, `model=Qwen3.5-122B-A10B-4bit`,
+  `thinking_level=None`. The model confound caveat in the published
+  block is therefore the *only* differing axis material to the
+  published claim. (Thinking-level differs nominally —
+  `minimal` vs `None` — but `None` on the older OAI runs reflects the
+  absence of a thinking-level concept, not a different setting; the
+  claim is about executor stdout shape, not thinking-level.)
+- **Verdict — iter-11 measurement-publication ratified.** All published
+  numbers, ratios, and bytes_observation deltas reproduce bit-exact
+  against the underlying bundles. The iter-11 invitation to "treat
+  this measurement-publication as `FIXED_PENDING_CONFIRMATION`-
+  equivalent and ratify it by re-reading the table against the cited
+  results.json files" is hereby discharged.
+
+What was fixed:
+
+- **Published reproducibility typo at `bench/RESULTS.md:54`** — the
+  iter-11 publication added the parenthetical "selected via
+  `--executor pi-json`" describing how to invoke the PI runner. The
+  actual harness CLI flag is `--runner pi-json` (defined at
+  `bench/harness.py:1498` with choices
+  `['claude-cli', 'oai-loop', 'pi-json']`); `--executor` is a separate
+  flag (defined at `bench/harness.py:1513` with choices
+  `['guarded', 'legacy']`) controlling guarded-vs-legacy shell
+  execution. The published instruction is therefore non-reproducible —
+  argparse would reject `--executor pi-json` with "invalid choice".
+  Replaced with "selected via `--runner pi-json` on
+  `bench/harness.py`; `--executor` is a separate flag controlling
+  guarded vs legacy shell execution" to make the disambiguation
+  explicit and self-contained for readers. Cross-checked: README.md:220
+  correctly uses `--executor legacy`, and pi_runner.py:46 correctly
+  uses `--runner pi-json`; the typo is isolated to RESULTS.md:54.
+- **Frontier anchor (substantive fix):** *fresh failing trace* — the
+  published narrative contradicts harness CLI flag definitions in a
+  way an external reader following the document would hit immediately.
+  This is the same-family rule's "fresh failing trace" escape clause,
+  so a same-axis (specification coherence) move after iter 11 is
+  admissible.
+- **Frontier anchor (review pass):** *closure-discipline rule + iter-11
+  invitation* — iter 11 explicitly invited a future review pass to
+  ratify the measurement-publication; iter 12 discharges that
+  invitation by reading typed artifacts (results.json + run.json)
+  rather than narrative.
+- **Comparability framing:** the typo fix is a published-narrative
+  edit that does not change the data, the ratios, the ratio-rule
+  conclusion, or any pass rate. It does not touch any holdout artifact
+  (`bench/RESULTS.md` is published narrative). No new finding opened.
+
 ### Confirmation review pass (2026-04-26 iter 6)
 
 Explicit closure-discipline review of the single FIXED_PENDING_CONFIRMATION
@@ -59,33 +153,59 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 11)
+### Halt-condition / quiet-signal status (after iter 12)
 
-After the iter-11 specification-coherence pass (see "Cross-executor
-same-task measurement publication (2026-04-26 iter 11)" below):
+After the iter-12 closure-discipline review pass (see "Confirmation
+review pass (2026-04-26 iter 12)" above):
 
-- **OPEN findings count:** 0. Iter 11 cashed out iter-10's bundle into
-  the published cross-executor section without surfacing a new defect.
-  The zero-OPEN state holds through iters 8, 9, 10, and 11 — the seventh
-  consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 12 ratified iter-11's
+  measurement-publication and fixed one published-narrative typo
+  without surfacing a new defect. The zero-OPEN state holds through
+  iters 8, 9, 10, 11, and 12 — the eighth consecutive zero-OPEN review
+  round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters 8–9
-  quiet (specification-coherence cleanups on RESULTS.md and the retracted
-  README), iter 10 expensive, iter 11 quiet (specification-coherence
-  publication of the same-task cross-executor evidence iter 10 enabled).
-  Counter at 1 after iter 11. Iters 12–13 admissible as quiet iterations;
-  iter 14 would otherwise re-trigger the spec's "After 3 consecutive
-  iterations …" rule absent earlier signal.
-- **Iter-10 same-family-rule discharge:** iters 8 and 9 were both
-  specification-coherence cleanups, so iter 10 was constrained by the
-  same-family admissibility rule from a third spec-cleanup absent a fresh
-  failing trace (none surfaced — full grep across `README.md`, `CLAUDE.md`,
-  `specs/**`, `bench/RESULTS.md`, `bench/retracted_2026-04-24/README.md`,
-  `bench/ledger.md` confirms zero remaining stale F3 / L1 / pending-fix
-  references). Iter 10 shifted intervention to the comparable-harness-axis
-  frontier anchor instead of halting, because a real cell gap was
-  available at low cost (PI runner had been exercised only on extraction
-  tasks T1 and T22; mutation- and multistep-family cells were absent from
-  the PI executor's coverage).
+  quiet (specification-coherence cleanups on RESULTS.md and the
+  retracted README), iter 10 expensive, iter 11 quiet
+  (specification-coherence publication of the same-task cross-executor
+  evidence iter 10 enabled), iter 12 quiet (closure-discipline review
+  pass on iter-11 + small reproducibility typo fix). Counter at 2 after
+  iter 12. Iter 13 admissible as a quiet iteration; iter 14 would
+  otherwise re-trigger the spec's "After 3 consecutive iterations …"
+  rule absent earlier signal.
+- **Iter-12 same-family-rule discharge:** iter 11 was specification
+  coherence (additive measurement publication). Iter 12 is also
+  specification coherence (corrective reference fix), citing a fresh
+  failing trace — the published `--executor pi-json` instruction at
+  `bench/RESULTS.md:54` (added by iter 11) contradicted the harness CLI
+  flag definitions at `bench/harness.py:1498` (`--runner pi-json`) and
+  `:1513` (`--executor` distinct flag for shell mode). An external
+  reader following the published instruction would hit argparse
+  rejection. Per the same-family rule's "cite a fresh failing trace,
+  external finding, or blocked claim" escape clause, the trace makes
+  the same-axis move admissible. The iter-12 work is paired with the
+  closure-discipline ratification of iter 11 (parallel to iter 9's
+  pairing of retracted-README spec-cleanup with iter-8 RESULTS.md
+  ratification).
+- **Iter-11 same-family-rule discharge (preserved):** iter 11 published
+  the same-task cross-executor measurement that iter 10's bundle made
+  possible. This is specification-coherence work, the same axis as
+  iters 8 and 9, but the same-family chain was broken by iter 10's
+  expensive-channel run, and the move cited a fresh forcing function
+  (the iter-5 P3 closure entry's learning #1) that only became
+  actionable after iter-10's T7 PI bundle paired with the pre-existing
+  T7 OAI-loop bundle.
+- **Iter-10 same-family-rule discharge (preserved):** iters 8 and 9 were
+  both specification-coherence cleanups, so iter 10 was constrained by
+  the same-family admissibility rule from a third spec-cleanup absent a
+  fresh failing trace (none surfaced — full grep across `README.md`,
+  `CLAUDE.md`, `specs/**`, `bench/RESULTS.md`,
+  `bench/retracted_2026-04-24/README.md`, `bench/ledger.md` confirms
+  zero remaining stale F3 / L1 / pending-fix references). Iter 10
+  shifted intervention to the comparable-harness-axis frontier anchor
+  instead of halting, because a real cell gap was available at low cost
+  (PI runner had been exercised only on extraction tasks T1 and T22;
+  mutation- and multistep-family cells were absent from the PI
+  executor's coverage).
 - **Iter-7 obligation history (preserved):** iter 7 ran a PI runner smoke
   on the F3-affected holdout task (T22) — the cheapest *reachable* probe
   in this environment, since the previously-named cheapest probe
@@ -103,18 +223,6 @@ same-task measurement publication (2026-04-26 iter 11)" below):
   coverage*, not anchor justification — a passing T7 cell does not
   validate any candidate primitive's failure-class fit, and was not
   framed as such.
-- **Iter-11 same-family-rule discharge:** iter 11 published the same-task
-  cross-executor measurement that iter 10's bundle made possible. This is
-  specification-coherence work, the same axis as iters 8 and 9, but the
-  same-family chain was broken by iter 10's expensive-channel run, and
-  the move cites a fresh forcing function (the iter-5 P3 closure entry's
-  learning #1 — "Future cross-executor docs must avoid implying a
-  same-task comparison that does not exist" — became actionable only
-  after iter-10's T7 PI bundle paired with the pre-existing T7 OAI-loop
-  bundle). The intervention upgrades the published rule from
-  code-derived ("the gap is not driven by task or model" — asserted
-  without same-task data) to measurement-validated (three same-task
-  pairs across executors, ratios ~1,376× / ~1,677× / ~2,212×).
 
 ### Cross-executor same-task measurement publication (2026-04-26 iter 11)
 
