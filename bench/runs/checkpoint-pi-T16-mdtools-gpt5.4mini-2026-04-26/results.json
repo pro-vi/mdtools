@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T16",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "openai-codex/gpt-5.4-mini",
+    "thinking_level": "minimal",
+    "bytes_prompt": 4361,
+    "bytes_output": 1900731,
+    "bytes_observation": 4430,
+    "tool_calls": 4,
+    "turns": 5,
+    "mutations": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 18.71,
+    "diff_report": "runner_error: tool_error: bash: Is a directory (os error 21) Command exited with code 1\njson_canonical: MISMATCH at line 2\n  expected:   \"files\": [\n  actual:     \"results\": [",
+    "runner_error": "tool_error: bash: Is a directory (os error 21) Command exited with code 1"
+  }
+]

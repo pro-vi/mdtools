@@ -6,13 +6,234 @@ cleared only after a typed artifact confirms the finding, not by prose alone.
 
 ## OPEN findings
 
-_(none)_
+### F4 — `json_envelope` scorer prefers any JSON-parseable tool output over the agent's matching text answer
+
+- **Status:** OPEN — filed 2026-04-26 iter 29; severity **P1** (metric quarantine, isolated to one output-shape family)
+- **Axis:** oracle trustworthiness (scorer false-negative on a specific output-shape pattern)
+- **Anchor:** the iter-29 quiet-signal-checkpoint expensive run
+  (`bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/`) recorded
+  `correct=False`, `correct_neutral=False` for T16 mdtools on
+  gpt-5.4-mini at minimal thinking. The agent's final assistant text
+  was the correct expected JSON
+  `{"total_pending":9,"files":[{"file":"backend.md","pending":3},
+  {"file":"devops.md","pending":4},{"file":"frontend.md","pending":2}]}`
+  (verified by parsing the persisted Pi session output at
+  `logs/T16_mdtools_1777224275/agent_output.txt` and concatenating its
+  text deltas). The scorer's `actual` was `./md tasks <files> --json`'s
+  raw envelope `{"schema_version":"mdtools.v1","results":[{...}]}` —
+  valid JSON, non-empty dict, but the wrong schema for T16 (which
+  expects `total_pending` + `files`, not `schema_version` + `results`).
+- **Root cause:** `bench/harness.py:1404-1429` (the
+  `expected_artifact == "json_envelope"` branch of the scorer) walks
+  `reversed(all_tool_outputs)` first and captures the first tool output
+  that parses as a non-empty JSON dict/list (`bench/harness.py:1408-1415`),
+  only falling through to `all_text_outputs` when **no** tool output
+  parses (lines 1416-1426). When an agent runs an intermediate tool that
+  emits valid-but-different-schema JSON (e.g. `./md tasks --json` →
+  `{"schema_version":..., "results":[...]}`) **and** then computes the
+  expected-schema answer in their final assistant text rather than via a
+  projecting tool call (e.g. `jq '...'`), the scorer captures the
+  intermediate envelope instead of the agent's correct answer.
+- **Effect (P1 quarantine):** affects `json_envelope` + `json_canonical=true`
+  tasks where the agent's projection lives in text, not in a tool call
+  whose stdout matches the expected schema. T16 is one such cell. The
+  same scorer cell shape (`kind=structural` + `json_canonical=true` +
+  `expected_artifact=json_envelope`) covers T9, T11, T16, T19 per
+  iter-28's dispatcher matrix; T9 passed in iter-25 because the agent
+  used `jq` to project in-tool, so the tool-output-priority rule worked
+  in T9's favor. T11 / T19 have not been measured under PI yet, but
+  may exhibit the same false-negative under any agent that answers in
+  text. Per the claim-gate, this does **not** block holdout results
+  (none of T9/T11/T16/T19 are in the holdout split — holdout is
+  T4/T14/T20/T22/T23/T24 per iter-2 fingerprints) and does **not**
+  block product work on the unaffected slice. It does mean any future
+  cross-executor / cross-model comparison that includes T16-shape cells
+  must be flagged as non-comparable until F4 is closed.
+- **Out of scope for the gate (per spec):** F4 is **not** P0 — it is
+  not a holdout-immutability breach, not a known false positive on the
+  acceptance metric of any current loop anchor, and not benchmark
+  leakage. So holdout results may continue to be reported (subject to
+  apples-to-apples comparability), and the loop is not gated against
+  declaring a primary product anchor (none currently declared anyway).
+- **Closure plan (cheapest first, options not yet committed):**
+  - (a) **Schema-aware tool-output preference.** In the `json_envelope`
+    branch, prefer tool outputs whose parsed top-level keys overlap
+    with the expected JSON's top-level keys; otherwise fall through
+    to text outputs before degrading to "any JSON-parseable tool
+    output". This preserves T9-shape passes (jq projection produces
+    matching keys) and rescues T16-shape passes (text answer matches
+    when raw `md tasks --json` doesn't). Risk: needs unit tests
+    pinning the new precedence on T9 (jq projection wins), T16
+    (text wins when tool output is non-matching), T22 / T1 / T21
+    (tool output is the answer; current behavior preserved).
+  - (b) **Text-output equality short-circuit.** Before walking tool
+    outputs, check if the last text output already parses to the
+    expected JSON (key-set match against the parsed expected). If
+    yes, prefer it. Cheaper than (a), narrower scope, but biased toward
+    text-answer agents. Risk: less general; could regress if some task
+    has a "near-match" text and a "true-match" tool output.
+  - (c) **Per-task scorer hint.** Add a `prefer_text_answer: bool`
+    field to the scorer policy and set it on tasks where the expected
+    artifact comes from text projection. Most invasive; explicit; but
+    pushes the configuration burden into the corpus instead of letting
+    the scorer infer.
+  Pre-commitment: option (a) is the leading candidate because it
+  generalizes (no per-task config) and degrades gracefully (current
+  behavior is the final fallback). Option choice is deferred to the
+  iteration that closes F4.
+- **What F4 does NOT block:** does not block product anchor promotion
+  (none declared); does not bump `holdout_version` (no holdout-side
+  artifact change); does not invalidate any prior search-set bundle
+  (those bundles record what they recorded; the question is what
+  future scoring does with comparable shapes); does not retract any
+  CLOSED finding.
 
 ## FIXED_PENDING_CONFIRMATION
 
 _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirmation review pass (2026-04-26 iter 6)" below.)_
 
 ## CLOSED
+
+### Quiet-signal checkpoint discharge (2026-04-26 iter 29)
+
+Per the spec's "After 3 consecutive iterations with the cheap channel
+green, no new failing trace, and no new finding added to the findings /
+ledger surface, run the expensive outer channel" rule, iter 29 ran the
+expensive outer channel. The quiet-signal counter was at 3 after iter 28
+(iters 26 / 27 / 28 were all quiet). Cheap channel re-verified green
+before and after: `cargo test -q` all suites pass; `python3 -m unittest
+bench.test_command_policy bench.test_oai_loop bench.test_pi_audit
+bench.test_harness_json bench.test_harness_run_artifacts
+bench.test_harness_task_split bench.test_analyze_inputs
+bench.test_report_inputs` reports "Ran 70 tests in 1.829s … OK";
+`python3 bench/harness.py --md-binary target/release/md` dry-run
+reports "All tasks pass dual scorer" on all 24 tasks.
+
+- **Bundle:** `bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/` —
+  eighth PI runner bundle. Single task (T16, search-split, multi-file
+  GFM-task counting). Single mode (mdtools). Single run. Model
+  `openai-codex/gpt-5.4-mini` at `thinking_level=minimal`, recorded per-
+  result and per-run on the metadata bundle. `run.json` line 20 carries
+  `holdout_version: 1` — the **fourth** durable bundle in `bench/runs/`
+  carrying iter-17's stamp (after iter-18 T2, iter-21 T21, iter-25 T9).
+- **Verdict:** T16 mdtools dual-scorer **FAIL** in 18.71s with 4 tool
+  calls (`find … -name '*.md'`, `ls -1 <vault>`, `./md blocks <vault>`
+  → `tool_error: Is a directory`, `./md tasks <files> --json` → 4061
+  bytes), 0 mutations, `requeried=false`, `policy_violations=2`,
+  `bytes_observation=4430`, `bytes_output=1,900,731` (PI streaming
+  overhead, see P3 cross-executor rule in `bench/RESULTS.md`).
+  `diff_report` records two distinct artifacts: a `runner_error`
+  surfaced from the `./md blocks <directory>` mis-call (the agent
+  passed a directory where md expects a single `.md` file; md returned
+  a non-zero exit with a clear "Is a directory" message and the agent
+  recovered with `./md tasks <files> --json` on the next call) and a
+  `json_canonical: MISMATCH at line 2` showing
+  `expected: "files": [` vs `actual: "results": [`. Pi-audit log at
+  `logs/T16_mdtools_1777224275/pi-audit.jsonl` preserves 10 events
+  (`model_change`, `thinking_level_change`, then four
+  `tool_call`/`tool_result` pairs with one `tool_error` for the third
+  call), parses cleanly via `bench/pi_audit_adapter.summarize_pi_audit_events`.
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T16, runs_per_task=1,
+  holdout_version=1). It is **NOT** a reconfirmation of any prior
+  holdout bundle — T16 is in the search split, not holdout. It is
+  **NOT** a mode/model comparison versus the existing OAI bundles for
+  T16 (`search-mdtools-extraction-{Hermes-4-70B-4bit,Qwen3.5-122B-A10B-4bit,
+  Qwen3.5-27B-4bit,magnum-v4-123b-4bit}-2026-04-21/`): all four cross
+  the executor and model normalization axes versus this bundle, so
+  any pass-rate observation is search-set, not a comparison. Cross-
+  executor downstream pairing (PI gpt-5.4-mini vs OAI Qwen3.5-122B-A10B-4bit)
+  is **not** eligible for the `bench/RESULTS.md:54` cross-executor table
+  in this state — F4 (filed below) means the PI cell's `correct=False`
+  is contaminated by the scorer false-negative; the OAI cell's
+  `correct=True` is genuine (Qwen used 6 tool calls, likely projecting
+  in-tool the way iter-25 T9 did with jq), so a row that pairs them
+  would mis-attribute the difference to executor/model when the actual
+  cause is the F4 scorer pattern. Tabling is deferred until F4 closes.
+  Per second-opinion review on iter 29, an **F4 quarantine note**
+  paragraph has been added to the cross-executor section of
+  `bench/RESULTS.md` (immediately after the existing **Rule:**
+  paragraph) explicitly flagging that the T9 row in the published
+  table sits in the F4-affected scorer cell shape — its behavior-axis
+  values (`tool_calls`, `mutations`, `bytes_output`,
+  `bytes_observation`) remain valid (those measure agent activity, not
+  scorer verdicts), but the `correct` / `correct_neutral` channel for
+  any comparison in this scorer cell shape (T9 / T11 / T16 / T19) is
+  **F4-suspect** until F4 closes. This is the affected-claim-audit
+  move (versus the affected-task-audit move) the second opinion called
+  out as load-bearing for keeping iter-29 shipping discipline above
+  status-theater.
+- **What this discharges:** the spec's quiet-signal-checkpoint rule
+  by introducing fresh typed signal via the expensive channel. It does
+  **NOT** discharge any product or oracle claim — those still require
+  their own attribution probes and apples-to-apples comparisons.
+- **What it surfaced:** the new **F4 P1 OPEN finding** above (json_envelope
+  scorer prefers any JSON-parseable tool output over the agent's matching
+  text answer). This is concrete fresh signal — i.e. the iteration's
+  expensive run did not return null information. F4 is the first OPEN
+  finding filed since iter-2 closed L1; the 24-round zero-OPEN streak
+  ends at iter 29.
+- **Cross-finding observation (forward-pointing, no historical edit):** the
+  T16 trace also exhibits a per-model behavioral pattern worth recording
+  but **not** worth filing as a separate finding: gpt-5.4-mini at minimal
+  thinking attempted `./md blocks <directory>` as the third tool call,
+  which `md` correctly rejects (md commands operate on files, not
+  directories). The agent did not bail on the error and instead pivoted
+  to `./md tasks <files> --json` on the fourth call, exiting with the
+  correct text answer. This is a per-model-and-prompt-shape observation
+  parallel to iter-14's gpt-5.4-mini-emits-2.5×-tool-calls observation
+  on T18, recorded as data not as a defect: md's directory rejection
+  is correct UX (clear error message, non-zero exit), and the agent's
+  recovery worked. No finding is opened by this trace.
+  **Affordance-trap nuance (added 2026-04-26 iter 29 post-second-opinion
+  refinement):** the directory mis-call is not pure noise. F4's symptom
+  shape depends on the recovery path leaving a tempting non-matching
+  JSON tool output behind — i.e. `./md tasks <files> --json` was
+  *reached* because `./md blocks <dir>` failed and the agent pivoted
+  to the per-file `tasks --json` over the multi-file vault. The
+  scorer-extraction rule then captured that recovery-path output. So
+  although the dominant cause of FAIL is the F4 scorer rule (not the
+  affordance confusion), the trajectory shows that vault-shaped tasks
+  exposing structural primitives that don't accept directories can
+  produce recovery paths whose tool outputs systematically mis-match
+  the expected schema. Recorded forward-pointing as cofactor evidence
+  for the future iteration that closes F4 — synthetic regression
+  fixtures should explicitly include this shape (wrong-schema JSON
+  tool output present + correct final JSON in assistant text).
+- **Same-family-rule discharge:** iter 26 was specification coherence
+  (cross-executor table fifth-row publication of iter-25 T9), iter 27
+  was closure-discipline (ledger-only ratification of iter 26 +
+  forward-pointing code-path-routing correction in iter-25 prose), iter
+  28 was oracle-trustworthiness hardening (typed-test promotion of
+  iter-27's prose claim). Iter 29 is **intervention-diversity**
+  (expensive outer channel run + new durable PI bundle), shifting axis
+  cleanly from iter 28. The forced expensive-or-halt mandate at iter 29
+  (per the spec's 3-consecutive-quiet rule) is its own escape clause
+  for the same-family rule, parallel in shape to iter 25's discharge of
+  iter-22 / -23 / -24 same-family pressure and iter 14's discharge of
+  iter-11 / -12 / -13 same-family pressure.
+- **Closure-discipline status:** **CLOSED** at authoring time per the
+  iter-4 / -7 / -10 / -14 / -18 / -21 / -25 quiet-signal-discharge
+  pattern (no FIXED_PENDING_CONFIRMATION promotion needed because
+  there is no fix here — the bundle is the deliverable; F4 is a
+  separately-filed OPEN finding that future iterations close on their
+  own ratchet). A future review pass should ratify by re-reading every
+  data point in this entry against `results.json`, `run.json`,
+  `pi-audit.jsonl`, and the persisted `agent_output.txt`.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does not
+  bump `holdout_version` (still 1; T16 is search-side, no holdout-
+  side artifact change). Does not edit any harness production code
+  (only ledger and a new bundle directory under `bench/runs/`). Does
+  not extend the cross-executor table (deferred until F4 closes).
+  Does not modify any historical ledger entry inline (per
+  iter-15 / -22 / -24 / -26 / -27 / -28 discipline). Does not edit any
+  published-narrative file (`bench/RESULTS.md`, `README.md`,
+  `CLAUDE.md`, `bench/retracted_2026-04-24/README.md`, `specs/**`).
+  Does not amend any pass-rate claim. Does not extend `bench/probes/`,
+  `bench/search/candidates/`, or any other not-yet-existing T7 directory.
+  Does not implement the F4 closure plan (deferred to a future iteration
+  that explicitly chooses among options (a) / (b) / (c) above).
 
 ### Scorer-dispatcher branch coverage assertion (2026-04-26 iter 28)
 
@@ -2550,24 +2771,31 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 28)
+### Halt-condition / quiet-signal status (after iter 29)
 
-After iter 28's substantive but cheap-channel-only oracle-trustworthiness
-hardening — promoting iter-27's prose claim about the corpus-vacuous
-`bench/harness.py:378` else-arm to a typed cheap-channel assertion via
-`bench/test_harness_task_split.py:ScorerDispatcherBranchTests` (2 new
-unit tests pinning that no corpus task reaches the else-arm and that
-all four explicit dispatcher branches are exercised) — see
-"Scorer-dispatcher branch coverage assertion (2026-04-26 iter 28)"
-above:
+After iter 29's spec-mandated forced expensive-or-halt discharge — the
+eighth PI runner bundle (T16 mdtools, dual-scorer **FAIL** in 18.71s,
+the first PI mdtools FAIL on disk) and the iter-29 surfacing of new
+finding **F4 P1 OPEN** ("`json_envelope` scorer prefers any
+JSON-parseable tool output over the agent's matching text answer") —
+see "Quiet-signal checkpoint discharge (2026-04-26 iter 29)" and the
+"## OPEN findings" section above:
 
-- **OPEN findings count:** 0. Iter 28 added 2 new harness-assertion
-  tests promoting iter-27's prose claim about corpus-vacuous
-  dispatcher routing to a mechanical cheap-channel invariant; the
-  invariant holds on the live corpus (both new tests pass), so no
-  finding is opened by the addition itself. The zero-OPEN state
-  holds through iters 8–28 — the **twenty-fourth** consecutive
-  zero-OPEN review round.
+- **OPEN findings count:** **1** (F4, P1 metric quarantine). The
+  zero-OPEN state held through iters 8–28 (24 consecutive rounds);
+  iter 29's expensive run surfaced F4 and the streak ends at iter 29.
+  This is parallel in structural shape to iter-4's expensive-channel
+  run surfacing P3 (which opened the only finding gap between iter-2
+  L1 closure and iter-5's P3 closure). F4 is filed at P1, not P0:
+  the affected scorer cell shape (json_envelope + json_canonical=true
+  + agent-answers-in-text pattern) is isolated to T9/T11/T16/T19,
+  and none of those are in the holdout split (holdout is
+  T4/T14/T20/T22/T23/T24); the spec's "no holdout result may be
+  reported as confirmation" P0 effect therefore does not fire.
+  The "no OPEN findings for 2 consecutive review rounds" halt
+  condition resets — iter 30's first task is to either close F4 or
+  do other admissible work; halt cannot fire on this counter until
+  F4 closes and at least one subsequent quiet round completes.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -2597,26 +2825,56 @@ above:
   quiet (cheap-channel-only oracle-trustworthiness hardening —
   promoting iter-27's corpus-vacuous-path prose claim to a typed
   `ScorerDispatcherBranchTests` cheap-channel assertion, +2 unit
-  tests, no expensive run; counter increments to **3**). Iter 29 is
-  the next forced expensive-or-halt point.
+  tests, no expensive run; counter increments to **3**), iter 29
+  expensive (T16 mdtools PI runner bundle as the eighth PI bundle,
+  fourth durable bundle carrying iter-17's `holdout_version=1`
+  stamp, **first PI mdtools FAIL** on disk, surfaced **F4 P1
+  OPEN**; counter reset to **0**). Iters 30–32 admissible quiet,
+  iter 33 the next forced expensive-or-halt point unless an F4
+  closure run between now and then independently introduces fresh
+  signal that resets the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
-  server) per iter 7. After iter 25, the remaining PI-runner-coverage
-  gaps (now correctly cataloged) are: cross-mode (no PI hybrid or PI
-  unix bundles yet — all seven PI bundles are mdtools mode); cross-
-  model (all seven use `openai-codex/gpt-5.4-mini` at minimal
-  thinking); and additional task-family or scorer-cell coverage on
-  the search side (T11 / T16 / T19 share the iter-25-exercised
-  scorer-cell shape so their PI value is task-family / structure-
-  diversity rather than scorer-branch coverage; T3 / T5 add their
-  own scorer-branch combinations; the raw_bytes branch beyond T18
-  could be extended via T10 / T12 / T13 / T15 / T17). Note for
+  server) per iter 7. After iter 29, the remaining PI-runner-coverage
+  gaps are: cross-mode (no PI hybrid or PI unix bundles yet — all
+  eight PI bundles are mdtools mode); cross-model (all eight use
+  `openai-codex/gpt-5.4-mini` at minimal thinking); cross-task within
+  the iter-25-exercised scorer cell shape (T11 / T19 still uncovered,
+  but contaminated by F4 if the agent answers in text); T3 / T5 add
+  their own scorer-branch combinations; the raw_bytes branch beyond
+  T18 could be extended via T10 / T12 / T13 / T15 / T17. Note for
   future named-cheapest-probe entries: avoid the iter-21-style
   framing that names a corpus-vacuous code path; prefer "first PI
   cell to exercise scorer cell shape X (where X is grounded in an
   actual `bench/tasks/tasks.json` task config)" or a task-family /
-  cross-mode / cross-model gap.
+  cross-mode / cross-model gap. F4 closure (iter-29 closure plan
+  options (a) / (b) / (c)) is also an admissible iter-30 frontier
+  anchor ahead of any further PI coverage extension.
+- **Iter-29 same-family-rule discharge:** iter 26 was specification
+  coherence (cross-executor table fifth-row publication), iter 27 was
+  closure-discipline (ledger-only ratification of iter 26 + one
+  forward-pointing code-path-routing correction), iter 28 was oracle-
+  trustworthiness (typed-test promotion of iter-27's prose claim).
+  Iter 29 is **intervention-diversity** (forced expensive-or-halt
+  discharge: T16 mdtools PI bundle), shifting axis cleanly from
+  iter 28. The forced expensive-or-halt mandate at iter 29 is its own
+  escape clause for the same-family rule, parallel in shape to iter
+  25's discharge of iter-22 / -23 / -24 same-family pressure, iter
+  18's discharge of iter-16 / -17 same-family pressure, and iter 14's
+  discharge of iter-11 / -12 / -13 same-family pressure. The expensive
+  run additionally implicitly ratifies iter-28's
+  `ScorerDispatcherBranchTests` by not re-raising the cheap-channel
+  property (the dry-run on all 24 tasks before and after the expensive
+  run still passes; T16 falls into the **json_canonical** branch per
+  the iter-28 dispatcher classification at `bench/harness.py:363`,
+  alongside T9 / T11 / T19, and the iter-28 negative-case invariant —
+  no task reaches line 378 — is preserved). The F4 finding does **not**
+  invalidate iter-28's typed-test work: F4 is a defect in the
+  `expected_artifact == "json_envelope"` branch's `actual` extraction
+  (the harness path that decides what string to feed `score_task`),
+  whereas iter-28's tests assert the dispatcher predicate routing
+  inside `score_task` itself. The two layers are orthogonal.
 - **Iter-28 same-family-rule discharge:** iter 25 was
   intervention-diversity (T9 PI expensive run), iter 26 was
   specification coherence (cross-executor table fifth-row
