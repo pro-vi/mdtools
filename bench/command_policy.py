@@ -131,7 +131,7 @@ def classify_command_kind(raw_command: str, base_command: str | None = None) -> 
         return None
 
     normalized = normalize_command(base_command)
-    tokens = tokenize_shell(raw_command)
+    tokens = safe_tokenize_shell(raw_command)
 
     if normalized == "md":
         subcommand = _extract_md_subcommand(tokens)
@@ -156,7 +156,7 @@ def classify_command_kind(raw_command: str, base_command: str | None = None) -> 
 
 
 def extract_base_command(raw_command: str) -> str | None:
-    tokens = tokenize_shell(raw_command)
+    tokens = safe_tokenize_shell(raw_command)
     if not tokens:
         return None
 
@@ -181,6 +181,21 @@ def tokenize_shell(raw_command: str) -> list[str]:
     lexer = shlex.shlex(raw_command, posix=True, punctuation_chars="|<>")
     lexer.whitespace_split = True
     return list(lexer)
+
+
+def safe_tokenize_shell(raw_command: str) -> list[str]:
+    try:
+        return tokenize_shell(raw_command)
+    except ValueError:
+        return fallback_tokenize_shell(raw_command)
+
+
+def fallback_tokenize_shell(raw_command: str) -> list[str]:
+    append_marker = "\0APPEND_REDIRECT\0"
+    text = raw_command.replace(">>", f" {append_marker} ")
+    for punct in ("|", "<", ">"):
+        text = text.replace(punct, f" {punct} ")
+    return [">>" if token == append_marker else token for token in text.split()]
 
 
 def normalize_command(token: str) -> str:

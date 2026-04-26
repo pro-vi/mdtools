@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bench.command_policy import create_restricted_shell_env, load_guard_events
+from bench.command_policy import classify_command_kind, create_restricted_shell_env, load_guard_events
 
 
 class CommandPolicyGuardTests(unittest.TestCase):
@@ -53,6 +53,13 @@ class CommandPolicyGuardTests(unittest.TestCase):
         proc, events = self._run("mdtools", "grep Title doc.md")
         self.assertEqual(proc.returncode, -15)
         self.assertEqual([(event.decision, event.base_command) for event in events], [("deny", "grep")])
+
+    def test_classify_command_kind_tolerates_partial_multiline_guard_entries(self) -> None:
+        # The DEBUG trap logs raw BASH_COMMAND values. Multiline awk/sed scripts
+        # can contain embedded newlines, so the line-oriented guard log may expose
+        # a partial command like "awk '". Classification must not crash the run.
+        self.assertEqual(classify_command_kind("awk '", "awk"), "query")
+        self.assertEqual(classify_command_kind("sed -i 's/a/b", "sed"), "mutation")
 
     def test_mdtools_mode_denies_absolute_path_md(self) -> None:
         # Regression guard for the magnum-v4-123b-4bit failure mode observed on

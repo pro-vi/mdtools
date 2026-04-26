@@ -107,9 +107,11 @@ def load_report_input(path):
 
     default_model = "unspecified"
     default_runner = "unspecified"
+    default_thinking_level = "unspecified"
     if metadata:
         default_model = metadata.get("model") or "unspecified"
         default_runner = metadata.get("runner") or "unspecified"
+        default_thinking_level = metadata.get("thinking_level") or "unspecified"
 
     annotated = []
     for result in results:
@@ -120,6 +122,8 @@ def load_report_input(path):
             enriched["model"] = default_model
         if not enriched.get("runner"):
             enriched["runner"] = default_runner
+        if not enriched.get("thinking_level"):
+            enriched["thinking_level"] = default_thinking_level
         annotated.append(enriched)
 
     if metadata:
@@ -148,6 +152,8 @@ def format_run_context(metadata):
         parts.append(f"executor={metadata['executor']}")
     if metadata.get("model"):
         parts.append(f"model={metadata['model']}")
+    if metadata.get("thinking_level"):
+        parts.append(f"thinking={metadata['thinking_level']}")
 
     return f"{metadata.get('_source', '?')}: " + ", ".join(parts)
 
@@ -230,6 +236,7 @@ def parse_text_results(filepath):
     results = []
     mode = None
     model = None
+    thinking_level = None
     pending_task = None
     in_dry_run = False
     with open(filepath) as f:
@@ -237,13 +244,15 @@ def parse_text_results(filepath):
             if line.startswith("=== DRY RUN:"):
                 mode = "mdtools"
                 model = "unspecified"
+                thinking_level = "unspecified"
                 pending_task = None
                 in_dry_run = True
                 continue
-            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
+                thinking_level = m.group(4) or "unspecified"
                 pending_task = None
                 in_dry_run = False
                 continue
@@ -254,6 +263,7 @@ def parse_text_results(filepath):
                         "task_id": m.group(1),
                         "mode": mode,
                         "model": model,
+                        "thinking_level": thinking_level,
                         "correct": m.group(2) == "PASS" and m.group(3) == "PASS",
                         "elapsed_seconds": 0.0,
                         "bytes_output": 0,
@@ -273,7 +283,7 @@ def parse_text_results(filepath):
             )
             if m3 and pending_task:
                 results.append({
-                    "task_id": pending_task, "mode": mode,
+                    "task_id": pending_task, "mode": mode, "model": model, "thinking_level": thinking_level,
                     "correct": m3.group(1) == "PASS",
                     "elapsed_seconds": float(m3.group(2)),
                     "bytes_output": int(m3.group(3)),
@@ -448,14 +458,17 @@ def render_task_family(results, modes, tasks, markdown):
         print()
 
 
-def format_group_label(runner, model):
+def format_group_label(runner, model, thinking_level="unspecified"):
+    label = model
+    if thinking_level and thinking_level != "unspecified":
+        label = f"{label} (thinking={thinking_level})"
     if runner and runner != "unspecified":
-        return f"{model} [{runner}]"
-    return model
+        label = f"{label} [{runner}]"
+    return label
 
 
-def render_group_header(runner, model, markdown):
-    label = format_group_label(runner, model)
+def render_group_header(runner, model, thinking_level, markdown):
+    label = format_group_label(runner, model, thinking_level)
     if markdown:
         print(f"## {label}\n")
     else:
@@ -479,12 +492,13 @@ def render_cross_group_summary(all_results, groups, modes, markdown):
         )
         print("-" * 102)
 
-    for runner, model in groups:
-        label = format_group_label(runner, model)
+    for runner, model, thinking_level in groups:
+        label = format_group_label(runner, model, thinking_level)
         for mode in modes:
             matches = [
                 r for r in all_results
                 if r.get("mode") == mode and r["model"] == model and r["runner"] == runner
+                and r.get("thinking_level", "unspecified") == thinking_level
             ]
             a = agg_results(matches)
             if not a:
@@ -527,19 +541,24 @@ def main():
     modes = sorted(set(r.get("mode", "?") for r in all_results))
     tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))
 
-    # Group by (runner, model) so multi-bundle reports stay apples-to-apples
-    # distinct (e.g., the same Claude model run via claude-cli vs oai-loop).
-    groups = sorted({(r.get("runner", "unspecified"), r.get("model", "unspecified"))
-                     for r in all_results})
+    # Group by runner, model, and thinking level so Pi runs at different
+    # reasoning budgets stay apples-to-apples distinct.
+    groups = sorted({(
+        r.get("runner", "unspecified"),
+        r.get("model", "unspecified"),
+        r.get("thinking_level", "unspecified"),
+    ) for r in all_results})
 
     multi_group = len(groups) > 1
-    for runner, model in groups:
+    for runner, model, thinking_level in groups:
         group_results = [
             r for r in all_results
-            if r.get("runner") == runner and r.get("model") == model
+            if r.get("runner") == runner
+            and r.get("model") == model
+            and r.get("thinking_level", "unspecified") == thinking_level
         ]
         if multi_group:
-            render_group_header(runner, model, markdown)
+            render_group_header(runner, model, thinking_level, markdown)
         render_per_task_table(group_results, modes, tasks, sample_count_label, markdown)
         render_aggregate(group_results, modes, markdown)
         render_runner_errors(group_results, markdown)

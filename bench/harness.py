@@ -32,10 +32,14 @@ from typing import Literal
 try:
     from bench.command_policy import create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
+    from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
+    from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
+    from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
+    from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 
 # ── Independent scorer (no md dependency) ─────────────────────
 
@@ -143,6 +147,7 @@ class BenchResult:
     correct: bool
     correct_neutral: bool = True  # Independent scorer agreement
     model: str | None = None
+    thinking_level: str | None = None
     bytes_prompt: int = 0
     bytes_output: int = 0
     bytes_observation: int = 0   # total tool-result content agent had to read
@@ -162,6 +167,7 @@ class BenchResult:
 class ParsedAgentOutput:
     stdout: str
     model: str | None = None
+    thinking_level: str | None = None
     tool_calls: int = 0
     turns: int = 0
     bytes_observation: int = 0
@@ -735,6 +741,7 @@ def build_run_metadata(
     results: list[BenchResult],
     started_at: float,
     finished_at: float,
+    thinking_level: str | None = None,
 ) -> dict[str, object]:
     resolved_model = model
     if resolved_model is None:
@@ -745,6 +752,16 @@ def build_run_metadata(
         }
         if len(observed_models) == 1:
             resolved_model = next(iter(observed_models))
+
+    resolved_thinking_level = thinking_level
+    if resolved_thinking_level is None:
+        observed_thinking_levels = {
+            result.thinking_level
+            for result in results
+            if isinstance(result.thinking_level, str) and result.thinking_level.strip()
+        }
+        if len(observed_thinking_levels) == 1:
+            resolved_thinking_level = next(iter(observed_thinking_levels))
 
     by_mode: dict[str, dict[str, float | int]] = {}
     for mode in modes:
@@ -765,6 +782,7 @@ def build_run_metadata(
         "runner": runner,
         "executor": executor,
         "model": resolved_model,
+        "thinking_level": resolved_thinking_level,
         "runs_per_task": runs_per_task,
         "aggregates": {
             "overall": aggregate_results(results),
@@ -958,6 +976,7 @@ def run_agent(
     oai_api_key: str | None = None,
     oai_request_timeout: int = 60,
     oai_tool_timeout: int = 30,
+    thinking_level: str | None = None,
 ) -> BenchResult:
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
@@ -1018,9 +1037,12 @@ def run_agent(
     unique_invalid_responses = 0
     runner_error = None
     resolved_model = model
+    resolved_thinking_level = thinking_level if runner == "pi-json" else None
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
+
+    pi_audit_log_path: Path | None = None
 
     if runner == "oai-loop":
         if not oai_api_base:
@@ -1067,6 +1089,54 @@ def run_agent(
             all_tool_outputs = trace.tool_outputs
             all_text_outputs = trace.text_outputs
             stdout = "\n".join(all_tool_outputs + all_text_outputs)
+    elif runner == "pi-json":
+        pi_audit_log_path = workdir_path / ".pi-audit.jsonl"
+        pi_session_dir = workdir_path / ".pi-sessions"
+        audit_extension_path = default_audit_extension_path()
+        cmd = build_pi_json_command(
+            agent_cmd=agent_cmd,
+            model=model,
+            audit_extension_path=audit_extension_path,
+            session_dir=pi_session_dir,
+            tools=("bash",),
+            thinking_level=thinking_level,
+        )
+        pi_env = child_env.copy()
+        pi_env["PI_AUDIT_LOG"] = str(pi_audit_log_path)
+        pi_env.setdefault("PI_SKIP_VERSION_CHECK", "1")
+        try:
+            result = subprocess.run(
+                [*cmd, prompt],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                cwd=workdir,
+                env=pi_env,
+            )
+            raw_stdout = result.stdout
+            bytes_output = len(raw_stdout.encode())
+            if result.returncode != 0:
+                stderr = " ".join((result.stderr or "").split())
+                runner_error = (
+                    f"pi_json_error: exit {result.returncode}: {stderr}"
+                    if stderr
+                    else f"pi_json_error: exit {result.returncode}"
+                )
+        except subprocess.TimeoutExpired:
+            raw_stdout = ""
+            bytes_output = 0
+            runner_error = "pi_json_error: timeout"
+
+        parsed_output = parse_pi_json_output(raw_stdout)
+        stdout = parsed_output.stdout
+        tool_calls = parsed_output.tool_calls
+        num_turns = parsed_output.turns
+        bytes_observation = parsed_output.bytes_observation
+        all_tool_outputs = parsed_output.tool_outputs
+        all_text_outputs = parsed_output.text_outputs
+        runner_error = runner_error or parsed_output.runner_error
+        resolved_model = parsed_output.model or model
+        resolved_thinking_level = parsed_output.thinking_level or thinking_level
     else:
         cmd = _build_agent_cmd(agent_cmd, mode, local_md, model, max_turns)
         try:
@@ -1096,17 +1166,34 @@ def run_agent(
         resolved_model = model or parsed_output.model
     elapsed = time.time() - start
 
-    if guard_log_path is not None:
-        for event in load_guard_events(guard_log_path):
-            if event.decision != "allow":
-                policy_violations += 1
-                continue
-            kind = event.kind
-            if kind == "mutation":
-                mutations += 1
-                call_sequence.append("mutation")
-            elif kind == "query":
-                call_sequence.append("query")
+    guard_events = load_guard_events(guard_log_path) if guard_log_path is not None else []
+    for event in guard_events:
+        if event.decision != "allow":
+            policy_violations += 1
+            continue
+        kind = event.kind
+        if kind == "mutation":
+            mutations += 1
+            call_sequence.append("mutation")
+        elif kind == "query":
+            call_sequence.append("query")
+
+    if pi_audit_log_path is not None:
+        audit_counters = summarize_pi_audit_events(
+            load_pi_audit_events(pi_audit_log_path),
+            guard_events=guard_events,
+        )
+        if tool_calls == 0:
+            tool_calls = audit_counters.tool_calls
+        if bytes_observation == 0:
+            bytes_observation = audit_counters.bytes_observation
+        if audit_counters.model and (not resolved_model or resolved_model == model):
+            resolved_model = audit_counters.model
+        if audit_counters.thinking_level:
+            resolved_thinking_level = audit_counters.thinking_level
+        policy_violations = max(policy_violations, audit_counters.policy_violations)
+        mutations = max(mutations, audit_counters.mutations)
+        requeried = requeried or audit_counters.requeried
 
     saw_mutation = False
     for kind in call_sequence:
@@ -1192,6 +1279,11 @@ def run_agent(
         (run_log_dir / "agent_output.txt").write_text(raw_stdout)
         if guard_log_path is not None and guard_log_path.exists():
             shutil.copy2(guard_log_path, run_log_dir / "guard.log")
+        if pi_audit_log_path is not None and pi_audit_log_path.exists():
+            shutil.copy2(pi_audit_log_path, run_log_dir / "pi-audit.jsonl")
+        pi_session_root = workdir_path / ".pi-sessions"
+        if pi_session_root.exists():
+            shutil.copytree(pi_session_root, run_log_dir / "pi-sessions", dirs_exist_ok=True)
 
     shutil.rmtree(workdir, ignore_errors=True)
 
@@ -1201,6 +1293,7 @@ def run_agent(
         correct=ok_md,
         correct_neutral=ok_neutral,
         model=resolved_model,
+        thinking_level=resolved_thinking_level,
         bytes_prompt=bytes_prompt,
         bytes_output=bytes_output,
         bytes_observation=bytes_observation,
@@ -1290,12 +1383,18 @@ def main():
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument(
         "--runner",
-        choices=["claude-cli", "oai-loop"],
+        choices=["claude-cli", "oai-loop", "pi-json"],
         default="claude-cli",
         help="Runner backend for agent execution",
     )
     parser.add_argument("--agent", default="claude -p", help="Agent command")
-    parser.add_argument("--model", default=None, help="Model override (e.g., claude-haiku-4-5-20251001)")
+    parser.add_argument("--model", default=None, help="Model override (e.g., openai-codex/gpt-5.3-codex-spark)")
+    parser.add_argument(
+        "--thinking",
+        choices=["off", "minimal", "low", "medium", "high", "xhigh"],
+        default=None,
+        help="Thinking level for Pi-backed benchmark runs",
+    )
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
     parser.add_argument("--max-turns", type=int, default=30, help="Maximum agent turns per run")
     parser.add_argument(
@@ -1418,7 +1517,8 @@ def main():
 
     for mode in modes:
         model_label = f", model={args.model}" if args.model else ""
-        print(f"\n=== MODE: {mode} (N={args.N}{model_label}) ===\n")
+        thinking_label = f", thinking={args.thinking}" if args.thinking and args.runner == "pi-json" else ""
+        print(f"\n=== MODE: {mode} (N={args.N}{model_label}{thinking_label}) ===\n")
         for task in tasks:
             for run_i in range(args.N):
                 label = f"{task.id} run {run_i+1}/{args.N}" if args.N > 1 else task.id
@@ -1437,6 +1537,7 @@ def main():
                     oai_api_key=args.oai_api_key,
                     oai_request_timeout=args.oai_request_timeout,
                     oai_tool_timeout=args.oai_tool_timeout,
+                    thinking_level=args.thinking,
                 )
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"
@@ -1459,6 +1560,7 @@ def main():
                         executor=args.executor,
                         model=args.model,
                         runs_per_task=args.N,
+                        thinking_level=args.thinking if args.runner == "pi-json" else None,
                         results=all_results,
                         started_at=started_at,
                         finished_at=time.time(),
@@ -1517,6 +1619,7 @@ def main():
             executor=args.executor,
             model=args.model,
             runs_per_task=args.N,
+            thinking_level=args.thinking if args.runner == "pi-json" else None,
             results=all_results,
             started_at=started_at,
             finished_at=time.time(),

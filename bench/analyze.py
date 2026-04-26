@@ -26,7 +26,7 @@ def parse_run_metadata(filepath):
     return data if isinstance(data, dict) else None
 
 
-def normalize_result(result, default_model, default_runner="unspecified"):
+def normalize_result(result, default_model, default_runner="unspecified", default_thinking_level="unspecified"):
     """Normalize persisted or text-parsed results into the analysis shape."""
     if not isinstance(result, dict):
         return None
@@ -47,6 +47,7 @@ def normalize_result(result, default_model, default_runner="unspecified"):
         "task": task_id,
         "mode": mode,
         "model": result.get("model") or default_model,
+        "thinking_level": result.get("thinking_level") or default_thinking_level,
         "runner": result.get("runner") or default_runner,
         "pass": passed,
         "time": float(result.get("elapsed_seconds", result.get("time", 0.0))),
@@ -91,13 +92,15 @@ def load_analysis_input(path):
 
     default_model = "unspecified"
     default_runner = "unspecified"
+    default_thinking_level = "unspecified"
     if metadata:
         default_model = metadata.get("model") or "unspecified"
         default_runner = metadata.get("runner") or "unspecified"
+        default_thinking_level = metadata.get("thinking_level") or "unspecified"
 
     results = []
     for result in raw_results:
-        normalized = normalize_result(result, default_model, default_runner)
+        normalized = normalize_result(result, default_model, default_runner, default_thinking_level)
         if normalized:
             results.append(normalized)
 
@@ -126,6 +129,8 @@ def format_run_context(metadata):
         parts.append(f"executor={metadata['executor']}")
     if metadata.get("model"):
         parts.append(f"model={metadata['model']}")
+    if metadata.get("thinking_level"):
+        parts.append(f"thinking={metadata['thinking_level']}")
 
     return f"{metadata.get('_source', '?')}: " + ", ".join(parts)
 
@@ -169,19 +174,22 @@ def parse_results(filepath):
     results = []
     mode = None
     model = None
+    thinking_level = None
     in_dry_run = False
     with open(filepath) as f:
         for line in f:
             if line.startswith("=== DRY RUN:"):
                 mode = "mdtools"
                 model = "unspecified"
+                thinking_level = "unspecified"
                 in_dry_run = True
                 continue
-            # === MODE: hybrid (N=1, model=claude-haiku-4-5-20251001) ===
-            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
+            # === MODE: hybrid (N=1, model=openai-codex/gpt-5.3-codex-spark, thinking=off) ===
+            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
+                thinking_level = m.group(4) or "unspecified"
                 in_dry_run = False
                 continue
             if in_dry_run:
@@ -191,6 +199,7 @@ def parse_results(filepath):
                         "task": m.group(1),
                         "mode": mode,
                         "model": model,
+                        "thinking_level": thinking_level,
                         "pass": m.group(2) == "PASS" and m.group(3) == "PASS",
                         "time": 0.0,
                         "bytes": 0,
@@ -207,6 +216,7 @@ def parse_results(filepath):
                 results.append({
                     "mode": mode,
                     "model": model,
+                    "thinking_level": thinking_level,
                     "pass": m.group(1) == "PASS",
                     "time": float(m.group(2)),
                     "bytes": int(m.group(3)),
@@ -219,11 +229,21 @@ def parse_results(filepath):
     return results
 
 
+def format_group_label(runner, model, thinking_level="unspecified"):
+    label = model
+    if thinking_level and thinking_level != "unspecified":
+        label = f"{label} (thinking={thinking_level})"
+    if runner and runner != "unspecified":
+        label = f"{label} [{runner}]"
+    return label
+
+
 def parse_with_task_ids(filepath):
     """Parse harness output, matching task IDs to their results."""
     results = []
     mode = None
     model = None
+    thinking_level = None
     pending_task = None
     in_dry_run = False
     with open(filepath) as f:
@@ -231,13 +251,15 @@ def parse_with_task_ids(filepath):
             if line.startswith("=== DRY RUN:"):
                 mode = "mdtools"
                 model = "unspecified"
+                thinking_level = "unspecified"
                 pending_task = None
                 in_dry_run = True
                 continue
-            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
+                thinking_level = m.group(4) or "unspecified"
                 pending_task = None
                 in_dry_run = False
                 continue
@@ -248,6 +270,7 @@ def parse_with_task_ids(filepath):
                         "task": m.group(1),
                         "mode": mode,
                         "model": model,
+                        "thinking_level": thinking_level,
                         "pass": m.group(2) == "PASS" and m.group(3) == "PASS",
                         "time": 0.0,
                         "bytes": 0,
@@ -273,7 +296,7 @@ def parse_with_task_ids(filepath):
                 m3 = re.match(r"\s+md=(PASS|FAIL).*\| ([\d.]+)s \| ~(\d+)B out \| ~(\d+) calls", line)
                 if m3 and pending_task:
                     results.append({
-                        "task": pending_task, "mode": mode, "model": model,
+                        "task": pending_task, "mode": mode, "model": model, "thinking_level": thinking_level,
                         "pass": m3.group(1) == "PASS",
                         "time": float(m3.group(2)), "bytes": int(m3.group(3)),
                         "calls": int(m3.group(4)), "obs": 0, "mut": 0, "rq": False,
@@ -281,7 +304,7 @@ def parse_with_task_ids(filepath):
                     pending_task = None
             elif pending_task:
                 results.append({
-                    "task": pending_task, "mode": mode, "model": model,
+                    "task": pending_task, "mode": mode, "model": model, "thinking_level": thinking_level,
                     "pass": m3.group(1) == "PASS",
                     "time": float(m3.group(2)), "bytes": int(m3.group(3)),
                     "obs": int(m3.group(4)), "calls": int(m3.group(5)),
@@ -313,14 +336,16 @@ def main():
 
     print_run_context(run_metadata)
 
-    # Group by (runner, model) so bundles with the same model but different
-    # runners (e.g., oai-loop vs claude-cli) stay apples-to-apples distinct.
-    groups = sorted({(r["runner"], r["model"]) for r in all_results})
+    # Group by runner, model, and thinking level so Pi runs at different
+    # reasoning budgets stay apples-to-apples distinct.
+    groups = sorted({(r["runner"], r["model"], r.get("thinking_level", "unspecified")) for r in all_results})
     modes = ["unix", "mdtools", "hybrid"]
     tasks = sorted(set(r["task"] for r in all_results), key=lambda t: int(t[1:]))
 
-    for runner, model in groups:
+    for runner, model, thinking_level in groups:
         header = f"MODEL: {model}"
+        if thinking_level and thinking_level != "unspecified":
+            header += f" (thinking={thinking_level})"
         if runner and runner != "unspecified":
             header += f" (runner={runner})"
         print(f"\n{'='*70}")
@@ -347,6 +372,7 @@ def main():
                     r for r in all_results
                     if r["task"] == task and r["mode"] == mode
                     and r["model"] == model and r["runner"] == runner
+                    and r.get("thinking_level", "unspecified") == thinking_level
                 ]
                 if matches:
                     n = len(matches)
@@ -380,7 +406,9 @@ def main():
         print()
 
         runner_errors = collect_runner_errors([
-            r for r in all_results if r["model"] == model and r["runner"] == runner
+            r for r in all_results
+            if r["model"] == model and r["runner"] == runner
+            and r.get("thinking_level", "unspecified") == thinking_level
         ])
         if runner_errors:
             print("\nRunner errors:")
@@ -394,8 +422,8 @@ def main():
         print("CROSS-MODEL SUMMARY")
         print(f"{'='*70}")
         label_width = max(
-            len(f"{model} [{runner}]" if runner and runner != "unspecified" else model)
-            for runner, model in groups
+            len(format_group_label(runner, model, thinking_level))
+            for runner, model, thinking_level in groups
         )
         label_width = max(label_width, len("Model"))
         print(
@@ -403,16 +431,13 @@ def main():
             f"{'Calls':>6} {'ObsKB':>6} {'Deny':>6} {'Inv':>5} {'InvU':>5} {'RQ%':>5}"
         )
         print("-" * (label_width + 62))
-        for runner, model in groups:
-            label = (
-                f"{model} [{runner}]"
-                if runner and runner != "unspecified"
-                else model
-            )
+        for runner, model, thinking_level in groups:
+            label = format_group_label(runner, model, thinking_level)
             for mode in modes:
                 matches = [
                     r for r in all_results
                     if r["mode"] == mode and r["model"] == model and r["runner"] == runner
+                    and r.get("thinking_level", "unspecified") == thinking_level
                 ]
                 if matches:
                     n = len(matches)
