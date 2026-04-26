@@ -775,6 +775,26 @@ def check_holdout_integrity(
     return None
 
 
+def read_holdout_version(
+    fingerprints_path: str = "bench/holdout/fingerprints.json",
+) -> int | None:
+    """Return the integer ``holdout_version`` from the fingerprints manifest.
+
+    Returns None if the manifest file is absent (fork compat) or malformed,
+    so callers can stamp the value onto run.json metadata when present and
+    leave it null otherwise. The spec's holdout-repair exception path
+    requires bundles to carry the version under which they were produced;
+    this helper provides the single authoritative read used at run start.
+    """
+    if not os.path.exists(fingerprints_path):
+        return None
+    try:
+        manifest = load_holdout_fingerprints(fingerprints_path)
+    except (ValueError, OSError):
+        return None
+    return int(manifest["holdout_version"])
+
+
 def verify_holdout_fingerprints(
     tasks_path: str = "bench/tasks/tasks.json",
     holdout_ids_path: str = "bench/holdout/task_ids.json",
@@ -885,6 +905,7 @@ def build_run_metadata(
     started_at: float,
     finished_at: float,
     thinking_level: str | None = None,
+    holdout_version: int | None = None,
 ) -> dict[str, object]:
     resolved_model = model
     if resolved_model is None:
@@ -927,6 +948,7 @@ def build_run_metadata(
         "model": resolved_model,
         "thinking_level": resolved_thinking_level,
         "runs_per_task": runs_per_task,
+        "holdout_version": holdout_version,
         "aggregates": {
             "overall": aggregate_results(results),
             "by_mode": by_mode,
@@ -1596,6 +1618,7 @@ def main():
     holdout_breach = check_holdout_integrity(tasks_path=args.tasks_path)
     if holdout_breach is not None:
         parser.error(holdout_breach)
+    holdout_version = read_holdout_version()
     if args.task_ids_path:
         try:
             tasks = select_tasks(tasks, load_task_ids(args.task_ids_path))
@@ -1644,6 +1667,7 @@ def main():
                 results=results,
                 started_at=started_at,
                 finished_at=time.time(),
+                holdout_version=holdout_version,
             )
             write_run_artifacts(
                 args.results_dir,
@@ -1710,6 +1734,7 @@ def main():
                         results=all_results,
                         started_at=started_at,
                         finished_at=time.time(),
+                        holdout_version=holdout_version,
                     )
                     write_run_artifacts(
                         args.results_dir,
@@ -1769,6 +1794,7 @@ def main():
             results=all_results,
             started_at=started_at,
             finished_at=time.time(),
+            holdout_version=holdout_version,
         )
         write_run_artifacts(
             args.results_dir,

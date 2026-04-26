@@ -14,6 +14,129 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Holdout-version bundle stamping (2026-04-26 iter 17)
+
+The frontier-loop spec's holdout-repair exception path requires bumped
+versions to be *stamped onto subsequent run bundles* so future cross-version
+comparability is mechanical, not inferred from bundle dates. Iter 16 wired
+the runtime drift guard but explicitly recorded ("Does not bump
+`holdout_version`. ... Does not modify any prior bundle.") that the
+companion stamping work — labelling each new bundle with the holdout_version
+under which it was produced — was not addressed. Iter 17 closes that
+companion gap by threading `holdout_version` from the live fingerprints
+manifest through `build_run_metadata` to the run.json bundle on every
+harness-issued bundle.
+
+- **Disturbed axis:** oracle trustworthiness — explicit unmet spec
+  requirement. The spec's holdout-repair exception path step 2 reads
+  "increment a `holdout_version` field in `bench/holdout/task_ids.json`
+  (or equivalent manifest) **and stamp the new version onto subsequent
+  run bundles**." The first half (manifest version + drift guard) landed
+  in iter 2 (L1 closure) and iter 16 (runtime promotion); the second
+  half (bundle stamping) was not in code. All four PI bundles in the
+  repo (T1, T7, T18, T22) were produced under `holdout_version=1` but
+  carry no `holdout_version` field on their run.json — a future
+  `holdout_version=2` bump would silently render those bundles
+  non-comparable with no mechanical marker on the typed artifact.
+- **Frontier anchor:** *missing evaluator artifact — comparability stamp
+  on run bundle metadata*. The spec language "stamp the new version
+  onto subsequent run bundles" is unambiguous and unmet in code. Per
+  the spec's allowed-during-P0/P1 hardening list, "telemetry-only
+  instrumentation" and "harness assertions" are admissible; this change
+  is the former (it records a fact, does not change behavior). Same
+  axis as iter 16 (oracle trustworthiness) but a distinct artifact
+  (per-bundle metadata vs the runtime-guard mechanism); the
+  same-family-rule's *fresh failing trace* clause applies — the
+  pre-iter-17 PI bundles are themselves the unstamped instances.
+- **Change shape:**
+  - Added `read_holdout_version(fingerprints_path=...)` at
+    `bench/harness.py:778-794` — returns the integer `holdout_version`
+    from the fingerprints manifest, or None for missing/malformed files
+    (graceful skip for forks without holdout configuration, mirroring
+    iter-16's `check_holdout_integrity` skip behavior).
+  - Added an optional `holdout_version: int | None = None` parameter
+    to `build_run_metadata` at `bench/harness.py:889` and a corresponding
+    `"holdout_version": holdout_version` field in the returned dict at
+    `bench/harness.py:931`. Default None means existing callers and
+    tests are backward-compatible (the field is null when not provided).
+  - Wired all three `build_run_metadata` call sites in `main()` to
+    pass the version: dry-run at `bench/harness.py:1648`, partial
+    incremental writes at `bench/harness.py:1714`, and final write at
+    `bench/harness.py:1773`. The version is read once at startup
+    (`bench/harness.py:1600`) immediately after `check_holdout_integrity`
+    so the I/O cost is one extra small file read per harness invocation.
+- **Tests added (6 new):**
+  `bench/test_harness_task_split.py:HoldoutVersionStampTests` (3 tests):
+  (a) `read_holdout_version()` returns 1 for the live repo,
+  (b) returns None when fingerprints.json is missing,
+  (c) returns None for malformed manifest (empty JSON object).
+  `bench/test_harness_run_artifacts.py:HoldoutVersionMetadataTests`
+  (3 tests): (a) metadata includes `holdout_version=1` when explicitly
+  passed, (b) field is present and None when not passed (backward
+  compat for existing callers), (c) future version bumps (e.g. v2)
+  propagate cleanly through `build_run_metadata`. Test count rose from
+  62 to 68 across the 8 spec-named modules.
+- **End-to-end proof of mechanical stamping:** invoked
+  `python3 bench/harness.py --md-binary target/release/md --results-dir /tmp/iter17-dryrun-bundle`
+  on the live repo. The resulting `run.json` includes the new key
+  `holdout_version: 1` alongside the existing 15 metadata keys. The
+  runtime drift guard (iter 16) still fires with exit code 2 on tampered
+  `tasks.json` — the breach message
+  `holdout-immutability breach (holdout_version=1): T22: fingerprint drift
+  in fields ['task_json_sha256']` reproduces bit-exact post-iter-17.
+- **Cheap channel:** green before and after (cargo: 32+37+16+0 across
+  integration suites; python: 68 tests OK across the 8 spec-named
+  modules — was 62 before iter 17, +6 from new `HoldoutVersionStampTests`
+  (3 tests) and `HoldoutVersionMetadataTests` (3 tests);
+  `harness.py --md-binary` dry-run: all 24 tasks PASS dual-scorer).
+- **Comparability framing:** this is a telemetry-only stamping change.
+  It does **not** bump `holdout_version` (still 1; no holdout repair
+  occurred), does **not** modify any pre-iter-17 bundle (existing
+  `bench/runs/...` artifacts are unchanged and still lack the field —
+  intentionally, since they pre-date this change and stamping them
+  retroactively would itself be a holdout-repair-shaped artifact edit),
+  does **not** change the agent's action space, does **not** introduce
+  a new product surface, does **not** change any scorer, and does
+  **not** affect any pass rate. It is an additive ratchet on the
+  oracle: any new bundle produced from this point forward carries the
+  version under which it was produced, so the first holdout repair
+  that bumps to v2 will leave a clean cross-version record on all
+  subsequent typed artifacts. Per the spec's "telemetry-only
+  instrumentation" allowance, the change is squarely within the
+  admissible work envelope.
+- **Closure-discipline status:** this is a substantive fix authored by
+  iter 17, parallel to iter 16's harness-assertion fix. Per the
+  FIXED ≠ CLOSED rule, the entry is `FIXED_PENDING_CONFIRMATION`-shaped;
+  a future review pass should ratify by re-reading
+  `bench/harness.py` lines 778-794, 889, 931, 1600, 1648, 1714, 1773
+  and the two new test classes, and by re-running the harness with
+  `--results-dir` to verify the field appears on a fresh run.json.
+  Like iter 16, this is filed as a non-finding harness-instrumentation
+  improvement rather than a finding (no defect uncovered; the change
+  closes a documented gap from iter-16's "Does not modify any prior
+  bundle" carve-out + the spec's explicit stamping requirement).
+- **Same-family-rule discharge:** iter 16 was oracle hardening
+  (runtime-guard mechanical promotion); iter 17 is also oracle
+  hardening but on a different artifact (per-bundle metadata vs the
+  runtime-guard surface). Two consecutive oracle-axis substantive code
+  changes is borderline same-family. The fresh-failing-trace escape
+  clause applies: the four pre-iter-17 PI bundles (T1, T7, T18, T22)
+  all lack the `holdout_version` field that the spec explicitly
+  requires; this is the same shape as iter 13's line-number-drift
+  trace (a published instruction that doesn't match the code). The
+  trace is durable (the unstamped bundles are still in the repo) and
+  the fix is the smallest reversible change that closes the gap.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not run the expensive outer
+  channel. Does not bump `holdout_version` (the manifest version is
+  still 1 and remains the single authoritative version for the live
+  holdout). Does not amend any published claim. Does not retroactively
+  modify any pre-iter-17 bundle's run.json. Does not invoke the
+  holdout-repair exception path (the holdout is not being repaired —
+  its fingerprints, descriptions, and expected outputs are untouched,
+  only the bundle-side recording mechanism is added).
+
 ### L1 mechanical-guard runtime promotion (2026-04-26 iter 16)
 
 The L1 closure (iter 2) landed `verify_holdout_fingerprints` as a function
@@ -555,25 +678,42 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 16)
+### Halt-condition / quiet-signal status (after iter 17)
 
-After the iter-16 mechanical-guard runtime promotion (see "L1
-mechanical-guard runtime promotion (2026-04-26 iter 16)" above):
+After the iter-17 holdout-version bundle stamping (see
+"Holdout-version bundle stamping (2026-04-26 iter 17)" above):
 
-- **OPEN findings count:** 0. Iter 16 authored a substantive
-  harness-assertion hardening (runtime invocation of
-  `verify_holdout_fingerprints`) — not a finding (no defect uncovered;
-  the change closes a documented gap from iter-3 and iter-6 ledger
-  entries by adding the missing harness-assertion). The zero-OPEN state
-  holds through iters 8, 9, 10, 11, 12, 13, 14, 15, and 16 — the
-  twelfth consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 17 authored a substantive
+  telemetry-stamping hardening (per-bundle `holdout_version` field on
+  run.json) — not a finding (no defect uncovered; the change closes
+  the documented gap from iter-16's "Does not modify any prior bundle"
+  carve-out + the spec's explicit "stamp the new version onto subsequent
+  run bundles" requirement). The zero-OPEN state holds through iters
+  8, 9, 10, 11, 12, 13, 14, 15, 16, and 17 — the thirteenth consecutive
+  zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
   ratification), iter 16 quiet (cheap-channel-only oracle hardening,
-  no expensive run). Counter at **2** after iter 16. Iter 17 is
-  admissible as quiet but iter 18 is the forced expensive-or-halt
-  point if iter 17 stays quiet.
+  no expensive run), iter 17 quiet (cheap-channel-only oracle
+  telemetry stamping, no expensive run). Counter at **3** after iter 17.
+  Iter 18 is the forced expensive-or-halt point per the spec's
+  "3 consecutive iterations with the cheap channel green, no new
+  failing trace, and no new finding added" rule.
+- **Iter-17 same-family-rule discharge:** iter 14 was an
+  expensive-channel run (intervention diversity), iter 15 was a
+  ledger-only closure-discipline ratification (rule explicitly
+  excludes ledger-only changes from concentration), iter 16 was an
+  oracle-trustworthiness hardening change (runtime-guard mechanical
+  promotion), iter 17 is also an oracle-trustworthiness hardening
+  change (per-bundle telemetry stamping). Two consecutive oracle-axis
+  substantive code changes is borderline same-family; the
+  fresh-failing-trace escape clause applies because the four
+  pre-iter-17 PI bundles (T1, T7, T18, T22) all lack the
+  `holdout_version` field that the spec explicitly requires —
+  parallel to iter 13's line-number-drift trace (a published
+  instruction that doesn't match the code). The fix is the smallest
+  reversible change that closes the documented gap.
 - **Iter-16 same-family-rule discharge:** iter 14 was an
   expensive-channel run (intervention diversity), iter 15 was a
   ledger-only closure-discipline ratification (which the rule

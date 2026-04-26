@@ -11,6 +11,7 @@ from bench.harness import (
     load_holdout_fingerprints,
     load_task_ids,
     load_tasks,
+    read_holdout_version,
     select_tasks,
     verify_holdout_fingerprints,
 )
@@ -183,6 +184,34 @@ class HarnessRuntimeHoldoutGuardTests(unittest.TestCase):
                     fingerprints_path=str(tmp / "missing_fingerprints.json"),
                 )
             )
+
+
+class HoldoutVersionStampTests(unittest.TestCase):
+    """Cross-version comparability: stamp holdout_version onto run.json bundles.
+
+    The frontier-loop spec's holdout-repair exception path requires bundles
+    to carry the holdout_version under which they were produced, so future
+    cross-version comparability is mechanical rather than inferred from
+    bundle dates. read_holdout_version is the single authoritative read at
+    run start; build_run_metadata threads the value into run.json metadata.
+    """
+
+    def test_read_holdout_version_returns_one_for_live_repo(self) -> None:
+        self.assertEqual(read_holdout_version(), 1)
+
+    def test_read_holdout_version_returns_none_when_missing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_no_fingerprints_") as tmpdir:
+            self.assertIsNone(
+                read_holdout_version(
+                    fingerprints_path=str(Path(tmpdir) / "missing_fingerprints.json"),
+                )
+            )
+
+    def test_read_holdout_version_returns_none_for_malformed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_malformed_fingerprints_") as tmpdir:
+            path = Path(tmpdir) / "fingerprints.json"
+            path.write_text("{}")
+            self.assertIsNone(read_holdout_version(fingerprints_path=str(path)))
 
 
 if __name__ == "__main__":
