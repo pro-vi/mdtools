@@ -14,6 +14,94 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Quiet-signal checkpoint discharge (2026-04-26 iter 14)
+
+Per the spec's "After 3 consecutive iterations …" rule, the
+quiet-signal counter reached 3 at the end of iter 13 (iters 11, 12, 13
+all quiet). Iter 14 ran the expensive outer channel to introduce fresh
+typed signal: the **first** PI runner bundle for the **multistep**
+task family. Prior PI coverage was extraction (T1 iter 4, T22 iter 7)
+and mutation (T7 iter 10); multistep had zero PI cells. Cheap channel
+re-verified green before and after the run.
+
+- **Bundle:** `bench/runs/checkpoint-pi-T18-mdtools-gpt5.4mini-2026-04-26/` —
+  fourth PI runner bundle in `bench/runs/` and the **first** cell that
+  exercises (a) the multistep task family, (b) the `delete-section`
+  command via PI, and (c) the canonical "structural mutation → full
+  re-query of `outline` + `blocks` + `tasks` → second mutation → verify"
+  pattern that the multistep family is designed to test. Single task
+  (T18, search-split, multistep family). Single mode (mdtools). Single
+  run. Model `openai-codex/gpt-5.4-mini` at `thinking_level=minimal`,
+  recorded per-result and per-run on the metadata bundle.
+- **Verdict:** T18 mdtools dual-scorer PASS in 11.03s with 10 tool
+  calls (`md outline --json` × 2, `md blocks --json` × 2,
+  `md tasks --json` × 3, `md delete-section "Draft Notes" -i`,
+  `md set-task 4.1 -i --status done`, final `cat`), 2 mutations,
+  `requery_rate=1.0`, `bytes_observation=14,858`,
+  `bytes_output=844,124` (PI streaming overhead, see P3 cross-executor
+  rule in `bench/RESULTS.md`), empty `diff_report`. Pi-audit log
+  preserved at `logs/T18_mdtools_1777214592/pi-audit.jsonl` (22 events:
+  `model_change`, `thinking_level_change`, plus 10 × `tool_call` +
+  10 × `tool_result`), parses cleanly via
+  `bench/pi_audit_adapter.summarize_pi_audit_events` returning
+  `tool_calls=10`, `tool_errors=0`, `mutations=2`, `policy_violations=0`,
+  `blocked=0`, `requeried=True`, `bytes_observation=14,858` (matches
+  `results.json` exactly).
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T18, runs_per_task=1, task-set
+  version: live `bench/tasks/tasks.json` with `holdout_version=1` from
+  `bench/holdout/fingerprints.json`). It is **NOT** a holdout
+  reconfirmation (T18 is search-split, not holdout) and **NOT** an
+  apples-to-apples comparison against the iter-4 T1, iter-7 T22, or
+  iter-10 T7 bundles — same executor / model / mode / thinking /
+  runs-per-task across all four PI cells, but different tasks and
+  different scorer expectations (T18 is `file_contents`-artifact, not
+  `json_envelope` or `normalized_text`), so any pass-rate aggregation
+  across cells would be a search-set observation, not a comparison.
+  Likewise it is **NOT** an apples-to-apples comparison to the
+  pre-existing OAI-loop multistep bundles (`search-mdtools-multistep-Hermes-4-70B-4bit-2026-04-21/`
+  and `search-mdtools-multistep-Qwen3.5-27B-4bit-2026-04-21/`) — both
+  the executor axis and the model axis differ. Tool-call count
+  divergence (10 PI vs 4 Hermes / 5 Qwen) is a **per-model behavioral
+  signal**, not an executor or product comparison.
+- **What this exercises:** for the first time in `bench/runs/`, the PI
+  runner pipeline (harness pi-json branch → `pi --mode json` → audit
+  extension at `~/.pi/agent/extensions/audit/index.ts` →
+  `bench/pi_audit_adapter.summarize_pi_audit_events`) is verified
+  end-to-end on (a) a multistep-family task with two structurally
+  different mutations (`delete-section` then `set-task`) on the same
+  file, (b) the `file_contents` scorer artifact (the `expected_artifact`
+  branch that compares against an expected output file rather than a
+  JSON envelope or normalized text), and (c) the canonical drift-handling
+  pattern where `delete-section` shifts block indices and the agent
+  must re-query the structural surface before the second mutation can
+  be addressed. All three structural commands (`outline`, `blocks`,
+  `tasks`) are re-queried after the deletion — the gpt-5.4-mini agent
+  spontaneously emits the most thorough re-query pattern observed on
+  this task across the available models (Hermes-4-70B and Qwen3.5-27B
+  re-queried fewer commands).
+- **What this discharges:** the spec's quiet-signal-checkpoint rule
+  (3 consecutive quiet iterations 11–13). It does **not** discharge any
+  product or oracle claim — those still require their own attribution
+  probes and apples-to-apples comparisons. It does **not** validate any
+  candidate primitive's failure-class fit; the bundle is *evaluator
+  coverage* (extending the comparable-harness-axis frontier anchor),
+  not anchor justification.
+- **What it surfaced:** no new defect. The PI pipeline produced fresh
+  typed signal that exercised the multistep + drift-handling pattern
+  cleanly. This is a "no new finding" expensive run — admissible as
+  fresh signal because the bundle is on a previously-uncovered (task,
+  family, scorer-branch) cell and the audit log + scorer outputs are
+  durably persisted as a queryable bundle. A behavioral observation
+  worth recording but **not** filing as a finding: gpt-5.4-mini at
+  minimal thinking emits ~2.5× as many tool calls on T18 as
+  Hermes-4-70B-4bit (10 vs 4) — both pass dual-scorer, but the
+  read-pattern shape differs materially across models. This is
+  per-model behavioral data, not a product or scorer issue.
+- **Cheap channel:** green before and after (`cargo test -q` all suites
+  pass, 59 python unittests OK across the 8 spec-named modules,
+  `harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer).
+
 ### Confirmation review pass (2026-04-26 iter 13)
 
 Continuation of the published-narrative-vs-typed-artifact cross-check
@@ -246,27 +334,34 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 13)
+### Halt-condition / quiet-signal status (after iter 14)
 
-After the iter-13 closure-discipline review pass (see "Confirmation
-review pass (2026-04-26 iter 13)" above):
+After the iter-14 quiet-signal-checkpoint discharge (see
+"Quiet-signal checkpoint discharge (2026-04-26 iter 14)" above):
 
-- **OPEN findings count:** 0. Iter 13 ratified iter-12's typo fix and
-  fixed one stale published-narrative line-number reference without
-  surfacing a new defect. The zero-OPEN state holds through iters
-  8, 9, 10, 11, 12, and 13 — the ninth consecutive zero-OPEN review
-  round.
-- **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters 8–9
-  quiet (specification-coherence cleanups on RESULTS.md and the
-  retracted README), iter 10 expensive, iter 11 quiet
-  (specification-coherence publication of the same-task cross-executor
-  evidence iter 10 enabled), iter 12 quiet (closure-discipline review
-  pass on iter-11 + small reproducibility typo fix), iter 13 quiet
-  (closure-discipline review pass on iter-12 + small line-number drift
-  fix). Counter at 3 after iter 13. **Iter 14 must run the expensive
-  outer channel to introduce fresh signal, or emit
-  `stop-and-summarize`,** per the spec's "After 3 consecutive
-  iterations …" rule.
+- **OPEN findings count:** 0. Iter 14 ran the expensive outer channel
+  on a previously-uncovered cell (T18 mdtools through PI runner —
+  first multistep-family PI bundle) and produced no new defect. The
+  zero-OPEN state holds through iters 8, 9, 10, 11, 12, 13, and 14 —
+  the tenth consecutive zero-OPEN review round.
+- **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
+  8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
+  (multistep-family coverage extension). Counter **reset to 0** after
+  iter 14. Iters 15–17 are admissible as quiet iterations under the
+  reset counter. Iter 18 would be the next forced expensive-or-halt
+  point if iters 15–17 stay quiet.
+- **Iter-14 same-family-rule discharge:** iters 11–13 were three
+  consecutive specification-coherence iterations (iter 11 measurement
+  publication, iter 12 typo fix + closure-discipline pass, iter 13
+  line-number drift fix + closure-discipline pass). The same-family
+  rule blocked a fourth consecutive same-axis move absent a fresh
+  failing trace. Iter 14 cleanly shifts to a different intervention
+  shape (`comparable-harness-axis cell coverage` via expensive run on
+  previously-uncovered family) without invoking the fresh-trace
+  escape clause — the quiet-signal rule mandates expensive-or-halt at
+  the 3-quiet boundary, so the intervention is independently required
+  by the spec. Parallel to iter 4 (after 3 quiet iters 1–3) and iter
+  10 (proactive intervention shift before the counter fired).
 - **Iter-13 same-family-rule discharge:** iter 11 was specification
   coherence (additive measurement publication); iter 12 was
   closure-discipline review pass + corrective spec-coherence (typo
