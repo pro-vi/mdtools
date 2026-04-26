@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T15",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "openai-codex/gpt-5.4-mini",
+    "thinking_level": "minimal",
+    "bytes_prompt": 4471,
+    "bytes_output": 635199,
+    "bytes_observation": 4987,
+    "tool_calls": 7,
+    "turns": 4,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.48,
+    "diff_report": "raw_bytes: MISMATCH (275b expected, 275b actual)",
+    "runner_error": null
+  }
+]
