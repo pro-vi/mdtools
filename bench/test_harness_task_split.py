@@ -5,7 +5,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bench.harness import load_task_ids, load_tasks, select_tasks
+from bench.harness import (
+    compute_task_fingerprint,
+    load_holdout_fingerprints,
+    load_task_ids,
+    load_tasks,
+    select_tasks,
+    verify_holdout_fingerprints,
+)
 
 
 class HarnessTaskSplitTests(unittest.TestCase):
@@ -70,6 +77,67 @@ class HarnessTaskSplitTests(unittest.TestCase):
         tasks_by_id = {task.id: task for task in load_tasks("bench/tasks/tasks.json")}
         for task_id in pilot_ids:
             self.assertIn(task_id, tasks_by_id)
+
+
+class HoldoutImmutabilityTests(unittest.TestCase):
+    """L1 closure: mechanical guard for holdout-task drift.
+
+    Detects silent edits to holdout task descriptions, scorer settings,
+    or referenced files. Legitimate repairs must follow the holdout-repair
+    exception path: bump holdout_version, regenerate fingerprints, and
+    mark prior holdout results non-comparable.
+    """
+
+    def test_live_holdout_matches_recorded_fingerprints(self) -> None:
+        verify_holdout_fingerprints()
+
+    def test_holdout_fingerprint_manifest_has_required_shape(self) -> None:
+        manifest = load_holdout_fingerprints()
+        self.assertIsInstance(manifest["holdout_version"], int)
+        self.assertGreaterEqual(manifest["holdout_version"], 1)
+        holdout_ids = set(load_task_ids("bench/holdout/task_ids.json"))
+        self.assertEqual(set(manifest["fingerprints"]), holdout_ids)
+
+    def test_drift_in_task_description_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_holdout_drift_") as tmpdir:
+            tmp = Path(tmpdir)
+            raw_tasks = json.loads(Path("bench/tasks/tasks.json").read_text())
+            for entry in raw_tasks:
+                if entry["id"] == "T22":
+                    entry["description"] = entry["description"] + "  (sneak edit)"
+            tasks_path = tmp / "tasks.json"
+            tasks_path.write_text(json.dumps(raw_tasks))
+            with self.assertRaisesRegex(ValueError, "holdout-immutability breach"):
+                verify_holdout_fingerprints(
+                    tasks_path=str(tasks_path),
+                    holdout_ids_path="bench/holdout/task_ids.json",
+                    fingerprints_path="bench/holdout/fingerprints.json",
+                )
+
+    def test_drift_in_expected_output_bytes_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_holdout_bytes_") as tmpdir:
+            tmp = Path(tmpdir)
+            raw_tasks = json.loads(Path("bench/tasks/tasks.json").read_text())
+            mutated_expected = tmp / "expected.md"
+            mutated_expected.write_text("totally different expected output\n")
+            for entry in raw_tasks:
+                if entry["id"] == "T4":
+                    entry["expected_output"] = str(mutated_expected)
+            tasks_path = tmp / "tasks.json"
+            tasks_path.write_text(json.dumps(raw_tasks))
+            with self.assertRaisesRegex(ValueError, "holdout-immutability breach"):
+                verify_holdout_fingerprints(
+                    tasks_path=str(tasks_path),
+                    holdout_ids_path="bench/holdout/task_ids.json",
+                    fingerprints_path="bench/holdout/fingerprints.json",
+                )
+
+    def test_compute_task_fingerprint_is_deterministic(self) -> None:
+        raw_tasks = json.loads(Path("bench/tasks/tasks.json").read_text())
+        by_id = {t["id"]: t for t in raw_tasks}
+        first = compute_task_fingerprint(by_id["T22"])
+        second = compute_task_fingerprint(by_id["T22"])
+        self.assertEqual(first, second)
 
 
 if __name__ == "__main__":

@@ -6,13 +6,17 @@ cleared only after a typed artifact confirms the finding, not by prose alone.
 
 ## OPEN findings
 
-### L1 — Loop lacked holdout-immutability guard
-- **Status:** OPEN (loop-level learning)
-- **Axis:** oracle trustworthiness (meta)
-- **Anchor:** this session's iteration sequence made a change to `bench/tasks/tasks.json` where the edited task ID was in `bench/holdout/task_ids.json`, then reran holdout and published the new pass rates as confirmation. The loop's iteration protocol did not catch this. External review (2026-04-24) surfaced it.
-- **Closure criterion:** either a procedural rule ("before editing any task in `bench/tasks/tasks.json`, check whether its ID is in `bench/holdout/task_ids.json` — if yes, the edit invalidates the holdout until the task is rotated out of holdout or the split is regenerated") documented in the frontier-loop spec or in `bench/ledger.md`, or a mechanical guard (pre-commit hook / harness assertion that flags holdout-task description diffs) that prevents the same mistake.
+_(none — L1 moved to FIXED_PENDING_CONFIRMATION 2026-04-26)_
 
 ## FIXED_PENDING_CONFIRMATION
+
+### L1 — Loop lacked holdout-immutability guard
+- **Status:** FIXED_PENDING_CONFIRMATION (2026-04-26)
+- **Axis:** oracle trustworthiness (meta)
+- **Anchor:** this session's iteration sequence made a change to `bench/tasks/tasks.json` where the edited task ID was in `bench/holdout/task_ids.json`, then reran holdout and published the new pass rates as confirmation. The loop's iteration protocol did not catch this. External review (2026-04-24) surfaced it.
+- **Typed artifact:** new `bench/holdout/fingerprints.json` (`holdout_version: 1`) baselines a SHA-256 over each holdout task's canonical JSON entry plus the bytes of every input/expected/support file it references. New harness function `verify_holdout_fingerprints` (in `bench/harness.py`) recomputes fingerprints from `bench/tasks/tasks.json` and raises `holdout-immutability breach (...)` on any drift. New `bench/test_harness_task_split.py::HoldoutImmutabilityTests` pin the live-vs-baseline match, the manifest shape (`holdout_version` + per-id fingerprints), description drift detection, expected-output bytes drift detection, and fingerprint determinism. The cheap channel now mechanically blocks the L1 mistake — silent edits to a holdout task description, scorer settings, or expected output bytes fail the test.
+- **Holdout-repair exception path:** legitimate repairs must (1) file a P0 ledger entry, (2) bump `holdout_version` and regenerate `bench/holdout/fingerprints.json`, (3) mark prior holdout results non-comparable in `bench/RESULTS.md`. The fingerprints file is the artifact that carries the version, satisfying the spec's "increment a `holdout_version` field in `bench/holdout/task_ids.json` (or equivalent manifest)" — `task_ids.json` is intentionally left as a flat array since it is also used by non-holdout selection paths.
+- **Closure criterion:** satisfied (mechanical guard option). Promoted once the next review pass does not re-raise.
 
 ### F3 — T22 structural scorer rejects list-shape JSON with mode-neutral task description
 - **Status:** FIXED_PENDING_CONFIRMATION (2026-04-26)

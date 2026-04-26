@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -699,6 +700,100 @@ def select_tasks(tasks: list[BenchTask], task_ids: list[str]) -> list[BenchTask]
     if missing:
         raise ValueError(f"unknown task IDs in selection: {', '.join(missing)}")
     return [by_id[task_id] for task_id in task_ids]
+
+
+# ── Holdout immutability guard (L1 closure) ─────────────────────
+# A task in the holdout split must not change without a holdout-repair
+# exception path being followed (ledger entry + holdout_version bump).
+# This guard fingerprints the canonical task JSON entry and the bytes of
+# every input/expected/support file. Any divergence between the live
+# tasks file and bench/holdout/fingerprints.json is a holdout-immutability
+# breach (P0 oracle-trustworthiness disturbance).
+
+def _sha256_file(path: str) -> str:
+    with open(path, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def _sha256_task_json(task_entry: dict) -> str:
+    canonical = json.dumps(task_entry, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def compute_task_fingerprint(task_entry: dict) -> dict:
+    """Fingerprint a raw task entry (the dict from tasks.json) plus its referenced files."""
+    fp = {
+        "task_json_sha256": _sha256_task_json(task_entry),
+        "input_files_sha256": {p: _sha256_file(p) for p in task_entry["input_files"]},
+        "expected_output_sha256": _sha256_file(task_entry["expected_output"]),
+    }
+    if task_entry.get("support_files"):
+        fp["support_files_sha256"] = {p: _sha256_file(p) for p in task_entry["support_files"]}
+    return fp
+
+
+def load_holdout_fingerprints(path: str = "bench/holdout/fingerprints.json") -> dict:
+    with open(path) as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must be a JSON object")
+    if "holdout_version" not in data or not isinstance(data["holdout_version"], int):
+        raise ValueError(f"{path} missing integer 'holdout_version'")
+    if "fingerprints" not in data or not isinstance(data["fingerprints"], dict):
+        raise ValueError(f"{path} missing object 'fingerprints'")
+    return data
+
+
+def verify_holdout_fingerprints(
+    tasks_path: str = "bench/tasks/tasks.json",
+    holdout_ids_path: str = "bench/holdout/task_ids.json",
+    fingerprints_path: str = "bench/holdout/fingerprints.json",
+) -> None:
+    """Raise ValueError if any holdout task drifted from the recorded fingerprint.
+
+    To legitimately mutate a holdout task, follow the holdout-repair exception
+    path in the frontier-loop spec: file a P0 ledger entry, bump
+    `holdout_version` in fingerprints.json, regenerate fingerprints, and mark
+    prior holdout results non-comparable in bench/RESULTS.md.
+    """
+    holdout_ids = load_task_ids(holdout_ids_path)
+    manifest = load_holdout_fingerprints(fingerprints_path)
+    expected = manifest["fingerprints"]
+
+    with open(tasks_path) as fh:
+        raw_tasks = json.load(fh)
+    by_id = {t["id"]: t for t in raw_tasks}
+
+    drift: list[str] = []
+    for tid in holdout_ids:
+        if tid not in by_id:
+            drift.append(f"{tid}: holdout task missing from {tasks_path}")
+            continue
+        if tid not in expected:
+            drift.append(f"{tid}: no fingerprint baseline in {fingerprints_path}")
+            continue
+        live = compute_task_fingerprint(by_id[tid])
+        baseline = expected[tid]
+        if live != baseline:
+            diffs = []
+            for key in sorted(set(live) | set(baseline)):
+                if live.get(key) != baseline.get(key):
+                    diffs.append(key)
+            drift.append(f"{tid}: fingerprint drift in fields {diffs}")
+
+    extra = sorted(set(expected) - set(holdout_ids))
+    if extra:
+        drift.append(
+            f"fingerprint baseline contains task IDs not in holdout split: {extra}"
+        )
+
+    if drift:
+        raise ValueError(
+            "holdout-immutability breach (holdout_version="
+            f"{manifest['holdout_version']}): "
+            + "; ".join(drift)
+            + " — follow the holdout-repair exception path before reporting holdout results."
+        )
 
 
 def _iso_timestamp(timestamp: float) -> str:
