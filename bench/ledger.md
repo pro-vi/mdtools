@@ -6,93 +6,241 @@ cleared only after a typed artifact confirms the finding, not by prose alone.
 
 ## OPEN findings
 
-_(none — F4 promoted to FIXED_PENDING_CONFIRMATION on 2026-04-26 iter 30 via closure plan option (a) "Schema-aware tool-output preference"; see "F4 closure: schema-aware json_envelope actual selection (2026-04-26 iter 30)" CLOSED entry below and the F4 body in "## FIXED_PENDING_CONFIRMATION" with updated Status field.)_
-
-## FIXED_PENDING_CONFIRMATION
-
-### F4 — `json_envelope` scorer prefers any JSON-parseable tool output over the agent's matching text answer
-
-- **Status:** FIXED_PENDING_CONFIRMATION — filed 2026-04-26 iter 29; fix landed 2026-04-26 iter 30 via closure plan option (a) (schema-aware tool-output preference); awaiting next-iteration review-pass confirmation per closure-discipline rule "FIXED ≠ CLOSED". Severity at filing was **P1** (metric quarantine, isolated to one output-shape family).
-- **Axis:** oracle trustworthiness (scorer false-negative on a specific output-shape pattern)
-- **Anchor:** the iter-29 quiet-signal-checkpoint expensive run
-  (`bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/`) recorded
-  `correct=False`, `correct_neutral=False` for T16 mdtools on
-  gpt-5.4-mini at minimal thinking. The agent's final assistant text
-  was the correct expected JSON
-  `{"total_pending":9,"files":[{"file":"backend.md","pending":3},
-  {"file":"devops.md","pending":4},{"file":"frontend.md","pending":2}]}`
-  (verified by parsing the persisted Pi session output at
-  `logs/T16_mdtools_1777224275/agent_output.txt` and concatenating its
-  text deltas). The scorer's `actual` was `./md tasks <files> --json`'s
-  raw envelope `{"schema_version":"mdtools.v1","results":[{...}]}` —
-  valid JSON, non-empty dict, but the wrong schema for T16 (which
-  expects `total_pending` + `files`, not `schema_version` + `results`).
-- **Root cause:** `bench/harness.py:1404-1429` (the
-  `expected_artifact == "json_envelope"` branch of the scorer) walks
-  `reversed(all_tool_outputs)` first and captures the first tool output
-  that parses as a non-empty JSON dict/list (`bench/harness.py:1408-1415`),
-  only falling through to `all_text_outputs` when **no** tool output
-  parses (lines 1416-1426). When an agent runs an intermediate tool that
-  emits valid-but-different-schema JSON (e.g. `./md tasks --json` →
-  `{"schema_version":..., "results":[...]}`) **and** then computes the
-  expected-schema answer in their final assistant text rather than via a
-  projecting tool call (e.g. `jq '...'`), the scorer captures the
-  intermediate envelope instead of the agent's correct answer.
-- **Effect (P1 quarantine):** affects `json_envelope` + `json_canonical=true`
-  tasks where the agent's projection lives in text, not in a tool call
-  whose stdout matches the expected schema. T16 is one such cell. The
-  same scorer cell shape (`kind=structural` + `json_canonical=true` +
-  `expected_artifact=json_envelope`) covers T9, T11, T16, T19 per
-  iter-28's dispatcher matrix; T9 passed in iter-25 because the agent
-  used `jq` to project in-tool, so the tool-output-priority rule worked
-  in T9's favor. T11 / T19 have not been measured under PI yet, but
-  may exhibit the same false-negative under any agent that answers in
-  text. Per the claim-gate, this does **not** block holdout results
-  (none of T9/T11/T16/T19 are in the holdout split — holdout is
-  T4/T14/T20/T22/T23/T24 per iter-2 fingerprints) and does **not**
-  block product work on the unaffected slice. It does mean any future
-  cross-executor / cross-model comparison that includes T16-shape cells
-  must be flagged as non-comparable until F4 is closed.
-- **Out of scope for the gate (per spec):** F4 is **not** P0 — it is
-  not a holdout-immutability breach, not a known false positive on the
-  acceptance metric of any current loop anchor, and not benchmark
-  leakage. So holdout results may continue to be reported (subject to
-  apples-to-apples comparability), and the loop is not gated against
-  declaring a primary product anchor (none currently declared anyway).
-- **Closure plan (cheapest first, options not yet committed):**
-  - (a) **Schema-aware tool-output preference.** In the `json_envelope`
-    branch, prefer tool outputs whose parsed top-level keys overlap
-    with the expected JSON's top-level keys; otherwise fall through
-    to text outputs before degrading to "any JSON-parseable tool
-    output". This preserves T9-shape passes (jq projection produces
-    matching keys) and rescues T16-shape passes (text answer matches
-    when raw `md tasks --json` doesn't). Risk: needs unit tests
-    pinning the new precedence on T9 (jq projection wins), T16
-    (text wins when tool output is non-matching), T22 / T1 / T21
-    (tool output is the answer; current behavior preserved).
-  - (b) **Text-output equality short-circuit.** Before walking tool
-    outputs, check if the last text output already parses to the
-    expected JSON (key-set match against the parsed expected). If
-    yes, prefer it. Cheaper than (a), narrower scope, but biased toward
-    text-answer agents. Risk: less general; could regress if some task
-    has a "near-match" text and a "true-match" tool output.
-  - (c) **Per-task scorer hint.** Add a `prefer_text_answer: bool`
-    field to the scorer policy and set it on tasks where the expected
-    artifact comes from text projection. Most invasive; explicit; but
-    pushes the configuration burden into the corpus instead of letting
-    the scorer infer.
-  Pre-commitment: option (a) is the leading candidate because it
-  generalizes (no per-task config) and degrades gracefully (current
-  behavior is the final fallback). Option choice is deferred to the
-  iteration that closes F4.
-- **What F4 does NOT block:** does not block product anchor promotion
-  (none declared); does not bump `holdout_version` (no holdout-side
-  artifact change); does not invalidate any prior search-set bundle
-  (those bundles record what they recorded; the question is what
-  future scoring does with comparable shapes); does not retract any
-  CLOSED finding.
+_(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline review pass; see "Confirmation review pass (2026-04-26 iter 31)" and "F4 closure: schema-aware json_envelope actual selection (2026-04-26 iter 30)" CLOSED entries below, plus the archived F4 finding body under "## CLOSED" with Status field updated to CLOSED.)_
 
 ## CLOSED
+
+### Confirmation review pass (2026-04-26 iter 31)
+
+Discharged the closure-discipline rule for iter 30's F4 fix by
+re-reading every typed artifact bit-exact. F4 transitions from
+FIXED_PENDING_CONFIRMATION to **CLOSED**. Paired with a substantive
+update to `bench/RESULTS.md:72` downgrading the F4 quarantine
+paragraph to an F4 closure note, and one forward-pointing citation
+correction for an iter-30 line-number typo recurring three times in
+the iter-30 entry and the (after iter 30) halt-condition block.
+
+- **Disturbed axis:** closure-discipline procedural ratification
+  (oracle trustworthiness for the paired `bench/RESULTS.md`
+  downgrade, since the published narrative was carrying an
+  out-of-date "P1 OPEN" framing for the now-closed F4).
+- **Frontier anchor:** the iter-30 ledger entry's explicit
+  invitation under **Closure-discipline status**: "the next
+  iteration's review pass to explicitly confirm by re-reading the
+  iter-30 typed artifacts (the new helper functions, the test
+  class, the iter-29 bundle replay output) and the modified call
+  site against this entry". Per spec, the **FIXED ≠ CLOSED** rule
+  requires either explicit ratification by typed-artifact re-read
+  or a non-re-raise pass; iter 31 chose explicit ratification.
+- **Bit-exact verifications (every iter-30 claim re-read):**
+  - `_json_top_keys` is at `bench/harness.py:1457-1466`
+    (`def _json_top_keys(parsed) -> set[str]:` confirmed at line
+    1457; body returns `set(parsed.keys())` for dicts,
+    `set(parsed[0].keys())` for non-empty list-of-dicts, empty set
+    otherwise — matches the iter-30 description).
+  - `_expected_json_top_keys` is at `bench/harness.py:1469-1478`
+    (`def _expected_json_top_keys(expected_str: str) -> set[str] | None:`
+    at line 1469; returns `None` on `JSONDecodeError` / `TypeError`,
+    or `None` when the parsed value has no observable key shape
+    (empty key set), else the key set — matches the iter-30
+    description).
+  - `select_json_envelope_actual` is at `bench/harness.py:1481-1526`
+    (`def select_json_envelope_actual(...)` at line 1481; walks
+    `reversed(all_tool_outputs)` preferring shape-matching outputs;
+    on no match, falls through to `reversed(all_text_outputs)`;
+    final fallback chain is `fallback_tool_actual` (most-recent
+    non-shape-matching tool output) then `extract_last_json(stdout)`
+    — matches the iter-30 description).
+  - `extract_last_json` is at `bench/harness.py:1529` (still
+    immediately after `select_json_envelope_actual`).
+  - The `expected_artifact == "json_envelope"` branch at
+    `bench/harness.py:1404-1408` is now a single 5-line `elif` that
+    calls `select_json_envelope_actual(all_tool_outputs,
+    all_text_outputs, stdout, expected_content)` — replacing the
+    pre-iter-30 inline 26-line loop at lines 1404-1429 (matches the
+    iter-30 description that the inline loop was replaced with a
+    single call).
+  - `bench/test_harness_json.py:135-248` defines
+    `JsonEnvelopeActualSelectionTests` with exactly **8** tests
+    (`test_t16_shape_text_wins_over_intermediate_md_tasks_envelope`,
+    `test_t9_shape_jq_projected_tool_output_wins`,
+    `test_t1_shape_matching_tool_output_wins_over_text_noise`,
+    `test_t22_top_level_list_tool_output_falls_through_to_fallback`,
+    `test_text_only_answer_works`,
+    `test_no_shape_match_falls_back_to_most_recent_tool_output`,
+    `test_unknown_expected_shape_preserves_first_tool_output_rule`,
+    `test_empty_outputs_falls_back_to_extract_last_json_of_stdout`).
+    `select_json_envelope_actual` is imported at line 11 of the
+    test module. All 8 tests pass under `python3 -m unittest -v
+    bench.test_harness_json` alongside the 6 pre-existing tests
+    in the module.
+  - Total python unittest count across the eight spec-named modules
+    is **78** (`Ran 78 tests in 1.650s ... OK`), matching the
+    iter-30 claim of "70 → 78 (+8 from
+    `JsonEnvelopeActualSelectionTests`)".
+  - `cargo test -q` reports `37 passed` and `16 passed` and `0
+    passed` on the three reported test runs (matching the iter-30
+    "all suites pass" claim).
+  - `python3 bench/harness.py --md-binary target/release/md`
+    dry-run reports "All tasks pass dual scorer" on all 24 tasks;
+    T1 / T5 / T9 / T11 / T16 / T19 / T21 / T22 (the eight
+    `expected_artifact == "json_envelope"` tasks) all
+    `md=PASS neutral=PASS`.
+- **Replay verification of iter-30's typed-artifact attribution
+  probe:** parsed
+  `bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/logs/T16_mdtools_1777224275/agent_output.txt`
+  via `bench/pi_runner.parse_pi_json_output`; the `PiJsonTrace`
+  carries 4 tool outputs and 1 text output. Tool outputs, in
+  index-order: `[0]` is a 166-byte `[bench-guard] denied …` string
+  (non-JSON); `[1]` is a 146-byte guard-deny string (non-JSON);
+  `[2]` is the 57-byte `Is a directory (os error 21) …` from the
+  agent's first `./md blocks <vault>` mis-call (non-JSON); `[3]`
+  is the `./md tasks <files> --json` envelope, a JSON dict with
+  top keys `["results", "schema_version"]`. The single text
+  output is the agent's correct answer
+  `{"total_pending":9,"files":[{"file":"backend.md","pending":3},
+  {"file":"devops.md","pending":4},{"file":"frontend.md","pending":2}]}`
+  (131 bytes), parsed top keys `["files", "total_pending"]`.
+  Calling
+  `select_json_envelope_actual(trace.tool_outputs,
+  trace.text_outputs, trace.stdout, expected_content)` against
+  T16's `bench/expected/t16_count.json` (top keys `["files",
+  "total_pending"]`) returns the agent's text answer. `score_task`
+  on the returned actual reports
+  **`md=True neutral=True`** with `report = "json_canonical: OK"`.
+  The iter-29 `correct=False` would now be `correct=True` under
+  the new selector — exactly matching iter-30's claim. This is
+  the spec's required attribution probe: the named failure class
+  (F4 false-negative on json_envelope text-answer cells) actually
+  moved.
+- **Forward-pointing observation — iter-30 line citation typo:**
+  the iter-30 entry contains three references to `bench/harness.py`
+  line **1478** for the new helpers / `select_json_envelope_actual`
+  helper, but line 1478 in the current file is the closing line of
+  `_expected_json_top_keys`, not the location of any helper or of
+  `extract_last_json`. The actual line positions at iter-31
+  read time are: `_json_top_keys` at 1457,
+  `_expected_json_top_keys` at 1469, `select_json_envelope_actual`
+  at 1481, `extract_last_json` at 1529. The three iter-30 textual
+  references are: (a) the F4 closure entry's "Change shape" first
+  bullet, "Added three module-level helpers in `bench/harness.py`
+  immediately before `extract_last_json` at line 1478"; (b) the
+  (after iter 30) Halt-condition / quiet-signal status block
+  preamble, "`select_json_envelope_actual` helper at
+  `bench/harness.py:1478`"; (c) the same block's iter-30 quiet-
+  signal counter bullet, repeating "`select_json_envelope_actual`
+  helper at `bench/harness.py:1478`". The closest match for the
+  selector's actual position is **1481** (off by 3); the iter-30
+  author likely either pre-finalization-counted or transcribed
+  from a draft. Per the iter-15 / iter-22 / iter-24 / iter-26 /
+  iter-27 / iter-28 / iter-30 no-silent-edit discipline, the
+  iter-30 entry body is preserved unchanged; the correction lives
+  here. This is the same defect class as iter-22's "line 18" →
+  "line 20" typo (clerical line-citation error in fresh prose,
+  not upstream-edit-induced drift).
+- **Substantive paired change:** updated `bench/RESULTS.md:72` —
+  replaced the "F4 quarantine note (2026-04-26 iter 29)" paragraph
+  with an "F4 closure note (2026-04-26 iter 30 + iter 31
+  ratification)" paragraph that (i) cites the iter-30 closure
+  entry and the iter-31 ratification, (ii) downgrades the T9 row's
+  "F4-suspect" labeling (the T9 PI cell's `correct=true` is no
+  longer F4-contaminated since the new selector preserves the
+  jq-projection PASS shape via the `_json_top_keys` overlap rule),
+  (iii) preserves the historical context that the iter-29 T16 PI
+  bundle's recorded `correct=false` is the bundle's frozen truth
+  (iter 30 explicitly does not retroactively re-score per its
+  comparability framing), and (iv) keeps the T16 row out of the
+  cross-executor table because adding a row that pairs the FAIL
+  PI cell with a PASS OAI cell still mis-attributes the difference
+  to executor / model when the actual post-iter-30 cause would be
+  the bundle's frozen pre-fix scorer verdict (a future iteration
+  may produce a fresh T16 PI bundle scored under the new selector
+  to enable that row). The same paragraph also replaces the stale
+  `bench/harness.py:1404-1429` reference (the pre-iter-30 inline
+  loop range) with a pointer to the new
+  `select_json_envelope_actual` helper and the 8 unit tests in
+  `bench/test_harness_json.py:JsonEnvelopeActualSelectionTests`.
+- **Cheap channel:** green before and after.
+  - `cargo test -q`: 37 + 16 + 0 + (rest of integration suites)
+    all pass.
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports
+    `Ran 78 tests in 1.650s ... OK`.
+  - `python3 bench/harness.py --md-binary target/release/md`
+    dry-run reports "All tasks pass dual scorer" on all 24 tasks.
+- **Closure transition:** F4 moves from FIXED_PENDING_CONFIRMATION
+  to **CLOSED**. Mechanically: the "## FIXED_PENDING_CONFIRMATION"
+  section header was removed (it had only the F4 entry); the F4
+  finding body is archived under "## CLOSED" alongside F1 / F2 /
+  F3 / F3-a / L1 / P3 with the **Status** field updated from
+  `FIXED_PENDING_CONFIRMATION` to `CLOSED (2026-04-26 iter 31
+  review pass; FIXED 2026-04-26 iter 30 via closure plan option
+  (a); filed 2026-04-26 iter 29; P1 metric-quarantine severity)`;
+  the "## OPEN findings" parenthetical now points to the iter-31
+  CLOSED entry and the iter-30 closure entry. The iter-30 entry's
+  "## FIXED_PENDING_CONFIRMATION"-section reference and the
+  (after iter 30) halt-condition block's "transitioned OPEN →
+  FIXED_PENDING_CONFIRMATION" wording are preserved unchanged per
+  the no-silent-edit discipline (the (after iter 31) block records
+  the further transition).
+- **Comparability framing:** this iteration does **not** modify
+  any prior bundle in `bench/runs/`, does **not** bump
+  `holdout_version` (still 1; F4 was P1, not P0), does **not**
+  introduce a new product surface or change the agent's action
+  space, does **not** re-score any prior bundle (the iter-29 T16
+  bundle's recorded `correct=False` remains the bundle's frozen
+  truth; the iter-31 replay through the new selector is a
+  cheap-channel verification of the fix, not a new bundle), does
+  **not** edit any historical ledger entry inline, does **not**
+  extend the cross-executor same-task table in `bench/RESULTS.md`,
+  does **not** change `README.md` / `CLAUDE.md` / `specs/**` /
+  `bench/tasks/` / `bench/holdout/` / `bench/expected/`. The only
+  external file edits are: (i) ledger transitions described above,
+  (ii) `bench/RESULTS.md:72` paragraph replacement (no other lines
+  in `RESULTS.md` change), and (iii) a downstream paragraph at
+  `bench/RESULTS.md:74` is left unchanged (the P3 future-ratchet
+  note remains relevant).
+- **Closure-discipline status (iter 31's own meta-status):** this
+  iter-31 entry is itself FIXED_PENDING_CONFIRMATION at authoring;
+  the next iteration's review pass either explicitly ratifies by
+  re-reading the iter-31 typed-artifact references (the four
+  function lines at `bench/harness.py:1457`/`1469`/`1481`/`1529`,
+  the test class at `bench/test_harness_json.py:135`, the
+  78-test-count cheap-channel run, the iter-29 T16 bundle replay
+  output) and the `bench/RESULTS.md:72` paragraph against this
+  entry, or simply does not re-raise F4 (which would happen if
+  iter 32 simply moves to another axis without reopening the
+  json_envelope-text-answer defect).
+- **Same-family-rule discharge:** iter 28 was oracle-trustworthiness
+  (typed-test promotion), iter 29 was intervention-diversity
+  (forced expensive-or-halt: T16 bundle that surfaced F4), iter
+  30 was oracle-trustworthiness (F4 closure via schema-aware
+  selector). Iter 31 is **closure-discipline ratification**
+  (procedural axis) paired with **specification coherence**
+  (the `bench/RESULTS.md:72` downgrade). Closure-discipline
+  ratification iterations are structurally distinct from
+  oracle-trustworthiness iterations (precedent: iters 3, 6, 12,
+  13, 15, 20, 22, 24, 27 — each ratifies a prior iteration's
+  typed-artifact claims without authoring a new fix). The
+  fresh-failing-trace escape clause additionally applies: the
+  iter-30 line-1478 typo is the trace, surfaced by independent
+  re-verification of the iter-30 entry's line citations against
+  the live file. Per spec, this is admissible same-axis follow-up
+  to an oracle-trustworthiness chain because the trace is real
+  and is captured forward-pointing in this entry rather than
+  silently corrected.
+- **What this does NOT do:** does not promote any new product
+  anchor (none declared); does not run the expensive outer
+  channel (the iter-31 replay is a typed-artifact re-read, not
+  an expensive run); does not re-score any prior bundle; does
+  not amend any prior pass-rate claim; does not invalidate any
+  cross-executor table row (the rule and all five existing rows
+  remain valid); does not extend the cross-executor table with
+  a new row; does not introduce a new finding (F4 transition is
+  closure of an existing finding, not a new one); does not bump
+  `holdout_version`.
 
 ### F4 closure: schema-aware json_envelope actual selection (2026-04-26 iter 30)
 
@@ -2972,24 +3120,28 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 30)
+### Halt-condition / quiet-signal status (after iter 31)
 
-After iter 30's discharge of F4 via closure plan option (a) (schema-
-aware tool-output preference; `select_json_envelope_actual` helper at
-`bench/harness.py:1478` plus 8 unit tests at
-`bench/test_harness_json.py:JsonEnvelopeActualSelectionTests`) — see
-"F4 closure: schema-aware json_envelope actual selection (2026-04-26
-iter 30)" CLOSED entry and the "## FIXED_PENDING_CONFIRMATION"
-section above:
+After iter 31's promotion of F4 from FIXED_PENDING_CONFIRMATION to
+**CLOSED** via closure-discipline review pass (typed-artifact
+ratification of iter 30's `select_json_envelope_actual` helper at
+`bench/harness.py:1481` and the 8-test
+`JsonEnvelopeActualSelectionTests` class, plus replay-verification
+of the iter-29 T16 bundle through the new selector returning
+`md=PASS neutral=PASS` with `json_canonical: OK`) — see
+"Confirmation review pass (2026-04-26 iter 31)" CLOSED entry and
+the F4 finding archive entry under "## CLOSED" at the bottom of the
+section with Status now "CLOSED":
 
-- **OPEN findings count:** **0** (F4 transitioned from OPEN to
-  FIXED_PENDING_CONFIRMATION at iter 30; awaiting next-iteration
-  review-pass confirmation per closure-discipline). The zero-OPEN
-  state was broken at iter 29 (F4 P1 filed). A new zero-OPEN streak
-  begins at iter 30, count = **1**. The "no OPEN findings for 2
-  consecutive review rounds" halt condition is one round in; halt
-  cannot fire on this counter until at least one more zero-OPEN
-  round completes (iter 31 quiet, no new findings opened).
+- **OPEN findings count:** **0** (F4 transitioned from
+  FIXED_PENDING_CONFIRMATION to CLOSED at iter 31). The zero-OPEN
+  state was broken at iter 29 (F4 P1 filed) and rejoined at iter
+  30 (F4 → FIXED_PENDING_CONFIRMATION). The zero-OPEN streak that
+  began at iter 30 now stands at count **2** (iter 30 + iter 31).
+  The "no OPEN findings for 2 consecutive review rounds" halt
+  condition is **met on this counter** at iter 31, but per spec
+  it is one of several halt conditions — the quiet-signal counter
+  and homeostasis balance also gate halt; see below.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -3028,11 +3180,17 @@ section above:
   `select_json_envelope_actual` helper at `bench/harness.py:1478`
   plus 8 unit tests in `JsonEnvelopeActualSelectionTests`, no
   expensive run, F4 transitioned OPEN → FIXED_PENDING_CONFIRMATION;
-  counter increments to **1**). Iters 31–32 admissible quiet, iter
-  33 the next forced expensive-or-halt point unless an F4 review-
-  pass confirmation iteration or another expensive run between now
-  and then independently introduces fresh signal that resets the
-  counter.
+  counter increments to **1**), iter 31 quiet (cheap-channel-only
+  closure-discipline review pass — typed-artifact ratification of
+  iter 30 + replay-verification of the iter-29 T16 bundle through
+  the new selector + paired `bench/RESULTS.md:72` F4-quarantine →
+  F4-closure paragraph downgrade + one forward-pointing iter-30
+  line-1478 citation typo correction; F4 transitioned
+  FIXED_PENDING_CONFIRMATION → CLOSED; counter increments to
+  **2**). Iter 32 admissibly quiet, iter 33 the next forced
+  expensive-or-halt point unless another expensive run between
+  now and then independently introduces fresh signal that resets
+  the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -3051,6 +3209,25 @@ section above:
   cross-mode / cross-model gap. F4 closure (iter-29 closure plan
   options (a) / (b) / (c)) is also an admissible iter-30 frontier
   anchor ahead of any further PI coverage extension.
+- **Iter-31 same-family-rule discharge:** iter 28 was oracle-
+  trustworthiness (typed-test promotion), iter 29 was
+  intervention-diversity (forced expensive-or-halt: T16 mdtools
+  PI bundle that surfaced **F4 P1 OPEN**), iter 30 was oracle-
+  trustworthiness (closing F4 via schema-aware
+  `select_json_envelope_actual`). Iter 31 is **closure-discipline
+  ratification** (procedural axis), structurally distinct from
+  oracle-trustworthiness — precedent: iters 3, 6, 12, 13, 15, 20,
+  22, 24, 27, each ratifying a prior iteration's typed-artifact
+  claims without authoring a new fix. Closure-discipline iters
+  paired with substantive corrective work are precedent at iters
+  12, 13, 20 (line-citation drift) and iter 22 / 24 / 26 / 27
+  (forward-pointing line-typo / scan-methodology / code-path-routing
+  corrections). Iter 31 follows the iter-12 / iter-13 / iter-20
+  pattern: ratification paired with one fresh-trace correction (the
+  iter-30 line-1478 citation typo). The fresh-failing-trace escape
+  clause additionally applies — the typo is the trace, surfaced by
+  independent re-verification of the iter-30 entry's line citations
+  against the live `bench/harness.py` file.
 - **Iter-30 same-family-rule discharge:** iter 27 was closure-
   discipline (ledger-only ratification + one forward-pointing
   code-path-routing correction), iter 28 was oracle-trustworthiness
@@ -3850,6 +4027,81 @@ F3 is closed) or emit `stop-and-summarize`.
 - **Status:** CLOSED (2026-04-26 review pass; FIXED 2026-04-24)
 - **Axis:** oracle trustworthiness
 - **Typed artifact:** `bench/harness.py:347-348` — `.rstrip()` added on the whole normalized string after per-line rstrip, so `ignore_trailing_whitespace: true` covers end-of-file whitespace consistent with the option name. Mode-neutral change; external review accepted. Harness dry-run confirms all 24 tasks still pass dual scorer.
+
+### F4 — `json_envelope` scorer prefers any JSON-parseable tool output over the agent's matching text answer
+
+- **Status:** CLOSED (2026-04-26 iter 31 review pass; FIXED 2026-04-26 iter 30 via closure plan option (a) "Schema-aware tool-output preference"; filed 2026-04-26 iter 29; **P1** metric-quarantine severity at filing).
+- **Axis:** oracle trustworthiness (scorer false-negative on a specific output-shape pattern)
+- **Anchor:** the iter-29 quiet-signal-checkpoint expensive run
+  (`bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/`) recorded
+  `correct=False`, `correct_neutral=False` for T16 mdtools on
+  gpt-5.4-mini at minimal thinking. The agent's final assistant text
+  was the correct expected JSON
+  `{"total_pending":9,"files":[{"file":"backend.md","pending":3},
+  {"file":"devops.md","pending":4},{"file":"frontend.md","pending":2}]}`
+  (verified by parsing the persisted Pi session output at
+  `logs/T16_mdtools_1777224275/agent_output.txt` and concatenating its
+  text deltas). The scorer's `actual` was `./md tasks <files> --json`'s
+  raw envelope `{"schema_version":"mdtools.v1","results":[{...}]}` —
+  valid JSON, non-empty dict, but the wrong schema for T16 (which
+  expects `total_pending` + `files`, not `schema_version` + `results`).
+- **Root cause (pre-iter-30):** `bench/harness.py:1404-1429` (the
+  `expected_artifact == "json_envelope"` branch of the scorer) walked
+  `reversed(all_tool_outputs)` first and captured the first tool output
+  that parsed as a non-empty JSON dict/list (`bench/harness.py:1408-1415`),
+  only falling through to `all_text_outputs` when **no** tool output
+  parsed (lines 1416-1426). When an agent ran an intermediate tool that
+  emitted valid-but-different-schema JSON (e.g. `./md tasks --json` →
+  `{"schema_version":..., "results":[...]}`) **and** then computed the
+  expected-schema answer in their final assistant text rather than via a
+  projecting tool call (e.g. `jq '...'`), the scorer captured the
+  intermediate envelope instead of the agent's correct answer.
+- **Effect (P1 quarantine, lifted at iter-30 closure):** affected
+  `json_envelope` + `json_canonical=true` tasks where the agent's
+  projection lived in text rather than in a tool call whose stdout
+  matched the expected schema. T16 was one such cell. The same scorer
+  cell shape (`kind=structural` + `json_canonical=true` +
+  `expected_artifact=json_envelope`) covers T9 / T11 / T16 / T19 per
+  iter-28's dispatcher matrix; T9 passed in iter-25 because the agent
+  used `jq` to project in-tool, so the tool-output-priority rule worked
+  in T9's favor. Per the claim-gate, F4 did **not** block holdout
+  results (none of T9/T11/T16/T19 are in the holdout split — holdout is
+  T4/T14/T20/T22/T23/T24 per iter-2 fingerprints) and did **not** block
+  product work on the unaffected slice.
+- **Typed artifact (closure):** `select_json_envelope_actual` at
+  `bench/harness.py:1481-1526` (with helpers `_json_top_keys` at line
+  1457 and `_expected_json_top_keys` at line 1469) walks
+  `reversed(all_tool_outputs)` preferring outputs whose parsed
+  top-level keys overlap with the expected JSON's top-level keys; on
+  no shape-match, falls through to `reversed(all_text_outputs)`; final
+  fallback chain is the most-recent non-shape-matching tool output,
+  then `extract_last_json(stdout)`. The
+  `expected_artifact == "json_envelope"` branch at
+  `bench/harness.py:1404-1408` is now a single 5-line `elif` calling
+  the helper. `bench/test_harness_json.py:JsonEnvelopeActualSelectionTests`
+  pins the new precedence with 8 unit tests (T16 text wins, T9 jq
+  projection wins, T1 matching tool wins, T22 list fallback, text-only,
+  no-shape-match fallback, unknown expected shape preserves pre-F4
+  rule, empty outputs fallback). Replay-verification: parsing the
+  iter-29 T16 bundle's `agent_output.txt` via
+  `bench/pi_runner.parse_pi_json_output` and running the new selector
+  against `bench/expected/t16_count.json` returns the agent's text
+  answer, and `score_task` reports **`md=PASS neutral=PASS`** with
+  `report = "json_canonical: OK"` — the iter-29 `correct=False` would
+  now be `correct=True`.
+- **Closure plan executed:** option (a) from the original entry —
+  schema-aware tool-output preference. Options (b) (text-output
+  equality short-circuit) and (c) (per-task scorer hint) were rejected
+  in favor of (a) per the iter-29 entry's pre-commitment language:
+  "option (a) is the leading candidate because it generalizes (no
+  per-task config) and degrades gracefully (current behavior is the
+  final fallback)".
+- **What F4 did NOT block:** did not block product anchor promotion
+  (none declared); did not bump `holdout_version` (no holdout-side
+  artifact change); did not invalidate any prior search-set bundle
+  (those bundles record what they recorded; the question is what
+  future scoring does with comparable shapes); did not retract any
+  CLOSED finding.
 
 ### L1 — Loop lacked holdout-immutability guard
 - **Status:** CLOSED (2026-04-26 review pass; FIXED 2026-04-26 iter 2)
