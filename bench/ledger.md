@@ -10,6 +10,207 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Specification coherence — iter-33 T11 PI bundle reference extension (2026-04-26 iter 34)
+
+Cashed out iter 33's T11 PI bundle by extending `bench/RESULTS.md`'s
+"Cross-executor comparability (PI runner vs OAI loop)" inventory
+paragraph with a ninth-bundle sentence parallel in shape to iter-19's
+fifth-bundle (T2) and iter-23's sixth-bundle (T21) sentences, plus a
+parenthetical aside disambiguating the seventh PI bundle (T9, table-
+eligible since iter 26) and the eighth (T16, documented under the F4
+closure note) so the "fifth → sixth → ninth" jump in the inventory is
+self-explanatory. Paired with closure-discipline ratification of iter
+33 by independent re-reading of every cited typed-artifact data point
+plus a mechanical re-execution of the F4-closure-trail counterfactual
+through the live `bench/harness.py` selector against the iter-33 T11
+bundle's `agent_output.txt`. No fresh failing trace surfaced.
+
+- **Disturbed axis:** specification coherence — the iter-33 T11 PI
+  bundle's existence and its corroborating-the-F4-closure-trail role
+  were durable in `bench/runs/` and in the ledger under the "Quiet-
+  signal checkpoint discharge (2026-04-26 iter 33)" entry, but the
+  published narrative at `bench/RESULTS.md:68` had not yet surfaced
+  the bundle. iter 33's own ledger body explicitly named this as a
+  forward-pointing cash-out hook ("the iter-33 bundle could be cashed
+  out into the cross-executor section as a tenth bundle reference
+  paragraph following the iter-19 / iter-23 pattern, if a future
+  iteration chooses that as its frontier anchor"). iter 19 set the
+  precedent for cashing out T2 (then-fifth PI bundle, no OAI same-
+  task counterpart); iter 23 repeated the pattern for T21 (then-
+  sixth PI bundle, no OAI same-task counterpart); iter 34 repeats
+  for T11 (now-ninth PI bundle, no OAI same-task counterpart) on
+  the same drift class.
+- **Frontier anchor:** the spec's "missing evaluator artifact … durable
+  summary for a newly-run comparison" — same anchor as iters 19 and 23.
+  Additionally, the iter-33 ledger entry's "Closure-discipline status:
+  CLOSED at authoring time … A future review pass should ratify by
+  re-reading every data point in this entry against `results.json`,
+  `run.json`, `pi-audit.jsonl`, and the persisted `agent_output.txt`"
+  is a pre-recorded forcing function for the closure-discipline
+  ratification half of this iteration.
+- **Change shape:**
+  - Appended a "ninth PI bundle" sentence to `bench/RESULTS.md:68`
+    inside the "PI bundle pointers" paragraph, immediately after the
+    sixth-bundle (T21) sentence, citing
+    `bench/runs/checkpoint-pi-T11-mdtools-gpt5.4mini-2026-04-26/`
+    (iter 33), describing it as fresh-trajectory regression evidence
+    corroborating the F4 closure trail (matching iter-33's post-
+    second-opinion-review "corroborates" framing), naming it as the
+    fifth durable bundle carrying iter-17's `holdout_version: 1`
+    stamp on `run.json`, and recording the same not-yet-eligible-for-
+    the-table caveat as the existing T2 / T21 sentences.
+  - Appended a parenthetical aside at the end of that sentence
+    naming what the seventh and eighth PI bundles are doing in the
+    inventory ("The seventh PI bundle T9 became table-eligible at
+    iter 26 once the OAI T9 cell was discovered; the eighth PI
+    bundle T16 is documented in the F4 closure note below"), so the
+    "fifth → sixth → ninth" jump is self-explanatory to a reader
+    arriving at the section without iteration-history context.
+  - No edit to the cross-executor table itself (still 5 rows: T1,
+    T7, T9, T22, T18 — T11 is not in the table because no OAI same-
+    task `mdtools` cell exists). No edit to the F4 closure note at
+    `bench/RESULTS.md:72`. No edit to `bench/RESULTS.md:54` /:56
+    measurement-publication caption / commentary text. No edit to
+    any historical ledger entry inline (per iter-15 / -22 / -24 /
+    -26 / -27 / -28 / -30 / -31 / -32 / -33 no-silent-edit
+    discipline).
+- **Data points (typed-artifact ratification of iter 33):** every
+  iter-33 typed-artifact claim re-verified bit-exact:
+  - `results.json`: `task_id=T11`, `mode=mdtools`, `correct=true`,
+    `correct_neutral=true`, `model=openai-codex/gpt-5.4-mini`,
+    `thinking_level=minimal`, `bytes_prompt=4335`,
+    `bytes_output=834336`, `bytes_observation=8126`,
+    `tool_calls=2`, `turns=2`, `mutations=0`, `policy_violations=0`,
+    `requeried=false`, `invalid_responses=0`,
+    `unique_invalid_responses=0`, `elapsed_seconds=8.93`,
+    `diff_report="json_canonical: OK"`, `runner_error=null` ✓
+  - `run.json`: `schema_version=1`, `kind=agent-track`,
+    `runner=pi-json`, `executor=guarded`,
+    `model=openai-codex/gpt-5.4-mini`, `thinking_level=minimal`,
+    `runs_per_task=1`, `holdout_version=1` (line 20) ✓
+  - `pi-audit.jsonl`: 6 events parse cleanly via
+    `bench.pi_audit_adapter.summarize_pi_audit_events` —
+    `model_change`, `thinking_level_change`, two `tool_call`
+    (`./md outline … --json` and `./md tasks … --json`), two
+    `tool_result` (outputBytes 1487 and 6639) ✓
+  - `bench/harness.py:1457` is `def _json_top_keys`, `:1469` is
+    `def _expected_json_top_keys`, `:1481` is
+    `def select_json_envelope_actual` ✓
+  - F4 closure trail counterfactual: replaying the bundle through
+    `bench.pi_runner.parse_pi_json_output` yields tool 0 with top
+    keys `['entries', 'file', 'schema_version']`, tool 1 with top
+    keys `['results', 'schema_version']`, text 0 with top keys
+    `['phases', 'totals']`; expected (`bench/expected/t11_summary.json`)
+    has top keys `['phases', 'totals']`. The post-iter-30
+    `select_json_envelope_actual` selector picks the text answer
+    (top-key-overlap with expected) and `score_task` returns
+    `md=PASS, neutral=PASS` with `json_canonical: OK` ✓
+  - Pre-iter-30 selector counterfactual (mechanical, not inspection):
+    `git show 7b36502:bench/harness.py` lines 1404-1429 contain the
+    `for tool_out in reversed(all_tool_outputs)` loop that returns
+    the first non-empty parseable JSON; running that loop logic
+    against the iter-33 T11 trace selects tool 1 (last reversed
+    parseable JSON) with top keys `['results', 'schema_version']`,
+    and `score_task` against expected returns `md=False,
+    neutral=False` with `json_canonical: MISMATCH at line 2:
+    expected "phases": [ / actual: "results": [` — bit-identical
+    in mismatch shape to iter-29 T16's `expected: "files": [` /
+    `actual: "results": [` ✓
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: 7 + 24 + 32 + 37 + 16 + 0
+    (parser, integration, command-policy, mutations, multifile,
+    benchmarks).
+  - `python3 -m unittest bench.test_command_policy
+    bench.test_oai_loop bench.test_pi_audit
+    bench.test_harness_json bench.test_harness_run_artifacts
+    bench.test_harness_task_split bench.test_analyze_inputs
+    bench.test_report_inputs` reports "Ran 79 tests in 1.600s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **Closure-discipline ratification of iter 33 (paired with the
+  substantive RESULTS.md edit):** every iter-33 "Bundle:" /
+  "Verdict:" / "F4 closure trail corroboration" / "Counterfactual
+  executed" / "Closure attribution" data point reproduces bit-exact
+  through independent re-reading of `results.json`, `run.json`,
+  `pi-audit.jsonl`, `agent_output.txt`, and live `bench/harness.py`
+  source — including a fresh mechanical re-execution of the post-
+  iter-30 selector + scorer pipeline against the bundle, which
+  returns `md=PASS, neutral=PASS, json_canonical: OK` exactly as
+  iter 33 claimed; and a fresh mechanical re-execution of the pre-
+  iter-30 selector logic from `git show 7b36502:bench/harness.py`
+  against the same trace, which returns `md=False, neutral=False,
+  json_canonical: MISMATCH` exactly as iter 33 claimed. F4 closure
+  remains anchored by iter 30 / iter 31 / iter 32 and is not re-
+  raised. No fresh failing trace surfaced — the pattern of "every
+  ratification iteration finds at least one navigable claim that
+  doesn't survive verification" (iter 22 / -24 / -26 / -27 / -30 /
+  -31) does not fire here; iter 33's prose was authored carefully
+  enough (likely due to its second-opinion-review tightening pass)
+  that its citations all hold. This is the second clean
+  ratification of an expensive-channel iteration in this run after
+  iter 15's clean ratification of iter 14.
+- **Comparability framing:** this is **NOT** a holdout reconfirmation
+  (T11 is search-side; no holdout cell affected). It is **NOT** an
+  expensive-channel run (no new bundle produced; cheap-channel-only
+  publication + ratification). It is **NOT** a cross-executor table
+  extension (T11 has no OAI same-task `mdtools` cell, so it is
+  added to the inventory paragraph as a not-yet-eligible reference,
+  not as a sixth row). It does **NOT** discharge the iter-37 forced
+  expensive-or-halt point — iter 34 increments the quiet-signal
+  counter from 0 to 1.
+- **Closure-discipline status:** iter 34 is **CLOSED at authoring
+  time** under the iter-19 / iter-23 cash-out template (substantive
+  publication + ratification of prior expensive-run entry, no
+  pending fix). The closure-discipline rule's "next pass not re-
+  raising the finding" criterion is naturally satisfied by iter 35
+  if it does any work that involves verifying iter-34's RESULTS.md
+  edit; explicit ratification is not required.
+- **Same-family-rule discharge:** iter 30 was oracle-trustworthiness
+  (closing F4), iter 31 was closure-discipline + spec-coherence
+  (RESULTS.md:72 F4 quarantine → closure note + line-1478 typo
+  correction), iter 32 was oracle-trustworthiness (typed-test
+  promotion of bundle replay), iter 33 was intervention-diversity
+  (expensive run + F4 closure trail corroboration). Iter 34 is
+  **specification coherence** (cross-executor inventory paragraph
+  extension), structurally distinct from intervention-diversity.
+  Same-family precedent: iter 19 cashed out iter 18's T2 PI bundle
+  one iteration after the expensive run; iter 23 cashed out iter
+  21's T21 PI bundle two iterations after the expensive run (with
+  iter 22 closure-discipline-ratification interleaved); iter 34
+  cashes out iter 33's T11 PI bundle one iteration after the
+  expensive run, mirroring iter 19's tighter cadence. The
+  closure-discipline ratification half of this iteration is paired
+  with the substantive cash-out (iter-19's pattern), not isolated
+  in a separate ledger-only iteration (iter-22's pattern); both
+  shapes are admissible.
+- **What this does NOT do:** does not edit any historical ledger
+  entry inline. Does not modify any harness production code. Does
+  not bump `holdout_version` (still 1; T11 is search-side, no
+  holdout-side artifact change). Does not extend the cross-executor
+  table itself (no OAI T11 cell exists). Does not re-raise F4 or
+  any other CLOSED finding. Does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does
+  not produce any new `bench/runs/` bundle. Does not introduce a
+  new test (the existing `JsonEnvelopeActualSelectionTests` and
+  `F4ClosureBundleReplayTests` already cover the F4 closure
+  trail's typed-artifact pinning; iter 33's new bundle was the
+  fresh-trajectory empirical signal, and iter 34 only publishes
+  it). Does not amend any pass-rate claim or any model-comparison
+  framing. Does not edit `README.md`, `CLAUDE.md`,
+  `bench/retracted_2026-04-24/README.md`, or `specs/**`.
+- **Forward-pointing observation on iter-33 prose
+  (no historical edit):** iter-33's body contains a forward-pointing
+  cash-out prediction phrased as "as a tenth bundle reference
+  paragraph following the iter-19 / iter-23 pattern". Counting from
+  the published-narrative perspective, T11 is the **ninth** PI
+  bundle (after T1 / T22 / T7 / T18 / T2 / T21 / T9 / T16) and the
+  ninth bundle reference in the cross-executor section if both
+  table rows and inventory-paragraph sentences are counted equally.
+  iter-33's "tenth" phrasing is recorded forward-pointing rather
+  than as a direct edit; iter 34's substantive cash-out
+  consistently uses "ninth" per the actual count visible in the
+  paragraph.
+
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 33)
 
 Per the spec's "After 3 consecutive iterations with the cheap channel
@@ -3429,20 +3630,20 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 33)
+### Halt-condition / quiet-signal status (after iter 34)
 
-After iter 33's discharge of the spec's quiet-signal-checkpoint by
-producing the ninth PI runner bundle (T11 mdtools dual-scorer PASS in
-8.93s on `openai-codex/gpt-5.4-mini` at minimal thinking), the fifth
-durable bundle in `bench/runs/` carrying iter-17's `holdout_version: 1`
-stamp, and corroborating the F4 closure trail with fresh expensive-
-channel regression evidence on a new task trajectory plus a mechanically-
-pinned pre-iter-30 selector counterfactual showing dual-scorer FAIL on
-the same trajectory — see "Quiet-signal checkpoint discharge (2026-04-26
-iter 33)" CLOSED entry above:
+After iter 34's specification-coherence cash-out of iter 33's T11 PI
+bundle as the ninth PI bundle reference in `bench/RESULTS.md:68`'s
+cross-executor inventory paragraph (paired with closure-discipline
+ratification of iter 33 — every typed-artifact claim re-verified bit-
+exact, including a fresh mechanical re-execution of both the post-
+iter-30 selector pipeline and the pre-iter-30 selector counterfactual
+against the bundle's `agent_output.txt`; no fresh failing trace
+surfaced) — see "Specification coherence — iter-33 T11 PI bundle
+reference extension (2026-04-26 iter 34)" CLOSED entry above:
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **4** (iter 30 + iter 31 + iter 32 + iter 33).
+  iter 30 now stands at count **5** (iter 30 + iter 31 + iter 32 + iter 33 + iter 34).
   The "no OPEN findings for 2 consecutive review rounds" halt
   condition remains met on this counter, but per spec it is one of
   several halt conditions — the quiet-signal counter and homeostasis
@@ -3508,10 +3709,16 @@ iter 33)" CLOSED entry above:
   fresh task trajectory plus a mechanically-pinned counterfactual
   showing the pre-iter-30 selector would have FAILed dual-scorer on
   the same trajectory; F4 closure remains anchored by iter 30/31/32;
-  counter reset to **0**). Iters 34-36 admissible quiet, iter 37
-  the next forced expensive-or-halt point unless another expensive
-  run between now and then independently introduces fresh signal
-  that resets the counter.
+  counter reset to **0**), iter 34 quiet (cheap-channel-only
+  specification-coherence cash-out of iter-33 T11 PI bundle as the
+  ninth PI bundle reference in `bench/RESULTS.md:68`'s cross-executor
+  inventory paragraph, paired with clean closure-discipline
+  ratification of iter 33 — every typed-artifact claim and
+  counterfactual reproducing bit-exact, no fresh failing trace
+  surfaced; counter increments to **1**). Iters 35–36 admissible
+  quiet, iter 37 the next forced expensive-or-halt point unless
+  another expensive run between now and then independently
+  introduces fresh signal that resets the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -3529,6 +3736,27 @@ iter 33)" CLOSED entry above:
   cell to exercise scorer cell shape X (where X is grounded in an
   actual `bench/tasks/tasks.json` task config)" or a task-family /
   cross-mode / cross-model gap.
+- **Iter-34 same-family-rule discharge:** iter 31 was closure-
+  discipline + spec-coherence (RESULTS.md:72 F4 quarantine →
+  F4-closure paragraph downgrade + iter-30 line-1478 typo
+  correction), iter 32 was oracle-trustworthiness (typed-test
+  promotion of bundle replay), iter 33 was intervention-diversity
+  (expensive outer channel run + new durable PI bundle). Iter 34
+  is **specification coherence** (cross-executor inventory paragraph
+  extension to surface iter-33's T11 PI bundle in the published
+  narrative), structurally distinct from intervention-diversity.
+  Same-family precedent: iter 19 cashed out iter 18's T2 PI bundle
+  one iteration after the expensive run; iter 23 cashed out iter
+  21's T21 PI bundle two iterations after the expensive run (with
+  iter 22 closure-discipline-ratification interleaved); iter 26
+  cashed out iter 25's T9 PI bundle into the cross-executor table
+  one iteration after the expensive run as a fifth row; iter 34
+  cashes out iter 33's T11 PI bundle one iteration after the
+  expensive run, mirroring iter 19's tighter cadence. The
+  closure-discipline ratification half is paired with the
+  substantive cash-out (iter-19's pattern), not isolated in a
+  separate ledger-only iteration (iter-22's pattern); both shapes
+  are admissible and have established precedent.
 - **Iter-33 same-family-rule discharge:** iter 30 was oracle-
   trustworthiness (closing F4 via schema-aware
   `select_json_envelope_actual` + 8 synthetic tests), iter 31 was
