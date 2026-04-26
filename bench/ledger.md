@@ -10,6 +10,194 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 36)
+
+Discharged the closure-discipline rule for iter 35's typed-test
+promotion (`F4PreFixCounterfactualTests` +
+`_pre_iter30_select_json_envelope_actual` helper) by re-reading every
+typed-artifact claim bit-exact and re-running the cheap channel — no
+fresh failing trace surfaced. iter 35 transitions
+FIXED_PENDING_CONFIRMATION → CLOSED via explicit ratification under
+the spec's "FIXED ≠ CLOSED" rule, parallel in shape to iter 31's
+explicit ratification of iter 30 / iter 32's implicit ratification of
+iter 30+31 / iter 34's clean ratification of iter 33.
+
+- **Disturbed axis:** closure-discipline (procedural) — iter 35's
+  typed-test promotion landed as **FIXED_PENDING_CONFIRMATION** at
+  authoring time, requiring the next pass to either explicitly ratify
+  (re-reading the bundles + helper + tests bit-exact) or implicitly
+  ratify by not re-raising. iter 36 chooses **explicit ratification**
+  because iter 35's body invited it ("iter 36+'s closure-discipline
+  ratification can run `python3 -m unittest bench.test_harness_json -k
+  F4PreFixCounterfactualTests` and observe the same green output").
+- **Frontier anchor:** the spec's "FIXED ≠ CLOSED" rule explicitly
+  requires either "the next iteration's review pass explicitly
+  confirming, or the next pass not re-raising the finding". iter 36 is
+  the next pass and satisfies both clauses (re-reading the typed
+  artifacts independently + not re-raising any iter-35 claim).
+- **Change shape:**
+  - Added this iter-36 ratification entry at the top of "## CLOSED"
+    above the iter-35 entry, following the iter-31 / iter-12 / iter-13
+    / iter-15 / iter-22 / iter-27 / iter-31 / iter-34 confirmation-
+    review-pass template.
+  - Updated the halt-condition / quiet-signal status block from
+    (after iter 35) to (after iter 36).
+  - **No edit** to iter-35's body (per iter-15 / -22 / -24 / -26 /
+    -27 / -28 / -30 / -31 / -32 / -33 / -34 / -35 no-silent-edit
+    discipline: the **Closure-discipline status** field on iter 35's
+    body records its state *at authoring time* — FIXED_PENDING_CONFIRMATION;
+    the CLOSED state is recorded in this iter-36 entry, not by
+    editing iter-35).
+  - **No edit** to `bench/harness.py`, `bench/test_harness_json.py`,
+    `bench/RESULTS.md`, `README.md`, or any other narrative file. No
+    code change. No test change. No published-narrative change.
+- **Data points (typed-artifact ratification of iter 35):** every
+  iter-35 typed-artifact claim re-verified bit-exact against the live
+  repository:
+  - `bench/test_harness_json.py:297` is `def
+    _pre_iter30_select_json_envelope_actual(...)` with docstring
+    naming git ref `7b36502:bench/harness.py:1404-1429` and the F4
+    fix it predates ✓
+  - Helper logic compared against `git show
+    7b36502:bench/harness.py` lines 1407-1428 (inside the elif
+    branch starting at line 1404 `elif task.expected_artifact ==
+    "json_envelope":`): bit-exact reproduction of `actual = ""` +
+    `for tool_out in reversed(all_tool_outputs)` loop +
+    `reversed(all_text_outputs)` text fallback +
+    `extract_last_json(stdout)` final fallback ✓
+  - `bench/test_harness_json.py:333` is `class
+    F4PreFixCounterfactualTests(unittest.TestCase)` with two tests:
+    `test_iter_29_t16_bundle_fails_under_pre_fix_selector` and
+    `test_iter_33_t11_bundle_fails_under_pre_fix_selector` ✓
+  - `BUNDLES` tuple at lines 344-359 includes `expected_top_keys`:
+    `["files", "total_pending"]` for T16 (line 350),
+    `["phases", "totals"]` for T11 (line 357) ✓
+  - `_replay_pre_fix` helper at lines 361-391 implements all six
+    iter-35 assertions: `skipTest` on missing bundle log,
+    `expected_output` top-level keys match `expected_top_keys`,
+    pre-fix selector picks JSON dict with top keys exactly
+    `["results", "schema_version"]`, `score_task` returns
+    `ok_md=False` and `ok_neutral=False` with `"json_canonical:
+    MISMATCH"` in the report ✓
+  - Live `select_json_envelope_actual` at `bench/harness.py:1481`
+    unchanged since iter 31 (verified by `grep -n` returning lines
+    1457 / 1469 / 1481 for `_json_top_keys` /
+    `_expected_json_top_keys` / `select_json_envelope_actual`) ✓
+  - Both bundle paths exist:
+    `bench/runs/checkpoint-pi-T16-mdtools-gpt5.4mini-2026-04-26/logs/T16_mdtools_1777224275/agent_output.txt`
+    and
+    `bench/runs/checkpoint-pi-T11-mdtools-gpt5.4mini-2026-04-26/logs/T11_mdtools_1777227478/agent_output.txt`
+    (verified by `ls`) ✓
+  - `python3 -m unittest bench.test_harness_json -k
+    F4PreFixCounterfactualTests -v` runs both tests in 0.009s with
+    `OK` ✓
+  - Total python unittest count = **81**, sustained across the
+    eight spec-named modules ✓
+  - `cargo test -q` all suites green ✓
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks ✓
+  - **Independent post-iter-30 selector replay** against both
+    bundles via `select_json_envelope_actual` + `score_task` returns
+    `md=PASS neutral=PASS json_canonical: OK` on **both** T16 and
+    T11 — confirms iter-32's positive case (T16) extends to T11
+    under the same selector code path ✓
+  - Pre-iter-30 selector helper picks tool 1 with keys exactly
+    `["results", "schema_version"]` for **both** bundles, dual-scorer
+    FAILs with `json_canonical: MISMATCH` (verified by both new
+    tests passing) ✓
+  - Git ref `7b36502` confirmed as iter-17 commit (`gnhf #17`
+    message), the most-recent pre-iter-30 first-parent commit
+    touching `bench/harness.py` (`git log --first-parent --oneline
+    -- bench/harness.py` shows 7480ea6 [iter-30] → 7b36502
+    [iter-17] as adjacent first-parent commits) ✓
+- **Cheap channel:** green before and after this iteration (no code
+  change in iter 36).
+  - `cargo test -q` all suites pass.
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports "Ran
+    81 tests in 1.927s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **No fresh failing trace surfaced.** The pattern of "every
+  ratification iteration finds at least one navigable claim that
+  doesn't survive verification" (iters 22 / -24 / -26 / -27 / -30 /
+  -31) does **not** fire here. Same shape as iter 15 (clean
+  ratification of iter 14) and iter 34 (clean ratification of iter
+  33) — iter 35's prose was authored carefully (verified bit-exact
+  against the helper code, the live selector, the bundle paths, the
+  `BUNDLES` tuple's expected-key rationale, and the git ref's
+  identity as iter-17). This is the third clean ratification of an
+  oracle-trustworthiness or expensive-channel iteration in this run.
+- **Comparability framing:** This iteration introduces no expensive
+  channel run, no new claim, no holdout exercise, no new product
+  surface, no scorer change, no new search-set or holdout-set bundle,
+  and no edit to any code or published-narrative file. The
+  ratification is procedural — re-reading durable typed artifacts
+  already on disk and recording the verification in this entry.
+- **Closure-discipline status:** **CLOSED at authoring time**
+  (iter 36 ratifies iter 35; no further pending fix). With iter 36's
+  explicit ratification, iter 35's closure-discipline state is now
+  CLOSED. The F4 closure trail spans iter 30 (selector fix) → iter 31
+  (closure-discipline review + RESULTS.md F4-quarantine→closure-note
+  downgrade) → iter 32 (positive-case typed test
+  `F4ClosureBundleReplayTests` for T16) → iter 33 (T11 expensive
+  corroboration) → iter 34 (RESULTS.md ninth-bundle cash-out + clean
+  ratification of iter 33) → iter 35 (negative-case typed test
+  `F4PreFixCounterfactualTests` for T16+T11) → iter 36 (this entry,
+  closure-discipline ratification of iter 35). The F4 closure trail
+  is now mechanically anchored across both positive and negative
+  cases for both F4-relevant durable bundles.
+- **Iter-36 same-family-rule discharge:** Recent axis pattern: iter 32
+  oracle-trustworthiness, iter 33 intervention-diversity (expensive),
+  iter 34 specification coherence + clean ratification, iter 35
+  oracle-trustworthiness, iter 36 closure-discipline ratification
+  (procedural / ledger-only). Iter 36 is a ledger-only change with
+  no code or test change — per the same-family rule, "Cosmetic,
+  rustfmt, file-rotation, naming-cleanup, or **ledger-only** changes
+  do not break concentration." But iter 36 is **not** a same-family
+  iteration with iter 35 (which was oracle-trustworthiness via typed-
+  test addition); iter 36 is closure-discipline ratification, which
+  is the spec-required follow-up to any FIXED_PENDING_CONFIRMATION
+  entry. The closure-discipline ratification iteration shape is
+  structurally distinct from any homeostasis-axis intervention — same
+  shape as iter 31 (ratified iter 30 F4 closure), iter 22 (ratified
+  iter 21 T21 expensive), iter 27 (ratified iter 26 cross-executor
+  table extension), iter 34 (ratified iter 33 T11 expensive). iter 36
+  is the seventh closure-discipline ratification iteration in this
+  run, structurally analogous to iter 15 (ratified iter 14) and iter
+  34 (ratified iter 33) — both of which were clean ratifications with
+  no fresh trace, also paired with no substantive corrective fix.
+- **What this does NOT do:**
+  - Does not edit `bench/harness.py` — no code change. F4 closure
+    semantics unchanged.
+  - Does not edit `bench/test_harness_json.py` — no test change.
+    `F4PreFixCounterfactualTests`, `F4ClosureBundleReplayTests`,
+    `JsonEnvelopeActualSelectionTests`, and the
+    `_pre_iter30_select_json_envelope_actual` helper are all
+    unchanged.
+  - Does not edit iter-35's body — per no-silent-edit discipline,
+    iter 35's "Closure-discipline status: FIXED_PENDING_CONFIRMATION
+    at authoring time" stays as-authored; the CLOSED state is
+    recorded in this iter-36 entry.
+  - Does not edit `bench/RESULTS.md` or `README.md` — no
+    published-narrative change.
+  - Does not exercise any expensive channel — no PI runner
+    invocation, no OAI loop run, no holdout reconfirmation. The
+    quiet-signal counter increments from 2 to 3 accordingly,
+    forcing iter 37 to expensive-or-halt.
+  - Does not produce a new `bench/runs/` bundle — works exclusively
+    against existing durable bundles, the existing helper, and the
+    existing tests.
+  - Does not promote any candidate product surface to anchor status
+    — no `bench/probes/` directory work, no Phase B0 justification
+    needed because no new primitive is proposed.
+  - Does not surface any forward-pointing correction — no fresh
+    failing trace was found during the verification (the recurring
+    "ratification finds at least one navigable defect" pattern does
+    not fire).
+
 ### F4 closure trail extension: pre-iter-30 selector counterfactual typed cheap-channel assertion (2026-04-26 iter 35)
 
 Promoted iter-33's prose-only counterfactual claim ("the pre-iter-30
@@ -3785,22 +3973,22 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 35)
+### Halt-condition / quiet-signal status (after iter 36)
 
-After iter 35's oracle-trustworthiness hardening — promoting iter-33's
-prose-only counterfactual claim ("the pre-iter-30 selector logic
-against the iter-33 T11 trajectory selects tool 1 with keys
-`['results','schema_version']` and FAILs dual-scorer with
-`json_canonical: MISMATCH`") to a typed cheap-channel assertion via a
-new `F4PreFixCounterfactualTests` class plus a faithful
-`_pre_iter30_select_json_envelope_actual` helper, with two tests
-pinning the counterfactual against both F4-relevant durable bundles
-(iter-29 T16 + iter-33 T11) — see "F4 closure trail extension: pre-
-iter-30 selector counterfactual typed cheap-channel assertion
-(2026-04-26 iter 35)" CLOSED entry above:
+After iter 36's closure-discipline ratification of iter 35 — re-reading
+every typed-artifact claim bit-exact (helper at
+`bench/test_harness_json.py:297` reproducing git ref
+`7b36502:bench/harness.py:1407-1428` bit-exact, two tests at line 333
+pinning T16+T11 pre-fix FAIL, live `select_json_envelope_actual` at
+`bench/harness.py:1481` unchanged since iter 31, both bundle paths
+present, 81 unittests OK, all 24 tasks PASS dual scorer, post-fix
+selector replay against both bundles returns md=PASS neutral=PASS
+json_canonical: OK), promoting iter 35 from FIXED_PENDING_CONFIRMATION
+to CLOSED, with no fresh failing trace surfacing — see "Confirmation
+review pass (2026-04-26 iter 36)" CLOSED entry above:
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **6** (iter 30 + iter 31 + iter 32 + iter 33 + iter 34 + iter 35).
+  iter 30 now stands at count **7** (iter 30 + iter 31 + iter 32 + iter 33 + iter 34 + iter 35 + iter 36).
   The "no OPEN findings for 2 consecutive review rounds" halt
   condition remains met on this counter, but per spec it is one of
   several halt conditions — the quiet-signal counter and homeostasis
@@ -3882,10 +4070,19 @@ iter-30 selector counterfactual typed cheap-channel assertion
   closure-discipline rule's "next pass not re-raising" route via
   bit-exact verification of `bench/RESULTS.md:68` and the live
   selector at `bench/harness.py:1481` during test authoring; counter
-  increments to **2**). Iter 36 admissibly quiet (would push counter
-  to 3), iter 37 the next forced expensive-or-halt point unless an
-  expensive run between now and then independently introduces fresh
-  signal that resets the counter.
+  increments to **2**), iter 36 quiet (cheap-channel-only
+  closure-discipline ratification of iter 35 — typed-artifact
+  re-verification bit-exact via re-running `F4PreFixCounterfactualTests`
+  + post-fix `select_json_envelope_actual` replay against both T16 and
+  T11 bundles, helper code compared against git ref
+  `7b36502:bench/harness.py:1407-1428` bit-exact, no expensive run, no
+  fresh failing trace surfaced, iter 35 transitioned
+  FIXED_PENDING_CONFIRMATION → CLOSED via explicit ratification;
+  counter increments to **3**). Iter 37 the next forced
+  expensive-or-halt point per the spec's "3 consecutive iterations
+  with cheap channel green and no new finding" rule unless an
+  expensive run independently introduces fresh signal that resets the
+  counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -3903,6 +4100,27 @@ iter-30 selector counterfactual typed cheap-channel assertion
   cell to exercise scorer cell shape X (where X is grounded in an
   actual `bench/tasks/tasks.json` task config)" or a task-family /
   cross-mode / cross-model gap.
+- **Iter-36 same-family-rule discharge:** iter 33 was intervention-
+  diversity (T11 PI expensive bundle), iter 34 was specification
+  coherence (RESULTS.md:68 cash-out + paired clean ratification of
+  iter 33), iter 35 was oracle-trustworthiness (typed-test promotion
+  of pre-iter-30 selector counterfactual to
+  `F4PreFixCounterfactualTests`). Iter 36 is **closure-discipline
+  ratification** — procedurally distinct from any homeostasis-axis
+  intervention; structurally analogous to iter 31 (ratified iter 30
+  F4 closure), iter 22 (ratified iter 21 T21 expensive), iter 27
+  (ratified iter 26 cross-executor table extension), iter 34
+  (ratified iter 33 T11 expensive), iter 15 (ratified iter 14 T18
+  expensive). iter 36 is the seventh closure-discipline ratification
+  iteration in this run. Per the same-family rule, "Cosmetic, rustfmt,
+  file-rotation, naming-cleanup, or **ledger-only** changes do not
+  break concentration"; iter 36 is ledger-only with no code or test
+  change. The closure-discipline ratification iteration shape is the
+  spec-required follow-up to any FIXED_PENDING_CONFIRMATION entry,
+  not a homeostasis-axis correction subject to the rule's escape
+  clause; with no fresh trace surfacing during verification, iter 36
+  matches the iter-15 / iter-34 clean-ratification sub-shape rather
+  than the iter-22 / iter-27 / iter-31 paired-corrective sub-shape.
 - **Iter-35 same-family-rule discharge:** iter 32 was oracle-
   trustworthiness (typed-test promotion of iter 30 / iter 31 prose-only
   positive replay claim to `F4ClosureBundleReplayTests`), iter 33 was
