@@ -10,6 +10,273 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 44)
+
+Discharged the closure-discipline rule for iter 43's typed-test
+promotion (`T10CanonicalReQueryCycleTests` in `bench/test_pi_audit.py`,
+2 tests pinning the canonical query → mutation → query pattern
+detection on the iter-41 T10 PI bundle) by re-reading every
+typed-artifact claim bit-exact and re-running the cheap channel — no
+fresh failing trace surfaced. iter 43 transitions
+FIXED_PENDING_CONFIRMATION → CLOSED via explicit ratification under
+the spec's "FIXED ≠ CLOSED" rule, parallel in shape to iter 40's
+explicit ratification of iter 39 / iter 36's explicit ratification of
+iter 35 / iter 31's explicit ratification of iter 30.
+
+- **Disturbed axis:** closure-discipline (procedural) — iter 43's
+  typed-test promotion landed as **FIXED_PENDING_CONFIRMATION** at
+  authoring time, requiring the next pass to either explicitly ratify
+  (re-reading the bundle artifacts + adapter helpers + test bit-exact)
+  or implicitly ratify by not re-raising. iter 44 chooses **explicit
+  ratification** because iter 43's body invited it ("iter 44+'s
+  closure-discipline ratification can run `python3 -m unittest
+  bench.test_pi_audit -k T10CanonicalReQueryCycleTests` and observe the
+  same green output (2 tests, all pass), promoting iter 43 to
+  CLOSED").
+- **Frontier anchor:** the spec's "FIXED ≠ CLOSED" rule explicitly
+  requires either "the next iteration's review pass explicitly
+  confirming, or the next pass not re-raising the finding". iter 44 is
+  the next pass and satisfies both clauses (re-reading the typed
+  artifacts independently + not re-raising any iter-43 claim).
+- **Change shape:**
+  - Added this iter-44 ratification entry at the top of "## CLOSED"
+    above the iter-43 entry, following the iter-40 / iter-36 / iter-31
+    / iter-15 / iter-22 / iter-27 / iter-34 confirmation-review-pass
+    template.
+  - Updated the halt-condition / quiet-signal status block from
+    (after iter 43) to (after iter 44).
+  - **No edit** to iter-43's body (per iter-15 / -22 / -24 / -26 /
+    -27 / -28 / -30 / -31 / -32 / -33 / -34 / -35 / -36 / -37 / -38 /
+    -39 / -40 no-silent-edit discipline: the **Closure-discipline
+    status** field on iter 43's body records its state *at authoring
+    time* — FIXED_PENDING_CONFIRMATION; the CLOSED state is recorded
+    in this iter-44 entry, not by editing iter-43).
+  - **No edit** to `bench/test_pi_audit.py`, `bench/pi_audit_adapter.py`,
+    `bench/command_policy.py`, `bench/harness.py`, `bench/RESULTS.md`,
+    `README.md`, or any other narrative file. No code change. No test
+    change. No published-narrative change.
+- **Data points (typed-artifact ratification of iter 43):** every
+  iter-43 typed-artifact claim re-verified bit-exact against the live
+  repository:
+  - `bench/test_pi_audit.py:148` is `class
+    T10CanonicalReQueryCycleTests(unittest.TestCase)` with the
+    docstring naming the iter-41 forcing claim ("T10 demonstrates the
+    re-query moat in 3 tool calls: `./md tasks --status pending --json`
+    → `./md set-task 5.1 -i --status done` → `./md tasks --status done
+    --json`") and explicitly framing the orthogonality from
+    `F4ClosureBundleReplayTests` / `F4PreFixCounterfactualTests`
+    ("re-query detection vs scorer selection; raw_bytes branch vs
+    json_envelope branch") ✓
+  - `bench/test_pi_audit.py:9` carries the iter-43 import extension
+    `from bench.command_policy import GuardEvent, load_guard_events`
+    (extending the prior iter's `GuardEvent`-only import with
+    `load_guard_events`) ✓
+  - `BUNDLE_DIR` resolves to
+    `bench/runs/checkpoint-pi-T10-mdtools-gpt5.4mini-2026-04-26/logs/T10_mdtools_1777232433`
+    with both `pi-audit.jsonl` (5,461 bytes) and `guard.log` (426
+    bytes) present on disk per `ls -la` ✓
+  - Two test methods exist:
+    `test_audit_only_summary_detects_canonical_recquery_cycle`
+    (line 170) and `test_guard_events_preserve_recquery_detection`
+    (line 196), each carrying a `skipTest` for fork-compat when the
+    bundle is missing — parallel in shape to
+    `F4ClosureBundleReplayTests` (also skipTest-guarded with bundle
+    path check at `bench/test_harness_json.py:272`) ✓
+  - `python3 -m unittest bench.test_pi_audit
+    -k T10CanonicalReQueryCycleTests -v` runs two tests in 0.002s
+    with `OK`
+    (`test_audit_only_summary_detects_canonical_recquery_cycle ... ok`,
+    `test_guard_events_preserve_recquery_detection ... ok`) ✓
+  - Total python unittest count = **84**, sustained across the
+    eight spec-named modules (`bench.test_command_policy`,
+    `bench.test_oai_loop`, `bench.test_pi_audit`,
+    `bench.test_harness_json`, `bench.test_harness_run_artifacts`,
+    `bench.test_harness_task_split`, `bench.test_analyze_inputs`,
+    `bench.test_report_inputs`); `python3 -m unittest …` reports
+    "Ran 84 tests in 1.661s … OK" ✓
+  - `cargo test -q` all suites green (32 + 37 + 16 + 0 — parser /
+    integration counts plus benchmarks empty) ✓
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks ✓
+  - **Independent re-execution of `summarize_pi_audit_events` against
+    the iter-41 T10 bundle's `pi-audit.jsonl`** returns
+    `PiAuditCounters(tool_calls=3, tool_results=3, tool_errors=0,
+    mutations=1, requeried=True, policy_violations=0, blocked=0,
+    model='openai-codex/gpt-5.4-mini', thinking_level='minimal')` plus
+    `bash_commands` of length 3 — bit-exact match to iter-43's first
+    test's assertion list ✓
+  - The 3 bash commands recovered from `pi-audit.jsonl` reproduce the
+    canonical re-query mutation cycle bit-exact: (1) `./md tasks
+    /var/folders/.../t10_rollout.md --status pending --json`, (2)
+    `./md set-task 5.1 /var/folders/.../t10_rollout.md -i --status
+    done`, (3) `./md tasks /var/folders/.../t10_rollout.md --status
+    done --json` — matching iter-43's test assertions on
+    `counters.bash_commands[0]` (`./md tasks` + `--status pending`),
+    `counters.bash_commands[1]` (`./md set-task 5.1` + `--status
+    done`), `counters.bash_commands[2]` (`./md tasks` + `--status
+    done`) ✓
+  - **Independent re-execution of `load_guard_events` against
+    `guard.log`** returns 3 GuardEvents, all `decision='allow'`, all
+    `base_command='md'` — bit-exact match to iter-43's second test's
+    assertions on `len(guard_events)`, `decision`, and `base_command`
+    ✓
+  - **Independent re-execution of `summarize_pi_audit_events(events,
+    guard_events=guard_events)`** preserves `mutations=1`,
+    `requeried=True`, `policy_violations=0` via the
+    guard-sequence-wins-over-call-sequence path — `bench/pi_audit_adapter.py:113`
+    is `effective_sequence = guard_sequence or call_sequence` (Python
+    short-circuit `or` selects `guard_sequence` when non-empty) ✓
+  - The 8 audit events parse cleanly with `event` field values
+    `model_change`, `thinking_level_change`, then 3×(`tool_call`,
+    `tool_result`) — confirming iter-43's first-test comment
+    `"# 8 events: model_change + thinking_level_change + 3×(tool_call
+    + tool_result)"` is bit-exact accurate ✓
+  - T10 scorer config in `bench/tasks/tasks.json` confirmed `kind=raw_bytes`,
+    `expected_artifact=file_contents`, `normalize_line_endings=true`,
+    `ignore_trailing_whitespace=true` — F4 selector at
+    `bench/harness.py:1481` is **not** invoked for raw_bytes tasks,
+    confirming iter-43's "structurally orthogonal axis from F4 closure
+    trail" framing on the production-code routing axis ✓
+  - T10 absent from `bench/holdout/task_ids.json` (which is
+    `["T4","T14","T20","T22","T23","T24"]`), confirming iter-43's "T10
+    is search-side; no holdout cell affected" comparability claim ✓
+  - `bench/probes/anchor-validation/` confirmed absent — iter-43's
+    "Does not promote any product anchor (`bench/probes/anchor-validation/`
+    still does not exist)" claim verified ✓
+  - Git diff `af7810e^..af7810e --stat` confirms iter-43's commit
+    touched only 2 files (`bench/ledger.md` +264/-20 and
+    `bench/test_pi_audit.py` +69/-1) — confirming iter-43's "No edit
+    to bench/pi_audit_adapter.py, bench/command_policy.py,
+    bench/harness.py, or any other production code. No edit to
+    bench/RESULTS.md" claim ✓
+- **Cheap channel:** green before and after this iteration (no code
+  change in iter 44).
+  - `cargo test -q` all suites pass (32 + 37 + 16 + 0).
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports "Ran
+    84 tests in 1.661s … OK".
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks.
+- **No fresh failing trace surfaced.** The pattern of "every
+  ratification iteration finds at least one navigable claim that
+  doesn't survive verification" (iters 22 / -24 / -26 / -27 / -30 /
+  -31) does **not** fire here. Same shape as iter 15 (clean
+  ratification of iter 14), iter 34 (clean ratification of iter 33),
+  iter 36 (clean ratification of iter 35), and iter 40 (clean
+  ratification of iter 39) — iter 43's prose was authored carefully
+  (verified bit-exact against the test class structure, the imported
+  helpers, the bundle paths, the `summarize_pi_audit_events` and
+  `load_guard_events` invocation contracts, the `bench/pi_audit_adapter.py:113`
+  guard-sequence-wins line citation, and the iter-41 T10 PI bundle's
+  typed artifacts). This is the **fifth** clean ratification of an
+  oracle-trustworthiness or expensive-channel iteration in this run —
+  iter 35 → iter 36 (clean), iter 39 → iter 40 (clean), iter 43 →
+  iter 44 (clean) follow the same one-iteration-after-typed-test-
+  promotion cadence with parallel verification surfaces.
+- **Comparability framing:** This iteration introduces no expensive
+  channel run, no new claim, no holdout exercise, no new product
+  surface, no scorer change, no new search-set or holdout-set bundle,
+  and no edit to any code or published-narrative file. The
+  ratification is procedural — re-reading durable typed artifacts
+  already on disk and recording the verification in this entry. It is
+  **NOT** an extension of the F4 closure trail (T10 is `kind=raw_bytes`
+  with `expected_artifact=file_contents`, structurally orthogonal to
+  the F4 attack vector); F4 closure remains anchored by iter 30 / 31 /
+  32 / 33 / 35 / 37 / 39 / 40. It **is** the second ratification entry
+  on the F4-orthogonal closure trail (re-query mutation moat invariant)
+  opened by iter 41 (T10 expensive bundle), iter 42 (RESULTS.md
+  inventory cash-out + paired ratification), iter 43 (typed cheap-
+  channel assertion), and iter 44 (closure-discipline ratification of
+  iter 43).
+- **Closure-discipline status:** **CLOSED at authoring time**
+  (iter 44 ratifies iter 43; no further pending fix). With iter 44's
+  explicit ratification, iter 43's closure-discipline state is now
+  CLOSED. The F4-orthogonal closure trail (canonical re-query mutation
+  moat invariant) spans iter 41 (T10 expensive bundle, first PI bundle
+  on raw_bytes branch beyond T18, first PI bundle exercising
+  `md set-task` mutation surface, first PI bundle with non-zero
+  `requery_rate=1.0`) → iter 42 (RESULTS.md eleventh-bundle cash-out
+  + paired clean ratification of iter 41) → iter 43 (typed cheap-
+  channel assertion `T10CanonicalReQueryCycleTests` covering both
+  audit-only and guard-augmented call paths through
+  `summarize_pi_audit_events`) → iter 44 (this entry, closure-
+  discipline ratification of iter 43). Both audit-only and
+  guard-augmented call paths through `summarize_pi_audit_events` are
+  now mechanically pinned against the iter-41 T10 bundle, with the
+  bundle's `pi-audit.jsonl` 8 events and `guard.log` 3 entries
+  re-verified bit-exact during iter-44's verification.
+- **Iter-44 same-family-rule discharge:** Recent axis pattern: iter 40
+  closure-discipline ratification of iter 39, iter 41
+  intervention-diversity (T10 expensive forced expensive-or-halt),
+  iter 42 specification coherence (RESULTS.md eleventh-bundle cash-out
+  + paired clean ratification of iter 41), iter 43
+  oracle-trustworthiness (typed-test promotion of iter-41's prose-only
+  T10 canonical re-query mutation cycle claim via
+  `T10CanonicalReQueryCycleTests`), iter 44 closure-discipline
+  ratification of iter 43 (procedural / ledger-only). Iter 44 is a
+  ledger-only change with no code or test change — per the same-family
+  rule, "Cosmetic, rustfmt, file-rotation, naming-cleanup, or
+  **ledger-only** changes do not break concentration." But iter 44 is
+  **not** a same-family iteration with iter 43 (which was
+  oracle-trustworthiness via typed-test promotion); iter 44 is
+  closure-discipline ratification, which is the spec-required
+  follow-up to any FIXED_PENDING_CONFIRMATION entry. The closure-
+  discipline ratification iteration shape is structurally distinct
+  from any homeostasis-axis intervention — same shape as iter 31
+  (ratified iter 30 F4 closure), iter 22 (ratified iter 21 T21
+  expensive), iter 27 (ratified iter 26 cross-executor table
+  extension), iter 34 (ratified iter 33 T11 expensive), iter 36
+  (ratified iter 35 typed test), iter 40 (ratified iter 39 typed test
+  extension). iter 44 is the **ninth** closure-discipline ratification
+  iteration in this run, structurally analogous to iter 36 and iter 40
+  (both also ratified an oracle-trustworthiness typed-test promotion
+  one iteration after authoring with no fresh trace surfacing). Iter
+  44 is also the **first** closure-discipline ratification on the
+  F4-orthogonal closure trail (re-query mutation moat invariant) —
+  iter 31 / 36 / 40 all ratified F4-trail entries on the json_envelope
+  branch; iter 44 ratifies a raw_bytes-branch entry on the re-query/
+  mutation invariant axis.
+- **What this does NOT do:**
+  - Does not edit `bench/test_pi_audit.py` — no test change.
+    `T10CanonicalReQueryCycleTests` (2 tests / 1 bundle from iter 43),
+    `PiAuditAdapterTests`, `PiRunnerTests` are all unchanged.
+  - Does not edit `bench/pi_audit_adapter.py` — no adapter change.
+    The `summarize_pi_audit_events` function and the
+    `effective_sequence = guard_sequence or call_sequence` line at
+    `bench/pi_audit_adapter.py:113` remain unchanged.
+  - Does not edit `bench/command_policy.py` — no policy change.
+    `load_guard_events` and `GuardEvent` remain unchanged.
+  - Does not edit `bench/harness.py` — no scorer change. F4 closure
+    semantics unchanged.
+  - Does not edit iter-43's body — per no-silent-edit discipline,
+    iter 43's "Closure-discipline status: FIXED_PENDING_CONFIRMATION
+    at authoring time" stays as-authored; the CLOSED state is
+    recorded in this iter-44 entry.
+  - Does not edit `bench/RESULTS.md` or `README.md` — no
+    published-narrative change. The cross-executor inventory paragraph
+    at `bench/RESULTS.md:68` (still cites eleven PI bundles after iter
+    42's cash-out) and the F4 closure note at `bench/RESULTS.md:72`
+    (since iter 31) remain unchanged.
+  - Does not exercise any expensive channel — no PI runner
+    invocation, no OAI loop run, no holdout reconfirmation. The
+    quiet-signal counter increments from 2 to 3 accordingly,
+    forcing iter 45 to expensive-or-halt.
+  - Does not produce a new `bench/runs/` bundle — works exclusively
+    against existing durable bundles, the existing helpers, and the
+    existing tests.
+  - Does not promote any candidate product surface to anchor status
+    — no `bench/probes/` directory work, no Phase B0 justification
+    needed because no new primitive is proposed. The
+    `bench/probes/anchor-validation/` directory still does not exist.
+  - Does not bump `holdout_version` (still 1; no holdout-side
+    artifact change).
+  - Does not surface any forward-pointing correction — no fresh
+    failing trace was found during the verification (the recurring
+    "ratification finds at least one navigable defect" pattern does
+    not fire).
+
 ### F4-orthogonal closure trail: T10 canonical re-query mutation cycle typed cheap-channel assertion (2026-04-26 iter 43)
 
 Promoted iter-41's prose-only ledger claim ("T10 demonstrates the
@@ -5494,26 +5761,26 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 43)
+### Halt-condition / quiet-signal status (after iter 44)
 
-After iter 43's oracle-trustworthiness hardening — promoting iter-41's
-prose-only T10 canonical re-query mutation cycle claim to a typed
-cheap-channel assertion via new `T10CanonicalReQueryCycleTests` class
-in `bench/test_pi_audit.py` with 2 tests covering both audit-only and
-guard-augmented call paths through `summarize_pi_audit_events` — the
-quiet-signal counter increments from 1 to 2. The cheap-channel-only
-addition introduces stronger typed evidence for the canonical
-re-query mutation moat invariant (mutations=1, requeried=True, the
-canonical 3-call bash command sequence) on a structurally orthogonal
-axis from the F4 closure trail; F4 closure trail unchanged; no new
-finding opened. See "F4-orthogonal closure trail: T10 canonical
-re-query mutation cycle typed cheap-channel assertion (2026-04-26
-iter 43)" CLOSED entry above.
+After iter 44's closure-discipline ratification of iter 43's typed-test
+promotion (`T10CanonicalReQueryCycleTests` in `bench/test_pi_audit.py`,
+2 tests pinning the canonical query → mutation → query pattern
+detection on the iter-41 T10 PI bundle) via bit-exact re-verification
+of every typed-artifact data point and re-execution of both audit-only
+and guard-augmented `summarize_pi_audit_events` invocations against the
+live iter-41 bundle artifacts — the quiet-signal counter increments
+from 2 to 3. The ledger-only change introduces no new typed evidence;
+iter 43 transitions FIXED_PENDING_CONFIRMATION → CLOSED via explicit
+ratification under the spec's "FIXED ≠ CLOSED" rule; F4 closure trail
+unchanged; F4-orthogonal closure trail (re-query mutation moat
+invariant) now spans iter 41 / 42 / 43 / 44; no new finding opened.
+See "Confirmation review pass (2026-04-26 iter 44)" CLOSED entry above.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **14** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **15** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
-  39 + iter 40 + iter 41 + iter 42 + iter 43). The
+  39 + iter 40 + iter 41 + iter 42 + iter 43 + iter 44). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -5684,11 +5951,22 @@ iter 43)" CLOSED entry above.
   closure-discipline rule's "next pass not re-raising" route via
   bit-exact verification of the iter-41 T10 PI bundle artifacts and
   the live `summarize_pi_audit_events` / `load_guard_events` helpers
-  during test authoring; counter increments to **2**). Iter 45 next
-  forced expensive-or-halt point per the spec's "3 consecutive
-  iterations with cheap channel green and no new finding" rule
-  unless an expensive run independently introduces fresh signal that
-  resets the counter (iter 44 admissible quiet).
+  during test authoring; counter increments to **2**), iter 44 quiet
+  (cheap-channel-only closure-discipline ratification of iter 43 —
+  typed-artifact re-verification bit-exact via re-running
+  `T10CanonicalReQueryCycleTests` (2 tests, all pass) plus independent
+  re-execution of `summarize_pi_audit_events` and `load_guard_events`
+  against the iter-41 T10 PI bundle's `pi-audit.jsonl` (8 events) and
+  `guard.log` (3 entries, all `decision='allow'`, all
+  `base_command='md'`); both audit-only and guard-augmented paths
+  through `summarize_pi_audit_events` produce `mutations=1`,
+  `requeried=True`, `policy_violations=0` bit-exact; no expensive run,
+  no fresh failing trace surfaced, iter 43 transitioned
+  FIXED_PENDING_CONFIRMATION → CLOSED via explicit ratification;
+  counter increments to **3**). Iter 45 next forced expensive-or-halt
+  point per the spec's "3 consecutive iterations with cheap channel
+  green and no new finding" rule unless an expensive run independently
+  introduces fresh signal that resets the counter.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -5709,6 +5987,38 @@ iter 43)" CLOSED entry above.
   scorer cell shape X (where X is grounded in an actual
   `bench/tasks/tasks.json` task config)" or a task-family / cross-mode
   / cross-model gap.
+- **Iter-44 same-family-rule discharge:** iter 40 was closure-
+  discipline ratification of iter 39 (procedural ledger-only), iter
+  41 was intervention-diversity (T10 expensive forced expensive-or-
+  halt), iter 42 was specification coherence (`bench/RESULTS.md:68`
+  eleventh-bundle cash-out + paired clean ratification of iter 41),
+  iter 43 was oracle-trustworthiness (typed-test promotion of iter-41's
+  prose-only T10 canonical re-query mutation cycle claim via new
+  `T10CanonicalReQueryCycleTests` class). Iter 44 is **closure-
+  discipline ratification** — procedurally distinct from any
+  homeostasis-axis intervention; structurally analogous to iter 36
+  (ratified iter 35 typed-test promotion) and iter 40 (ratified iter
+  39 typed-test extension), both also ratified an
+  oracle-trustworthiness typed-test promotion one iteration after
+  authoring with no fresh trace surfacing. iter 44 is the **ninth**
+  closure-discipline ratification iteration in this run (iter 15 /
+  -20 / -22 / -24 / -27 / -31 / -34 / -36 / -40 / -44, where -34
+  ratified the iter-33 expensive run rather than a typed-test
+  promotion). Per the same-family rule, "Cosmetic, rustfmt,
+  file-rotation, naming-cleanup, or **ledger-only** changes do not
+  break concentration"; iter 44 is ledger-only with no code or test
+  change. The closure-discipline ratification iteration shape is the
+  spec-required follow-up to any FIXED_PENDING_CONFIRMATION entry,
+  not a homeostasis-axis correction subject to the rule's escape
+  clause; with no fresh trace surfacing during verification, iter 44
+  matches the iter-15 / iter-34 / iter-36 / iter-40 clean-ratification
+  sub-shape rather than the iter-22 / iter-27 / iter-31
+  paired-corrective sub-shape. iter 44 is also the **first**
+  closure-discipline ratification on the F4-orthogonal closure trail
+  (re-query mutation moat invariant on raw_bytes branch) — iter 31 /
+  36 / 40 all ratified F4-trail entries on the json_envelope branch;
+  iter 44 ratifies a raw_bytes-branch entry on a structurally
+  orthogonal axis.
 - **Iter-43 same-family-rule discharge:** iter 39 was oracle-
   trustworthiness (typed-test extension of
   `F4PreFixCounterfactualTests` to T19), iter 40 was closure-
