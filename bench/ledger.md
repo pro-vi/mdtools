@@ -14,6 +14,136 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Confirmation review pass (2026-04-26 iter 15)
+
+Closure-discipline review of iter-14's quiet-signal-checkpoint discharge
+applied to a bundle introduction (not a substantive fix). Parallels iter
+12's review of iter-11's measurement publication and iter 13's review
+of iter-12's typo fix, but in a "no substantive fix to pair" shape: the
+typed-artifact claims in iter-14's discharge entry were checked against
+the underlying bundle, no drift was found, no fresh failing trace was
+surfaced. Cheap channel green at review time (`cargo test -q` all suites
+pass, 59 python unittests OK across the 8 spec-named modules,
+`harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer).
+
+What was checked:
+
+- **Bundle metrics in `results.json`** —
+  `bench/runs/checkpoint-pi-T18-mdtools-gpt5.4mini-2026-04-26/results.json`
+  re-read. Every iter-14-published number matches bit-exact: `task_id=T18`,
+  `mode=mdtools`, `correct=true`, `correct_neutral=true`,
+  `elapsed_seconds=11.03`, `tool_calls=10`, `turns=6`, `mutations=2`,
+  `requeried=true`, `bytes_observation=14858`, `bytes_output=844124`,
+  `policy_violations=0`, `invalid_responses=0`,
+  `unique_invalid_responses=0`, `diff_report=""`, `runner_error=null`,
+  `model=openai-codex/gpt-5.4-mini`, `thinking_level=minimal`.
+- **Run metadata in `run.json`** — re-read. Confirms
+  `runner=pi-json`, `executor=guarded`, `model=openai-codex/gpt-5.4-mini`,
+  `thinking_level=minimal`, `runs_per_task=1`, `modes=["mdtools"]`,
+  `selected_task_ids=["T18"]`. Aggregates section reproduces the same
+  numbers as the per-result entry.
+- **Pi-audit JSONL event count and shape** —
+  `logs/T18_mdtools_1777214592/pi-audit.jsonl` has exactly 22 lines.
+  Event-type histogram: `{model_change: 1, thinking_level_change: 1,
+  tool_call: 10, tool_result: 10}`. Matches the iter-14 entry's claim
+  "22 events: `model_change`, `thinking_level_change`, plus 10 ×
+  `tool_call` + 10 × `tool_result`" exactly.
+- **Tool-call sequence** — the 10 `tool_call` events (in order)
+  carry these `input.command` strings (with the temp-dir prefix
+  abstracted): (1) `./md outline … --json`, (2) `./md blocks … --json`,
+  (3) `./md tasks … --json`, (4) `./md delete-section "Draft Notes"
+  … -i`, (5) `./md outline … --json`, (6) `./md blocks … --json`,
+  (7) `./md tasks … --json`, (8) `./md set-task 4.1 … -i --status
+  done`, (9) `./md tasks … --json`, (10) `cat …`. Counts: outline×2,
+  blocks×2, tasks×3, delete-section×1, set-task×1, cat×1 = 10. Matches
+  the iter-14 entry's "(`md outline --json` × 2, `md blocks --json` × 2,
+  `md tasks --json` × 3, `md delete-section "Draft Notes" -i`,
+  `md set-task 4.1 -i --status done`, final `cat`)" enumeration.
+- **All three structural commands re-queried after delete-section** —
+  events 5/6/7 confirm `outline`, `blocks`, and `tasks` were each
+  re-queried after the `delete-section` mutation at event 4, before the
+  second mutation at event 8. Matches iter-14 "All three structural
+  commands (`outline`, `blocks`, `tasks`) are re-queried after the
+  deletion" claim.
+- **Adapter summary** —
+  `bench.pi_audit_adapter.summarize_pi_audit_events` invoked on the
+  parsed event list returns
+  `PiAuditCounters(tool_calls=10, tool_results=10, tool_errors=0,
+  bytes_observation=14858, blocked=0, policy_violations=0, mutations=2,
+  requeried=True, model='openai-codex/gpt-5.4-mini',
+  thinking_level='minimal', bash_commands=[…])`. Every reported counter
+  matches the iter-14 entry's enumeration (`tool_calls=10`,
+  `tool_errors=0`, `mutations=2`, `policy_violations=0`, `blocked=0`,
+  `requeried=True`, `bytes_observation=14,858`); the
+  `bytes_observation` from the adapter matches the `results.json` field
+  exactly.
+- **Cross-model behavioral observation** — iter-14 claimed
+  "gpt-5.4-mini at minimal thinking emits ~2.5× as many tool calls on
+  T18 as Hermes-4-70B-4bit (10 vs 4) — both pass dual-scorer."
+  Independently verified from
+  `bench/runs/search-mdtools-multistep-Hermes-4-70B-4bit-2026-04-21/results.json`
+  (T18 row: `tool_calls=4`, `mutations=3`, `requeried=True`,
+  `correct=true`) and
+  `bench/runs/search-mdtools-multistep-Qwen3.5-27B-4bit-2026-04-21/results.json`
+  (T18 row: `tool_calls=5`, `mutations=2`, `requeried=True`,
+  `correct=true`). Ratio 10/4 = 2.5 (matches "~2.5×"). The Qwen3.5-27B
+  cell at 5 tool calls also confirms the qualitative claim that
+  gpt-5.4-mini's read pattern is more thorough than either small-model
+  baseline.
+
+Verdict — iter-14 quiet-signal-checkpoint discharge ratified. All
+typed-artifact claims in the iter-14 entry reproduce bit-exact against
+the bundle's `results.json`, `run.json`, and
+`logs/T18_mdtools_1777214592/pi-audit.jsonl` files. The closure-discipline
+rule's "next pass not re-raising the finding" criterion is satisfied for
+the iter-14 introduction. (No FIXED_PENDING_CONFIRMATION ledger entry
+needed promotion — iter 14's bundle introduction was a non-finding-
+producing expensive run, not filed as a finding.) No new finding opened,
+no holdout artifact touched.
+
+**No frontier expansion explicitly labeled.** This iteration is audit
+ratification of an existing bundle, not measurement publication, not
+scorer change, not new product surface, not claim expansion, not
+holdout-artifact touch. It hardens trust in iter-14's evidence
+substrate (the typed-artifact claims now have an independently-verified
+durable record) but does not move the benchmark frontier. Treating this
+as audit work rather than improvement work is the honest framing: a
+mature T7 loop should refuse ratification-only iterations unless they
+close a finding, amend a claim, or promote a new reusable invariant —
+this iteration does the first (procedurally ratifies iter-14's claims)
+without the second or third. Iters 16–17 should expect to do frontier
+work or trigger the iter-18 expensive-or-halt rule.
+
+- **Frontier anchor (review pass):** *closure-discipline rule applied
+  to bundle introduction* — iter 14 made specific typed-artifact claims
+  (event count, tool-call breakdown, adapter counters, cross-model ratio)
+  that needed independent verification. Iter 15 discharges this by
+  reading typed artifacts (results.json + run.json + pi-audit.jsonl +
+  adapter output) rather than narrative.
+- **Same-family discharge:** iters 11–13 were three consecutive
+  spec-coherence iterations (publication, typo fix + ratification,
+  line-number fix + ratification); iter 14 broke the chain with an
+  expensive-channel multistep-family bundle. Iter 15 returns to a
+  ledger-only ratification entry — the same-family rule's concentration
+  was already broken by iter 14, so a single ratification entry
+  (without the substantive-fix pairing iters 12–13 carried, because no
+  fresh failing trace surfaced) is admissible without invoking the
+  fresh-trace clause. Iter 12 set the precedent for "ratify by reading
+  typed artifacts"; iter 15 applies the same shape to iter-14.
+- **Comparability framing:** the ratification is a ledger-only
+  verification. It does not change any data, ratio, rule conclusion,
+  pass rate, or holdout artifact. It cites already-extant typed
+  artifacts to confirm iter-14's already-published claims. Per the
+  "What this exercises" subsection in the iter-14 entry, the
+  observation that T18 exercises the `file_contents` `expected_artifact`
+  branch is correct (T18 has `expected_artifact=file_contents` in
+  `bench/tasks/tasks.json`); the more precise underlying claim is that
+  T18 specifically uses `scorer.kind=raw_bytes` (whereas T7 also has
+  `expected_artifact=file_contents` but uses `scorer.kind=normalized_text`).
+  This is a refinement worth recording as iter-15 review-pass observation
+  but not a defect: the iter-14 narrative parenthetical is approximately
+  correct and the bundle's actual behavior is unchanged. No edit applied.
+
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 14)
 
 Per the spec's "After 3 consecutive iterations …" rule, the
@@ -334,23 +464,40 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 14)
+### Halt-condition / quiet-signal status (after iter 15)
 
-After the iter-14 quiet-signal-checkpoint discharge (see
-"Quiet-signal checkpoint discharge (2026-04-26 iter 14)" above):
+After the iter-15 closure-discipline ratification of iter-14's
+quiet-signal-checkpoint discharge (see "Confirmation review pass
+(2026-04-26 iter 15)" above):
 
-- **OPEN findings count:** 0. Iter 14 ran the expensive outer channel
-  on a previously-uncovered cell (T18 mdtools through PI runner —
-  first multistep-family PI bundle) and produced no new defect. The
-  zero-OPEN state holds through iters 8, 9, 10, 11, 12, 13, and 14 —
-  the tenth consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 15 ratified iter-14's typed-artifact
+  claims by reading bundle results.json + run.json + pi-audit.jsonl +
+  adapter output; all reproduced bit-exact. No defect surfaced. The
+  zero-OPEN state holds through iters 8, 9, 10, 11, 12, 13, 14, and 15
+  — the eleventh consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
-  (multistep-family coverage extension). Counter **reset to 0** after
-  iter 14. Iters 15–17 are admissible as quiet iterations under the
-  reset counter. Iter 18 would be the next forced expensive-or-halt
-  point if iters 15–17 stay quiet.
-- **Iter-14 same-family-rule discharge:** iters 11–13 were three
+  (multistep-family coverage extension), iter 15 quiet (ledger-only
+  ratification). Counter at **1** after iter 15. Iters 16–17 are
+  admissible as quiet iterations under the still-low counter. Iter 18
+  would be the forced expensive-or-halt point if iters 16–17 stay
+  quiet.
+- **Iter-15 same-family-rule discharge:** iter 14 was an
+  expensive-channel run (intervention diversity), which broke the
+  iters 11–13 spec-coherence concentration. Iter 15 returns to a
+  ledger-only ratification entry (parallel to iter 12's review of
+  iter 11 and iter 13's review of iter 12) — the spec's "ledger-only
+  changes do not break concentration" caveat does not block this
+  iteration because there is no concentration to break (iter 14 reset
+  it). Iter 15 differs from iters 12 and 13 in that no fresh failing
+  trace surfaced during the verification, so no substantive fix is
+  paired with the ratification. This is the first "ratification-only,
+  no fix paired" iteration in this gnhf run; structurally analogous
+  to iters 3 and 6 (closure-discipline review passes that promoted
+  FIXED_PENDING_CONFIRMATION findings to CLOSED without authoring a
+  new fix), but with iter-14 being a non-finding bundle introduction
+  rather than a FIXED finding.
+- **Iter-14 same-family-rule discharge (preserved):** iters 11–13 were three
   consecutive specification-coherence iterations (iter 11 measurement
   publication, iter 12 typo fix + closure-discipline pass, iter 13
   line-number drift fix + closure-discipline pass). The same-family
