@@ -59,32 +59,35 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 6)
+### Halt-condition / quiet-signal status (after iter 7)
 
-After the iter-6 closure review:
+After the iter-7 expensive-channel discharge (see "Quiet-signal checkpoint
+discharge (2026-04-26 iter 7)" below):
 
-- **OPEN findings count:** 0. Iter 5 also had 0 OPEN (P3 was
-  FIXED_PENDING_CONFIRMATION, not OPEN). Per spec "halt conditions count
-  OPEN only," this is the second consecutive review round with 0 OPEN
-  findings, satisfying that single halt-condition clause.
-- **Quiet-signal counter:** iter 4 ran the expensive outer channel
-  (PI checkpoint bundle, surfaced P3); iter 5 was quiet (cheap green, no
-  new failing trace, no new finding — the P3 state-change to
-  FIXED is not a new finding); iter 6 is quiet by the same criterion
-  (P3 state-change to CLOSED is not a new finding either). That puts the
-  quiet count at 2 after iter 6. The spec's "After 3 consecutive
-  iterations …" rule fires at the end of iter 7 if iter 7 is also quiet.
-- **Iter-7 obligation:** iter 7 must either (a) run the expensive outer
-  channel to introduce fresh signal — the cheapest available probe is a
-  holdout reconfirmation on Qwen3.5-122B-A10B-4bit now that F3 is closed
-  (acceptance criterion: produce a `bench/runs/holdout-*-2026-04-2x/`
-  bundle and record the new pass rate alongside the retracted ones in
-  `bench/RESULTS.md`); or (b) emit `stop-and-summarize` because all
-  homeostasis axes are in balance and no admissible same-family
-  intervention remains. Promoting a product anchor (`md apply` /
-  `md batch`) is not yet admissible without a Route A or Route B
-  justification under `bench/probes/anchor-validation/`, which does not
-  yet exist.
+- **OPEN findings count:** 0. Iter 7 introduced fresh typed signal but did
+  not surface a new defect, so the OPEN count remains 0 for the third
+  consecutive review round.
+- **Quiet-signal counter:** iter 4 ran the expensive outer channel; iters 5
+  and 6 were quiet (cheap green, no new failing trace, no new finding); iter
+  7 ran the expensive outer channel again to discharge the spec's
+  "After 3 consecutive iterations …" rule before the count fires. Counter
+  resets to 0 after iter 7. Iters 8–10 are admissible as quiet iterations;
+  iter 11 would otherwise re-trigger the rule absent earlier signal.
+- **Iter-7 obligation discharged via option (a):** iter 7 ran a PI runner
+  smoke on the F3-affected holdout task (T22) — the cheapest *reachable*
+  probe in this environment, since the previously-named cheapest probe
+  (Qwen3.5-122B-A10B-4bit holdout reconfirmation) requires a local LLM
+  server that is not running here. Bundle:
+  `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`. This is
+  **not** a Qwen reconfirmation (different executor and model); it is fresh
+  signal that exercises the post-F3 `compare_link_destinations` scorer
+  normalization end-to-end through a real frontier model on the actual
+  holdout task. Verdict: PASS in 9.63s with 1 `md links … --json` tool call,
+  `diff_report: link_destinations: OK`.
+- **Product-anchor admissibility unchanged:** promoting a product anchor
+  (`md apply` / `md batch`) is still inadmissible without a Route A or
+  Route B justification under `bench/probes/anchor-validation/`, which
+  still does not exist.
 
 ### P3 — `bytes_output` is not cross-executor comparable
 - **Status:** CLOSED (2026-04-26 iter 6 review pass; FIXED 2026-04-26 iter 5 via closure plan option (b); filed 2026-04-26 iter 4; P2 hardening backlog severity)
@@ -93,6 +96,56 @@ After the iter-6 closure review:
 - **Effect:** does not gate the current acceptance metric (`pass_rate`), so this is P2-severity hardening backlog, not a P0 / P1 claim block. Cross-executor comparisons that include `bytes_output` (or any derived metric) must be flagged as non-comparable until normalized.
 - **Typed artifact:** `bench/RESULTS.md` now carries a "Cross-executor comparability (PI runner vs OAI loop)" section that names the executor-locality rule, cites the iteration-4 checkpoint bundle as the supporting datum, identifies the harness call sites for both branches, and enumerates the cross-executor-comparable fields (`correct`, `correct_neutral`, `elapsed_seconds`, `tool_calls`, `mutations`, `policy_violations`, `requeried`, `bytes_observation`). The section also flags the future ratchet (a `bytes_assistant_content` parser over the audit stream) without committing to it.
 - **Closure plan executed:** option (b) from the original entry — cheaper documentation in `bench/RESULTS.md` rather than option (a) bytes_assistant_content extraction. Option (a) remains a viable additive ratchet if a fresh failing claim or external finding makes it necessary; the same-family admissibility rule applies.
+
+### Quiet-signal checkpoint discharge (2026-04-26 iter 7)
+
+Per the spec's "After 3 consecutive iterations …" rule flagged at the end
+of iteration 6, iteration 7 ran the expensive outer channel to introduce
+fresh typed signal before the quiet count would have fired. Cheap channel
+re-verified green before and after the run.
+
+- **Bundle:** `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/` —
+  second PI runner bundle in `bench/runs/`. Single task (T22, holdout-split,
+  link extraction). Single mode (mdtools). Single run. Model
+  `openai-codex/gpt-5.4-mini` at `thinking_level=minimal`, recorded
+  per-result and per-run on the metadata bundle.
+- **Verdict:** T22 mdtools dual-scorer PASS in 9.63s with 1 tool call
+  (`./md links … --json`), `bytes_observation=514`, `bytes_output=671,515`
+  (PI streaming overhead, see P3 cross-executor rule in `bench/RESULTS.md`),
+  `diff_report: link_destinations: OK`. Pi-audit log preserved at
+  `logs/T22_mdtools_1777210835/pi-audit.jsonl` (4 events:
+  `model_change`, `thinking_level_change`, `tool_call`, `tool_result`),
+  parses cleanly via `bench/pi_audit_adapter.summarize_pi_audit_events`.
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T22, runs_per_task=1, task-set
+  version: live `bench/tasks/tasks.json` with `holdout_version=1` from
+  `bench/holdout/fingerprints.json`). It is **NOT** a reconfirmation of
+  the 2026-04-24 Qwen3.5-122B-A10B-4bit oai-loop holdout bundles —
+  different executor (PI vs OAI loop) and different model (gpt-5.4-mini vs
+  Qwen). It crosses two of the five spec-required normalization axes
+  versus those bundles, so any pass-rate comparison would be a search-set
+  observation, not a comparison. The same applies versus the iter-4
+  T1 bundle: same executor / model / mode / thinking / runs-per-task, but
+  different task — no aggregate comparison is implied.
+- **What this exercises:** the post-F3 `compare_link_destinations` scorer
+  normalization path through a real frontier model on the actual T22
+  holdout task. Pre-fix, the same shape of agent output (top-level JSON
+  array from `md links --json`) produced
+  `T22: json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)`
+  in the 2026-04-24 Qwen mdtools bundle. Post-fix, the structural-array
+  envelope normalization at `bench/harness.py:443-537` accepts the same
+  output shape and the dict-vs-dict link-destination comparison passes.
+  This is the first end-to-end (real-model + real-task + real-scorer)
+  exercise of the F3 fix; cheap-channel coverage was via dry-run +
+  unit tests only.
+- **What this discharges:** the spec's quiet-signal-checkpoint rule.
+  It does **not** discharge any product or oracle claim — those still
+  require their own attribution probes and apples-to-apples comparisons.
+- **What it surfaced:** no new defect. The PI pipeline produced fresh
+  typed signal that exercised the F3 closure path cleanly. This is a
+  "no new finding" expensive run — admissible as fresh signal because
+  the run is on a different (task) cell than iter-4 and its outputs are
+  durably persisted as a queryable bundle.
 
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 4)
 
