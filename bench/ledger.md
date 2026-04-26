@@ -10,6 +10,178 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Cross-mode hybrid coverage trail extension: T1HybridModeBaselineTests typed cheap-channel assertion (2026-04-26 iter 56)
+
+Promoted iter-53's prose-only T1 hybrid trajectory + cross-mode comparable
+cell claims to a typed cheap-channel assertion via new
+`T1HybridModeBaselineTests` class in `bench/test_pi_audit.py` with **3
+test methods**, opening the **cross-mode hybrid coverage trail's typed-
+assertion line** as a third structural axis (cross-mode) parallel to the
+F4 closure trail (json_envelope branch / scorer selection invariants,
+iters 28 / 30 / 32 / 35 / 39) and the F4-orthogonal closure trail
+(raw_bytes branch / re-query mutation moat invariants, iters 43 / 47 /
+51). iter 56 supersedes iter 55's git-lock-rolled-back attempt at the
+same typed-test promotion (per `.gnhf/runs/mdtools-frontier-loo-92c60b/
+notes.md` iter 55's "[ERROR] Command failed: git add -A fatal: Unable to
+create '.git/index.lock': File exists" — the orchestrator's commit
+failed and rolled the changes back, leaving the working tree clean at
+commit `87c152c` per `git status`); iter 56 re-executes the same
+typed-test promotion, lands cleanly, and ratifies iter 54 implicitly via
+bit-exact verification of the iter-53 T1 hybrid PI bundle artifacts and
+the iter-4 T1 mdtools PI bundle artifacts during test authoring.
+
+- **Disturbed axis:** oracle trustworthiness — iter 53's prose claims
+  about the T1 hybrid trajectory shape (single-tool-call kind sequence,
+  audit-vs-guard symmetry on `policy_violations`, `BENCH_MODE=hybrid` /
+  `HYBRID_DOCS`-routed trajectory, apples-to-apples T1 mdtools-vs-
+  hybrid comparable cell on six normalization axes, +355-byte
+  `bytes_prompt` delta) are weaker evidence than typed artifacts per the
+  spec's signal hierarchy. Promoting these claims to a typed cheap-
+  channel assertion class moves the relevant invariants from "self-
+  authored ledger prose" (signal-hierarchy tier 3) to "typed / machine-
+  derived artifacts" (tier 2), making future drift detectable
+  mechanically rather than by prose review.
+- **Frontier anchor:** the spec's "missing evaluator artifact" category
+  under the frontier anchor requirement — iter 54's "What this does NOT
+  do" field explicitly forward-pointed at "a typed cheap-channel
+  assertion for the iter-53 T1 hybrid trajectory itself — that remains
+  a natural typed-test extension if a future iteration chooses oracle-
+  trustworthiness as its frontier anchor (e.g., a
+  `T1HybridModeBaselineTests` class asserting the single-tool-call
+  kind sequence, the audit-vs-guard symmetry on `policy_violations`,
+  the `BENCH_MODE=hybrid`/`HYBRID_DOCS`-routed trajectory shape, and
+  the apples-to-apples T1 mdtools-vs-hybrid comparable cell)". iter 56
+  is that iteration.
+- **Change shape:**
+  - Added `T1HybridModeBaselineTests` class to `bench/test_pi_audit.py`
+    with **3 test methods**:
+    - `test_audit_only_summary_pins_t1_hybrid_baseline` — pins
+      `PiAuditCounters` bit-exact via
+      `summarize_pi_audit_events(events)` on the iter-53 T1 hybrid PI
+      bundle (`tool_calls=1`, `tool_results=1`, `tool_errors=0`,
+      `mutations=0`, `requeried=False`, `policy_violations=0`,
+      `blocked=0`, `bytes_observation=2265`, `model='openai-codex/
+      gpt-5.4-mini'`, `thinking_level='minimal'`); plus the single
+      `./md outline ... --json` `bash_command` and the `['query']`
+      kind sequence via `classify_command_kind`.
+    - `test_guard_events_preserve_t1_hybrid_audit_vs_guard_symmetry` —
+      pins the **audit-vs-guard symmetry** on `policy_violations` (both
+      0 because all guard decisions are `'allow'`) as the structural
+      counterpart to T12's audit-only-vs-guard-augmented asymmetry (0
+      vs 1) per iter 51's `T12BatchMutationCycleTests`; verifies
+      `audit_only.policy_violations == guard_augmented.policy_violations
+      == 0`, `audit_only.mutations == guard_augmented.mutations == 0`,
+      `audit_only.requeried == guard_augmented.requeried == False`;
+      plus guard-derived kind sequence matches audit-derived bit-exact
+      via `classify_command_kind(e.raw_command, e.base_command)`.
+    - `test_t1_hybrid_pairs_apples_to_apples_with_t1_mdtools` — pins
+      the **cross-mode comparable cell** between iter-53 T1 hybrid and
+      iter-4 T1 mdtools PI bundles. Six-axis apples-to-apples match:
+      `task_id`, `model` (`openai-codex/gpt-5.4-mini`),
+      `thinking_level` (`minimal`), executor (`runner='pi-json'`),
+      `runs_per_task=1`, task-set version (`selected_task_ids=['T1']`).
+      Mode is the only varying axis (`'mdtools'` vs `'hybrid'`).
+      Pins `+355`-byte `bytes_prompt` delta (4545 - 4190) evidencing
+      the `HYBRID_DOCS` prompt template's expanded tool-docs section
+      vs `MDTOOLS_DOCS` at `bench/harness.py:282-283`. Pins the
+      iter-17 forward-compat `holdout_version` convention via
+      `assertNotIn('holdout_version', mdtools_run)` plus
+      `.get('holdout_version', 1) == 1` for both bundles, preventing
+      retroactive edits to the iter-4 mdtools bundle (which would
+      themselves be holdout-repair-shaped artifact edits).
+  - Total python unittest count rises **88 → 91** across the eight
+    spec-named modules (`test_command_policy` + `test_oai_loop` +
+    `test_pi_audit` + `test_harness_json` + `test_harness_run_artifacts`
+    + `test_harness_task_split` + `test_analyze_inputs` +
+    `test_report_inputs`); cargo test all suites pass (32 + 37 + 16
+    + 0); `python3 bench/harness.py --md-binary target/release/md`
+    dry-run reports "All tasks pass dual scorer" on all 24 tasks.
+  - Added this iter-56 ratification entry at the top of "## CLOSED".
+  - Updated halt-condition / quiet-signal status block from (after
+    iter 54) to (after iter 56), naming iter 55 as a failed git-lock
+    rollback iteration that produced no committed change.
+  - **No edit** to any other historical ledger entry (per iter-15 /
+    -22 / -24 / -26 / -27 / -28 / -30 / -31 / -32 / -34 / -35 / -36 /
+    -38 / -40 / -42 / -44 / -46 / -48 / -50 / -52 / -54 no-silent-
+    edit discipline). No edit to any production code (only
+    `bench/test_pi_audit.py` test additions and `bench/ledger.md`
+    documentation).
+- **Cheap channel:** `cargo test -q` all suites pass (32 + 37 + 16 +
+  0); `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+  bench.test_pi_audit bench.test_harness_json bench.test_harness_run_artifacts
+  bench.test_harness_task_split bench.test_analyze_inputs
+  bench.test_report_inputs` reports "Ran 91 tests in 1.688s … OK";
+  `python3 bench/harness.py --md-binary target/release/md` dry-run
+  reports "All tasks pass dual scorer" on all 24 tasks. No fresh
+  failing trace surfaced beyond the iter-55 git-lock rollback observation.
+- **Same-family-rule discharge:** Recent axis pattern: iter 53
+  intervention-diversity (T1 hybrid PI expensive bundle), iter 54
+  specification coherence (cash-out + paired ratification), iter 55
+  rolled-back at git lock (no committed change), iter 56 oracle
+  trustworthiness (typed-test promotion of iter-53's prose-only T1
+  hybrid trajectory claims via new `T1HybridModeBaselineTests` class).
+  iter 56 shifts axis cleanly from iter 54's specification coherence to
+  oracle trustworthiness, parallel in shape to iter 43's
+  `T10CanonicalReQueryCycleTests` (typed-test promotion of iter-41
+  T10 prose claims), iter 47's `T15ParallelMutationFailureTests`
+  (typed-test promotion of iter-45 T15 prose claims), and iter 51's
+  `T12BatchMutationCycleTests` (typed-test promotion of iter-49 T12
+  prose claims). iter 56 is the **ninth** instance of the "promote
+  prose claim to typed cheap-channel test" pattern in this run (iters
+  28 / 30 / 32 / 35 / 39 / 43 / 47 / 51 / 56 = 9 entries), and the
+  **first** instance on the cross-mode hybrid coverage trail (the
+  third structural trail to open, after F4 and F4-orthogonal). The
+  fresh-failing-trace escape clause does not need to fire because the
+  axis shift from specification-coherence (iter 54) to oracle-
+  trustworthiness (iter 56) cleanly satisfies the rule (per iter-46
+  learning #4); the iter-55 rollback does not occupy a homeostasis
+  axis because no committed change landed.
+- **Closure-discipline status:** **FIXED_PENDING_CONFIRMATION** at
+  authoring time per the iter-30 / -32 / -35 / -39 / -43 / -47 / -51
+  pattern (the iter-43 / -47 / -51 ratification cadence is iter
+  N+1 ratification — i.e., iter 57 is the natural ratification point
+  for iter 56, but iter 57 is also the spec-mandated forced
+  expensive-or-halt point per the quiet-signal counter rule below,
+  so ratification may be paired with the expensive run or deferred
+  one iteration). iter 56's typed-test promotion is mechanically
+  re-runnable via `python3 -m unittest
+  bench.test_pi_audit.T1HybridModeBaselineTests`, so any future
+  iteration's ratification can re-execute the assertions against the
+  iter-53 T1 hybrid bundle artifacts directly.
+- **Implicit ratification of iter 54 (paired):** during test authoring
+  at iter 56, every iter-53 typed-artifact data point cited in iter
+  54's CLOSED entry (results.json all 16 fields, run.json with
+  `holdout_version=1` on line 20, `task_ids.json=['T1']`,
+  `pi-audit.jsonl` 4 events, `guard.log` 1 entry with
+  `decision='allow'` + `base_command='md'` + `./md outline ... --json`
+  raw_command, `summarize_pi_audit_events` audit-only and guard-
+  augmented paths producing identical `PiAuditCounters`, single-
+  element `['query']` kind sequence) was independently re-verified
+  bit-exact via the assertions in the new test class, ratifying iter
+  54's closure-discipline cash-out + paired ratification of iter 53
+  via the closure-discipline rule's "next pass not re-raising" route.
+  iter 54 transitions implicitly to **CLOSED** by this iter-56
+  re-verification.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does not
+  bump `holdout_version` (still 1; T1 is search-side; explicit
+  `assertNotIn` check on iter-4 mdtools bundle pins the absent state
+  bit-exact, preventing retroactive edits). Does not modify any
+  production code (only `bench/test_pi_audit.py` test additions and
+  `bench/ledger.md` documentation; no edits to `bench/harness.py`,
+  `bench/pi_audit_adapter.py`, `bench/command_policy.py`, or any
+  scorer surface). Does not extend the cross-executor table at
+  `bench/RESULTS.md:54` (no OAI same-task same-mode same-model T1
+  hybrid cell exists at gpt-5.4-mini). Does not produce a fract-ai
+  consumer demand signal — this is a benchmark observation. Does not
+  promote hybrid mode to the loop's primary anchor — that would
+  require a Phase B0 anchor-validation route per the spec. Does not
+  re-raise F4 — T1 hybrid PASS on the post-iter-30 selector is
+  preserved as regression-test-of-fix evidence on a fresh mode. Does
+  not run the expensive outer channel — iter 57 is the spec-mandated
+  forced expensive-or-halt point per the quiet-signal counter rule
+  below.
+
 ### Specification coherence — iter-53 T1 hybrid PI bundle reference extension (2026-04-26 iter 54)
 
 Cashed out iter-53's expensive-channel T1 hybrid PI bundle into the
@@ -8899,7 +9071,56 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 54)
+### Halt-condition / quiet-signal status (after iter 56)
+
+After iter 56's oracle-trustworthiness intervention — the
+`T1HybridModeBaselineTests` class added to `bench/test_pi_audit.py`
+with 3 test methods (audit-only baseline, audit-vs-guard symmetry,
+cross-mode apples-to-apples comparable cell with iter-4 T1 mdtools
+PI bundle) — the **cross-mode hybrid coverage trail's typed-assertion
+line** is now open as a **third structural trail** parallel to the F4
+closure trail (json_envelope branch) and the F4-orthogonal closure
+trail (raw_bytes branch). Total python unittest count rises **88 → 91**
+across the eight spec-named modules. iter 55 was a **failed-rollback
+iteration** — its attempt at the same typed-test promotion was rolled
+back at the orchestrator's git-add step due to a pre-existing
+`.git/index.lock` file (per `.gnhf/runs/mdtools-frontier-loo-92c60b/
+notes.md` iter 55 second entry "[ERROR] Command failed: git add -A
+fatal: Unable to create '.git/index.lock': File exists"); no committed
+change landed and the working tree was reset to commit `87c152c` per
+post-rollback `git status` reporting "On branch gnhf/mdtools-frontier-
+loo-92c60b nothing to commit, working tree clean". iter 56 supersedes
+iter 55 by re-executing the typed-test promotion cleanly. iter 56 is
+the **ninth** instance of the "promote prose claim to typed cheap-
+channel test" pattern in this run (iters 28 / 30 / 32 / 35 / 39 / 43 /
+47 / 51 / 56 = 9 entries). Cheap channel re-verified green: `cargo
+test -q` all suites pass (32 + 37 + 16 + 0); `python3 -m unittest
+bench.test_command_policy bench.test_oai_loop bench.test_pi_audit
+bench.test_harness_json bench.test_harness_run_artifacts
+bench.test_harness_task_split bench.test_analyze_inputs
+bench.test_report_inputs` reports "Ran 91 tests in 1.688s … OK"
+(was 88 after iter 53/54); `python3 bench/harness.py --md-binary
+target/release/md` dry-run reports "All tasks pass dual scorer" on all
+24 tasks. F4 closure trail unchanged (T1 hybrid is on the
+json_envelope scorer branch but the new test class asserts pre-scorer
+trajectory invariants, not selector-output invariants — the F4
+selector at `bench/harness.py:1481` is not exercised by the test
+class). No new finding opened. iter 56 is also the **first** typed-
+test promotion on the cross-mode hybrid coverage trail (the third
+structural trail to open, after F4 and F4-orthogonal); the trail's
+iter-53 / 54 / 56 cadence skeleton mirrors the F4 trail's iter-29 / 33 /
+37 / 41 expensive-channel-with-orthogonal-coverage anchors and the
+F4-orthogonal trail's iter-41 / 45 / 49 expensive-channel anchors,
+but on a single trail-bundle (T1 hybrid) rather than three. The
+trail's natural extension paths remain: PI hybrid bundles on T7
+mutation / T15 multi-step / T12 batch (where hybrid-mode tool-choice
+ambiguity may surface differently than for T1 extraction); a
+closure-discipline ratification iteration (iter N+1 ratifies
+T1HybridModeBaselineTests via re-execution against the iter-53
+bundle artifacts, parallel to iter 44 / 48 / 52 ratifying T10 / T15 /
+T12 typed-test promotions); and a future cross-mode-comparison
+published-narrative section orthogonal to the cross-executor table at
+`bench/RESULTS.md:54`.
 
 After iter 53's spec-mandated forced expensive-or-halt discharge —
 the **fourteenth** PI runner bundle
@@ -8981,11 +9202,13 @@ iter 53)" CLOSED entry above plus the iter-52
 `T12BatchMutationCycleTests`-ratification CLOSED entry below.
 
 - **OPEN findings count:** **0**. The zero-OPEN streak that began at
-  iter 30 now stands at count **25** (iter 30 + iter 31 + iter 32 +
+  iter 30 now stands at count **27** (iter 30 + iter 31 + iter 32 +
   iter 33 + iter 34 + iter 35 + iter 36 + iter 37 + iter 38 + iter
   39 + iter 40 + iter 41 + iter 42 + iter 43 + iter 44 + iter 45 +
   iter 46 + iter 47 + iter 48 + iter 49 + iter 50 + iter 51 + iter
-  52 + iter 53 + iter 54). The
+  52 + iter 53 + iter 54 + iter 55 + iter 56; iter 55 is the failed-
+  rollback iteration counted as quiet by default since no committed
+  change landed and no fresh failing trace surfaced). The
   "no OPEN findings for 2 consecutive review rounds" halt condition
   remains met on this counter, but per spec it is one of several halt
   conditions — the quiet-signal counter and homeostasis balance also
@@ -9439,8 +9662,27 @@ iter 53)" CLOSED entry above plus the iter-52
   executor pairing dimension, recorded as forward-pointing for a
   future iteration that may surface it as a separate cross-mode-
   comparison section; no fresh failing trace surfaced beyond the
-  iter-53-body framing observation; counter increments to **1**).
-  Iter 57 next forced expensive-or-halt point per the
+  iter-53-body framing observation; counter increments to **1**), iter
+  55 rolled-back-at-git-lock (orchestrator's `git add -A` failed with
+  `.git/index.lock: File exists` per `.gnhf/runs/mdtools-frontier-loo-
+  92c60b/notes.md` iter 55 second entry; no committed change landed,
+  working tree reset to commit `87c152c`; counted as quiet by default
+  since no committed change landed and no fresh failing trace
+  surfaced; counter increments to **2**), iter 56 quiet (cheap-channel-
+  only oracle-trustworthiness hardening — promoting iter-53's prose-
+  only T1 hybrid trajectory + cross-mode comparable cell claims to a
+  typed cheap-channel assertion via new `T1HybridModeBaselineTests`
+  class in `bench/test_pi_audit.py` covering audit-only baseline,
+  audit-vs-guard symmetry, and apples-to-apples six-axis match against
+  the iter-4 T1 mdtools PI bundle; +3 unit tests bringing the total
+  from 88 to **91**, no expensive run, F4 not re-raised, iter 54
+  implicitly ratified by the closure-discipline rule's "next pass not
+  re-raising" route via bit-exact verification of every iter-53 typed-
+  artifact data point during test authoring; the cross-mode hybrid
+  coverage trail's typed-assertion line is now open as a third
+  structural trail parallel to F4 and F4-orthogonal; counter increments
+  to **3**, hitting the spec-mandated forced expensive-or-halt
+  threshold). Iter 57 next forced expensive-or-halt point per the
   spec's "3 consecutive iterations with cheap channel green and no
   new finding" rule unless an expensive run independently introduces
   fresh signal that resets the counter.
