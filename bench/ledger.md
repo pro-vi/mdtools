@@ -59,35 +59,131 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 7)
+### Halt-condition / quiet-signal status (after iter 10)
 
-After the iter-7 expensive-channel discharge (see "Quiet-signal checkpoint
-discharge (2026-04-26 iter 7)" below):
+After the iter-10 expensive-channel run (see "Comparable-harness-axis cell
+coverage extension (2026-04-26 iter 10)" below):
 
-- **OPEN findings count:** 0. Iter 7 introduced fresh typed signal but did
-  not surface a new defect, so the OPEN count remains 0 for the third
-  consecutive review round.
-- **Quiet-signal counter:** iter 4 ran the expensive outer channel; iters 5
-  and 6 were quiet (cheap green, no new failing trace, no new finding); iter
-  7 ran the expensive outer channel again to discharge the spec's
-  "After 3 consecutive iterations …" rule before the count fires. Counter
-  resets to 0 after iter 7. Iters 8–10 are admissible as quiet iterations;
-  iter 11 would otherwise re-trigger the rule absent earlier signal.
-- **Iter-7 obligation discharged via option (a):** iter 7 ran a PI runner
-  smoke on the F3-affected holdout task (T22) — the cheapest *reachable*
-  probe in this environment, since the previously-named cheapest probe
+- **OPEN findings count:** 0. Iter 10 introduced fresh typed signal — a
+  previously-uncovered PI runner cell on the targeted-mutation family —
+  without surfacing a new defect. The iter-7 status block noted "third
+  consecutive review round"; iters 8, 9, and 10 each preserved the
+  zero-OPEN state without re-raising any cleared finding, so by iter-7's
+  counting convention the count is now in its sixth consecutive
+  zero-OPEN round.
+- **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters 8–9
+  quiet (specification-coherence cleanups on RESULTS.md and the retracted
+  README), iter 10 expensive. Counter resets to 0 after iter 10. Iters
+  11–13 admissible as quiet iterations; iter 14 would otherwise re-trigger
+  the spec's "After 3 consecutive iterations …" rule absent earlier signal.
+- **Iter-10 same-family-rule discharge:** iters 8 and 9 were both
+  specification-coherence cleanups, so iter 10 was constrained by the
+  same-family admissibility rule from a third spec-cleanup absent a fresh
+  failing trace (none surfaced — full grep across `README.md`, `CLAUDE.md`,
+  `specs/**`, `bench/RESULTS.md`, `bench/retracted_2026-04-24/README.md`,
+  `bench/ledger.md` confirms zero remaining stale F3 / L1 / pending-fix
+  references). Iter 10 shifted intervention to the comparable-harness-axis
+  frontier anchor instead of halting, because a real cell gap was
+  available at low cost (PI runner had been exercised only on extraction
+  tasks T1 and T22; mutation- and multistep-family cells were absent from
+  the PI executor's coverage).
+- **Iter-7 obligation history (preserved):** iter 7 ran a PI runner smoke
+  on the F3-affected holdout task (T22) — the cheapest *reachable* probe
+  in this environment, since the previously-named cheapest probe
   (Qwen3.5-122B-A10B-4bit holdout reconfirmation) requires a local LLM
   server that is not running here. Bundle:
-  `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`. This is
-  **not** a Qwen reconfirmation (different executor and model); it is fresh
-  signal that exercises the post-F3 `compare_link_destinations` scorer
-  normalization end-to-end through a real frontier model on the actual
-  holdout task. Verdict: PASS in 9.63s with 1 `md links … --json` tool call,
-  `diff_report: link_destinations: OK`.
+  `bench/runs/checkpoint-pi-T22-mdtools-gpt5.4mini-2026-04-26/`. PASS in
+  9.63s with 1 `md links … --json` tool call,
+  `diff_report: link_destinations: OK`. Iter 10's bundle does **not**
+  supersede or compare to iter 7's; they are different cells (different
+  task, different family, different scorer branch).
 - **Product-anchor admissibility unchanged:** promoting a product anchor
   (`md apply` / `md batch`) is still inadmissible without a Route A or
   Route B justification under `bench/probes/anchor-validation/`, which
-  still does not exist.
+  still does not exist. Iter 10's mutation-family bundle is *evaluator
+  coverage*, not anchor justification — a passing T7 cell does not
+  validate any candidate primitive's failure-class fit, and was not
+  framed as such.
+
+### Comparable-harness-axis cell coverage extension (2026-04-26 iter 10)
+
+Iter 10 broke the iters 8–9 specification-cleanup same-family pattern by
+running the expensive outer channel on a previously-uncovered cell: T7
+mdtools through the PI runner. This is the **third** PI runner bundle in
+`bench/runs/` and the **first** cell that exercises (a) the
+targeted-mutation task family, (b) the `normalized_text` scorer branch,
+and (c) the canonical re-query pattern (read → mutate → verify) end-to-end
+through the PI executor.
+
+- **Disturbance:** intervention diversity — drifting toward
+  spec-cleanup concentration after iters 8 and 9 both did
+  specification-coherence work. Same-family admissibility forced iter 10
+  to either shift to a different intervention shape, cite a fresh failing
+  trace, or halt with stop-and-summarize. No fresh failing trace existed
+  (full sibling-narrative grep was clean), so the only constructive
+  options were intervention shift or halt.
+- **Anchor:** missing evaluator artifact — *comparable harness axis*. The
+  PI runner had been exercised only on extraction tasks (T1 in iter 4,
+  T22 in iter 7); the mutation, multistep, and content-delivery families
+  had zero PI cells. Adding a single mutation-family bundle closes the
+  largest cell gap in PI executor coverage at low cost. (Halt was
+  defensible too, but premature given the available cheap, anchored
+  intervention.)
+- **Bundle:** `bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26/` —
+  Single task (T7, search-split, targeted-mutation family). Single mode
+  (mdtools). Single run. Model `openai-codex/gpt-5.4-mini` at
+  `thinking_level=minimal`, recorded per-result and per-run on the
+  metadata bundle.
+- **Verdict:** T7 mdtools dual-scorer PASS in 16.45s with 3 tool calls
+  (`./md tasks … --json` query, `./md set-task 9.3 -i --status done`
+  mutation, `./md tasks … --json --status done` verification re-query),
+  1 mutation, `requery_rate=1.0`, `bytes_observation=16,219`,
+  `bytes_output=1,172,040` (PI streaming overhead, see P3 cross-executor
+  rule in `bench/RESULTS.md`),
+  `diff_report: heading_tree [md]: OK / block_order [md]: OK / block_text
+  [md]: OK / heading_tree [neutral]: OK / block_text [neutral]: OK`.
+  Pi-audit log preserved at
+  `logs/T7_mdtools_1777212494/pi-audit.jsonl` (8 events: `model_change`,
+  `thinking_level_change`, plus 3 × `tool_call` + 3 × `tool_result`),
+  parses cleanly via `bench/pi_audit_adapter.summarize_pi_audit_events`
+  with `tool_calls=3`, `mutations=1`, `bytes_observation` populated.
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T7, runs_per_task=1, task-set
+  version: live `bench/tasks/tasks.json` with `holdout_version=1` from
+  `bench/holdout/fingerprints.json`). It is **NOT** a holdout
+  reconfirmation (T7 is search-split, not holdout) and **NOT** a
+  comparison against the iter-4 T1 bundle or the iter-7 T22 bundle —
+  same executor / model / mode / thinking / runs-per-task across all
+  three, but different tasks and different scorer branches, so any
+  pass-rate-aggregation across cells would be a search-set observation,
+  not a comparison. Likewise it is **NOT** an apples-to-apples comparison
+  to any oai-loop T7 bundle, because the executor axis differs.
+- **What this exercises:** for the first time in `bench/runs/`, the PI
+  runner pipeline (harness pi-json branch → `pi --mode json` → audit
+  extension at `~/.pi/agent/extensions/audit/index.ts` →
+  `bench/pi_audit_adapter.summarize_pi_audit_events`) is verified end-to-end
+  on (a) a mutation-family task (`set-task` produces a 1-byte sourcepos
+  edit), (b) the `normalized_text` scorer branch (`compare_heading_tree`
+  + `compare_block_order` + `compare_block_text` all OK on both `md` and
+  neutral scorers), and (c) the full re-query pattern (mutation followed
+  by `--status done` verification re-query). All prior PI bundles were
+  zero-mutation extraction-only.
+- **What this discharges:** intervention-diversity drift. It does **not**
+  discharge the spec's quiet-signal-checkpoint rule unconditionally —
+  iter 10 was admissible as a quiet iteration per iter-7's forecast, but
+  iter 10 explicitly chose the expensive channel over halting because the
+  same-family rule blocked another spec-cleanup and the intervention shift
+  required a non-spec-cleanup move. Iters 11–13 are now newly admissible
+  as quiet iterations under the reset counter.
+- **What it surfaced:** no new defect. The PI pipeline produced fresh
+  typed signal that exercised mutation + re-query cleanly. This is a
+  "no new finding" expensive run, admissible as fresh signal because the
+  bundle is on a different (task, family, scorer-branch) cell than iter-4
+  T1 or iter-7 T22, and the audit log + scorer outputs are durably
+  persisted as a queryable bundle.
+- **Cheap channel:** green before and after (`cargo test -q` all suites
+  pass, 59 python unittests OK across the 8 spec-named modules,
+  `harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer).
 
 ### Specification coherence cleanup (2026-04-26 iter 9)
 
