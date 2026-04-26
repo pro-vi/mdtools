@@ -10,6 +10,369 @@ _(none — F4 promoted to CLOSED on 2026-04-26 iter 31 via closure-discipline re
 
 ## CLOSED
 
+### Specification coherence — iter-61 T7 hybrid PI bundle reference extension (2026-04-26 iter 62)
+
+Cashed out iter-61's expensive-channel T7 hybrid PI bundle into the
+`bench/RESULTS.md:68` cross-executor inventory paragraph as the
+**sixteenth-bundle reference paragraph**, paired with clean closure-
+discipline ratification of iter 61 via bit-exact typed-artifact
+verification of every results.json / run.json / pi-audit.jsonl /
+guard.log claim plus mechanical re-execution of the audit-only and
+guard-augmented `summarize_pi_audit_events` paths against the iter-61
+T7 hybrid PI bundle artifacts. Follows the iter-19 / -23 / -34 / -38 /
+-42 / -46 / -50 / -54 / -58 paired cash-out + ratification template
+(now **nine-instances-deep** on the cash-out-of-immediately-prior-
+expensive-iteration counting — iter 19 / 34 / 38 / 42 / 46 / 50 / 54 /
+58 / 62 = 9 entries), with eligibility-cause framing that extends the
+iter-58 model-axis-confound saturation observation: T7 hybrid is the
+**fourth instance** of the model-axis-confound shape (iter-42 T10
+mdtools-mode subset + iter-54 T1 hybrid hybrid-mode subset + iter-58 T1
+unix unix-mode subset + iter-62 T7 hybrid mutation-family + hybrid-
+mode), observed for the first time on a **second-axis dimension**
+(task-family) after the mode-axis dimension was saturated at iter 58.
+The taxonomy entry now spans not just the three mode subsets but a
+second axis of task-family observations starting with mutation-family.
+
+- **Disturbed axis:** specification coherence — iter 61 introduced a
+  durable typed artifact (`bench/runs/checkpoint-pi-T7-hybrid-
+  gpt5.4mini-2026-04-26/`) that is not yet referenced in the published
+  narrative inventory at `bench/RESULTS.md:68`, leaving the spec's
+  "missing evaluator artifact … durable summary for a newly-run
+  comparison" frontier anchor open. Bundle introduction without
+  cash-out is the same disturbance class iter 19 / 23 / 34 / 38 / 42 /
+  46 / 50 / 54 / 58 each addressed in turn.
+- **Frontier anchor:** the spec's "missing evaluator artifact"
+  category under the frontier anchor requirement, plus the iter-61
+  forward-pointing observation under "Closure-discipline status" naming
+  iter 62 as the natural cash-out + ratification iteration per the
+  iter-19 / iter-34 / iter-38 / iter-42 / iter-46 / iter-50 / iter-54 /
+  iter-58 paired-cadence pattern. iter 62 is that iteration.
+- **Change shape:**
+  - Extended `bench/RESULTS.md:68` cross-executor inventory paragraph
+    with a sixteenth-PI-bundle (T7 hybrid, iter 61) sentence parallel
+    in shape to iter-19 T2 / iter-23 T21 / iter-34 T11 / iter-38 T19 /
+    iter-42 T10 / iter-46 T15 / iter-50 T12 / iter-54 T1 hybrid /
+    iter-58 T1 unix sentences. Sentence opens with "**first PI
+    mutation-family hybrid-mode bundle**" framing per iter-61's body,
+    enumerates the second-task cross-mode coverage trail opening (T7
+    parallel to iter-53/57's T1 trail), the first PI cross-mode
+    comparable cell pairing on a non-T1 task (T7 mdtools iter-10 + T7
+    hybrid iter-61, six-axis match), the cross-task HYBRID_DOCS
+    template footprint invariant confirmation (+354 byte T7 delta vs
+    +355 byte T1 delta within ±1 byte, elevating the invariant from a
+    single-data-point to a cross-task-stable observation), the **first
+    PI bundle with guard-side pipe decomposition audit-vs-guard event-
+    count asymmetry on a clean trajectory** (3 audit bash_commands vs
+    4 guard events because the guarded shell wrapper at
+    `bench/command_policy.py:66-104` intercepts each subprocess
+    invocation independently while audit captures the entire pipe as
+    one tool_call), the **first hybrid-mode PI bundle with
+    `requeried=True`** (extending the canonical re-query mutation
+    cycle observation set to hybrid-mode subset for the first time),
+    the dual-scorer PASS verdict + the canonical re-query mutation
+    cycle trajectory shape, the audit-vs-guard scalar-counter symmetry
+    on `tool_calls`/`mutations`/`policy_violations` (kind sequence
+    asymmetry preserved separately), the twelfth-stamped-bundle
+    holdout_version claim, and the fifth PI raw_bytes-branch bundle
+    classification. Closes with eligibility-cause framing as the
+    **fourth instance** of model-axis-confound (iter-42 T10 / iter-54
+    T1 hybrid / iter-58 T1 unix / iter-62 T7 hybrid), observed first
+    time on the **mutation-family + hybrid-mode** combination —
+    extending the taxonomy entry from the saturated mode-axis
+    dimension into a second-axis dimension (task-family). Beyond
+    cross-executor table eligibility, names the cross-mode comparable
+    cell pairing on a non-T1 task as iter-61's structurally novel
+    contribution orthogonal to the cross-executor pairing dimension
+    this table tracks, with forward-pointing for a future T7 unix
+    bundle that would complete a second-task 3-mode trinity. Closes
+    with explicit F4 non-relevance attribution (T7 is `kind=raw_bytes`,
+    bypasses F4 selector via early-return at `bench/harness.py:340-352`).
+  - Added this iter-62 ratification entry at the top of "## CLOSED"
+    above iter 61 entry, following the iter-19 / -23 / -34 / -38 /
+    -42 / -46 / -50 / -54 / -58 cash-out template with full closure-
+    discipline ratification structure.
+  - Updated halt-condition / quiet-signal status block from (after
+    iter 61) to (after iter 62).
+  - Added iter-62 same-family-rule discharge bullet inline below
+    documenting axis shift from iter 61's intervention-diversity to
+    iter 62's specification coherence.
+  - **No edit** to iter-61's body (per iter-15 / -22 / -24 / -26 /
+    -27 / -28 / -30 / -31 / -32 / -33 / -34 / -35 / -36 / -37 / -38 /
+    -39 / -40 / -42 / -44 / -46 / -48 / -50 / -52 / -54 / -58 no-silent-
+    edit discipline; iter-61's "Comparability framing for
+    `bench/RESULTS.md:54` cross-executor table" field already framed
+    the model-axis-confound as the fourth instance of the iter-42 /
+    iter-54 / iter-58 shape on the mutation-family + hybrid-mode
+    combination, so iter 62 adopts iter-61's framing without any
+    correction needed — same shape as iter-58's clean-adoption of
+    iter-57's framing, distinct from iter-54's iter-53 framing
+    correction).
+  - **No edit** to `bench/test_pi_audit.py`, `bench/pi_audit_adapter.py`,
+    `bench/command_policy.py`, `bench/harness.py`, `README.md`,
+    `CLAUDE.md`, `bench/retracted_2026-04-24/README.md`, or any other
+    narrative file beyond `bench/RESULTS.md`. No code change. No test
+    change.
+- **Data points (typed-artifact ratification of iter 61):** every
+  iter-61 typed-artifact claim re-verified bit-exact against the live
+  repository via direct re-execution of the adapter functions and
+  schema-by-schema reading of the bundle files:
+  - `bench/runs/checkpoint-pi-T7-hybrid-gpt5.4mini-2026-04-26/results.json`
+    is a single-element array with `task_id="T7"`, `mode="hybrid"`,
+    `correct=true`, `correct_neutral=true`,
+    `model="openai-codex/gpt-5.4-mini"`, `thinking_level="minimal"`,
+    `bytes_prompt=4670`, `bytes_output=1101397`,
+    `bytes_observation=25438`, `tool_calls=3`, `turns=4`,
+    `mutations=1`, `policy_violations=0`, `requeried=true`,
+    `invalid_responses=0`, `unique_invalid_responses=0`,
+    `elapsed_seconds=8.61`, `diff_report="heading_tree [md]: OK\n
+    block_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]:
+    OK\nblock_text [neutral]: OK"`, `runner_error=null` — all 16 fields
+    match iter 61's claims bit-exact ✓
+  - `run.json` line 20 carries `"holdout_version": 1`; per-run
+    metadata fields (schema_version=1, kind=agent-track, started_at /
+    finished_at timestamps, runner=pi-json, executor=guarded,
+    model=openai-codex/gpt-5.4-mini, thinking_level=minimal,
+    runs_per_task=1, selected_task_ids=["T7"], modes=["hybrid"]) all
+    match iter 61's claims bit-exact; aggregates block reproduces the
+    per-mode `hybrid` overall stats (pass_rate=1.0, avg_elapsed=8.61,
+    avg_tool_calls=3.0, avg_mutations=1.0, requery_rate=1.0) ✓
+  - `task_ids.json` is `["T7"]` ✓
+  - `logs/T7_hybrid_1777246305/pi-audit.jsonl` preserves **8 events**
+    (per `wc -l`); parses cleanly via `json.loads` line-by-line; the
+    audit-only path `summarize_pi_audit_events(events)` returns
+    `PiAuditCounters(tool_calls=3, tool_results=3, tool_errors=0,
+    bytes_observation=25438, blocked=0, policy_violations=0,
+    mutations=1, requeried=True, model='openai-codex/gpt-5.4-mini',
+    thinking_level='minimal', bash_commands=['./md tasks ... --json',
+    './md set-task 9.3 ... -i --status done', './md tasks ... --json
+    | grep -n ...'])` bit-exact to iter 61's claim ✓
+  - `logs/T7_hybrid_1777246305/guard.log` preserves **4 entries**
+    (per `wc -l`), all with `decision='allow'`: (md, query) + (md,
+    mutation) + (md, query) + (grep, query); `load_guard_events`
+    parses cleanly into 4 `GuardEvent` records bit-exact ✓ — the
+    audit-vs-guard event-count asymmetry (3 audit bash_commands vs 4
+    guard events) reproduces bit-exact, confirming the iter-61 claim
+    of guard-side pipe decomposition asymmetry on a clean (allow-only)
+    trajectory.
+  - The guard-augmented path `summarize_pi_audit_events(events,
+    guard_events=guard_events)` returns `PiAuditCounters` **identical**
+    to the audit-only path on the scalar counters bit-exact (same
+    tool_calls=3 / mutations=1 / requeried=True / policy_violations=0
+    / bytes_observation=25438) — confirmed via direct equality test
+    on tool_calls/mutations/requeried/policy_violations — because
+    every guard.log entry is `decision='allow'`, so the policy-deny
+    counter loop body at `bench/pi_audit_adapter.py:103-106` never
+    executes; matches iter 61's claim "the guard-augmented path …
+    produces identical scalar counters because all guard decisions
+    are `allow`" bit-exact ✓
+  - Audit-derived kind sequence reproduces as
+    `['query', 'mutation', 'query']` (length 3) bit-exact via
+    `[classify_command_kind(cmd) for cmd in counters.bash_commands]`;
+    guard-derived kind sequence reproduces as
+    `['query', 'mutation', 'query', 'query']` (length 4) bit-exact via
+    `[classify_command_kind(e.raw_command, e.base_command) for e in
+    guard_events]`; the kind-sequence-length asymmetry (3 vs 4) on
+    all-allow decisions is structurally novel and confirms iter 61's
+    claim of guard-side pipe decomposition first-PI exercise ✓
+  - Cross-mode pairing comparable data points reproduce bit-exact
+    against iter-10's bundle (`bench/runs/checkpoint-pi-T7-mdtools-
+    gpt5.4mini-2026-04-26/results.json`: `bytes_prompt=4316`,
+    `bytes_output=1172040`, `bytes_observation=16219`, `tool_calls=3`,
+    `mutations=1`, `requeried=true`, `elapsed_seconds=16.45`,
+    `correct=true`, `correct_neutral=true`, model=`openai-codex/gpt-5.4-
+    mini`, thinking_level=`minimal`, runner=`pi-json`, runs_per_task=1,
+    selected_task_ids=`["T7"]`). Cross-task HYBRID_DOCS template
+    footprint delta: T7 hybrid 4670 - T7 mdtools 4316 = +354 bytes,
+    matching iter-53's T1 hybrid 4545 - T1 mdtools 4190 = +355 bytes
+    within ±1 byte tolerance — confirmed by direct bytes_prompt
+    arithmetic, validating iter 61's cross-task-stable invariant
+    claim ✓
+  - The iter-10 T7 mdtools bundle deliberately lacks the
+    `holdout_version` field on `run.json` (predates iter-17 stamping);
+    the iter-61 T7 hybrid bundle has explicit `holdout_version=1`.
+    Per iter-17's forward-compat convention "absence-of-field reads as
+    v1 by date inference", a strict-equality cross-mode assertion on
+    holdout_version would fail; the iter-56 / iter-59 typed-test
+    pattern (`.get('holdout_version', 1)` yielding 1 for both bundles
+    + `assertNotIn('holdout_version', mdtools_run)` for the pre-iter-17
+    bundle) extends naturally to T7 cross-mode pairing if a future
+    iteration promotes the iter-61 trajectory to a typed cheap-channel
+    assertion via a new test class (e.g.
+    `T7HybridModeBaselineTests`) ✓
+  - `tasks.json` confirms T7 has `kind=raw_bytes`, with
+    `compare_block_text=true`, `compare_block_order=true`, and
+    `compare_heading_tree=true` (no `expected_artifact=json_envelope`,
+    so the F4 selector at `bench/harness.py:1481` is bypassed via the
+    early-return at `bench/harness.py:340-352` for raw_bytes kind
+    tasks); confirms iter 61's "F4 non-relevance" body claim ✓
+  - `bench/holdout/task_ids.json` is `["T4", "T14", "T20", "T22",
+    "T23", "T24"]` — T7 is NOT in the holdout split (T7 is search-
+    side), so iter 61's "T7 is search-side, no holdout-side artifact
+    change" framing is correct ✓
+  - One OAI T7 hybrid cell exists at the same task and same mode in
+    the bundle inventory: `bench/runs/search-hybrid-mutation-Qwen3.5-
+    122B-A10B-4bit-2026-04-21/` (T7 hybrid PASS, mut=1, tc=3,
+    model=Qwen3.5-122B-A10B-4bit, thinking_level=None) — confirmed via
+    reading the bundle's `results.json` for T7 hybrid cell; crosses
+    both the model axis (vs gpt-5.4-mini) AND the thinking_level axis
+    (None vs minimal) ✓
+  - Production code unchanged-since-iter-61 verified by re-reading
+    `bench/harness.py:282-285` (live `build_prompt` mode-routing),
+    `bench/command_policy.py:60-104` (live `allowed_commands_for_mode`
+    + `RestrictedShellEnv`), `bench/pi_audit_adapter.py:103-106`
+    (live policy-violations counter loop),
+    `bench/pi_audit_adapter.summarize_pi_audit_events`,
+    `bench/command_policy.load_guard_events`,
+    `bench/command_policy.classify_command_kind`, and
+    `bench/test_pi_audit.py` (still 94 tests, unchanged since iter 59
+    typed-test addition) — all match the citations in iter 61's body
+    bit-exact ✓
+- **Cheap channel:** `cargo test -q` all suites pass (32 + 37 + 16 +
+  0); `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+  bench.test_pi_audit bench.test_harness_json bench.test_harness_run_artifacts
+  bench.test_harness_task_split bench.test_analyze_inputs
+  bench.test_report_inputs` reports "Ran 94 tests in 1.841s … OK";
+  `python3 bench/harness.py --md-binary target/release/md` dry-run
+  reports "All tasks pass dual scorer" on all 24 tasks. No fresh
+  failing trace surfaced — iter-61's body framing is structurally
+  honest about T7 hybrid being the fourth instance of model-axis-
+  confound on the mutation-family + hybrid-mode combination (no
+  overclaim correction needed, distinct from iter-54's iter-53 framing
+  correction; same clean-adoption shape as iter-58 of iter-57).
+- **Comparability framing:** the `bench/RESULTS.md:68` extension
+  publishes the iter-61 T7 hybrid PI bundle reference into the cross-
+  executor inventory paragraph as the sixteenth-bundle reference
+  paragraph parallel in shape to the ten prior PI-bundle inventory
+  references (T2 iter-19, T21 iter-23, T11 iter-34, T19 iter-38, T10
+  iter-42, T15 iter-46, T12 iter-50, T1 hybrid iter-54, T1 unix
+  iter-58 — plus the table-eligible T1 / T7 mdtools / T9 / T18 / T22
+  entries from the table itself). The cross-executor table at
+  `bench/RESULTS.md:54` remains 5 rows because iter 61's T7 hybrid
+  bundle is not table-eligible (model-axis confound vs the OAI T7
+  hybrid Qwen3.5-122B-A10B-4bit cell); the inventory paragraph
+  extension is the structurally appropriate cash-out venue, distinct
+  from the iter-26 / iter-11 cross-executor table-row extensions which
+  require an OAI same-task same-model counterpart. The eligibility-
+  cause framing in the new sentence is **structurally honest**: T7
+  hybrid is the same model-axis confound shape as iter-42 T10 + iter-54
+  T1 hybrid + iter-58 T1 unix (OAI cells exist at the same task and
+  same mode but cross the model axis), observed for the first time on
+  the **mutation-family + hybrid-mode** combination rather than a new
+  fifth eligibility-cause category — extending the model-axis-confound
+  taxonomy entry from the saturated mode-axis dimension (iter 58
+  saturated mdtools / hybrid / unix) into a second-axis dimension
+  (task-family, with mutation-family as the first observation beyond
+  extraction-family). The cross-mode comparable cell pairing on a
+  non-T1 task (PI T7 mdtools + PI T7 hybrid) is structurally novel
+  evidence orthogonal to the cross-executor pairing dimension the
+  inventory paragraph tracks — recorded as forward-pointing
+  observation that a future iteration may surface this as a separate
+  cross-mode-comparison section if more cross-mode pairings on
+  non-T1 tasks accumulate (a natural extension target is a future T7
+  unix bundle that would complete the second-task 3-mode trinity, or
+  T15 / T12 hybrid bundles that would open third / fourth-task
+  cross-mode trails).
+- **Iter-62 same-family-rule discharge:** Recent axis pattern: iter
+  57 intervention-diversity (T1 unix PI expensive bundle), iter 58
+  specification coherence (`bench/RESULTS.md:68` fifteenth-bundle
+  cash-out + paired clean ratification of iter 57), iter 59 oracle-
+  trustworthiness (typed-test promotion of iter-57 via
+  `T1UnixModeBaselineTests`), iter 60 closure-discipline ratification
+  of iter 59, iter 61 intervention-diversity (T7 hybrid PI expensive
+  bundle — first PI mutation-family hybrid-mode bundle, opening the
+  second-task cross-mode coverage trail). Iter 62 is **specification
+  coherence** (cash-out of iter-61 T7 hybrid PI bundle into
+  `bench/RESULTS.md:68` + paired clean ratification of iter 61),
+  shifting axis cleanly from iter 61's intervention-diversity. This
+  matches the iter-19 / iter-34 / iter-38 / iter-42 / iter-46 /
+  iter-50 / iter-54 / iter-58 paired cash-out + ratification cadence
+  (substantive RESULTS.md edit + closure-discipline ratification of
+  prior expensive run in the same iteration), making iter 62 the
+  **ninth** instance of this paired cadence in this run (counting
+  strictly the cash-out-of-immediately-prior-expensive-iteration
+  pattern: iter 19 / 34 / 38 / 42 / 46 / 50 / 54 / 58 / 62 = 9
+  entries). Per the same-family rule, "Cosmetic, rustfmt, file-
+  rotation, naming-cleanup, or **ledger-only** changes do not break
+  concentration"; iter 62 is not ledger-only — it produces a
+  substantive 1-paragraph extension to `bench/RESULTS.md:68` (a
+  published-narrative file). The fresh-failing-trace escape clause
+  for the same-family rule does not need to fire because the
+  iteration is a clean cash-out + paired ratification of the iter-61
+  expensive run rather than a same-axis follow-up — the axis shift
+  from intervention-diversity (iter 61) to specification coherence
+  (iter 62) cleanly satisfies the rule (per iter-46 learning #4).
+  iter 62 is the **ninth** clean ratification of an expensive-channel
+  iteration in this run after iters 15 / 34 / 38 / 42 / 46 / 50 / 54 /
+  58 (each ratifying iter 14 / 33 / 37 / 41 / 45 / 49 / 53 / 57
+  expensive runs). Same shape as iter 58 (and distinct from iter 54)
+  in producing **no published-narrative correction** of the prior
+  expensive iteration's body framing — iter 61's "Comparability
+  framing for `bench/RESULTS.md:54` cross-executor table" field
+  already correctly framed the model-axis-confound as the fourth
+  instance of the iter-42 / iter-54 / iter-58 shape, observed for the
+  first time on the mutation-family + hybrid-mode combination, so
+  iter 62 adopts iter-61's framing without correction. This makes
+  iter 62 the **second paired-cadence iteration with no body-framing
+  correction surfaced** (after iter 58), continuing the
+  authoring-discipline learning that iter-54's learning #1 surfaced
+  about validating prior iteration's eligibility-cause framing
+  against the existing taxonomy before propagating.
+- **Closure-discipline ratification of iter 61 (paired):** iter 61's
+  body declared **FIXED_PENDING_CONFIRMATION** at authoring time per
+  the iter-15 / iter-31 / iter-44 / iter-48 / iter-52 / iter-60
+  closure-discipline rule (vs the iter-4 / -7 / -10 / -14 / -18 / -21
+  / -25 / -29 / -33 / -37 / -41 / -45 / -49 / -53 / -57 quiet-signal-
+  discharge "CLOSED at authoring time" pattern) and invited the
+  iter-19 / iter-34 / iter-38 / iter-42 / iter-46 / iter-50 / iter-54
+  / iter-58 paired cash-out + ratification cadence as the natural
+  follow-on. iter 62 is that ratification iteration. The bit-exact
+  verification above ratifies all iter-61 typed-artifact claims; no
+  forward-pointing framing-overclaim observation surfaced (distinct
+  from iter-54's iter-53 "fifth distinct category" overclaim
+  correction — iter-61 body framed the model-axis-confound as the
+  fourth instance extending the mode-axis-saturated taxonomy entry
+  into a second-axis dimension (task-family), structurally honest
+  from authoring time). iter 61 transitions from
+  FIXED_PENDING_CONFIRMATION to **CLOSED** via this iter 62 review
+  pass per the iter-19 / -34 / -38 / -42 / -46 / -50 / -54 / -58
+  paired-cadence pattern.
+- **Closure-discipline status:** **CLOSED** at authoring time
+  (specification-coherence cash-out is its own closure — there is no
+  fix to FIXED_PENDING_CONFIRMATION here, only a missing published-
+  narrative reference now landed). The paired closure-discipline
+  ratification of iter 61 is also **CLOSED** at authoring time per
+  the iter-19 / -34 / -38 / -42 / -46 / -50 / -54 / -58 paired-cadence
+  pattern where the cash-out iteration's ratification of the prior
+  expensive run lands in the same iteration as the cash-out, not in
+  a separate ratification iteration.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist). Does not
+  bump `holdout_version` (still 1; T7 is search-side). Does not edit
+  any harness production code (only `bench/RESULTS.md` and
+  `bench/ledger.md`). Does not extend the cross-executor table at
+  `bench/RESULTS.md:54` to include T7 hybrid (model-axis-confounded
+  vs the OAI T7 hybrid Qwen3.5-122B-A10B-4bit cell, so no row
+  extension is admissible). Does not modify any historical ledger
+  entry inline (per the no-silent-edit discipline). Does not amend
+  any pass-rate claim. Does not extend `bench/probes/`,
+  `bench/search/candidates/`, or any other not-yet-existing T7
+  directory. Does not re-raise F4 — T7 is `kind=raw_bytes` so the F4
+  selector is bypassed for this trajectory; the iter-61 T7 hybrid
+  PASS on the post-iter-30 selector context is implicitly ratified
+  by F4 not being relevant. Does not promote a typed cheap-channel
+  assertion for the iter-61 T7 hybrid trajectory itself — that
+  remains a natural typed-test extension if a future iteration
+  chooses oracle-trustworthiness as its frontier anchor (e.g., a
+  `T7HybridModeBaselineTests` class asserting the canonical re-query
+  mutation cycle trajectory shape, the audit-vs-guard kind-sequence-
+  length asymmetry on a clean trajectory, the cross-task HYBRID_DOCS
+  +354/+355 byte template-footprint invariant, and the cross-mode
+  comparable cell pairing against the iter-10 T7 mdtools bundle on
+  six normalization axes — parallel in shape to iter-56's
+  `T1HybridModeBaselineTests` and iter-59's `T1UnixModeBaselineTests`,
+  opening a second-task cross-mode coverage trail's typed-assertion
+  line).
+
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 61)
 
 Per the spec's "After 3 consecutive iterations with the cheap channel
@@ -10404,6 +10767,55 @@ For audit traceability of the closure-review pass:
   pass dual scorer (`md=PASS neutral=PASS` for T1–T24, with
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
+
+### Halt-condition / quiet-signal status (after iter 62)
+
+After iter 62's specification-coherence intervention — the
+**sixteenth-bundle reference paragraph extension** to the
+`bench/RESULTS.md:68` cross-executor inventory paragraph for iter-61's
+T7 hybrid PI bundle, paired with clean closure-discipline ratification
+of iter 61 via bit-exact typed-artifact verification of every
+results.json / run.json / pi-audit.jsonl / guard.log claim plus
+mechanical re-execution of the audit-only and guard-augmented
+`summarize_pi_audit_events` paths against the iter-61 T7 hybrid bundle
+artifacts — the published-narrative inventory at `bench/RESULTS.md:68`
+now spans **16 PI bundle references**, with eligibility-cause framing
+extending the model-axis-confound taxonomy entry from the iter-58
+mode-axis-saturation observation (3 mode subsets covered: mdtools /
+hybrid / unix) into a **second-axis dimension** (task-family). T7
+hybrid is the **fourth instance** of the model-axis-confound shape
+(after iter-42 T10 mdtools-mode + iter-54 T1 hybrid hybrid-mode +
+iter-58 T1 unix unix-mode), observed for the first time on the
+**mutation-family + hybrid-mode** combination — the first observation
+on a non-extraction task family, opening the task-family axis of the
+taxonomy entry (with extraction-family being the only axis covered by
+the prior three mode-subset instances). The cross-mode comparable
+cell pairing on a non-T1 task (PI T7 mdtools iter-10 + PI T7 hybrid
+iter-61) is structurally novel evidence orthogonal to the cross-
+executor pairing dimension, recorded as forward-pointing for a future
+iteration that may surface a second-task 3-mode trinity by producing
+a T7 unix bundle. Total python unittest count remains **94** across
+the eight spec-named modules (no test change in iter 62); `cargo
+test -q` all suites pass (32 + 37 + 16 + 0); `python3 bench/harness.py
+--md-binary target/release/md` dry-run reports "All tasks pass dual
+scorer" on all 24 tasks. F4 closure trail unchanged. iter 61
+transitions from FIXED_PENDING_CONFIRMATION to **CLOSED** via this
+iter 62 paired ratification per the iter-19 / -34 / -38 / -42 / -46 /
+-50 / -54 / -58 paired-cadence pattern. The quiet-signal counter
+increments from 0 (after iter 61's expensive-channel reset) to **1**;
+**iter 65 remains the next forced expensive-or-halt point** per the
+spec's "3 consecutive iterations with cheap channel green and no new
+finding" rule (iter 62 quiet — counter at 1 of 3). Forward-pointing
+observation: a future oracle-trustworthiness iteration could promote
+the iter-61 T7 hybrid prose-only trajectory + cross-mode comparable
+cell pairing claims to a typed cheap-channel assertion via a new
+`T7HybridModeBaselineTests` class in `bench/test_pi_audit.py`,
+parallel in shape to iter-56's `T1HybridModeBaselineTests` and
+iter-59's `T1UnixModeBaselineTests` — opening the second-task cross-
+mode coverage trail's typed-assertion line as a fourth structural
+axis (raw_bytes branch + mutation-family + hybrid-mode subset)
+parallel to the existing F4 / F4-orthogonal / cross-mode-extraction
+trails.
 
 ### Halt-condition / quiet-signal status (after iter 61)
 
