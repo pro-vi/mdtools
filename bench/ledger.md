@@ -14,6 +14,154 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Scorer-dispatcher branch coverage assertion (2026-04-26 iter 28)
+
+Promote iter-27's forward-pointing observation about the corpus-vacuous
+`bench/harness.py:378` else-arm (`ok = a.strip() == e.strip()`) from
+ledger prose to a mechanical cheap-channel assertion. The iter-27 entry
+verified by manual re-reading that every task in `bench/tasks/tasks.json`
+routes to one of four explicit `score_task` dispatcher branches at lines
+340 (raw_bytes), 363 (structural + json_canonical), 367 (structural +
+json_envelope), or 371 (normalized_text); iter 28 makes that property
+typed by adding a test class that mirrors the dispatcher's predicate
+order and asserts no corpus task reaches the else-arm.
+
+- **Disturbed axis:** oracle trustworthiness — typed-artifact gap. Per
+  the iteration-protocol step-7 cheap-channel-then-expensive sequencing,
+  properties asserted only in ledger prose are weaker evidence than
+  properties asserted by harness tests. The "no task reaches line 378"
+  property is a real invariant of the corpus×dispatcher interaction:
+  if a future task is added with `scorer.kind="structural"` and neither
+  `json_canonical` truthy nor `expected_artifact="json_envelope"`, the
+  scorer would silently route through an unvalidated string-equality
+  fallback that no scorer-correctness audit has ever exercised. The
+  cheap channel does not currently surface that drift.
+- **Frontier anchor:** *fresh failing trace surfaced by iter 27 +
+  missing evaluator artifact (mechanical assertion of corpus×dispatcher
+  coverage)*. iter-27's "no task in the current corpus reaches line
+  378's else-arm" is the trace; the missing artifact is a typed test
+  that fires if that property is ever violated. Same shape as iter
+  17's "the four pre-iter-17 PI bundles all lack the `holdout_version`
+  field that the spec explicitly requires" — a property that lives in
+  the typed-artifact graph and is therefore promotable from prose to
+  a mechanical assertion. Per the spec's allowed-during-P0/P1
+  hardening list, "harness assertions" are admissible; this change is
+  exactly that.
+- **Change shape:**
+  - Added `bench/test_harness_task_split.py:ScorerDispatcherBranchTests`
+    (2 tests). The class carries a `_classify(task)` helper that
+    mirrors the dispatcher's predicate order at `bench/harness.py:340–378`
+    exactly: raw_bytes early-return first; among `kind=="structural"`
+    the json_canonical branch wins over the json_envelope branch.
+    `_classify` returns one of `raw_bytes` / `json_canonical` /
+    `structural_json` / `normalized_text` / `else_fallback`.
+    - `test_no_corpus_task_reaches_else_fallback`: iterates every
+      task in `bench/tasks/tasks.json`, asserts none classifies as
+      `else_fallback`. The error message names the offending task's
+      `id` / `kind` / `expected_artifact` / `json_canonical` and
+      points at `bench/harness.py:378`, so any future drift fires
+      with a self-describing failure.
+    - `test_corpus_exercises_all_four_explicit_branches`: asserts
+      each of the four explicit branches is hit by at least one
+      corpus task — sanity that no branch becomes dead-code without
+      the test catching it. Currently raw_bytes (T10/T12/T13/T14/T15
+      /T17/T18/T20/T23/T24, 10 tasks), json_canonical (T9/T11/T16/T19,
+      4 tasks), structural_json (T1/T5/T21/T22, 4 tasks), and
+      normalized_text (T2/T3/T4/T6/T7/T8, 6 tasks) all fire.
+  - Added `BenchTask` to the existing `bench.harness` import list at
+    `bench/test_harness_task_split.py:8` so the helper's type hint is
+    importable. No production code touched.
+- **Tests added (2 new):**
+  test count for `bench/test_harness_task_split.py` rose from 11 to 13;
+  total python unittest count across the 8 spec-named modules rose from
+  68 (post-iter-17) to **70**. Subprocess-verified the negative case
+  by constructing a synthetic `BenchTask` with
+  `scorer.kind="structural"`, `json_canonical=False`, and
+  `expected_artifact="file_contents"` (the corpus-impossible
+  combination): `_classify` returns `else_fallback` as expected, so
+  the assertion would fire on a real corpus drift of that shape.
+- **Cheap channel:** green before and after.
+  - `cargo test -q` all suites pass: non-zero counts 36, 13, 37, 32,
+    37, 12, 7, 24, 32, 37, 16 across the 11 lib + integration suites
+    (~280 total, matching the "282 integration tests" claim in
+    `CLAUDE.md`).
+  - `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+    bench.test_pi_audit bench.test_harness_json
+    bench.test_harness_run_artifacts bench.test_harness_task_split
+    bench.test_analyze_inputs bench.test_report_inputs` reports
+    "Ran 70 tests in 1.623s … OK" (was 68 before iter 28; +2 from
+    `ScorerDispatcherBranchTests`).
+  - `python3 bench/harness.py --md-binary target/release/md` dry-run
+    reports "All tasks pass dual scorer" on all 24 tasks
+    (`md=PASS neutral=PASS` for T1–T24, with `json_canonical`,
+    `frontmatter_json`, and `link_destinations` scorer branches all
+    OK on the relevant tasks).
+- **Comparability framing:** this is a typed-test-from-prose
+  promotion. It does **not** run the expensive outer channel. It does
+  **not** bump `holdout_version` (still 1; no holdout repair
+  occurred). It does **not** modify any bundle, any harness production
+  code (only test code added; no edit to `bench/harness.py`), any
+  scorer, or any task description. It does **not** introduce a new
+  product surface or change the agent's action space. It does **not**
+  amend any pass-rate claim or extend the cross-executor table. It
+  does **not** edit any historical ledger entry inline (per
+  iter-15 / iter-22 / iter-24 / iter-26 / iter-27 discipline). It
+  does **not** edit any published-narrative file (`bench/RESULTS.md`,
+  `README.md`, `CLAUDE.md`, `bench/retracted_2026-04-24/README.md`,
+  `specs/**`). The only files modified are
+  `bench/test_harness_task_split.py` (one-line import addition + new
+  test class at the bottom) and `bench/ledger.md` itself (this
+  iter-28 entry plus an updated halt-condition / quiet-signal status
+  block).
+- **Closure-discipline status:** FIXED_PENDING_CONFIRMATION at
+  authoring time. A future review pass should ratify by re-reading
+  the new `ScorerDispatcherBranchTests` class, re-running
+  `python3 -m unittest bench.test_harness_task_split.ScorerDispatcherBranchTests
+  -v` to confirm the 2 tests pass on the live corpus, and re-checking
+  the dispatcher predicate order at `bench/harness.py:340-378`
+  against the `_classify` helper. Per iter-15's labeling discipline,
+  this is **frontier expansion** in the evaluator-trustworthiness
+  sense: a previously prose-only invariant is now mechanical, so
+  future corpus drift surfaces in the cheap channel rather than only
+  via manual re-reading.
+- **Same-family-rule discharge:** iter 25 was intervention-diversity
+  (T9 PI expensive run), iter 26 was specification coherence
+  (cross-executor table fifth-row publication), iter 27 was
+  closure-discipline (ledger-only ratification of iter 26 + one
+  forward-pointing code-path-routing correction). Iter 28 is
+  oracle-trustworthiness hardening (typed-test promotion of iter 27's
+  prose claim), shifting axis cleanly from iter 27. Parallel in shape
+  to iter 17's "promote spec requirement to mechanical assertion"
+  move (also after a chain of cash-out / ratification iterations) and
+  to iter 16's "promote procedural protection to runtime mechanical"
+  move. The fresh-failing-trace escape clause additionally applies
+  via iter-27's specific corpus-vacuous-path observation; the trace
+  is durable (the iter-25 line-378 prose claim is preserved in the
+  ledger per iter-15 discipline, and the corpus-vacuous property
+  is the underlying invariant).
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not run the expensive outer channel. Does not edit
+  any historical ledger entry inline. Does not amend any pass-rate
+  claim. Does not modify any bundle, any harness production code, any
+  scorer, or any task description. Does not extend the cross-executor
+  table. Does not touch any holdout artifact. Does not extend
+  `bench/probes/`, `bench/search/candidates/`, or any other
+  not-yet-existing T7 directory. Does not edit `bench/harness.py`
+  itself; only test code is added (a `bench/test_harness_*.py` file).
+- **Forward observation (no historical edit):** the symmetric question
+  raised by adding this test is "should the line-378 fallback be
+  pruned, since it is corpus-vacuous?" The conservative answer is no:
+  the fallback is defensive code that catches future task shapes the
+  dispatcher has not been extended to handle, and pruning it would
+  exchange a string-equality fallback for a `KeyError`-shaped crash
+  on the offending task. With this iter-28 test in place, the cheap
+  channel surfaces the drift before any expensive run hits the
+  fallback, so the defensive code's cost (vacuous lines) is bounded
+  by the test's assurance. Recording this rationale forward-pointing
+  rather than acting on it.
+
 ### Confirmation review pass (2026-04-26 iter 27)
 
 Closure-discipline review of iter-26's substantive `bench/RESULTS.md`
@@ -2402,37 +2550,24 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 27)
+### Halt-condition / quiet-signal status (after iter 28)
 
-After iter 27's ledger-only closure-discipline ratification of iter
-26's substantive `bench/RESULTS.md` fifth-row publication, paired with
-one forward-pointing correction surfacing iter-25's incorrect
-`bench/harness.py:378` routing claim for T18 (T18 actually routes
-through the explicit early-return branch at lines 340–352;
-line 378's else-arm catch-all is corpus-vacuous in the current task
-set) — see "Confirmation review pass (2026-04-26 iter 27)" above:
+After iter 28's substantive but cheap-channel-only oracle-trustworthiness
+hardening — promoting iter-27's prose claim about the corpus-vacuous
+`bench/harness.py:378` else-arm to a typed cheap-channel assertion via
+`bench/test_harness_task_split.py:ScorerDispatcherBranchTests` (2 new
+unit tests pinning that no corpus task reaches the else-arm and that
+all four explicit dispatcher branches are exercised) — see
+"Scorer-dispatcher branch coverage assertion (2026-04-26 iter 28)"
+above:
 
-- **OPEN findings count:** 0. Iter 27's closure-discipline move
-  surfaced no scorer / measurement / product defect; iter-26's
-  cross-executor table values, ratios, bundle data points, and
-  published-narrative line citations all reproduce bit-exact. The
-  forward-pointing correction recorded (iter 25's
-  "raw_bytes branch via the `else` arm at `bench/harness.py:378`
-  (T18)" prose was an incorrect routing claim — T18 has
-  `scorer.kind="raw_bytes"` and routes through the explicit
-  `if policy.kind == "raw_bytes":` early-return branch at
-  `bench/harness.py:340–352`, not through the line-378 else-arm
-  fallback; iter-25 also wrote "Routing through `bench/harness.py:355`'s
-  scorer dispatcher" but line 355 is `a, e = actual, expected`, not
-  the dispatcher function declaration at line 329) is recorded
-  forward-pointing per iter-15 / iter-22 / iter-24 / iter-26
-  discipline. Not a new finding because no measurement, scorer, or
-  product surface is affected — only iter-25 prose accuracy about
-  the dispatch routing. iter-26's ratification used the abstract
-  format "T18 (raw_bytes / file_contents, iter 14)" without naming
-  a routing line, so iter 26 did not repeat the iter-25 mistake.
-  The zero-OPEN state holds through iters 8–27 — the
-  **twenty-third** consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 28 added 2 new harness-assertion
+  tests promoting iter-27's prose claim about corpus-vacuous
+  dispatcher routing to a mechanical cheap-channel invariant; the
+  invariant holds on the live corpus (both new tests pass), so no
+  finding is opened by the addition itself. The zero-OPEN state
+  holds through iters 8–28 — the **twenty-fourth** consecutive
+  zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -2458,9 +2593,12 @@ set) — see "Confirmation review pass (2026-04-26 iter 27)" above:
   closure-discipline ratification of iter 25; counter increments to
   **1**), iter 27 quiet (ledger-only closure-discipline ratification
   of iter 26 paired with one forward-pointing code-path-routing
-  correction in iter-25 prose; counter increments to **2**). Iter 28
-  is admissibly quiet (would push counter to 3), iter 29 the next
-  forced expensive-or-halt point.
+  correction in iter-25 prose; counter increments to **2**), iter 28
+  quiet (cheap-channel-only oracle-trustworthiness hardening —
+  promoting iter-27's corpus-vacuous-path prose claim to a typed
+  `ScorerDispatcherBranchTests` cheap-channel assertion, +2 unit
+  tests, no expensive run; counter increments to **3**). Iter 29 is
+  the next forced expensive-or-halt point.
   The cheapest reachable expensive probe in this environment remains
   the PI runner via `~/.pi/agent/auth.json` — Qwen3.5-122B-A10B-4bit
   holdout reconfirmation remains environment-blocked (no local LM
@@ -2479,6 +2617,26 @@ set) — see "Confirmation review pass (2026-04-26 iter 27)" above:
   cell to exercise scorer cell shape X (where X is grounded in an
   actual `bench/tasks/tasks.json` task config)" or a task-family /
   cross-mode / cross-model gap.
+- **Iter-28 same-family-rule discharge:** iter 25 was
+  intervention-diversity (T9 PI expensive run), iter 26 was
+  specification coherence (cross-executor table fifth-row
+  publication), iter 27 was closure-discipline (ledger-only
+  ratification of iter 26 + one forward-pointing code-path-routing
+  correction in iter-25 prose). Iter 28 is oracle-trustworthiness
+  hardening (typed-test promotion of iter-27's corpus-vacuous-path
+  prose claim into `ScorerDispatcherBranchTests`), shifting axis
+  cleanly from iter 27. Parallel in shape to iter 17's "promote spec
+  requirement to mechanical assertion" move (also after a chain of
+  cash-out / ratification iterations) and to iter 16's "promote
+  procedural protection to runtime mechanical" move. The
+  fresh-failing-trace escape clause additionally applies via
+  iter-27's specific corpus-vacuous-path observation; the trace is
+  durable (the iter-25 line-378 prose claim is preserved in the
+  ledger per iter-15 discipline, and the corpus-vacuous property is
+  the underlying invariant). The "ledger-only changes do not break
+  concentration" caveat is not invoked here because iter 28 is not a
+  ledger-only iteration — it adds production-graph test code to
+  `bench/test_harness_task_split.py`.
 - **Iter-27 same-family-rule discharge:** iter 24 was closure-
   discipline (ledger-only ratification of iter 23 + forward-pointing
   citation accuracy correction), iter 25 was intervention-diversity

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from bench.harness import (
+    BenchTask,
     check_holdout_integrity,
     compute_task_fingerprint,
     load_holdout_fingerprints,
@@ -212,6 +213,85 @@ class HoldoutVersionStampTests(unittest.TestCase):
             path = Path(tmpdir) / "fingerprints.json"
             path.write_text("{}")
             self.assertIsNone(read_holdout_version(fingerprints_path=str(path)))
+
+
+class ScorerDispatcherBranchTests(unittest.TestCase):
+    """Pin the corpus-vacuous property of the score_task else-arm.
+
+    iter 27 surfaced (forward-pointing in bench/ledger.md) that
+    bench/harness.py:378's else-arm fallback ("ok = a.strip() == e.strip()")
+    is corpus-vacuous in the current 24-task corpus: every task routes to
+    one of four explicit dispatcher branches at lines 340 (raw_bytes), 363
+    (structural + json_canonical), 367 (structural + json_envelope), or
+    371 (normalized_text). This class promotes that prose claim to a
+    typed cheap-channel assertion so future task additions or scorer
+    edits that would silently route through an unvalidated string-equality
+    fallback fire here rather than being discovered only by manual prose
+    re-reading.
+    """
+
+    BRANCH_RAW_BYTES = "raw_bytes"
+    BRANCH_JSON_CANONICAL = "json_canonical"
+    BRANCH_STRUCTURAL_JSON = "structural_json"
+    BRANCH_NORMALIZED_TEXT = "normalized_text"
+    BRANCH_ELSE_FALLBACK = "else_fallback"
+
+    @classmethod
+    def _classify(cls, task: BenchTask) -> str:
+        """Return the dispatcher branch this task routes to in score_task.
+
+        Mirrors the predicate order in bench/harness.py:340-378 exactly:
+        raw_bytes early-return is first; among kind=="structural", the
+        json_canonical branch wins over the json_envelope branch.
+        """
+        policy = task.scorer
+        if policy.kind == "raw_bytes":
+            return cls.BRANCH_RAW_BYTES
+        if policy.kind == "structural" and policy.json_canonical:
+            return cls.BRANCH_JSON_CANONICAL
+        if policy.kind == "structural" and task.expected_artifact == "json_envelope":
+            return cls.BRANCH_STRUCTURAL_JSON
+        if policy.kind == "normalized_text":
+            return cls.BRANCH_NORMALIZED_TEXT
+        return cls.BRANCH_ELSE_FALLBACK
+
+    def test_no_corpus_task_reaches_else_fallback(self) -> None:
+        tasks = load_tasks("bench/tasks/tasks.json")
+        unrouted = [
+            {
+                "id": task.id,
+                "kind": task.scorer.kind,
+                "expected_artifact": task.expected_artifact,
+                "json_canonical": task.scorer.json_canonical,
+            }
+            for task in tasks
+            if self._classify(task) == self.BRANCH_ELSE_FALLBACK
+        ]
+        self.assertEqual(
+            unrouted,
+            [],
+            "Tasks reach bench/harness.py:378's corpus-vacuous else-arm "
+            "(`ok = a.strip() == e.strip()`); fix scorer.kind / "
+            "expected_artifact / json_canonical or extend the dispatcher: "
+            f"{unrouted}",
+        )
+
+    def test_corpus_exercises_all_four_explicit_branches(self) -> None:
+        tasks = load_tasks("bench/tasks/tasks.json")
+        branches_hit = {self._classify(task) for task in tasks}
+        for branch in (
+            self.BRANCH_RAW_BYTES,
+            self.BRANCH_JSON_CANONICAL,
+            self.BRANCH_STRUCTURAL_JSON,
+            self.BRANCH_NORMALIZED_TEXT,
+        ):
+            self.assertIn(
+                branch,
+                branches_hit,
+                f"Corpus no longer exercises the {branch} dispatcher branch; "
+                "either restore a task that hits this branch or remove the "
+                "branch from bench/harness.py:score_task",
+            )
 
 
 if __name__ == "__main__":
