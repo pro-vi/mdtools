@@ -453,6 +453,23 @@ def score_structural_json(
         report.append(f"JSON parse error: {exc}")
         return False, False
 
+    # F3 closure: when compare_link_destinations is the sole structural check,
+    # accept a top-level JSON array as equivalent to {"links": [...]}. The task
+    # description is intentionally tool-neutral and unix-mode agents reasonably
+    # emit a list directly; the structural scorer must not mode-contaminate.
+    only_link_destinations = (
+        policy.compare_link_destinations
+        and not policy.compare_heading_tree
+        and not policy.compare_frontmatter_json
+        and not policy.compare_block_order
+        and not policy.compare_block_text
+    )
+    if only_link_destinations:
+        if isinstance(actual_json, list):
+            actual_json = {"links": actual_json}
+        if isinstance(expected_json, list):
+            expected_json = {"links": expected_json}
+
     if not isinstance(actual_json, dict) or not isinstance(expected_json, dict):
         report.append(
             "json_envelope: MISMATCH expected top-level JSON object "

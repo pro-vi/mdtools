@@ -6,16 +6,6 @@ cleared only after a typed artifact confirms the finding, not by prose alone.
 
 ## OPEN findings
 
-### F3 — T22 structural scorer rejects list-shape JSON with mode-neutral task description
-- **Status:** OPEN (re-opened 2026-04-24 after external review retraction)
-- **Axis:** oracle trustworthiness
-- **Anchor:** `bench/runs/holdout-{mdtools,hybrid}-Qwen3.5-122B-A10B-4bit-2026-04-24/` pre-fix bundles both show `T22: json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)`. The original T22 description ("List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations.") is deliberately tool-neutral because the same description is injected into all three benchmark modes including `unix` (where `md` is forbidden by `UNIX_DOCS` at `bench/harness.py:252`). Agents reasonably emit a top-level JSON list; the structural scorer rejects because `score_structural_json` at `bench/harness.py:450` demands a top-level object.
-- **Closure criterion:** a mode-neutral fix at the scorer or system-prompt layer. Options:
-  - Scorer: when `compare_link_destinations` is the only check requested, accept a top-level JSON list of `{kind, destination}` objects and treat it as equivalent to `{"links": [...]}`.
-  - System prompt: for `expected_artifact == "json_envelope"` tasks, amend `output_instruction` in `build_prompt` to describe the expected envelope shape tool-agnostically (e.g., "Print the result as a JSON object with top-level fields described by the task") rather than just "Print the result as JSON to stdout."
-  - Not acceptable: editing the task description in `bench/tasks/tasks.json`. T22 is in `bench/holdout/task_ids.json`; post-hoc tuning of a holdout task destroys its holdout validity for any rerun.
-- **Prior mis-fix (retracted):** an earlier iteration rewrote T22's description to include `using \`md links --json\``, which (a) mode-contaminated by telling unix-mode agents to use a forbidden tool, and (b) tuned a holdout task after seeing its failure. Description has been reverted. The four bundles produced against the tuned task have been moved to `bench/retracted_2026-04-24/` (outside `bench/runs/`) so `bench/analyze.py` / `bench/report.py` / glob-based tooling do not treat them as valid evidence. See that directory's `README.md`.
-
 ### L1 — Loop lacked holdout-immutability guard
 - **Status:** OPEN (loop-level learning)
 - **Axis:** oracle trustworthiness (meta)
@@ -23,6 +13,13 @@ cleared only after a typed artifact confirms the finding, not by prose alone.
 - **Closure criterion:** either a procedural rule ("before editing any task in `bench/tasks/tasks.json`, check whether its ID is in `bench/holdout/task_ids.json` — if yes, the edit invalidates the holdout until the task is rotated out of holdout or the split is regenerated") documented in the frontier-loop spec or in `bench/ledger.md`, or a mechanical guard (pre-commit hook / harness assertion that flags holdout-task description diffs) that prevents the same mistake.
 
 ## FIXED_PENDING_CONFIRMATION
+
+### F3 — T22 structural scorer rejects list-shape JSON with mode-neutral task description
+- **Status:** FIXED_PENDING_CONFIRMATION (2026-04-26)
+- **Axis:** oracle trustworthiness
+- **Typed artifact:** `bench/harness.py:score_structural_json` now normalizes a top-level JSON array to `{"links": [...]}` when `compare_link_destinations` is the sole structural check. Mode-neutral; gated on policy shape, not task ID. The pre-fix anchor remains `bench/runs/holdout-{mdtools,hybrid}-Qwen3.5-122B-A10B-4bit-2026-04-24/` which recorded `T22: json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)`. New unit tests at `bench/test_harness_json.py::StructuralLinkEnvelopeTests` cover the list/dict equivalence, mismatched-link rejection, and the multi-check guardrail (top-level list still rejected when other comparisons are required). Harness dry-run all 24 tasks still pass dual scorer.
+- **Holdout-version note:** treated as a mode-neutral scorer bug fix (precedent: F3-a EOF whitespace). The change is not gated on T22 specifically; it applies to any task with policy shape `compare_link_destinations` only. Pre-fix and post-fix holdout T22 bundles are not apples-to-apples for that one task; future holdout runs are the fresh baseline.
+- **Closure criterion:** satisfied by the listed mode-neutral scorer option in the original closure plan. Promoted once the next review pass does not re-raise.
 
 ### F2 — Legacy N=3 snapshot overlaps the current holdout set
 - **Status:** FIXED_PENDING_CONFIRMATION (2026-04-24)
