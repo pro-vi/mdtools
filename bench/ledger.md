@@ -10,15 +10,89 @@ _(none)_
 
 ## FIXED_PENDING_CONFIRMATION
 
+_(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirmation review pass (2026-04-26 iter 6)" below.)_
+
+## CLOSED
+
+### Confirmation review pass (2026-04-26 iter 6)
+
+Explicit closure-discipline review of the single FIXED_PENDING_CONFIRMATION
+entry remaining after iter 5 (P3). Verified against typed artifacts, not
+against prose. Cheap channel was green at review time (cargo test all
+suites passing — see iter-6 cheap-channel block below — plus 59 python
+unittests across the 8 spec-named modules and `harness.py --md-binary`
+dry-run all 24 tasks PASS dual-scorer).
+
+What was checked, per finding:
+
+- **P3** — re-read `bench/RESULTS.md:52-60` ("Cross-executor comparability
+  (PI runner vs OAI loop)" section). Section names the executor-locality
+  rule for `bytes_output`, cites both reference data points (PI T1
+  `bytes_output=5,975,843` from
+  `bench/runs/checkpoint-pi-T1-mdtools-gpt5.4mini-2026-04-26/results.json`
+  and oai-loop T20 `bytes_output=679` from
+  `bench/runs/holdout-mdtools-Qwen3.5-122B-A10B-4bit-2026-04-24/results.json`),
+  identifies both harness call sites (`bench/harness.py:1229` for pi-json
+  and `:1265` for oai-loop, both confirmed as
+  `bytes_output = len(raw_stdout.encode())`), enumerates the
+  cross-executor-comparable fields, and flags the future
+  `bytes_assistant_content` ratchet without committing to it.
+  Independently verified that `bytes_observation` is genuinely shared
+  across executors: `bench/oai_loop.py:212` increments it from observation
+  content size, and `bench/pi_audit_adapter.py:86,89` increment it from
+  audit event `outputBytes` — both branches parse tool-result content
+  rather than raw stdout, so the published comparability claim holds.
+  **Verdict: closed.**
+
+### Iter-6 cheap-channel snapshot
+
+For audit traceability of the closure-review pass:
+
+- `cargo test -q`: all suites pass (32, 37, 16, 0, 0, 0, 36, 13, 37, 32,
+  37, 12, 7, 24, 32, 37, 16, 0 across the integration-test binaries).
+- `python3 -m unittest bench.test_command_policy bench.test_oai_loop
+  bench.test_pi_audit bench.test_harness_json bench.test_harness_run_artifacts
+  bench.test_harness_task_split bench.test_analyze_inputs
+  bench.test_report_inputs`: 59 tests, OK.
+- `python3 bench/harness.py --md-binary target/release/md`: all 24 tasks
+  pass dual scorer (`md=PASS neutral=PASS` for T1–T24, with
+  `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
+  branches all OK on the relevant tasks).
+
+### Halt-condition / quiet-signal status (after iter 6)
+
+After the iter-6 closure review:
+
+- **OPEN findings count:** 0. Iter 5 also had 0 OPEN (P3 was
+  FIXED_PENDING_CONFIRMATION, not OPEN). Per spec "halt conditions count
+  OPEN only," this is the second consecutive review round with 0 OPEN
+  findings, satisfying that single halt-condition clause.
+- **Quiet-signal counter:** iter 4 ran the expensive outer channel
+  (PI checkpoint bundle, surfaced P3); iter 5 was quiet (cheap green, no
+  new failing trace, no new finding — the P3 state-change to
+  FIXED is not a new finding); iter 6 is quiet by the same criterion
+  (P3 state-change to CLOSED is not a new finding either). That puts the
+  quiet count at 2 after iter 6. The spec's "After 3 consecutive
+  iterations …" rule fires at the end of iter 7 if iter 7 is also quiet.
+- **Iter-7 obligation:** iter 7 must either (a) run the expensive outer
+  channel to introduce fresh signal — the cheapest available probe is a
+  holdout reconfirmation on Qwen3.5-122B-A10B-4bit now that F3 is closed
+  (acceptance criterion: produce a `bench/runs/holdout-*-2026-04-2x/`
+  bundle and record the new pass rate alongside the retracted ones in
+  `bench/RESULTS.md`); or (b) emit `stop-and-summarize` because all
+  homeostasis axes are in balance and no admissible same-family
+  intervention remains. Promoting a product anchor (`md apply` /
+  `md batch`) is not yet admissible without a Route A or Route B
+  justification under `bench/probes/anchor-validation/`, which does not
+  yet exist.
+
 ### P3 — `bytes_output` is not cross-executor comparable
-- **Status:** FIXED_PENDING_CONFIRMATION (filed 2026-04-26 iter 4; FIXED 2026-04-26 iter 5 via closure plan option (b); P2 hardening backlog severity)
+- **Status:** CLOSED (2026-04-26 iter 6 review pass; FIXED 2026-04-26 iter 5 via closure plan option (b); filed 2026-04-26 iter 4; P2 hardening backlog severity)
 - **Axis:** oracle trustworthiness (cross-executor normalization); closure intervention is specification coherence
 - **Anchor:** the iteration-4 quiet-signal-checkpoint PI smoke (`bench/runs/checkpoint-pi-T1-mdtools-gpt5.4mini-2026-04-26/`) recorded `bytes_output=5,975,843` for T1 mdtools on gpt-5.4-mini. The pre-fix Qwen oai-loop holdout bundle records `bytes_output=679` for T20 mdtools — three orders of magnitude smaller. Root cause: `bench/harness.py:1229` measures pi-json `bytes_output` as `len(raw_stdout.encode())`, which captures the entire `pi --mode json` JSONL stream (per-token deltas, audit envelopes, session-meta events), whereas the oai-loop path (`bench/harness.py:1265`) captures assistant terminal content.
 - **Effect:** does not gate the current acceptance metric (`pass_rate`), so this is P2-severity hardening backlog, not a P0 / P1 claim block. Cross-executor comparisons that include `bytes_output` (or any derived metric) must be flagged as non-comparable until normalized.
 - **Typed artifact:** `bench/RESULTS.md` now carries a "Cross-executor comparability (PI runner vs OAI loop)" section that names the executor-locality rule, cites the iteration-4 checkpoint bundle as the supporting datum, identifies the harness call sites for both branches, and enumerates the cross-executor-comparable fields (`correct`, `correct_neutral`, `elapsed_seconds`, `tool_calls`, `mutations`, `policy_violations`, `requeried`, `bytes_observation`). The section also flags the future ratchet (a `bytes_assistant_content` parser over the audit stream) without committing to it.
 - **Closure plan executed:** option (b) from the original entry — cheaper documentation in `bench/RESULTS.md` rather than option (a) bytes_assistant_content extraction. Option (a) remains a viable additive ratchet if a fresh failing claim or external finding makes it necessary; the same-family admissibility rule applies.
-
-## CLOSED
 
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 4)
 
