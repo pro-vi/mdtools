@@ -14,6 +14,140 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Cross-executor same-task measurement extension (2026-04-26 iter 19)
+
+Iter 19 cashed out iter 14's PI T18 multistep bundle by extending the
+iter-11 cross-executor same-task validation table in `bench/RESULTS.md`
+from 3 rows to 4, and updated the PI bundle pointers list to enumerate
+iter 14 (T18) and iter 18 (T2 — noted as having no comparable OAI
+same-task `mdtools` cell on file). Parallel in shape to iter 11: both
+iterations cash out a previously-uncited PI bundle's downstream pairing
+potential into the published narrative.
+
+- **Disturbance:** specification coherence — `bench/RESULTS.md`
+  cross-executor section listed only 3 same-task pairs (T1, T7, T22)
+  and 3 PI bundle pointers (iters 4, 7, 10), but the repo now contains
+  5 PI bundles (iters 4, 7, 10, 14, 18). The iter-14 T18 multistep
+  bundle pairs with two pre-existing 2026-04-21 OAI multistep T18
+  bundles (Hermes-4-70B-4bit, Qwen3.5-27B-4bit), forming an unincorporated
+  fourth same-task cross-executor pair. Iter 11's learning #1 explicitly
+  invited "Future expensive-channel runs should be examined for
+  downstream pairing potential, not just cell-coverage credit"; iter 14
+  produced its bundle but did not extend the published table, and iters
+  15–18 did not either. Iter 18's T2 has no comparable OAI same-task
+  cell so it is not eligible for the table, but it should still be
+  cited as the fifth PI bundle and the first durable bundle carrying
+  iter-17's `holdout_version: 1` stamp.
+- **Anchor:** missing evaluator artifact — *durable summary for a
+  newly-run comparison*. Same anchor wording as iter 11; the
+  intervention is the same shape (additive measurement publication,
+  not corrective reference removal). The forcing function for choosing
+  this anchor is iter 11's pre-recorded learning #1 invitation, which
+  only became actionable after iter 14's T18 PI bundle landed and
+  stayed unincorporated through iters 15–18.
+- **Change shape:** one targeted edit to `bench/RESULTS.md` (the
+  "Same-task validation" block at lines 56–66):
+  - Caption updated from "(2026-04-26 iter 11)" to "(2026-04-26 iters
+    11, 19)" and "Three" to "Four"; model caveat extended to note
+    T18's OAI cell uses Qwen3.5-27B-4bit (because no `-122B` multistep
+    cell exists).
+  - One row appended to the table: T18 with PI `10 / 2` vs OAI `5 / 2`
+    (tool-calls / mutations), PI `bytes_output=844,124` vs OAI `812`
+    (~1,040× ratio), PI `bytes_observation=14,858` vs OAI `6,015`.
+  - Commentary updated from "across all three pairs" to "across all
+    four pairs"; the bytes_observation scaling clause extended to note
+    the T18 PI cell issued 2× as many reads as the T18 OAI cell with
+    bytes_observation ~2.47× larger correspondingly.
+  - PI bundle pointers list extended to include iter 14 (T18); OAI
+    bundle pointers list extended to include
+    `bench/runs/search-mdtools-multistep-Qwen3.5-27B-4bit-2026-04-21/`
+    (T18).
+  - Iter-18 T2 PI bundle cited explicitly as the fifth PI bundle, with
+    the published note that no comparable OAI same-task `mdtools` cell
+    exists so it is not yet eligible for the table; T2 is the first
+    durable bundle in `bench/runs/` carrying iter-17's
+    `holdout_version: 1` stamp on `run.json`.
+- **Data points (iter-19 additions, source: typed artifacts):**
+  - T18 mdtools PI (iter 14): `tool_calls=10`, `mutations=2`,
+    `bytes_output=844,124`, `bytes_observation=14,858` from
+    `bench/runs/checkpoint-pi-T18-mdtools-gpt5.4mini-2026-04-26/results.json`.
+  - T18 mdtools OAI Qwen3.5-27B-4bit: `tool_calls=5`, `mutations=2`,
+    `bytes_output=812`, `bytes_observation=6,015` from
+    `bench/runs/search-mdtools-multistep-Qwen3.5-27B-4bit-2026-04-21/results.json`.
+  - Ratios: bytes_output 844,124 / 812 = 1,039.56 → ~1,040×;
+    bytes_observation 14,858 / 6,015 = 2.470 → ~2.47×. Both consistent
+    with iter 11's published rule (1,000–4,000× bytes_output ratio
+    range; bytes_observation scales with tool-call count when it
+    differs).
+- **Closure-discipline ratification of iter 18 paired with the
+  publication:** independent re-reading of every iter-18 typed-artifact
+  claim against
+  `bench/runs/checkpoint-pi-T2-mdtools-gpt5.4mini-2026-04-26/`:
+  - `results.json`: `correct=true`, `correct_neutral=true`,
+    `elapsed_seconds=17.72`, `tool_calls=4`, `mutations=1`,
+    `policy_violations=1`, `requeried=true`, `bytes_observation=732`,
+    `bytes_output=1,811,504`. ✓
+  - `run.json`: line 20 reads `"holdout_version": 1` alongside the
+    existing 15 metadata keys (the first durable bundle in
+    `bench/runs/` carrying the iter-17 stamp). ✓
+  - `logs/T2_mdtools_1777217027/pi-audit.jsonl`: 10 events parse
+    cleanly via `bench.pi_audit_adapter.summarize_pi_audit_events` —
+    1 `model_change` + 1 `thinking_level_change` + 4 `tool_call` + 4
+    `tool_result`. ✓
+  - `logs/T2_mdtools_1777217027/guard.log`: 5 events via
+    `bench.command_policy.load_guard_events` — 1 deny `printf`, 4
+    allows (allow `md ./md blocks`, allow `cat` heredoc, allow `md
+    ./md insert-block --from`, allow `md ./md blocks`). ✓
+  All claims reproduce bit-exact. No new defect surfaced during
+  verification. The cross-counter measurement note in iter 18's entry
+  on the adapter `policy_violations` field stands as written
+  (informational-only); per iter 15 learning #4 and the iter-15
+  second-opinion ratification, no silent amendment is authored to
+  historical entries.
+- **Cheap channel:** green before and after (cargo: 32+37+16+0 across
+  integration suites; python: 68 tests OK across the 8 spec-named
+  modules; `harness.py --md-binary` dry-run all 24 tasks PASS
+  dual-scorer).
+- **Comparability framing:** the iter-19 table extension preserves the
+  iter-11 caveats — model-confounded across each pair, `correct` not
+  aggregated, behavioral consistencies reported as observations
+  rather than comparisons. The new T18 row introduces additional
+  model variance (Qwen3.5-27B-4bit OAI for T18, vs Qwen3.5-122B-A10B-4bit
+  for the other three rows), explicitly disclosed in the caption. The
+  iter-19 row strengthens iter 11's executor-locality finding by
+  widening the empirical base to 4 task families (extraction,
+  mutation, link extraction, multi-step) without weakening the rule
+  (~1,040× still well within the 10³–10⁴ envelope from iter 11).
+- **Same-family-rule discharge:** iter 16 was oracle hardening
+  (runtime guard), iter 17 was oracle hardening (holdout_version
+  stamping), iter 18 was the expensive channel (T2 PI bundle). Iter
+  19's specification-coherence move (additive measurement
+  publication) is not same-family with any of those — the
+  specification-coherence axis was last touched at iter 13
+  (line-number drift correction), so this is a fresh axis from the
+  6-iteration perspective. The fresh-failing-trace escape clause
+  additionally applies: the iter-14 T18 PI bundle has been sitting in
+  the repo since iter 14 uncited in the cross-executor section, and
+  iter 11's learning #1 was the pre-recorded forcing function.
+- **Closure-discipline status:** this is a substantive
+  published-narrative edit authored by iter 19, parallel to iter 11.
+  Per the FIXED ≠ CLOSED rule, the entry is
+  FIXED_PENDING_CONFIRMATION-shaped; a future review pass should
+  ratify by re-reading the cited bundles' results.json files against
+  the new table row and the updated bundle-pointer list. No
+  retroactive edits to historical bundles or to iter 11's original
+  entry; iter 19's entry forward-points to the change it authored.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not run the expensive outer channel (the additions
+  are entirely from existing typed artifacts). Does not retroactively
+  modify any existing bundle or any historical ledger entry. Does
+  not amend any pass-rate claim — the table reports per-cell
+  behavioral measurements (`bytes_output`, `bytes_observation`,
+  `tool_calls`, `mutations`), not pass rates. No new finding opened,
+  no holdout artifact touched.
+
 ### Quiet-signal checkpoint discharge (2026-04-26 iter 18)
 
 Per the spec's "After 3 consecutive iterations with the cheap channel
@@ -804,19 +938,20 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 18)
+### Halt-condition / quiet-signal status (after iter 19)
 
-After the iter-18 quiet-signal-checkpoint discharge (see
-"Quiet-signal checkpoint discharge (2026-04-26 iter 18)" above):
+After the iter-19 cross-executor measurement-publication and paired
+closure-discipline ratification of iter 18 (see "Cross-executor
+same-task measurement extension (2026-04-26 iter 19)" above):
 
-- **OPEN findings count:** 0. Iter 18's expensive-channel run
-  surfaced no new defect — the bundle is dual-scorer PASS, the
-  pi-audit.jsonl parses cleanly, and the 1 policy_violation is a
-  documented behavioral pattern (stdin-piping deny + `--from`
-  recovery, well-known from project memory) rather than a defect.
-  The zero-OPEN state holds through iters 8, 9, 10, 11, 12, 13, 14,
-  15, 16, 17, and 18 — the fourteenth consecutive zero-OPEN review
-  round.
+- **OPEN findings count:** 0. Iter 19's specification-coherence
+  publication surfaced no new defect — the iter-18 typed-artifact
+  claims all reproduce bit-exact, and the iter-14 T18 PI bundle's
+  data points reproduce bit-exact through the cross-executor
+  ratio computation (844,124 / 812 = 1,039.56 → ~1,040×; 14,858 /
+  6,015 = 2.470 → ~2.47×). The zero-OPEN state holds through iters
+  8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, and 19 — the
+  fifteenth consecutive zero-OPEN review round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
@@ -824,11 +959,25 @@ After the iter-18 quiet-signal-checkpoint discharge (see
   no expensive run), iter 17 quiet (cheap-channel-only oracle
   telemetry stamping, no expensive run), iter 18 expensive
   (content-delivery-family coverage extension + first stamped
-  bundle). Counter reset to **0** after iter 18. Iters 19–21
+  bundle), iter 19 quiet (cheap-channel-only specification-coherence
+  publication, no expensive run; counter at **1**). Iters 20–21
   admissible quiet; iter 22 is the next forced expensive-or-halt
   point per the spec's "3 consecutive iterations with the cheap
   channel green, no new failing trace, and no new finding added"
   rule.
+- **Iter-19 same-family-rule discharge:** iter 16 was oracle
+  hardening (runtime guard), iter 17 was oracle hardening
+  (holdout_version stamping), iter 18 was the expensive channel
+  (T2 PI bundle). Iter 19 is a specification-coherence move
+  (additive measurement publication parallel to iter 11) — not
+  same-family with any of iters 16–18. The specification-coherence
+  axis was last touched at iter 13 (line-number drift correction),
+  so this is a fresh axis from the 6-iteration perspective. The
+  fresh-failing-trace escape clause additionally applies: the
+  iter-14 T18 PI bundle has been sitting in the repo since iter 14
+  uncited in the cross-executor section, and iter 11's learning #1
+  ("Future expensive-channel runs should be examined for downstream
+  pairing potential") is the pre-recorded forcing function.
 - **Iter-18 same-family-rule discharge:** iter 16 was
   oracle-trustworthiness hardening (runtime-guard mechanical
   promotion), iter 17 was also oracle-trustworthiness hardening
