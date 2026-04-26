@@ -14,6 +14,159 @@ _(none — P3 promoted to CLOSED on 2026-04-26 iter 6 review pass; see "Confirma
 
 ## CLOSED
 
+### Comparable-harness-axis cell coverage extension (2026-04-26 iter 21)
+
+Iter 21 broke the iters 19–20 specification-coherence chain by running
+the expensive outer channel on a previously-uncovered scorer branch:
+T21 mdtools through the PI runner. This is the **sixth** PI runner
+bundle in `bench/runs/` and the **first** cell that exercises the
+`compare_frontmatter_json` structural scorer branch end-to-end through
+the PI executor. Parallel in structural position to iter 10
+(proactive intervention shift before the forced-expensive point) and
+parallel in shape to iter 4 / 7 / 10 / 14 / 18 (PI bundle introductions
+that extend executor coverage to a new family or scorer branch).
+
+- **Disturbance:** intervention diversity — drifting toward
+  spec-coherence concentration after iters 19 and 20 both did
+  specification-coherence work (iter 19 additive measurement
+  publication, iter 20 corrective line-number drift fix paired with
+  iter-19 ratification). A third consecutive same-axis move at iter 21
+  would extend the chain to clear concentration; the same-family rule
+  required either an axis shift, a fresh failing trace, or halt with
+  `stop-and-summarize`. Iter 21's pre-iteration verification swept all
+  `bench/harness.py:LINE` references in published narrative
+  (`bench/RESULTS.md`, `README.md`, `CLAUDE.md`, `specs/**`,
+  `bench/retracted_2026-04-24/README.md`) and all
+  `bench/oai_loop.py` / `bench/pi_audit_adapter.py` references in the
+  ledger — every citation reproduces bit-exact against the current
+  code. No fresh failing trace surfaced. With no fresh trace and a
+  cheap, anchored intervention available, the axis shift is the
+  cleanest discharge.
+- **Anchor:** missing evaluator artifact — *first PI bundle exercising
+  the `compare_frontmatter_json` scorer branch end-to-end*. T21 is the
+  only task in the live 24-task corpus that uses
+  `compare_frontmatter_json: true`; before iter 21, the PI runner had
+  exercised four distinct scorer branches across five bundles
+  (T1: structural+heading_tree; T7/T2: normalized_text;
+  T18: raw_bytes/file_contents; T22: structural+link_destinations).
+  Iter 21's bundle adds the fifth distinct scorer-branch coverage
+  cell (`structural+frontmatter_json`), parallel to iter 14's first
+  raw_bytes coverage and iter 22's link_destinations coverage. (Halt
+  was defensible too, but premature given the available cheap,
+  anchored intervention.)
+- **Bundle:** `bench/runs/checkpoint-pi-T21-mdtools-gpt5.4mini-2026-04-26/` —
+  Single task (T21, search-split, frontmatter-extraction). Single mode
+  (mdtools). Single run. Model `openai-codex/gpt-5.4-mini` at
+  `thinking_level=minimal`, recorded per-result and per-run on the
+  metadata bundle. `run.json` line 18 reads
+  `"holdout_version": 1` — the second durable bundle in `bench/runs/`
+  carrying the iter-17 stamp on a real benchmark cell (after iter
+  18's T2 bundle).
+- **Verdict:** T21 mdtools dual-scorer PASS in 6.7s with 1 tool call
+  (`./md frontmatter <input> --json`), 0 mutations, 0
+  policy_violations, `requeried=false`, `bytes_observation=565`,
+  `bytes_output=801,952` (PI streaming overhead, see P3 cross-executor
+  rule in `bench/RESULTS.md`),
+  `diff_report: frontmatter_json: OK`. Pi-audit log preserved at
+  `logs/T21_mdtools_1777219293/pi-audit.jsonl` (4 events:
+  `model_change`, `thinking_level_change`, `tool_call`,
+  `tool_result`), parses cleanly via
+  `bench/pi_audit_adapter.summarize_pi_audit_events` with
+  `tool_calls=1`, `tool_results=1`, `tool_errors=0`,
+  `bytes_observation=565`, `mutations=0`, `requeried=False`,
+  `policy_violations=0`, `model='openai-codex/gpt-5.4-mini'`,
+  `thinking_level='minimal'` — all bit-exact against
+  `results.json`.
+- **Comparability framing:** this is the first cell for (PI runner,
+  gpt-5.4-mini, mdtools, minimal thinking, T21, runs_per_task=1,
+  task-set version: live `bench/tasks/tasks.json` with
+  `holdout_version=1` from `bench/holdout/fingerprints.json`). It is
+  **NOT** a holdout reconfirmation (T21 is search-split, not
+  holdout) and **NOT** a comparison against the iter-4 T1, iter-7
+  T22, iter-10 T7, iter-14 T18, or iter-18 T2 bundles — same
+  executor / model / mode / thinking / runs-per-task across all six,
+  but different tasks and different scorer-branch slices, so any
+  pass-rate-aggregation across cells would be a search-set
+  observation, not a comparison. Likewise it is **NOT** an
+  apples-to-apples comparison to any oai-loop T21 bundle (none
+  exists on file; verified by scanning `search-mdtools-*`,
+  `search-hybrid-*`, `holdout-mdtools-*`, `holdout-hybrid-*` for
+  any T21 result row), so no cross-executor pair extension to the
+  iter-19 same-task table is yet possible — content-delivery T2 is
+  the same gap class.
+- **What this exercises:** for the first time in `bench/runs/`, the
+  PI runner pipeline (harness pi-json branch → `pi --mode json` →
+  audit extension at `~/.pi/agent/extensions/audit/index.ts` →
+  `bench/pi_audit_adapter.summarize_pi_audit_events`) is verified
+  end-to-end on a `compare_frontmatter_json` structural scorer
+  cell. The single-tool-call shape matches T1 and T22 (zero-mutation
+  extraction) but the scorer branch is unique. The `md frontmatter
+  --json` command surface is also exercised end-to-end through PI
+  for the first time — prior PI bundles used `outline`, `links`,
+  `tasks`, `set-task`, `delete-section`, `blocks`, `insert-block`,
+  `cat`.
+- **Implicit ratification of iter 20:** per the closure-discipline
+  rule (FIXED ≠ CLOSED) "or the next pass not re-raising the
+  finding," iter 21's pre-iteration verification re-read
+  `bench/harness.py:1282` and `:1318` (iter-20's corrected
+  citations) and confirmed both lines carry
+  `bytes_output = len(raw_stdout.encode())` bit-exact:
+  - Line 1282 sits in the pi-json runner branch immediately after
+    `raw_stdout = result.stdout` inside the `try:` block following
+    `subprocess.run([…pi --mode json…])`.
+  - Line 1318 sits in the oai-loop branch (the `else:` after the
+    pi-json branch's TimeoutExpired/parsed_output sequence)
+    immediately after `raw_stdout = result.stdout` inside the
+    `try:` block following `subprocess.run([…agent_cmd…])`.
+  No re-raise. Iter 20's
+  `FIXED_PENDING_CONFIRMATION`-shaped substantive
+  published-narrative edit at `bench/RESULTS.md:54` is now
+  ratified. Parallel to iter 4's implicit ratification of iters 1–3
+  via expensive run, and iter 14's implicit ratification of iter 13
+  via expensive run.
+- **What this discharges:** intervention-diversity drift, parallel
+  to iter 10. The spec-coherence axis was the most recent move
+  (iters 19, 20); iter 21 cleanly shifts to intervention-diversity /
+  failure-legibility. Iter 22 is now newly admissible as quiet
+  under the reset counter; the next forced expensive-or-halt is
+  iter 24 unless other rules fire.
+- **What it surfaced:** no new defect. The PI pipeline produced
+  fresh typed signal that exercised the frontmatter_json scorer
+  branch cleanly. This is a "no new finding" expensive run,
+  admissible as fresh signal because the bundle is on a different
+  (task, scorer-branch) cell than iters 4 / 7 / 10 / 14 / 18, and
+  the audit log + scorer outputs are durably persisted as a
+  queryable bundle.
+- **Cheap channel:** green before and after (`cargo test --quiet`
+  all suites pass: 24 + 32 + 37 + 16 + 0 + 0 across integration-test
+  binaries; 68 python unittests OK across the 8 spec-named modules;
+  `harness.py --md-binary` dry-run all 24 tasks PASS dual-scorer).
+- **Closure-discipline status:** this is a non-finding bundle
+  introduction, not a substantive code change, parallel to iter 4 /
+  7 / 10 / 14 / 18 entries. Per iter-15's labeling discipline, this
+  is **not** frontier expansion in the sense of evaluator repair or
+  product change — it is durable PI executor coverage that fills a
+  scorer-branch gap. The iter-21 entry is forward-pointing only;
+  no historical entry is silently amended.
+- **Same-family-rule discharge:** iter 19 was specification
+  coherence (additive measurement publication), iter 20 was
+  specification coherence (corrective line-drift fix paired with
+  iter-19 ratification), iter 21 is intervention-diversity
+  (expensive channel introducing fresh signal on a previously-
+  uncovered scorer branch). The shift from spec-coherence
+  substantive narrative edits to intervention-diversity is itself
+  the discharge — parallel to iter 4 (after iters 1–3 oracle), iter
+  10 (after iters 8–9 spec-coherence), iter 14 (after iters 11–13
+  spec-coherence). The forcing function is the iter-19/20 chain
+  approaching concentration without a fresh trace; the cheapest
+  axis-shift available is the T21 PI run.
+- **What this does NOT do:** does not promote any product anchor
+  (`bench/probes/anchor-validation/` still does not exist, no
+  candidate primitive validated). Does not bump `holdout_version`
+  (still 1). Does not modify any prior bundle. Does not amend any
+  pass-rate claim. Does not retroactively edit any historical
+  ledger entry.
+
 ### Confirmation review pass (2026-04-26 iter 20)
 
 Closure-discipline review of iter-19's cross-executor measurement
@@ -1057,34 +1210,53 @@ For audit traceability of the closure-review pass:
   `json_canonical`, `frontmatter_json`, and `link_destinations` scorer
   branches all OK on the relevant tasks).
 
-### Halt-condition / quiet-signal status (after iter 20)
+### Halt-condition / quiet-signal status (after iter 21)
 
-After the iter-20 closure-discipline ratification of iter 19 paired
-with corrective line-number drift fix at `bench/RESULTS.md:54` (see
-"Confirmation review pass (2026-04-26 iter 20)" above):
+After the iter-21 proactive expensive-channel run on T21 mdtools PI
+(scorer-branch coverage extension to `compare_frontmatter_json`,
+implicit ratification of iter 20; see "Comparable-harness-axis cell
+coverage extension (2026-04-26 iter 21)" above):
 
-- **OPEN findings count:** 0. Iter 20's verification surfaced one
-  fresh failing trace (drifted `bench/harness.py:1229` and `:1265`
-  citations at RESULTS.md:54) which iter 20 corrected in the same
-  iteration; iter-19's data claims all reproduce bit-exact (T1, T7,
-  T22, T18 table rows; PI bundle pointers; OAI bundle pointers; T2
-  no-comparable-cell claim). The zero-OPEN state holds through iters
-  8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, and 20 — the
-  sixteenth consecutive zero-OPEN review round.
+- **OPEN findings count:** 0. Iter 21's pre-iteration verification
+  swept all `bench/harness.py:LINE` references in published narrative
+  and all `bench/oai_loop.py` / `bench/pi_audit_adapter.py` references
+  in the ledger; every citation reproduces bit-exact against the
+  current code. Iter-20's `FIXED_PENDING_CONFIRMATION`-shaped fix
+  (RESULTS.md:54 line citations `:1282`/`:1318`) is implicitly
+  ratified by not being re-raised. The zero-OPEN state holds through
+  iters 8–21 — the **seventeenth** consecutive zero-OPEN review
+  round.
 - **Quiet-signal counter:** iters 5–6 quiet, iter 7 expensive, iters
   8–9 quiet, iter 10 expensive, iters 11–13 quiet, iter 14 expensive
   (multistep-family coverage extension), iter 15 quiet (ledger-only
-  ratification), iter 16 quiet (cheap-channel-only oracle hardening,
-  no expensive run), iter 17 quiet (cheap-channel-only oracle
-  telemetry stamping, no expensive run), iter 18 expensive
-  (content-delivery-family coverage extension + first stamped
-  bundle), iter 19 quiet (cheap-channel-only specification-coherence
-  publication, no expensive run), iter 20 quiet (cheap-channel-only
-  closure-discipline ratification + corrective line-drift fix; counter
-  at **2**). Iter 21 admissible quiet; iter 22 is the next forced
-  expensive-or-halt point per the spec's "3 consecutive iterations
-  with the cheap channel green, no new failing trace, and no new
-  finding added" rule.
+  ratification), iter 16 quiet (cheap-channel-only oracle hardening),
+  iter 17 quiet (cheap-channel-only oracle telemetry stamping), iter
+  18 expensive (content-delivery-family coverage extension + first
+  stamped bundle), iter 19 quiet (cheap-channel-only
+  specification-coherence publication), iter 20 quiet
+  (cheap-channel-only closure-discipline ratification + corrective
+  line-drift fix), iter 21 expensive (frontmatter_json scorer-branch
+  coverage extension; counter reset to **0**). Iters 22–24 admissible
+  quiet; iter 25 is the next forced expensive-or-halt point per the
+  spec's "3 consecutive iterations with the cheap channel green, no
+  new failing trace, and no new finding added" rule.
+- **Iter-21 same-family-rule discharge:** iter 19 was specification
+  coherence (additive measurement publication), iter 20 was also
+  specification coherence (corrective line-drift fix paired with
+  iter-19 ratification). A third consecutive same-axis move at iter
+  21 would extend the chain to clear concentration; the same-family
+  rule required either an axis shift, a fresh failing trace, or
+  halt. The iter-21 pre-iteration sweep surfaced no fresh failing
+  trace (all citations bit-exact). With no fresh trace and a cheap,
+  anchored intervention available (T21 PI run extending PI
+  scorer-branch coverage to `compare_frontmatter_json`), the axis
+  shift to intervention-diversity is the cleanest discharge.
+  Parallel to iter 10 (after iters 8–9 spec-coherence), iter 14
+  (after iters 11–13 spec-coherence), iter 18 (after iters 16–17
+  oracle hardening). The shift is independently justified by the
+  missing-evaluator-artifact frontier anchor — T21 is the only task
+  in the corpus that exercises `compare_frontmatter_json`, and the
+  PI executor had not previously been exercised on that branch.
 - **Iter-20 same-family-rule discharge:** iter 19 was specification
   coherence (additive measurement publication); iter 20 is also
   specification coherence (corrective line-number drift fix paired
