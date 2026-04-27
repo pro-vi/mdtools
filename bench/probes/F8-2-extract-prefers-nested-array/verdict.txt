@@ -1,0 +1,26 @@
+F8-2 — extract_last_json prefers a nested array over the wrapping object
+
+== filed verdict (T8 iter 4, 2026-04-26) ==
+
+  $ python3 bench/probes/F8-2-extract-prefers-nested-array/probe.py
+  Stage A — extract_last_json on raw agent text:
+    returned (first 100 chars): [{"heading":{"level":1,"text":"Top"}}]
+    parsed type: list
+
+  Stage B — select_json_envelope_actual (text-only transcript):
+    returned (first 100 chars): [{"heading":{"level":1,"text":"Top"}}]
+    parsed type: list
+
+  VERDICT: FAIL — extractor returned the nested entries array on both
+  stages. Downstream score_structural_json will mark the task FAIL
+  because the actual is a list and expected is a dict, even though the
+  agent's correct envelope answer was present in the text.
+
+  exit code: 1 (live)
+
+== closure verdict ==
+
+  (pending) — to be appended when F8-2 is closed by a follow-up
+  iteration that hardens extract_last_json to prefer the wrapping
+  object over a nested array. Expect exit code 0 with the wrapping
+  envelope returned on both stages.

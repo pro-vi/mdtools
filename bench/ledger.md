@@ -14,7 +14,7 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-(none)
+- **F8-2** — `extract_last_json` prefers a nested array over the wrapping object, causing a false-NEGATIVE on json_envelope tasks where the agent's text output embeds the answer envelope (`{…,"entries":[…]}`) within prose. P1. Filed T8 iter 4. Probe at `bench/probes/F8-2-extract-prefers-nested-array/probe.py` (Stage A direct extractor + Stage B harness path through `select_json_envelope_actual`); both stages exit 1 = live. Closure plan: prefer outermost candidate (or shape-aware preference) on the text-output branch; pin with a unit test in `bench/test_harness_json.py`.
 
 ## Closed in T8
 
@@ -66,6 +66,43 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 4 (2026-04-26): Fresh failing trace — F8-2 extract_last_json prefers nested array
+
+**Substantive move:** item 1 (fresh failing trace against existing surface).
+Filed F8-2 against `extract_last_json` (`bench/harness.py:1539-1584`) and the
+text-output branch of `select_json_envelope_actual` (`harness.py:1525-1532`).
+Symmetric to F8-1 but on the text-output side: the extractor's
+unconditional "prefer arrays over objects" rule returns a nested
+`entries`/`results`/`links` array when the agent's wrapping envelope is
+embedded in prose, and the text-output branch passes the candidate
+through without a shape check, so the array reaches
+`score_structural_json` and triggers the "expected top-level JSON
+object" early-out FAIL.
+
+**Probe:** `bench/probes/F8-2-extract-prefers-nested-array/probe.py`
+exits 1 on both stages (direct extractor + harness path through
+`select_json_envelope_actual` on a text-only transcript). The probe is
+a standalone script, not a unit test, so the cheap channel stays green
+while F8-2 is OPEN — same staging as F8-1.
+
+**Axis served:** failing-trace-freshness (counter resets to 0). Hooked
+from iter 3's learning that "the next iteration must produce a fresh
+failing trace, run an auto-research generator pass, or operate the
+probe channel with a new variant" — this iteration produces the fresh
+trace by mining the F4/F8-1 surface for its symmetric text-output gap.
+
+**Cheap channel:** green pre- and post-change. 53 cargo unit tests +
+104 python unittest tests pass; harness dry-run unaffected (no
+production code changed). The probe directory is the only addition.
+
+**Closure plan:** next iteration may close F8-2 by hardening
+`extract_last_json` so a wrapping object is preferred over a nested
+array (e.g. by tracking source-span containment, or by dropping the
+unconditional array-preference rule and preferring the outermost
+top-level candidate by source order). Pin with a unit test in
+`bench/test_harness_json.py` using the same `WRAPPING_ENVELOPE` shape.
+Attribution probe = rerun `probe.py`; expect exit 0 on both stages.
 
 ### Iter 3 (2026-04-26): Close F8-1 — subset check on json_envelope shape match
 
