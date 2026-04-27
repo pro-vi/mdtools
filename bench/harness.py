@@ -65,6 +65,11 @@ def _render_inline_to_plaintext(children) -> str:
             parts.append(child.content)
         elif child.type == "image":
             parts.append(_render_inline_to_plaintext(child.children))
+        elif child.type in ("softbreak", "hardbreak"):
+            # Multi-line setext headings carry softbreaks between physical
+            # lines. Dropping them concatenates words and partially undoes
+            # F8-6 by reintroducing scorer divergence on multi-line headings.
+            parts.append(" ")
     return "".join(parts)
 
 
@@ -1659,7 +1664,12 @@ def extract_last_json(text: str) -> str:
                 elif ch == '"':
                     in_string = False
                 continue
-            if ch == '"':
+            # Quote-state is meaningful only inside an active JSON span.
+            # Outside any candidate (depth == 0) prose quotes must be
+            # ignored: an unmatched quote in a prose prefix would otherwise
+            # latch in_string=True forever and skip every subsequent
+            # opener, returning raw text instead of the trailing envelope.
+            if depth > 0 and ch == '"':
                 in_string = True
                 continue
             if ch == opener:

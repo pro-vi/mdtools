@@ -231,6 +231,30 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         result = extract_last_json(agent_text)
         self.assertEqual(json.loads(result), json.loads(envelope))
 
+    def test_extract_last_json_ignores_unmatched_prose_quote_before_json(self) -> None:
+        """PR #4 review (Codex P2): pre-fix, a prose prefix containing an
+        unmatched `"` would latch `in_string=True` forever, causing every
+        subsequent `{`/`[` to be skipped and returning the raw text. The
+        fix scopes quote tracking to active JSON spans (depth > 0) so
+        prose quotes are ignored."""
+        text = 'The agent says: "almost done\n\n{"answer":42,"score":1}\n'
+        result = extract_last_json(text)
+        self.assertEqual(json.loads(result), {"answer": 42, "score": 1})
+
+    def test_extract_last_json_handles_multiple_unmatched_prose_quotes(self) -> None:
+        """Stress case: several unmatched quotes scattered through prose
+        before the trailing envelope. Pre-fix each quote toggled in_string
+        unpredictably; post-fix prose quotes are ignored entirely outside
+        any candidate."""
+        text = (
+            "First line with a stray \" quote.\n"
+            "Second line says \"hello without closing.\n"
+            "Then more prose, and \"another opener.\n"
+            '{"final":"envelope"}\n'
+        )
+        result = extract_last_json(text)
+        self.assertEqual(json.loads(result), {"final": "envelope"})
+
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {
@@ -710,6 +734,23 @@ class NeutralHeadingTreeInlineRenderingTests(unittest.TestCase):
             neutral_heading_tree(sample),
             _md_heading_tree(sample, MD_BIN),
             "neutral must match md outline on image+html_inline headings",
+        )
+
+    def test_neutral_heading_tree_preserves_softbreak_in_setext_heading(self) -> None:
+        """PR #4 review (Codex P2): pre-fix, softbreak/hardbreak tokens
+        were dropped from `_render_inline_to_plaintext`, concatenating
+        words across line breaks in multi-line setext headings. That
+        partially undid F8-6 by reintroducing scorer divergence on any
+        heading whose inline content spans multiple physical lines. The
+        fix emits a single space for break tokens. This test pins both
+        the rendered output and parity with `_md_heading_tree`."""
+        sample = "Multi\nLine Heading\n=================\n\nbody text\n"
+        result = neutral_heading_tree(sample)
+        self.assertEqual(result, [(1, "Multi Line Heading")])
+        self.assertEqual(
+            result,
+            _md_heading_tree(sample, MD_BIN),
+            "neutral must match md outline on multi-line setext heading",
         )
 
 
