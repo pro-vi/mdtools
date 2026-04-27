@@ -1,6 +1,14 @@
 # F8-3 — `extract_last_json` depth scanner is brace-in-string blind
 
-**Status:** OPEN (filed T8 iter 6).
+**Status:** CLOSED T8 iter 7. The depth scanner in
+`extract_last_json` (`bench/harness.py`) now skips characters between
+unescaped `"` boundaries in both `{`/`}` and `[`/`]` passes, so brace
+or bracket characters inside JSON string values no longer falsely
+close the candidate. Pinned by
+`bench/test_harness_json.py::test_extract_last_json_honors_string_boundaries_in_depth_scan`
++ `::test_extract_last_json_handles_escaped_quotes_in_string_value`.
+Attribution probe rerun: `probe.py` exit 0 on both stages (filed
+state was exit 1).
 
 **Surface:** `bench/harness.py` `extract_last_json` (lines ~1539–1587)
 and the text-output branch of `select_json_envelope_actual` (lines

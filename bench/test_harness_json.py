@@ -137,6 +137,49 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         result = extract_last_json(agent_text)
         self.assertEqual(json.loads(result), json.loads(final_answer))
 
+    def test_extract_last_json_honors_string_boundaries_in_depth_scan(self) -> None:
+        """F8-3 closure (T8 iter 7) — the depth scanner must skip
+        brace/bracket characters that appear inside JSON string
+        values, so the wrapping envelope is enumerated as a candidate
+        even when a heading.text or other string field contains
+        `}`/`]`/`{`/`[`. Pre-fix, the {/} pass closed prematurely on
+        the brace inside the string, the truncated candidate failed
+        json.loads, start reset to -1, and the outer envelope was
+        never recorded. The probe lives at
+        `bench/probes/F8-3-brace-in-string-value/probe.py`."""
+        envelope = (
+            '{"schema_version":"mdtools.v1","file":"/tmp/x.md",'
+            '"entries":[{"heading":{"level":1,"text":"Heading with } brace",'
+            '"block_index":0}}]}'
+        )
+        agent_text = (
+            "I ran `md outline --json /tmp/x.md` and got this answer:\n"
+            f"{envelope}\n"
+            "That is the document outline.\n"
+        )
+        result = extract_last_json(agent_text)
+        parsed = json.loads(result)
+        self.assertIsInstance(parsed, dict)
+        self.assertEqual(parsed.get("schema_version"), "mdtools.v1")
+        self.assertEqual(json.loads(result), json.loads(envelope))
+
+    def test_extract_last_json_handles_escaped_quotes_in_string_value(self) -> None:
+        """Non-regression for the string-aware depth scanner — escape
+        sequences inside string values must not be mis-detected as
+        string terminators. Pins that F8-3's fix doesn't regress on
+        payloads that include escaped quotes alongside non-string
+        brace characters elsewhere in the envelope."""
+        envelope = (
+            '{"file":"doc.md","entries":[{"heading":{"text":"says \\"hi\\"",'
+            '"level":1}}]}'
+        )
+        agent_text = (
+            "Here is the answer:\n"
+            f"{envelope}\n"
+        )
+        result = extract_last_json(agent_text)
+        self.assertEqual(json.loads(result), json.loads(envelope))
+
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {

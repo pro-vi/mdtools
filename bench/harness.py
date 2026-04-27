@@ -1549,7 +1549,14 @@ def extract_last_json(text: str) -> str:
     contains another (e.g. envelope wrapping a nested array), the
     container's end is greater; when candidates are non-overlapping
     siblings (independent JSON documents in the agent text), the later
-    one has a greater end and is the agent's final answer."""
+    one has a greater end and is the agent's final answer.
+
+    F8-3 closure (T8 iter 7): the depth scanner now skips characters
+    between unescaped `"` boundaries so brace/bracket characters
+    inside JSON string values do not falsely close a candidate. Pre-
+    fix, a `}` inside a heading.text value caused the {/} pass to
+    record a truncated candidate that failed json.loads, then reset
+    start = -1, so the actual wrapping envelope was never enumerated."""
     clean = re.sub(r"```(?:json)?\s*\n?", "", text)
 
     try:
@@ -1563,7 +1570,20 @@ def extract_last_json(text: str) -> str:
     for opener, closer in [("[", "]"), ("{", "}")]:
         depth = 0
         start = -1
+        in_string = False
+        escape = False
         for i, ch in enumerate(clean):
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+            if ch == '"':
+                in_string = True
+                continue
             if ch == opener:
                 if depth == 0:
                     start = i

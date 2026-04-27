@@ -19,3 +19,13 @@ exit code: 1 (live failing trace)
 
 [F8-3 live] depth scanner is brace-in-string blind
 ==============================================================
+
+==============================================================
+[closure] T8 iter 7 (2026-04-26) — string-aware depth scanner landed
+exit code: 0 (inert)
+--------------------------------------------------------------
+[OK stage A] extract_last_json returned the wrapping envelope
+[OK stage B] select_json_envelope_actual surfaced the envelope
+
+[F8-3 inert] both stages returned the wrapping envelope
+==============================================================

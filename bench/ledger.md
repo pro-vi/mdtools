@@ -14,10 +14,11 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-- **F8-3** — `extract_last_json` depth scanner is brace-in-string blind. P1 false-NEGATIVE on json_envelope tasks where the wrapping envelope's heading/text/snippet string values contain `}`/`]`/`{`/`[`. Filed T8 iter 6. Probe at `bench/probes/F8-3-brace-in-string-value/probe.py` (exit 1 = live). Symmetric to F8-2 but on candidate enumeration: the wrapping envelope is never recorded as a `{…}` candidate at all. Closure plan: string-aware depth scanner; attribution probe = rerun probe.py expecting exit 0 on both stages.
+(none)
 
 ## Closed in T8
 
+- **F8-3** — `extract_last_json` depth scanner counted brace/bracket characters inside JSON string values as real openers/closers, so a `}` inside a heading.text value caused the wrapping envelope to never be enumerated as a candidate. P1 false-NEGATIVE on json_envelope tasks. Filed T8 iter 6, CLOSED T8 iter 7. String-aware scanner at `bench/harness.py` `extract_last_json` skips content between unescaped `"` boundaries in both passes; pinned by `bench/test_harness_json.py::test_extract_last_json_honors_string_boundaries_in_depth_scan` + `::test_extract_last_json_handles_escaped_quotes_in_string_value`. Attribution probe rerun: `bench/probes/F8-3-brace-in-string-value/probe.py` exit 0 = inert.
 - **F8-2** — `extract_last_json` preferred a nested array over the wrapping object, causing a false-NEGATIVE on json_envelope tasks where the agent's text output embeds the answer envelope (`{…,"entries":[…]}`) within prose. P1. Filed T8 iter 4, CLOSED T8 iter 5. Highest-end-position rule at `bench/harness.py` `extract_last_json`; pinned by `bench/test_harness_json.py::test_extract_last_json_prefers_wrapping_envelope_over_nested_array` + `::test_extract_last_json_prefers_latest_sibling_when_no_containment`. Attribution probe rerun: `bench/probes/F8-2-extract-prefers-nested-array/probe.py` exit 0 = inert.
 - **F8-1** — `select_json_envelope_actual` accepted `schema_version`-only overlap as a shape match. P1. Filed T8 iter 2, CLOSED T8 iter 3. Subset check at `bench/harness.py:1510`; pinned by `bench/test_harness_json.py::test_schema_version_only_overlap_rejected` + `::test_subset_check_preserves_extra_keys_on_actual`. Attribution probe rerun: `bench/probes/F8-1-schema-version-overlap/probe.py` exit 0 = inert.
 
@@ -67,6 +68,50 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 7 (2026-04-26): Close F8-3 — string-aware depth scanner on extract_last_json
+
+**Substantive move:** item 2 (close finding by hardening existing
+surface with typed artifact pinning the fix). The `{`/`}` and `[`/`]`
+candidate-enumeration passes in `bench/harness.py` `extract_last_json`
+now skip characters between unescaped `"` boundaries, so brace and
+bracket characters inside JSON string values no longer falsely close
+a candidate. Pre-fix, `}` inside a heading.text value caused the
+`{`/`}` pass to record a truncated candidate that failed json.loads
+and reset start = -1, so the wrapping envelope was never enumerated.
+Post-fix, the scanner walks the actual JSON structure, the wrapping
+envelope is enumerated, and the F8-2 highest-end-position rule
+selects it over the inner entries array.
+
+**Attribution probe:** rerun
+`bench/probes/F8-3-brace-in-string-value/probe.py` → exit 0 on both
+stages (direct extractor + harness path through
+`select_json_envelope_actual` text-output branch). Pre-fix exit was
+1 (live failing trace). Probe directory verdict.txt now captures
+filed and closure verdicts side-by-side; README.md status flipped
+to CLOSED.
+
+**Pinned by:** two tests in `bench/test_harness_json.py` —
+`test_extract_last_json_honors_string_boundaries_in_depth_scan` (the
+F8-3 trace as a typed test) and
+`test_extract_last_json_handles_escaped_quotes_in_string_value`
+(non-regression for `\"` escape sequences inside string values
+alongside non-string brace characters).
+
+**Cheap channel:** green pre- and post-change. 108 python unittest
+tests pass (was 106; +2 new); cargo unit tests pass; harness dry-run
+all 24 tasks PASS dual scorer.
+
+**Axis served:** surface-hardening cadence (F8-3 closed within 1
+iteration of filing — same canonical file→close shape as F8-1 and
+F8-2). All three layers of the json_envelope path are now hardened:
+candidate enumeration (F8-3, this iter), preference rule (F8-2), and
+shape discrimination across both branches (F8-1 + F8-2). After
+closing F8-3, OPEN finding count is back to zero, so halt condition
+#2 (hardening exhaustion) is conditionally live. Iter 8 must produce
+a fresh failing trace, run an auto-research generator pass, or
+operate the probe channel with a new variant — otherwise the
+quiet-trace counter starts ticking toward halt.
 
 ### Iter 6 (2026-04-26): Fresh failing trace — F8-3 extract_last_json brace-in-string blind
 
