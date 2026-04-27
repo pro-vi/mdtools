@@ -274,6 +274,27 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         result = extract_last_json(text)
         self.assertEqual(json.loads(result), [1, 2, 3])
 
+    def test_extract_last_json_handles_unmatched_prose_quote_same_line_as_json(self) -> None:
+        """PR #4 third-round Codex finding: the JSON envelope appears on the
+        same line as an unmatched prose quote, with no newline between.
+        Newline-abort cannot resolve this because string mode never aborts
+        before the envelope. The two-pass scanner catches it via the
+        unshielded pass (which ignores quotes entirely and validates
+        candidates with json.loads)."""
+        text = 'The agent says: "almost done {"answer":42}'
+        result = extract_last_json(text)
+        self.assertEqual(json.loads(result), {"answer": 42})
+
+    def test_extract_last_json_handles_stray_prose_closer_before_envelope(self) -> None:
+        """Depth-clamp at 0 lower bound: a stray prose `}` before any
+        opener used to drive depth negative, preventing the next `{` from
+        setting `start` (because `if depth == 0` never matched on the
+        opener). Clamping at 0 keeps the scanner synced for the genuine
+        trailing envelope."""
+        text = 'leftover prose with stray } closer\n{"k":"v"}\n'
+        result = extract_last_json(text)
+        self.assertEqual(json.loads(result), {"k": "v"})
+
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {

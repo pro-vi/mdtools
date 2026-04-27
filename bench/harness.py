@@ -1651,46 +1651,61 @@ def extract_last_json(text: str) -> str:
 
     candidates = []
     for opener, closer in [("[", "]"), ("{", "}")]:
-        depth = 0
-        start = -1
-        in_string = False
-        escape = False
-        for i, ch in enumerate(text):
-            if in_string:
-                if escape:
-                    escape = False
-                elif ch == "\\":
-                    escape = True
-                elif ch == '"':
-                    in_string = False
-                elif ch == "\n":
-                    # JSON strings cannot contain raw newlines (escapes are
-                    # the spec); prose quotes typically don't span lines.
-                    # Aborting in_string at a newline cleanly handles both
-                    # the unmatched-prose-quote case (PR #4 first-round
-                    # fix) and the balanced-prose-`"}"` case (PR #4
-                    # second-round Codex finding) without a depth gate that
-                    # would expose `}` in `He said "}"` to the depth scanner.
-                    in_string = False
-                continue
-            if ch == '"':
-                in_string = True
-                continue
-            if ch == opener:
-                if depth == 0:
-                    start = i
-                depth += 1
-            elif ch == closer:
-                depth -= 1
-                if depth == 0 and start >= 0:
-                    end_exc = i + 1
-                    candidate = text[start:end_exc]
-                    try:
-                        json.loads(candidate)
-                        candidates.append((start, end_exc, candidate))
-                    except json.JSONDecodeError:
-                        pass
-                    start = -1
+        # Two-pass scan per opener/closer:
+        #
+        # - Shielded pass: tracks quotes so braces/brackets inside JSON
+        #   string values stay invisible to the depth scanner (F8-3) AND
+        #   balanced quoted braces in prose (`He said "}"`) don't leak
+        #   into the depth count (PR #4 round 2). Newline aborts in_string
+        #   so an unmatched prose quote can't latch forever (PR #4 round 1).
+        # - Unshielded pass: ignores quotes entirely. Catches the same-line
+        #   case where the JSON envelope follows an unmatched prose quote
+        #   without any newline (PR #4 round 3) — shielded mode cannot
+        #   resolve that because string mode never aborts before the
+        #   envelope. Invalid prose-shaped candidates are filtered by
+        #   json.loads. Depth is clamped at 0 lower bound so prose closers
+        #   can't desync the scanner.
+        #
+        # Both passes' candidates are collected; the highest-end-position
+        # rule (sort by end, return last) selects the genuine envelope.
+        # Depth-clamp at 0 lower bound is applied to both passes so a stray
+        # prose `}` before the envelope can't poison subsequent openers.
+        for shielded in (True, False):
+            depth = 0
+            start = -1
+            in_string = False
+            escape = False
+            for i, ch in enumerate(text):
+                if shielded and in_string:
+                    if escape:
+                        escape = False
+                    elif ch == "\\":
+                        escape = True
+                    elif ch == '"':
+                        in_string = False
+                    elif ch == "\n":
+                        in_string = False
+                    continue
+                if shielded and ch == '"':
+                    in_string = True
+                    continue
+                if ch == opener:
+                    if depth == 0:
+                        start = i
+                    depth += 1
+                elif ch == closer:
+                    if depth > 0:
+                        depth -= 1
+                        if depth == 0 and start >= 0:
+                            end_exc = i + 1
+                            candidate = text[start:end_exc]
+                            try:
+                                json.loads(candidate)
+                                candidates.append((start, end_exc, candidate))
+                            except json.JSONDecodeError:
+                                pass
+                            start = -1
+                    # depth == 0: stray prose closer; ignore (clamp at 0)
 
     if not candidates:
         return text
