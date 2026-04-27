@@ -14,7 +14,7 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-_(none)_
+- **F8-1** — `select_json_envelope_actual` accepts `schema_version`-only overlap as a shape match. P1. Filed T8 iter 2. Probe: `bench/probes/F8-1-schema-version-overlap/`. Hypothesis: replace intersection check with subset check (`expected_top_keys.issubset(...)`). Attribution probe rerun expected on closure iter.
 
 ## Archived findings (T7, iter 1–67)
 
@@ -62,6 +62,35 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 2 (2026-04-26): Fresh failing trace — F8-1 scorer false-negative
+
+**Substantive move:** item 1 (fresh failing trace against existing surface).
+Filed F8-1 against `select_json_envelope_actual` (harness.py:1481-1526). The
+F4 closure (iter 31) uses `_json_top_keys(parsed) & expected_top_keys`
+(intersection non-empty) as the shape-match gate. Because every `mdtools.v1`
+envelope shares the top-level key `schema_version`, the gate accepts *any*
+mdtools envelope when expected is *any* mdtools envelope — no discrimination
+across mdtools commands. Probe at `bench/probes/F8-1-schema-version-overlap/`
+reproduces the false-negative on a synthetic two-tool-call transcript
+(`md outline --json` then `md tasks --json`); reverse iteration picks the
+tasks envelope, downstream structural comparison fails, agent's correct
+answer in `all_tool_outputs[0]` is skipped. Exit code 1 = live.
+
+**Axis served:** failing-trace-freshness (counter resets to 0). The
+hypothesis was hooked from iter 1's learning ("md tasks --json envelope is
+the same shape that triggered F4… potential failing-trace surface"); this
+iteration converts the hypothesis into a typed probe artifact.
+
+**Cheap channel:** green pre- and post-change. 102 python unittest tests pass;
+85 cargo unit tests pass; harness dry-run all 24 tasks PASS dual scorer. The
+probe is a standalone script under `bench/probes/`, not part of the unit-test
+discovery, so it does not break the cheap channel while the finding is OPEN.
+
+**Closure plan:** next iteration may close F8-1 by replacing the intersection
+check with a subset check (`expected_top_keys.issubset(_json_top_keys(parsed))`)
+plus a unit test in `bench/test_harness_json.py` pinning the discriminating-key
+requirement. Attribution probe = rerun `probe.py`; expect exit 0.
 
 ### Iter 1 (2026-04-26): Ledger archive + first telemetry contract artifact
 

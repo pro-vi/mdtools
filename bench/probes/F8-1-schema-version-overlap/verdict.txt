@@ -1,0 +1,9 @@
+expected envelope keys: schema_version, file, entries
+tasks envelope keys:    schema_version, results
+intersection:           {schema_version}  (single universal key)
+
+actual selected (first 100 chars): {"schema_version":"mdtools.v1","results":[{"file":"x.md","tasks":[]}]}
+
+VERDICT: FAIL — scorer selected tasks envelope on schema_version-only overlap.
+  Downstream structural comparison will see entries=missing on the tasks envelope and mark the task FAIL even though the agent's correct answer is in all_tool_outputs[0].
+exit=1
