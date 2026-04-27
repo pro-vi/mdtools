@@ -972,5 +972,282 @@ class T1UnixModeBaselineTests(unittest.TestCase):
         self.assertNotIn("MISMATCH", m_row["diff_report"])
 
 
+class T7HybridModeBaselineTests(unittest.TestCase):
+    """Cross-mode hybrid coverage second-task trail (iter 63) — promotes
+    iter-61's prose-only ledger claim about the T7 hybrid trajectory
+    ('first PI mutation-family hybrid-mode bundle … T7 hybrid dual-scorer
+    PASS in 8.61s with 3 tool calls forming the canonical re-query
+    mutation cycle ./md tasks --json → ./md set-task 9.3 -i --status done
+    → ./md tasks --json | grep -n …, 1 mutation, requeried=True,
+    policy_violations=0 on both audit-only and guard-augmented paths …
+    first PI cross-mode comparable cell pairing on a non-T1 task') to
+    typed cheap-channel assertion. Opens the second-task cross-mode
+    coverage trail's typed-assertion line as a fourth structural axis
+    (raw_bytes branch + mutation-family + hybrid-mode subset), parallel
+    to the existing F4 (json_envelope + scorer-selection) /
+    F4-orthogonal (raw_bytes + re-query/mutation moat per task) /
+    cross-mode-extraction (T1 mdtools+hybrid+unix trinity) trails. Pins
+    the structurally novel guard-side pipe decomposition asymmetry
+    surfaced by iter 61: when the agent pipes ./md tasks --json | grep
+    -n on a clean (allow-only) trajectory, audit captures one
+    bash_command per tool_call (length 3) but the guarded shell wrapper
+    at bench/command_policy.py:66-104 intercepts each subprocess
+    independently (length 4). The scalar counters
+    (tool_calls/mutations/policy_violations) preserve symmetry because
+    they are driven by audit-event-count, but the kind sequences derived
+    independently from bash_commands vs guard_events diverge by 1.
+    Distinct from iter-51 T12's policy_violations asymmetry on a
+    decision='deny' event and from iter-56/iter-59 T1 hybrid/unix's
+    full audit-vs-guard symmetry on clean single-call trajectories.
+    Pins the cross-task HYBRID_DOCS template footprint invariant: T7
+    hybrid bytes_prompt=4670 vs T7 mdtools bytes_prompt=4316 = +354
+    byte delta, matching iter-53 T1's +355 byte delta within ±1 byte —
+    elevating the HYBRID_DOCS-extends-MDTOOLS_DOCS invariant from
+    single-task T1 to cross-task-stable across two distinct task
+    families (extraction T1 + targeted-mutation T7). The iter-10 T7
+    mdtools bundle predates iter-17 stamping and lacks the
+    holdout_version field; iter-17's forward-compat 'absence reads as
+    v1 by date inference' convention pins via .get('holdout_version',
+    1) yielding 1 for both bundles, plus an explicit assertNotIn check
+    on the iter-10 bundle. If the adapter's classify_command_kind
+    drifts on ./md set-task or grep, if the guarded shell wrapper
+    stops decomposing piped subprocesses, if HYBRID_DOCS routing
+    stops adding the +354/+355 byte tool-docs expansion, or if the
+    cross-mode comparable cell six-axis match is broken by a future
+    bundle edit, this test fails."""
+
+    HYBRID_BUNDLE_DIR = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-hybrid-gpt5.4mini-2026-04-26"
+        / "logs/T7_hybrid_1777246305"
+    )
+    HYBRID_AUDIT_PATH = HYBRID_BUNDLE_DIR / "pi-audit.jsonl"
+    HYBRID_GUARD_PATH = HYBRID_BUNDLE_DIR / "guard.log"
+    HYBRID_RUN_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-hybrid-gpt5.4mini-2026-04-26/run.json"
+    )
+    HYBRID_RESULTS_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-hybrid-gpt5.4mini-2026-04-26/results.json"
+    )
+
+    MDTOOLS_BUNDLE_DIR = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26"
+        / "logs/T7_mdtools_1777212494"
+    )
+    MDTOOLS_AUDIT_PATH = MDTOOLS_BUNDLE_DIR / "pi-audit.jsonl"
+    MDTOOLS_GUARD_PATH = MDTOOLS_BUNDLE_DIR / "guard.log"
+    MDTOOLS_RUN_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26/run.json"
+    )
+    MDTOOLS_RESULTS_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26/results.json"
+    )
+
+    EXPECTED_AUDIT_KIND_SEQUENCE = ["query", "mutation", "query"]
+    EXPECTED_GUARD_KIND_SEQUENCE = ["query", "mutation", "query", "query"]
+
+    def test_audit_only_summary_pins_t7_hybrid_baseline(self) -> None:
+        if not self.HYBRID_AUDIT_PATH.exists():
+            self.skipTest(f"iter-61 T7 hybrid PI bundle audit not present at {self.HYBRID_AUDIT_PATH}")
+        events = load_pi_audit_events(self.HYBRID_AUDIT_PATH)
+        # 8 events: model_change + thinking_level_change + 3×(tool_call + tool_result).
+        self.assertEqual(len(events), 8)
+
+        counters = summarize_pi_audit_events(events)
+        self.assertEqual(counters.tool_calls, 3)
+        self.assertEqual(counters.tool_results, 3)
+        self.assertEqual(counters.tool_errors, 0)
+        self.assertEqual(counters.mutations, 1)
+        self.assertTrue(counters.requeried)
+        self.assertEqual(counters.policy_violations, 0)
+        self.assertEqual(counters.blocked, 0)
+        self.assertEqual(counters.bytes_observation, 25438)
+        self.assertEqual(counters.model, "openai-codex/gpt-5.4-mini")
+        self.assertEqual(counters.thinking_level, "minimal")
+        # Canonical 3-call re-query mutation cycle in hybrid mode: query
+        # → mutation → piped query. The third command pipes through grep
+        # for downstream filtering — unix tools appear only as pipe
+        # consumers in hybrid mode when md aligns with the structural
+        # contract for the primary command verb (iter-53 T1 hybrid +
+        # iter-61 T7 hybrid both confirm). First hybrid-mode PI bundle
+        # with requeried=True, extending the canonical re-query
+        # observation set from mdtools-only to the hybrid-mode subset.
+        self.assertEqual(len(counters.bash_commands), 3)
+        self.assertIn("./md tasks", counters.bash_commands[0])
+        self.assertIn("--json", counters.bash_commands[0])
+        self.assertIn("t7_progress.md", counters.bash_commands[0])
+        self.assertTrue(counters.bash_commands[1].startswith("./md set-task 9.3"))
+        self.assertIn("--status done", counters.bash_commands[1])
+        self.assertIn("./md tasks", counters.bash_commands[2])
+        self.assertIn("--json", counters.bash_commands[2])
+        self.assertIn("| grep -n", counters.bash_commands[2])
+        kinds = [classify_command_kind(cmd) for cmd in counters.bash_commands]
+        self.assertEqual(kinds, self.EXPECTED_AUDIT_KIND_SEQUENCE)
+
+    def test_guard_events_expose_pipe_decomposition_asymmetry(self) -> None:
+        if not self.HYBRID_AUDIT_PATH.exists() or not self.HYBRID_GUARD_PATH.exists():
+            self.skipTest(f"iter-61 T7 hybrid PI bundle artifacts not present at {self.HYBRID_BUNDLE_DIR}")
+        events = load_pi_audit_events(self.HYBRID_AUDIT_PATH)
+        guard_events = load_guard_events(self.HYBRID_GUARD_PATH)
+
+        # The structurally novel guard-side pipe decomposition: 3 audit
+        # bash_commands vs 4 guard events on a clean (allow-only)
+        # trajectory. The agent's third command pipes ./md tasks --json
+        # through grep -n; pi-audit captures the entire bash_command as
+        # one tool_call event, but the guarded shell wrapper at
+        # bench/command_policy.py:66-104 intercepts each subprocess
+        # independently — yielding md+grep on the guard side vs md alone
+        # on the audit side for the third call. All four guard entries
+        # are decision='allow'.
+        self.assertEqual(len(guard_events), 4)
+        self.assertTrue(all(e.decision == "allow" for e in guard_events))
+        self.assertEqual(guard_events[0].base_command, "md")
+        self.assertEqual(guard_events[1].base_command, "md")
+        self.assertEqual(guard_events[2].base_command, "md")
+        self.assertEqual(guard_events[3].base_command, "grep")
+        self.assertIn("./md tasks", guard_events[0].raw_command)
+        self.assertIn("./md set-task 9.3", guard_events[1].raw_command)
+        self.assertIn("--status done", guard_events[1].raw_command)
+        self.assertIn("./md tasks", guard_events[2].raw_command)
+        self.assertTrue(guard_events[3].raw_command.startswith("grep"))
+
+        # Scalar counters preserve symmetry across audit-only vs
+        # guard-augmented paths — they are driven by audit-event-count
+        # (3 tool_calls, 1 mutation, requeried=True from canonical
+        # cycle, 0 policy_violations because no decision='deny' entry).
+        # Distinct from iter-51 T12's policy_violations asymmetry on a
+        # deny event.
+        audit_only = summarize_pi_audit_events(events)
+        guard_augmented = summarize_pi_audit_events(events, guard_events=guard_events)
+        self.assertEqual(audit_only.tool_calls, guard_augmented.tool_calls)
+        self.assertEqual(audit_only.tool_calls, 3)
+        self.assertEqual(audit_only.mutations, guard_augmented.mutations)
+        self.assertEqual(audit_only.mutations, 1)
+        self.assertTrue(audit_only.requeried)
+        self.assertTrue(guard_augmented.requeried)
+        self.assertEqual(audit_only.policy_violations, guard_augmented.policy_violations)
+        self.assertEqual(audit_only.policy_violations, 0)
+
+        # Kind-sequence-length asymmetry: audit-side derives from
+        # bash_commands (length 3), guard-side derives from guard_events
+        # (length 4). Both encode the canonical query → mutation → query
+        # cycle in their first 3 entries; the guard sequence appends a
+        # fourth 'query' for the pipe-decomposed grep subprocess.
+        # Distinct from iter-56/iter-59's full audit-vs-guard symmetry
+        # on single-call trajectories.
+        audit_kinds = [classify_command_kind(cmd) for cmd in audit_only.bash_commands]
+        guard_kinds = [
+            classify_command_kind(e.raw_command, e.base_command) for e in guard_events
+        ]
+        self.assertEqual(len(audit_kinds), 3)
+        self.assertEqual(len(guard_kinds), 4)
+        self.assertEqual(audit_kinds, self.EXPECTED_AUDIT_KIND_SEQUENCE)
+        self.assertEqual(guard_kinds, self.EXPECTED_GUARD_KIND_SEQUENCE)
+        self.assertEqual(guard_kinds[:3], audit_kinds)
+        self.assertEqual(guard_kinds[3], "query")
+
+    def test_t7_hybrid_pairs_apples_to_apples_with_t7_mdtools(self) -> None:
+        if not (
+            self.HYBRID_RESULTS_JSON.exists()
+            and self.HYBRID_RUN_JSON.exists()
+            and self.MDTOOLS_RESULTS_JSON.exists()
+            and self.MDTOOLS_RUN_JSON.exists()
+        ):
+            self.skipTest("T7 hybrid or T7 mdtools PI bundle metadata not present")
+
+        hybrid_results = json.loads(self.HYBRID_RESULTS_JSON.read_text())
+        mdtools_results = json.loads(self.MDTOOLS_RESULTS_JSON.read_text())
+        hybrid_run = json.loads(self.HYBRID_RUN_JSON.read_text())
+        mdtools_run = json.loads(self.MDTOOLS_RUN_JSON.read_text())
+
+        self.assertEqual(len(hybrid_results), 1)
+        self.assertEqual(len(mdtools_results), 1)
+        h_row = hybrid_results[0]
+        m_row = mdtools_results[0]
+
+        # Six-axis apples-to-apples match: task_id, model, thinking_level,
+        # executor (runner), runs_per_task, task-set version
+        # (selected_task_ids). Mode (mdtools vs hybrid) is the only
+        # varying axis. First PI cross-mode comparable cell pairing on a
+        # non-T1 task — extends the iter-53 T1 mdtools+hybrid pairing
+        # pattern from extraction-family to mutation-family.
+        self.assertEqual(h_row["task_id"], "T7")
+        self.assertEqual(m_row["task_id"], "T7")
+        self.assertEqual(h_row["model"], m_row["model"])
+        self.assertEqual(h_row["model"], "openai-codex/gpt-5.4-mini")
+        self.assertEqual(h_row["thinking_level"], m_row["thinking_level"])
+        self.assertEqual(h_row["thinking_level"], "minimal")
+        self.assertEqual(hybrid_run["runner"], mdtools_run["runner"])
+        self.assertEqual(hybrid_run["runner"], "pi-json")
+        self.assertEqual(hybrid_run["runs_per_task"], mdtools_run["runs_per_task"])
+        self.assertEqual(hybrid_run["runs_per_task"], 1)
+        self.assertEqual(hybrid_run["selected_task_ids"], mdtools_run["selected_task_ids"])
+        self.assertEqual(hybrid_run["selected_task_ids"], ["T7"])
+
+        # Mode is the varying axis.
+        self.assertEqual(h_row["mode"], "hybrid")
+        self.assertEqual(m_row["mode"], "mdtools")
+        self.assertEqual(hybrid_run["modes"], ["hybrid"])
+        self.assertEqual(mdtools_run["modes"], ["mdtools"])
+
+        # holdout_version: hybrid bundle (iter-61, post-iter-17 stamping)
+        # has explicit 1; mdtools bundle (iter-10, predates iter-17
+        # stamping) lacks the field. Forward-compat 'absence reads as v1
+        # by date inference' convention: .get('holdout_version', 1)
+        # yields 1 for both bundles. The assertNotIn check pins the
+        # iter-10 bundle's absent state bit-exact, preventing
+        # retroactive edits (which would themselves be holdout-repair-
+        # shaped artifact edits even though T7 is search-side).
+        self.assertEqual(hybrid_run["holdout_version"], 1)
+        self.assertNotIn("holdout_version", mdtools_run)
+        self.assertEqual(hybrid_run.get("holdout_version", 1), mdtools_run.get("holdout_version", 1))
+
+        # Both PASS dual-scorer with the same trajectory shape (3 tool
+        # calls, 1 mutation, requeried=True from canonical cycle,
+        # policy_violations=0, runner_error=null). The only behavioral
+        # divergence in observable counters is bytes_observation
+        # (hybrid=25438 vs mdtools=16219) reflecting the agent's
+        # different verification strategy on the third call: hybrid
+        # pipes through grep on the full --json output, mdtools uses
+        # --status done filter flag on a smaller --json output.
+        self.assertTrue(h_row["correct"] and h_row["correct_neutral"])
+        self.assertTrue(m_row["correct"] and m_row["correct_neutral"])
+        self.assertEqual(h_row["tool_calls"], m_row["tool_calls"])
+        self.assertEqual(h_row["tool_calls"], 3)
+        self.assertEqual(h_row["mutations"], m_row["mutations"])
+        self.assertEqual(h_row["mutations"], 1)
+        self.assertTrue(h_row["requeried"])
+        self.assertTrue(m_row["requeried"])
+        self.assertEqual(h_row["policy_violations"], m_row["policy_violations"])
+        self.assertEqual(h_row["policy_violations"], 0)
+        self.assertIsNone(h_row["runner_error"])
+        self.assertIsNone(m_row["runner_error"])
+        self.assertEqual(h_row["bytes_observation"], 25438)
+        self.assertEqual(m_row["bytes_observation"], 16219)
+
+        # Cross-task HYBRID_DOCS template footprint invariant: T7 hybrid
+        # bytes_prompt=4670 vs T7 mdtools bytes_prompt=4316 = +354 byte
+        # delta, matching iter-53 T1 hybrid vs T1 mdtools +355 byte
+        # delta within ±1 byte. Elevates the HYBRID_DOCS-extends-
+        # MDTOOLS_DOCS invariant from a single-task T1 observation to a
+        # cross-task-stable invariant across two distinct task families.
+        # Since the +354/+355 delta is a function only of mode and
+        # prompt-template structure (the unix-tools section appended to
+        # MDTOOLS_DOCS in build_prompt for hybrid mode at
+        # bench/harness.py:282-283), it is task-independent.
+        self.assertEqual(h_row["bytes_prompt"], 4670)
+        self.assertEqual(m_row["bytes_prompt"], 4316)
+        delta = h_row["bytes_prompt"] - m_row["bytes_prompt"]
+        self.assertEqual(delta, 354)
+        # The cross-task +354/+355 invariant: T7 delta within ±1 byte
+        # of the iter-53 T1 hybrid-vs-mdtools delta of 355.
+        self.assertLessEqual(abs(delta - 355), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
