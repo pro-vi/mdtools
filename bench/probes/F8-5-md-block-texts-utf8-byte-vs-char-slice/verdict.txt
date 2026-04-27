@@ -25,3 +25,15 @@ exit code: 1 (live failing trace)
 
 [F8-5 live] _md_block_texts uses char-indexed slicing on byte offsets
 ==============================================================
+
+==============================================================
+[closure] T8 iter 11 (2026-04-26) — _md_block_texts encodes content to bytes once and slices the byte sequence
+exit code: 0 (inert; closure landed)
+--------------------------------------------------------------
+[OK stage A] _md_block_texts honors UTF-8 byte boundaries
+  block_texts: ['# Héllo', 'A: foo', 'B: bar']
+
+[OK stage B] both scorers reject the wrong answer (no divergence)
+
+[F8-5 inert] _md_block_texts honors UTF-8 byte boundaries
+==============================================================

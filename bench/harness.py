@@ -652,7 +652,8 @@ def _md_block_texts(content: str, md_binary: str) -> list[str]:
     if not out:
         return []
     data = json.loads(out)
-    return [content[b["span"]["byte_start"]:b["span"]["byte_end"]].strip()
+    content_bytes = content.encode("utf-8")
+    return [content_bytes[b["span"]["byte_start"]:b["span"]["byte_end"]].decode("utf-8").strip()
             for b in data.get("blocks", [])]
 
 

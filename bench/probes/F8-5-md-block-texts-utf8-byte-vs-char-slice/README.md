@@ -1,6 +1,13 @@
 # F8-5 — `_md_block_texts` slices Python `str` with byte offsets, drifts on UTF-8
 
-**Status:** OPEN, filed T8 iter 10 (2026-04-26).
+**Status:** CLOSED, T8 iter 11 (2026-04-26).
+**Closure pin:** `bench/harness.py:_md_block_texts` now encodes `content`
+to UTF-8 once per call and slices the resulting `bytes` with the
+byte offsets emitted by `md blocks --json`, then decodes back to `str`.
+Typed tests at `bench/test_harness_json.py` (`MdBlockTextsUtf8Tests`)
+pin both the F8-5 stage A trace (byte-exact `_md_block_texts` output on
+multi-byte content) and stage B (md scorer agrees with neutral scorer
+on a wrong UTF-8 answer). Attribution probe `probe.py` flips exit 1→0.
 
 **Surface:** `bench/harness.py:650-656` `_md_block_texts(content, md_binary)`
 returns the list of block texts that `score_normalized_text_md`

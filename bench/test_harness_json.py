@@ -6,14 +6,20 @@ from pathlib import Path
 
 from bench.harness import (
     StructuralDiffPolicy,
+    _md_block_texts,
     extract_last_json,
     load_tasks,
     parse_agent_output,
+    score_normalized_text_md,
+    score_normalized_text_neutral,
     score_structural_json,
     score_task,
     select_json_envelope_actual,
 )
 from bench.pi_runner import parse_pi_json_output
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MD_BIN = str(REPO_ROOT / "target" / "release" / "md")
 
 
 def _link_only_policy() -> StructuralDiffPolicy:
@@ -578,6 +584,50 @@ class F4PreFixCounterfactualTests(unittest.TestCase):
     def test_iter_37_t19_bundle_fails_under_pre_fix_selector(self) -> None:
         task_id, bundle_log, expected_top_keys = self.BUNDLES[2]
         self._replay_pre_fix(task_id, bundle_log, expected_top_keys)
+
+
+class MdBlockTextsUtf8Tests(unittest.TestCase):
+    """F8-5 closure (T8 iter 11) — `_md_block_texts` slices UTF-8 byte
+    offsets from `md blocks --json` against the source text. The pre-fix
+    implementation indexed the Python `str` directly with byte offsets,
+    which drifted by the cumulative byte-excess from every preceding
+    multi-byte character. The probe lives at
+    `bench/probes/F8-5-md-block-texts-utf8-byte-vs-char-slice/probe.py`."""
+
+    def test_md_block_texts_honors_utf8_byte_boundaries(self) -> None:
+        """The F8-5 stage A trace: a heading with one multi-byte `é`
+        produces 1-byte drift that compounds across later blocks. Pre-fix
+        result was `['# Héllo', ': foo', ': bar']` (leading char of every
+        non-first block dropped); post-fix result is byte-exact."""
+        content = "# Héllo\n\nA: foo\n\nB: bar\n"
+        self.assertEqual(
+            _md_block_texts(content, MD_BIN),
+            ["# Héllo", "A: foo", "B: bar"],
+        )
+
+    def test_score_normalized_text_md_rejects_wrong_answer_with_utf8(self) -> None:
+        """The F8-5 stage B trace: SCORER DIVERGENCE on a wrong agent
+        answer. Pre-fix, the broken slicer dropped the first char of the
+        affected block in BOTH actual and expected, so the differing char
+        was never compared; ok_md=True (false-POSITIVE), ok_neutral=False.
+        Post-fix, ok_md=False (correct), agreeing with the neutral scorer."""
+        expected = "# café\n\nFOO\n\nbar\n"
+        actual = "# café\n\nFOO\n\nXar\n"
+        policy = StructuralDiffPolicy(
+            kind="normalized_text",
+            normalize_line_endings=True,
+            ignore_trailing_whitespace=True,
+            compare_frontmatter_json=False,
+            compare_heading_tree=True,
+            compare_block_order=False,
+            compare_link_destinations=False,
+            compare_block_text=True,
+        )
+        ok_md = score_normalized_text_md(policy, actual, expected, MD_BIN, [])
+        ok_neutral = score_normalized_text_neutral(policy, actual, expected, [])
+        self.assertFalse(ok_md, "md scorer must reject wrong UTF-8 answer post-fix")
+        self.assertFalse(ok_neutral, "neutral scorer already rejects this answer")
+        self.assertEqual(ok_md, ok_neutral, "scorers must agree on UTF-8 content")
 
 
 if __name__ == "__main__":
