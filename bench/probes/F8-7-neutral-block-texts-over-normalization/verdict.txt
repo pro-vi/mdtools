@@ -30,3 +30,26 @@ which had md as the over-lenient side (P1, since md gates correct flag);
 F8-7 has neutral as the over-lenient side (P2, since neutral does not gate).
 The defect is structural: `score_normalized_text_neutral`'s purpose is to
 provide an independent cross-check, but over-normalization defeats that role.
+
+Closed T8 iter 15 (2026-04-26): exit 0 = INERT
+  Stage A: extractors agree on the same 7-block sample.
+      md      = ['# Hello', '---', '## Subsection', '***', 'foo', '___', 'bar']
+      neutral = ['# Hello', '---', '## Subsection', '***', 'foo', '___', 'bar']
+    Source-fidelity slicing via `tok.map` line ranges preserves hr style
+    (---/***/___) and heading marker prefix (# / ##) on the neutral path,
+    matching `_md_block_texts`'s byte-slice contract.
+  Stage B: end-to-end MISMATCH agreement on dropped-heading task —
+      expected = '# Configuration\n\nSettings live here.\n'
+      actual   = 'Configuration\n\nSettings live here.\n'
+      ok_md=False  ok_neutral=False  (both correctly reject heading→paragraph)
+  Stage C: end-to-end MISMATCH agreement on hr style swap —
+      expected = '# Hello\n\n---\n\nfoo\n'
+      actual   = '# Hello\n\n***\n\nfoo\n'
+      ok_md=False  ok_neutral=False  (both correctly reject --- vs ***)
+
+Closure shape: `bench/harness.py` `neutral_block_texts` now source-slices
+hr and heading tokens via `tok.map` line ranges (option 1 from the closure
+plan in README). Hardening pinned by 4 typed tests in
+`NeutralBlockTextsSourceFidelityTests` in `bench/test_harness_json.py`.
+Cheap channel green: 116 cargo unit tests + 119 python unittests + 24
+corpus tasks all pass dual scorer post-fix.

@@ -10,6 +10,7 @@ from bench.harness import (
     _md_heading_tree,
     extract_last_json,
     load_tasks,
+    neutral_block_texts,
     neutral_heading_tree,
     parse_agent_output,
     score_normalized_text_md,
@@ -710,6 +711,124 @@ class NeutralHeadingTreeInlineRenderingTests(unittest.TestCase):
             _md_heading_tree(sample, MD_BIN),
             "neutral must match md outline on image+html_inline headings",
         )
+
+
+class NeutralBlockTextsSourceFidelityTests(unittest.TestCase):
+    """F8-7 closure (T8 iter 15) — `neutral_block_texts` was over-normalizing
+    block content vs `_md_block_texts`'s byte-slice contract: hr tokens
+    hardcoded "---" regardless of source style, and heading tokens dropped
+    the level marker prefix. The probe lives at
+    `bench/probes/F8-7-neutral-block-texts-over-normalization/probe.py`.
+    Closure source-slices hr and heading via `tok.map` line ranges."""
+
+    def test_neutral_block_texts_preserves_hr_style(self) -> None:
+        """The F8-7 stage A trace, hr subset: three different hr styles
+        (---/***/___) in the same document. Pre-fix neutral collapsed all
+        three to hardcoded "---"; post-fix neutral matches md byte-slicing."""
+        sample = (
+            "---\n"
+            "\n"
+            "foo\n"
+            "\n"
+            "***\n"
+            "\n"
+            "bar\n"
+            "\n"
+            "___\n"
+            "\n"
+            "baz\n"
+        )
+        self.assertEqual(
+            neutral_block_texts(sample),
+            ["---", "foo", "***", "bar", "___", "baz"],
+        )
+        self.assertEqual(
+            neutral_block_texts(sample),
+            _md_block_texts(sample, MD_BIN),
+            "neutral and md block_texts must agree on hr style fidelity",
+        )
+
+    def test_neutral_block_texts_preserves_heading_prefix(self) -> None:
+        """The F8-7 stage A trace, heading subset: atx and setext headings
+        across multiple levels. Pre-fix neutral dropped both the `# `/`## `
+        prefix (atx) and the `=====` underline (setext); post-fix neutral
+        preserves the source-fidelity heading representation."""
+        sample = (
+            "# Hello\n"
+            "\n"
+            "## Subsection\n"
+            "\n"
+            "Setext H1\n"
+            "=========\n"
+            "\n"
+            "Setext H2\n"
+            "---------\n"
+            "\n"
+            "body\n"
+        )
+        self.assertEqual(
+            neutral_block_texts(sample),
+            [
+                "# Hello",
+                "## Subsection",
+                "Setext H1\n=========",
+                "Setext H2\n---------",
+                "body",
+            ],
+        )
+        self.assertEqual(
+            neutral_block_texts(sample),
+            _md_block_texts(sample, MD_BIN),
+            "neutral and md block_texts must agree on heading prefix fidelity",
+        )
+
+    def test_score_normalized_text_md_and_neutral_agree_on_dropped_heading(self) -> None:
+        """The F8-7 stage B trace: SCORER DIVERGENCE pre-fix on a heading→
+        paragraph collapse (a realistic doc-maintenance failure mode). md
+        correctly reported MISMATCH via byte slicing; neutral falsely OK
+        because it dropped the `# ` prefix from the expected, making the
+        heading indistinguishable from a paragraph. Post-fix both scorers
+        agree on MISMATCH."""
+        expected = "# Configuration\n\nSettings live here.\n"
+        actual = "Configuration\n\nSettings live here.\n"
+        policy = StructuralDiffPolicy(
+            kind="normalized_text",
+            normalize_line_endings=True,
+            ignore_trailing_whitespace=True,
+            compare_frontmatter_json=False,
+            compare_heading_tree=False,
+            compare_block_order=False,
+            compare_link_destinations=False,
+            compare_block_text=True,
+        )
+        ok_md = score_normalized_text_md(policy, actual, expected, MD_BIN, [])
+        ok_neutral = score_normalized_text_neutral(policy, actual, expected, [])
+        self.assertFalse(ok_md, "md scorer correctly catches dropped heading")
+        self.assertFalse(ok_neutral, "neutral must reject dropped heading post-fix")
+        self.assertEqual(ok_md, ok_neutral, "scorers must agree on dropped heading")
+
+    def test_score_normalized_text_md_and_neutral_agree_on_hr_style(self) -> None:
+        """The F8-7 stage C trace: SCORER DIVERGENCE pre-fix on an hr style
+        swap. md correctly reported MISMATCH (--- vs ***) via byte slicing;
+        neutral falsely OK because it hardcoded "---" for both. Post-fix
+        both scorers agree on MISMATCH."""
+        expected = "# Hello\n\n---\n\nfoo\n"
+        actual = "# Hello\n\n***\n\nfoo\n"
+        policy = StructuralDiffPolicy(
+            kind="normalized_text",
+            normalize_line_endings=True,
+            ignore_trailing_whitespace=True,
+            compare_frontmatter_json=False,
+            compare_heading_tree=False,
+            compare_block_order=False,
+            compare_link_destinations=False,
+            compare_block_text=True,
+        )
+        ok_md = score_normalized_text_md(policy, actual, expected, MD_BIN, [])
+        ok_neutral = score_normalized_text_neutral(policy, actual, expected, [])
+        self.assertFalse(ok_md, "md scorer correctly catches hr style swap")
+        self.assertFalse(ok_neutral, "neutral must reject hr style swap post-fix")
+        self.assertEqual(ok_md, ok_neutral, "scorers must agree on hr style swap")
 
 
 if __name__ == "__main__":

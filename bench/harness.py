@@ -86,6 +86,7 @@ def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
 def neutral_block_texts(content: str) -> list[str]:
     """Extract normalized block-level text using markdown-it-py."""
     tokens = _NEUTRAL_MD.parse(content)
+    lines = content.splitlines()
     texts = []
     i = 0
     while i < len(tokens):
@@ -94,10 +95,27 @@ def neutral_block_texts(content: str) -> list[str]:
         if tok.type in ("heading_open", "paragraph_open", "bullet_list_open",
                         "ordered_list_open", "blockquote_open", "table_open",
                         "html_block", "code_block", "fence", "hr"):
-            # Collect all content until the matching close
+            # F8-7 closure: source-fidelity slicing for hr and heading via
+            # tok.map mirrors _md_block_texts's byte-slice contract — preserves
+            # hr style (---/***/___) and heading marker prefix (# / ##) or
+            # setext underline that the prior inline-collection path dropped.
             if tok.type == "hr":
-                texts.append("---")
+                if tok.map is not None:
+                    start, end = tok.map
+                    texts.append("\n".join(lines[start:end]).strip())
+                else:
+                    texts.append("---")
                 i += 1
+                continue
+            if tok.type == "heading_open":
+                if tok.map is not None:
+                    start, end = tok.map
+                    texts.append("\n".join(lines[start:end]).strip())
+                elif i + 1 < len(tokens) and tokens[i + 1].type == "inline":
+                    texts.append((tokens[i + 1].content or "").strip())
+                while i < len(tokens) and tokens[i].type != "heading_close":
+                    i += 1
+                i += 1  # past heading_close
                 continue
             if tok.type in ("html_block", "code_block", "fence"):
                 texts.append((tok.content or "").strip())

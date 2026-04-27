@@ -1,6 +1,17 @@
 # F8-7 — `neutral_block_texts` over-normalizes hr style and drops heading prefix
 
-**Status:** OPEN (filed T8 iter 14, 2026-04-26)
+**Status:** CLOSED (filed T8 iter 14, closed T8 iter 15, 2026-04-26)
+
+**Closure pin:**
+- `bench/harness.py` `neutral_block_texts` now source-slices hr and
+  heading tokens via `tok.map` line ranges, mirroring `_md_block_texts`'s
+  byte-slice contract. hr style (`---`/`***`/`___`) and heading marker
+  prefix (`# `/`## `) or setext underline (`====`) are preserved.
+- `bench/test_harness_json.py` `NeutralBlockTextsSourceFidelityTests`
+  pins all three stages with four typed tests (hr style, heading prefix,
+  end-to-end SCORER DIVERGENCE on dropped heading and on hr style swap).
+- Attribution probe rerun → exit 1 → 0 on Stages A, B, and C; see
+  `verdict.txt` for side-by-side filed/closure verdicts.
 
 **Severity:** P2 SCORER DIVERGENCE on the cross-check direction. The harness's
 `BenchResult.correct = ok_md` (`bench/harness.py:1456`) means the md scorer
