@@ -60,7 +60,8 @@ realistic Markdown-agent work — both the *level* and the *breadth* matter.
 
 ## Core law
 
-Each iteration must do exactly one of these — nothing else is admissible:
+Each iteration must do exactly one of these substantive moves — nothing
+else is admissible:
 
 1. **Grow the corpus:** propose a new realistic Markdown-agent task,
    verify realism (LLM judge or heuristic), run all 3 modes against
@@ -74,12 +75,16 @@ Each iteration must do exactly one of these — nothing else is admissible:
    task surfaces a real scorer/selector/JSON-stability defect (T8-style
    F-series finding), close it with a typed artifact and an attribution
    probe.
-4. **Update HEADLINE.md** after a corpus-growing or surface-hardening
-   move that actually changes the gap or the corpus size.
-5. **Cross-model stability check:** when the gap has moved ≥+5pp since
+4. **Cross-model stability check:** when the gap has moved ≥+5pp since
    the last check, run the full corpus on the cross-model target and
    record both numbers. If divergence > 10pp, file a finding.
-6. Emit `stop-and-summarize` because the halt conditions are met.
+5. Emit `stop-and-summarize` because the halt conditions are met.
+
+**Required tail action on items 1–4:** if the iteration moved the gap
+or grew the corpus, append a row to `bench/HEADLINE.md`'s history table
+with the bundle pointer in the same iteration. HEADLINE.md update is
+never a standalone iteration; it is the bookkeeping that closes a real
+move.
 
 The following are inadmissible in T9:
 
@@ -267,6 +272,12 @@ Halt fires on the **first** of:
 5. **Ledger budget breach** unrepairable in iteration.
 6. **CLI temptation:** any iteration proposing a new CLI primitive
    triggers `stop-and-summarize` with a routing recommendation.
+7. **Spec incoherence:** the loop discovers that T9's own rules
+   contradict each other or block all admissible moves (e.g. cross-
+   model trigger stuck because endpoint timeout, or all admissible
+   moves blocked by an open finding that nothing in scope can close).
+   Halt and request a spec-level repair from the operator rather than
+   inventing a workaround.
 
 The halt summary lives at `bench/probes/t9-summary.md`, ≤200 lines,
 with: final gap, final corpus size, families accepted/rejected with
@@ -321,7 +332,8 @@ recommendation for the next loop (if any).
   on MLX is one curl away. T8's blocker is gone.
 - **Anti-overfit by construction** via realism review + unix-adversary
   review (only AST-structural gaps count) + cross-model trigger
-  (≥+5pp moves require Qwen3.5-27B confirmation).
+  (≥+5pp moves require Qwen3.5-122B-A10B confirmation, where the gap
+  is expected to shrink rather than grow).
 - **Halts cleanly** when the corpus saturates against the current
   generator + target model. No drift mode, because every iteration must
   cite a gap movement, a corpus growth, or a hardening fix tied to the
