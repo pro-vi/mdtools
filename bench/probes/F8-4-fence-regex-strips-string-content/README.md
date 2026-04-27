@@ -1,11 +1,20 @@
 # F8-4 — `extract_last_json` fence regex strips backticks inside JSON string values
 
-**Status:** OPEN. Filed T8 iter 8 (2026-04-26).
+**Status:** CLOSED T8 iter 9 (2026-04-26).
+Closure: dropped the global ` ``` `-stripping regex preprocessor
+in `bench/harness.py` `extract_last_json`. The F8-3 string-aware
+depth scanner already finds the JSON region inside surrounding
+` ```json ` fences without preprocessing, and removing the regex
+eliminates the silent-corruption class entirely. Pinned by
+`bench/test_harness_json.py::test_extract_last_json_preserves_backticks_in_string_value`
+(F8-4 trace as a typed test) plus
+`::test_extract_last_json_handles_fenced_json_via_depth_scanner`
+(non-regression for the canonical fenced-JSON case).
 
-**Surface:** `bench/harness.py` `extract_last_json` line 1560
-(`re.sub(r"```(?:json)?\s*\n?", "", text)`) and the text-output
+**Surface:** `bench/harness.py` `extract_last_json` (former line 1560
+`re.sub(r"```(?:json)?\s*\n?", "", text)` removed) and the text-output
 branch of `select_json_envelope_actual` (lines ~1525–1532) which
-propagates the corrupted candidate unchanged into
+propagated the corrupted candidate unchanged into
 `score_structural_json`.
 
 **Severity:** P1 false-NEGATIVE on json_envelope tasks where the

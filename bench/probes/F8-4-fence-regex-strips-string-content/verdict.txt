@@ -19,3 +19,24 @@ exit code: 1 (live failing trace)
 
 [F8-4 live] fence-strip regex is string-blind on backticks
 ==============================================================
+
+==============================================================
+[closure] T8 iter 9 (2026-04-26) — dropped fence-strip preprocessor
+exit code: 0 (inert)
+--------------------------------------------------------------
+[OK stage A] extract_last_json preserved heading.text byte-exact
+[OK stage B] harness scored agent's correct answer as PASS
+
+[F8-4 inert] fence-strip preserves backticks inside string values
+
+  Hardening: bench/harness.py extract_last_json removed the
+  re.sub(r"```(?:json)?\s*\n?", "", text) preprocessor; the
+  depth scanner now consumes the agent text directly, and
+  the F8-3 string-aware mode skips backticks transparently
+  (backticks aren't structural JSON characters, so the brace
+  tracker enters cleanly at the inner `{`/`[`).
+  Test pins:
+    bench/test_harness_json.py
+      ::test_extract_last_json_preserves_backticks_in_string_value
+      ::test_extract_last_json_handles_fenced_json_via_depth_scanner
+==============================================================

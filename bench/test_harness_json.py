@@ -180,6 +180,48 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         result = extract_last_json(agent_text)
         self.assertEqual(json.loads(result), json.loads(envelope))
 
+    def test_extract_last_json_preserves_backticks_in_string_value(self) -> None:
+        """F8-4 closure (T8 iter 9) — when a JSON string value contains a
+        backtick triplet (e.g. an `entries[].heading.text` that names the
+        language of a code-fence example), the candidate must round-trip
+        byte-exact through extract_last_json. Pre-fix, a global
+        ` ``` `-stripping regex preprocessor mutated the string content
+        silently before the depth scanner ran; the candidate parsed but
+        carried corrupted string fields, so score_structural_json FAILed
+        a byte-exact correct agent answer. The probe lives at
+        `bench/probes/F8-4-fence-regex-strips-string-content/probe.py`."""
+        envelope = (
+            '{"schema_version":"mdtools.v1","file":"/tmp/spec.md",'
+            '"entries":[{"heading":{"level":1,"text":"Configuration","block_index":0}},'
+            '{"heading":{"level":2,"text":"Example: ```python block","block_index":1}}]}'
+        )
+        agent_text = (
+            "Sure, here is the document outline:\n"
+            "\n"
+            "```json\n"
+            f"{envelope}\n"
+            "```\n"
+            "\n"
+            "That is what `md outline --json /tmp/spec.md` produced.\n"
+        )
+        result = extract_last_json(agent_text)
+        parsed = json.loads(result)
+        self.assertEqual(parsed["entries"][1]["heading"]["text"], "Example: ```python block")
+        self.assertEqual(json.loads(result), json.loads(envelope))
+
+    def test_extract_last_json_handles_fenced_json_via_depth_scanner(self) -> None:
+        """Non-regression for the canonical LLM output style: a JSON
+        envelope wrapped in a top-level ` ```json ... ``` ` fence with
+        no surrounding prose. Pins that F8-4's removal of the fence-strip
+        preprocessor did not regress the fenced-JSON case — the depth
+        scanner still finds and returns the inner JSON because backticks
+        are not structural JSON characters and the brace tracker enters
+        cleanly at the inner `{`."""
+        envelope = '{"file":"doc.md","total":42}'
+        agent_text = f"```json\n{envelope}\n```\n"
+        result = extract_last_json(agent_text)
+        self.assertEqual(json.loads(result), json.loads(envelope))
+
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {

@@ -14,21 +14,11 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-- **F8-4** — `extract_last_json`'s fence-strip regex at `bench/harness.py:1560`
-  blindly strips backtick-triplet markers anywhere in the agent text, including
-  inside JSON string values. An envelope whose `entries[].heading.text` or
-  `body` field contains a backtick-triplet substring still parses (syntax
-  intact, since backticks are not quote characters) but its string content
-  has the triplets silently removed before `score_structural_json` compares
-  against expected. P1 false-NEGATIVE on json_envelope tasks. Filed T8 iter 8.
-  Probe at `bench/probes/F8-4-fence-regex-strips-string-content/probe.py`
-  exits 1 on both stages (direct extractor + end-to-end harness). Closure
-  plan: anchor the fence-strip to line boundaries, make it string-aware, or
-  drop it (the candidate-enumeration fallback already handles fenced JSON).
-  Attribution probe = rerun `probe.py`; expect exit 0 on both stages.
+- **F8-5** — `_md_block_texts` (bench/harness.py:650-656) slices the Python `str` `content` by the **byte** offsets that `md blocks --json` emits. Python `str` indexing is char-based, so multi-byte UTF-8 chars create per-block drift: leading char(s) of every block following a multi-byte char are silently dropped. P1 false-POSITIVE on `compare_block_text` tasks: when the agent's wrong answer differs from expected at a char that the slicer drift drops in BOTH actual and expected, the md scorer says OK while the neutral scorer correctly says MISMATCH. `BenchResult.correct` (set from `ok_md`) aggregates the wrong answer as PASS. Filed T8 iter 10. Probe at `bench/probes/F8-5-md-block-texts-utf8-byte-vs-char-slice/probe.py` exits 1 on both stages (Stage A: direct slicer drift; Stage B: end-to-end SCORER DIVERGENCE). Closure plan: encode `content` to bytes once, slice the bytes, decode the slice — pinned by two unit tests (the F8-5 trace + the regression case).
 
 ## Closed in T8
 
+- **F8-4** — `extract_last_json`'s fence-strip regex preprocessor at `bench/harness.py:1560` blindly stripped backtick-triplet markers anywhere in agent text, including inside JSON string values, silently corrupting heading.text / body content before scoring. P1 false-NEGATIVE on json_envelope tasks where the wrapping envelope embeds a backtick triplet in any string value. Filed T8 iter 8, CLOSED T8 iter 9. Hardening: dropped the regex preprocessor entirely; the F8-3 string-aware depth scanner consumes the agent text directly and finds the JSON region inside ` ```json ` fences without preprocessing (backticks aren't structural JSON characters). Pinned by `bench/test_harness_json.py::test_extract_last_json_preserves_backticks_in_string_value` + `::test_extract_last_json_handles_fenced_json_via_depth_scanner`. Attribution probe rerun: `bench/probes/F8-4-fence-regex-strips-string-content/probe.py` exit 0 = inert.
 - **F8-3** — `extract_last_json` depth scanner counted brace/bracket characters inside JSON string values as real openers/closers, so a `}` inside a heading.text value caused the wrapping envelope to never be enumerated as a candidate. P1 false-NEGATIVE on json_envelope tasks. Filed T8 iter 6, CLOSED T8 iter 7. String-aware scanner at `bench/harness.py` `extract_last_json` skips content between unescaped `"` boundaries in both passes; pinned by `bench/test_harness_json.py::test_extract_last_json_honors_string_boundaries_in_depth_scan` + `::test_extract_last_json_handles_escaped_quotes_in_string_value`. Attribution probe rerun: `bench/probes/F8-3-brace-in-string-value/probe.py` exit 0 = inert.
 - **F8-2** — `extract_last_json` preferred a nested array over the wrapping object, causing a false-NEGATIVE on json_envelope tasks where the agent's text output embeds the answer envelope (`{…,"entries":[…]}`) within prose. P1. Filed T8 iter 4, CLOSED T8 iter 5. Highest-end-position rule at `bench/harness.py` `extract_last_json`; pinned by `bench/test_harness_json.py::test_extract_last_json_prefers_wrapping_envelope_over_nested_array` + `::test_extract_last_json_prefers_latest_sibling_when_no_containment`. Attribution probe rerun: `bench/probes/F8-2-extract-prefers-nested-array/probe.py` exit 0 = inert.
 - **F8-1** — `select_json_envelope_actual` accepted `schema_version`-only overlap as a shape match. P1. Filed T8 iter 2, CLOSED T8 iter 3. Subset check at `bench/harness.py:1510`; pinned by `bench/test_harness_json.py::test_schema_version_only_overlap_rejected` + `::test_subset_check_preserves_extra_keys_on_actual`. Attribution probe rerun: `bench/probes/F8-1-schema-version-overlap/probe.py` exit 0 = inert.
@@ -79,6 +69,115 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 10 (2026-04-26): Fresh failing trace — F8-5 `_md_block_texts` byte-vs-char slice drift on UTF-8
+
+**Substantive move:** item 1 (fresh failing trace against existing
+surface). Filed F8-5 against `_md_block_texts` (bench/harness.py:650-656)
+and the `score_normalized_text_md` dispatcher path. The function slices
+Python `str` `content` by byte offsets that `md blocks --json` emits
+into the file's UTF-8 encoding. Python indexing is char-based, so
+every multi-byte UTF-8 char (`é`, `§`, CJK, em-dashes, curly quotes)
+in `content` adds 1+ byte of drift to every following block's slice.
+Drift compounds: the leading char(s) of block K are dropped, the
+trailing char(s) of block K-1 (or inter-block whitespace) leak in,
+and the last block's slice can truncate past `len(content)`.
+
+**Probe:** `bench/probes/F8-5-md-block-texts-utf8-byte-vs-char-slice/probe.py`
+exits 1 on both stages. Stage A: direct call to `_md_block_texts` on
+`# Héllo\n\nA: foo\n\nB: bar\n` returns `['# Héllo', ': foo', ': bar']`
+instead of the byte-correct `['# Héllo', 'A: foo', 'B: bar']` (each
+later block lost its leading char). Stage B: SCORER DIVERGENCE on
+`expected = "# café\n\nFOO\n\nbar\n"` vs `actual = "...\n\nXar\n"`
+(only `b → X` differs in the last block) — `score_normalized_text_md`
+returns `block_text [md]: OK`, while `score_normalized_text_neutral`
+correctly reports `block_text [neutral]: MISMATCH at block 2: 'bar'
+vs 'Xar'`. The harness's `correct` field uses `ok_md`, so the wrong
+answer aggregates as a benchmark PASS.
+
+**Severity & realism:** P1 false-POSITIVE on any `compare_block_text`
+task (T2, T3, T8, T17, plus two more in `tasks_v1.json`) when content
+embeds international or typographic characters in any block before
+the one under comparison. Current corpus is ASCII-only, so the trace
+is dormant on the live benchmark, but the realism justification is
+straightforward: any task on a non-English README, a spec with
+typographic punctuation (curly quotes, em-dashes, ellipses), or any
+auto-research candidate exercising international content will fire
+this trace. Pre-emptive filing follows the precedent of F8-2, F8-3,
+F8-4 (synthetic-but-realistic trace before the corpus contains it).
+
+**Surface freshness:** F8-1..F8-4 closed the json_envelope four-layer
+cake on `select_json_envelope_actual` / `extract_last_json`. F8-5
+lives on a different surface — the `normalized_text` dispatcher
+target via `_md_block_texts`. Hooked from iter 9's learning ("iter 10
+must reach for a different surface … score_normalized_text_md
+whitespace handling"); the hypothesis-mining heuristic ("where else
+does this same discipline NOT apply?") aimed at the byte-vs-char
+slicer instead of extract_last_json.
+
+**Axis served:** failing-trace-freshness (counter resets to 0).
+Auto-research generator still not invoked; cheap surface-mining
+yielded a fifth fresh trace (F8-1 → F8-5) across iters 1–10.
+
+**Cheap channel:** green pre- and post-change. Probe directory only;
+no production code touched.
+
+**Closure plan:** replace `content[byte_start:byte_end]` with
+`content.encode("utf-8")[byte_start:byte_end].decode("utf-8")` in
+`_md_block_texts`. Pin with two tests (stage A direct slicer, stage
+B end-to-end SCORER DIVERGENCE rejection). Attribution probe = rerun
+`probe.py`; expect exit 0 on both stages.
+
+### Iter 9 (2026-04-26): Close F8-4 — drop fence-strip preprocessor on extract_last_json
+
+**Substantive move:** item 2 (close finding by hardening existing
+surface with typed artifact pinning the fix). Removed the global
+` ```(?:json)?\s*\n? ` regex preprocessor at `bench/harness.py`
+`extract_last_json` and routed agent text directly into the depth
+scanner. The F8-3 string-aware scanner already finds the JSON region
+inside surrounding ` ```json ` fences — backticks are not structural
+JSON characters, so the brace tracker enters cleanly at the inner
+`{`/`[` and the candidate-enumeration plus highest-end-position rule
+returns the wrapping envelope unchanged. Dropping the preprocessor
+eliminates the silent-corruption bug class entirely (any string-blind
+regex that mutates string content before scoring) rather than
+papering over the specific backtick case.
+
+**Attribution probe:** rerun
+`bench/probes/F8-4-fence-regex-strips-string-content/probe.py` →
+exit 0 on both stages (direct extractor + end-to-end harness path
+through `select_json_envelope_actual` text-output branch +
+`score_structural_json`). Pre-fix exit was 1 on both stages.
+Probe directory verdict.txt records filed and closure verdicts
+side-by-side; README.md status flipped from OPEN to CLOSED.
+
+**Pinned by:** two tests in `bench/test_harness_json.py` —
+`test_extract_last_json_preserves_backticks_in_string_value` (the
+F8-4 trace as a typed test) and
+`test_extract_last_json_handles_fenced_json_via_depth_scanner`
+(non-regression for the canonical fenced-JSON case where the agent
+wraps the JSON in a top-level ` ```json … ``` ` fence with no
+internal backticks). Also dropped the now-dead `import re` at
+`bench/harness.py:22` (no other call sites).
+
+**Cheap channel:** green pre- and post-change. 108 → 110 python
+unittests pass (+2 new); cargo unit tests pass (across suites);
+harness dry-run all 24 tasks PASS dual scorer.
+
+**Axis served:** surface-hardening cadence (F8-4 closed within 1
+iteration of filing — same canonical file→close shape as F8-1, F8-2,
+F8-3). The four-layer json_envelope failure surface is now hardened
+end-to-end: candidate enumeration (F8-3), preference rule (F8-2),
+shape discrimination across both branches (F8-1 + F8-2), and
+preprocessing string-corruption (F8-4, this iter). After closing
+F8-4, OPEN finding count is back to zero, so halt condition #2
+(hardening exhaustion) is conditionally live. Iter 10 must produce
+a fresh failing trace on a different surface (extract_final_text on
+text-block tasks, score_normalized_text_md whitespace handling, the
+md outline / md text-block / md set-task surfaces, etc.) or invoke
+the auto-research generator — the json_envelope path's four-layer
+cake has now been pinned end-to-end and is unlikely to yield a fresh
+trace at the same surface depth.
 
 ### Iter 8 (2026-04-26): Fresh failing trace — F8-4 fence-strip regex is string-blind
 

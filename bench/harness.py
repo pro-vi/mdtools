@@ -19,7 +19,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -1537,7 +1536,7 @@ def select_json_envelope_actual(
 
 
 def extract_last_json(text: str) -> str:
-    """Extract the best JSON from agent output, stripping code fences.
+    """Extract the best JSON from agent output.
     Tries each valid JSON substring and returns the candidate whose
     source-span end position is highest.
 
@@ -1556,13 +1555,24 @@ def extract_last_json(text: str) -> str:
     inside JSON string values do not falsely close a candidate. Pre-
     fix, a `}` inside a heading.text value caused the {/} pass to
     record a truncated candidate that failed json.loads, then reset
-    start = -1, so the actual wrapping envelope was never enumerated."""
-    clean = re.sub(r"```(?:json)?\s*\n?", "", text)
+    start = -1, so the actual wrapping envelope was never enumerated.
 
+    F8-4 closure (T8 iter 9): a global ` ``` ` fence-strip regex
+    (`re.sub(r"```(?:json)?\s*\n?", "", text)`) used to run before
+    the depth scanner. It was string-blind on backticks: a backtick
+    triplet inside a JSON string value (e.g. an `entries[].heading.text`
+    that names the language of a code-fence example) was silently
+    stripped, mutating the candidate's string content while keeping
+    the JSON syntactically parseable. Downstream `score_structural_json`
+    then FAILed an agent answer that was byte-exact correct in the
+    input text. The fix is to drop the preprocessor: the F8-3
+    string-aware depth scanner already finds the JSON region inside
+    surrounding ` ```json ` fences (the brace tracker enters at the
+    inner `{`/`[` and ignores backticks entirely)."""
     try:
-        parsed = json.loads(clean)
+        parsed = json.loads(text)
         if isinstance(parsed, (list, dict)):
-            return clean
+            return text
     except json.JSONDecodeError:
         pass
 
@@ -1572,7 +1582,7 @@ def extract_last_json(text: str) -> str:
         start = -1
         in_string = False
         escape = False
-        for i, ch in enumerate(clean):
+        for i, ch in enumerate(text):
             if in_string:
                 if escape:
                     escape = False
@@ -1592,7 +1602,7 @@ def extract_last_json(text: str) -> str:
                 depth -= 1
                 if depth == 0 and start >= 0:
                     end_exc = i + 1
-                    candidate = clean[start:end_exc]
+                    candidate = text[start:end_exc]
                     try:
                         json.loads(candidate)
                         candidates.append((start, end_exc, candidate))
