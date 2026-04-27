@@ -1,0 +1,10 @@
+Filed T8 iter 12 (2026-04-26): exit 1 = LIVE
+  Stage A: direct extractor divergence on `# The `md tasks` command`,
+    `## **Important** notes`, `### See [docs](url)`.
+    md returns rendered plaintext (markdown stripped); neutral returns
+    raw markdown source (formatting preserved).
+  Stage B: end-to-end SCORER DIVERGENCE on compare_heading_tree task —
+    expected `# Configuration`, actual `# **Configuration**`.
+    md scorer says heading_tree OK (false-POSITIVE PASS).
+    neutral correctly says MISMATCH.
+    BenchResult.correct = ok_md, so wrong answer aggregates as benchmark PASS.
