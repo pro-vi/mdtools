@@ -14,7 +14,18 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-(none)
+- **F8-4** — `extract_last_json`'s fence-strip regex at `bench/harness.py:1560`
+  blindly strips backtick-triplet markers anywhere in the agent text, including
+  inside JSON string values. An envelope whose `entries[].heading.text` or
+  `body` field contains a backtick-triplet substring still parses (syntax
+  intact, since backticks are not quote characters) but its string content
+  has the triplets silently removed before `score_structural_json` compares
+  against expected. P1 false-NEGATIVE on json_envelope tasks. Filed T8 iter 8.
+  Probe at `bench/probes/F8-4-fence-regex-strips-string-content/probe.py`
+  exits 1 on both stages (direct extractor + end-to-end harness). Closure
+  plan: anchor the fence-strip to line boundaries, make it string-aware, or
+  drop it (the candidate-enumeration fallback already handles fenced JSON).
+  Attribution probe = rerun `probe.py`; expect exit 0 on both stages.
 
 ## Closed in T8
 
@@ -68,6 +79,67 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 8 (2026-04-26): Fresh failing trace — F8-4 fence-strip regex is string-blind
+
+**Substantive move:** item 1 (fresh failing trace against existing
+surface). Filed F8-4 against `extract_last_json`'s fence-strip
+preprocessor at `bench/harness.py:1560`. The regex (a global
+`re.sub` matching backtick triplets with an optional `json` language
+tag and trailing whitespace, see source) runs string-blind, stripping
+every backtick-triplet marker in the agent text — including triplets
+that appear inside JSON string values. The wrapping envelope still
+parses (syntax is preserved because backticks are not quote
+characters), but the string content of any field containing a
+triplet is silently mutated by the harness before scoring.
+`score_structural_json` then reports MISMATCH on heading_tree /
+block_text / etc. for an agent answer that was byte-exact correct
+in the input text.
+
+**Probe:** `bench/probes/F8-4-fence-regex-strips-string-content/probe.py`
+exits 1 on both stages — Stage A (direct `extract_last_json` on a
+heading.text containing a backtick-triplet returns parseable JSON
+with the triplet silently removed: `"Example: ...python block"`
+loses three backticks) and Stage B (end-to-end harness path through
+`select_json_envelope_actual` + `score_structural_json` reports
+`heading_tree [md]: MISMATCH` on the agent's correct answer). The
+probe is a standalone script under `bench/probes/`, not a unit test,
+so the cheap channel stays green while F8-4 is OPEN.
+
+**Symmetry to F8-3:** F8-3 (CLOSED iter 7) hardened the depth scanner
+*inside* `extract_last_json` to honor JSON string boundaries on
+brace and bracket characters. F8-4 is the same gap shape
+(string-blind preprocessor) at a different layer — the regex that
+runs *before* the depth scanner — and on a different character
+class (backtick triplets, not braces/brackets). Crucially, the
+backtick stripping does not break JSON parseability, so the
+candidate is silently corrupted rather than non-enumerated; F8-3's
+fix does not fire (backticks aren't structural JSON characters and
+the regex preprocessing happens before the depth scanner ever
+runs).
+
+**Axis served:** failing-trace-freshness (counter resets to 0).
+Hooked from iter 7's learning ("iter 8 must reach for a different
+surface … extract_last_json's code-fence handling") — the
+hypothesis-mining heuristic that produced F8-1 → F8-2 → F8-3
+continues to yield a fresh trace per filing iteration. Auto-research
+generator still not needed; the existing surface still has surface-
+level latent failing traces under low-cost inspection.
+
+**Cheap channel:** green pre- and post-change. The probe directory is
+the only addition; no production code touched.
+
+**Closure plan:** next iteration may close F8-4 by anchoring the
+fence-strip to line boundaries (the markdown spec puts fences at
+line starts; backticks inside JSON string values typically are not),
+making the substitution string-aware (parallel to F8-3), or dropping
+the fence-strip entirely and relying on the candidate-enumeration
+fallback (which already finds JSON regions surrounded by prose
+including backtick triplets). Pin with a unit test in
+`bench/test_harness_json.py` mirroring the probe's stage-A shape
+plus a non-regression test for the canonical fenced-JSON case
+(no internal backticks). Attribution probe = rerun `probe.py`;
+expect exit 0 on both stages.
 
 ### Iter 7 (2026-04-26): Close F8-3 — string-aware depth scanner on extract_last_json
 

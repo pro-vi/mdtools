@@ -1,0 +1,21 @@
+F8-4 attribution probe verdicts.
+
+Each block records the probe's stdout and exit code at a named state.
+Stage A = direct extract_last_json. Stage B = end-to-end harness path
+through select_json_envelope_actual + score_structural_json on a
+heading_tree json_envelope task.
+
+==============================================================
+[filed] T8 iter 8 (2026-04-26) — fence-strip regex is string-blind
+exit code: 1 (live failing trace)
+--------------------------------------------------------------
+[FAIL stage A] extract_last_json corrupted heading.text
+  expected: 'Example: ```python block'
+  actual:   'Example: python block'
+[FAIL stage B] harness scored agent's correct answer as FAIL
+  ok_md=False ok_neutral=False
+  heading_tree [md]: MISMATCH
+  heading_tree [neutral]: MISMATCH
+
+[F8-4 live] fence-strip regex is string-blind on backticks
+==============================================================
