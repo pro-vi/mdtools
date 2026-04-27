@@ -1249,5 +1249,405 @@ class T7HybridModeBaselineTests(unittest.TestCase):
         self.assertLessEqual(abs(delta - 355), 1)
 
 
+class T7UnixModeBaselineTests(unittest.TestCase):
+    """Cross-mode unix coverage second-task trail (iter 67) — promotes
+    iter-65's prose-only ledger claim about the T7 unix trajectory
+    ('seventeenth PI runner bundle … T7 unix dual-scorer PASS in 4.91s
+    on gpt-5.4-mini at minimal thinking, completing the second PI 3-mode
+    comparable cell trinity with PASS+PASS+PASS verdict (vs T1's
+    PASS+PASS+FAIL), with structurally novel `&&` chain decomposition
+    driving both kind-sequence-length `+2` asymmetry and scalar-counter
+    asymmetry (audit-only mutations=0/requeried=False vs guard-augmented
+    mutations=1/requeried=True) on a clean trajectory') to typed
+    cheap-channel assertion. Completes the second-task cross-mode
+    coverage trail's unix-axis sub-cycle (iter 65 expensive → iter 66
+    cash-out + paired ratification → iter 67 typed-test → iter 68
+    ratification), parallel to the cross-mode-extraction trail's
+    unix-axis sub-cycle at iter 57/58/59/60 and the second-task trail's
+    hybrid-axis sub-cycle at iter 61/62/63/64.
+
+    Pins the structurally novel fifth distinct audit-vs-guard divergence
+    shape: `&&` chain decomposition produces both scalar-counter
+    asymmetry AND `+2` kind-sequence-length asymmetry on a clean
+    (allow-only) trajectory. The agent inlines the entire
+    query→mutation→query trajectory into a single `grep -n ... && sed
+    -i '' ... && grep -n ...` bash_command. pi-audit captures it as one
+    tool_call (length 1, kinds=['query'] because classify_command_kind
+    sees only the leading grep token), but the guarded shell wrapper at
+    bench/command_policy.py:66-104 intercepts each subprocess
+    independently — yielding 3 guard events [grep, sed, grep] all
+    decision='allow' (length 3, kinds=['query', 'mutation', 'query']
+    because the inner sed becomes visible). The
+    bench/pi_audit_adapter.py:113 effective_sequence selection branch
+    (`effective_sequence = guard_sequence or call_sequence`) propagates
+    this asymmetry into the SCALAR counters: when guard_events are
+    supplied, mutations=1 and requeried=True from the canonical cycle
+    derived from guard subprocesses; when only audit events are
+    supplied, the leading `grep` token reports query/no-mutation and
+    mutations=0/requeried=False. This is the FIRST PI bundle to
+    exercise the line-113 selection branch on a non-deny-driven
+    divergent path, structurally distinct from iter-51 T12's
+    policy_violations 0→1 asymmetry on a decision='deny' event (line
+    103-106 deny-counting loop), iter-56/iter-59 T1 hybrid/unix's full
+    audit-vs-guard symmetry on single-call trajectories, and iter-61
+    T7 hybrid's `+1` kind-sequence-length asymmetry from pipe (`|`)
+    decomposition with scalar counters preserved symmetric.
+
+    Pins the second PI 3-mode comparable cell trinity (T7 mdtools PASS
+    + T7 hybrid PASS + T7 unix PASS on six normalization axes), with
+    verdict trinity PASS+PASS+PASS distinct from the cross-mode-
+    extraction trail's T1 PASS+PASS+FAIL. T7's raw_bytes scorer accepts
+    the byte-level result regardless of base command, while T1's
+    structural+json_envelope scorer FAILed unix because the agent
+    constructed a free-form JSON tree rather than the expected
+    mdtools.v1 envelope. Empirical evidence supporting the hypothesis
+    that raw_bytes-branch tasks may unanimously pass across modes while
+    structural+json_envelope-branch tasks may exhibit unix-FAIL via
+    output-shape mismatch.
+
+    Pins the cross-task UNIX_DOCS template footprint invariant: T7 unix
+    bytes_prompt=844 vs T7 mdtools bytes_prompt=4316 = -3,472 byte delta
+    matching iter-57 T1's -3,469 byte delta within ±3 bytes — elevating
+    the UNIX_DOCS-replaces-MDTOOLS_DOCS invariant from single-task T1 to
+    cross-task-stable across two distinct task families (extraction T1
+    + targeted-mutation T7). Pins the closed three-mode prompt-template-
+    footprint algebraic identity: HYBRID−MDTOOLS + MDTOOLS−UNIX =
+    HYBRID−UNIX (T7: 354+3472=3826 ✓, mirroring T1: 355+3469=3824 ✓).
+    The iter-10 T7 mdtools bundle predates iter-17 stamping and lacks
+    the holdout_version field; iter-17's forward-compat 'absence reads
+    as v1 by date inference' convention pins via .get('holdout_version',
+    1) yielding 1 for all three bundles, plus an explicit assertNotIn
+    check on the iter-10 bundle.
+
+    If the adapter's classify_command_kind drifts on grep, sed, or
+    `&&`-chained bash_commands, if the line-113 effective_sequence
+    selection branch stops propagating guard subprocess decomposition
+    into scalar counters, if the guarded shell wrapper stops
+    decomposing `&&`-chained subprocesses, if UNIX_DOCS routing stops
+    producing the expected -3,472/-3,469 byte delta, or if the 3-mode
+    comparable trinity's six-axis match is broken by a future bundle
+    edit, this test fails."""
+
+    UNIX_BUNDLE_DIR = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-unix-gpt5.4mini-2026-04-26"
+        / "logs/T7_unix_1777248777"
+    )
+    UNIX_AUDIT_PATH = UNIX_BUNDLE_DIR / "pi-audit.jsonl"
+    UNIX_GUARD_PATH = UNIX_BUNDLE_DIR / "guard.log"
+    UNIX_RUN_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-unix-gpt5.4mini-2026-04-26/run.json"
+    )
+    UNIX_RESULTS_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-unix-gpt5.4mini-2026-04-26/results.json"
+    )
+
+    HYBRID_RUN_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-hybrid-gpt5.4mini-2026-04-26/run.json"
+    )
+    HYBRID_RESULTS_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-hybrid-gpt5.4mini-2026-04-26/results.json"
+    )
+
+    MDTOOLS_RUN_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26/run.json"
+    )
+    MDTOOLS_RESULTS_JSON = (
+        Path(__file__).resolve().parents[1]
+        / "bench/runs/checkpoint-pi-T7-mdtools-gpt5.4mini-2026-04-26/results.json"
+    )
+
+    EXPECTED_AUDIT_KIND_SEQUENCE = ["query"]
+    EXPECTED_GUARD_KIND_SEQUENCE = ["query", "mutation", "query"]
+
+    def test_audit_only_summary_pins_t7_unix_baseline(self) -> None:
+        if not self.UNIX_AUDIT_PATH.exists():
+            self.skipTest(f"iter-65 T7 unix PI bundle audit not present at {self.UNIX_AUDIT_PATH}")
+        events = load_pi_audit_events(self.UNIX_AUDIT_PATH)
+        # 4 events: model_change + thinking_level_change + 1 tool_call + 1 tool_result.
+        # Only one tool_call because the agent inlined the entire
+        # query→mutation→query trajectory into a single `&&`-chained
+        # bash_command, distinct from T7 mdtools/hybrid's three separate
+        # tool_calls.
+        self.assertEqual(len(events), 4)
+
+        counters = summarize_pi_audit_events(events)
+        # Audit-only side of the divergence: tool_calls=1 (one bash event),
+        # mutations=0 because classify_command_kind on the combined
+        # `&&`-chained string only sees the leading grep token (no inner
+        # sed visibility), requeried=False because the canonical
+        # query→mutation→query cycle is not detectable from a single
+        # bash_command. This is the first PI bundle on a clean trajectory
+        # whose audit-only counters DIVERGE from the guard-augmented
+        # counters (the line-113 effective_sequence selection branch).
+        self.assertEqual(counters.tool_calls, 1)
+        self.assertEqual(counters.tool_results, 1)
+        self.assertEqual(counters.tool_errors, 0)
+        self.assertEqual(counters.mutations, 0)
+        self.assertFalse(counters.requeried)
+        self.assertEqual(counters.policy_violations, 0)
+        self.assertEqual(counters.blocked, 0)
+        self.assertEqual(counters.bytes_observation, 80)
+        self.assertEqual(counters.model, "openai-codex/gpt-5.4-mini")
+        self.assertEqual(counters.thinking_level, "minimal")
+        # Single inline `&&`-chained bash_command containing the full
+        # query→mutation→query trajectory: grep -n ... && sed -i '' ...
+        # && grep -n .... The agent in unix mode picked sed -i '' (BSD/
+        # macOS-style in-place edit) rather than the BSD-incompatible GNU
+        # sed -i form — minimal thinking still produces idiomatically
+        # correct macOS BSD sed.
+        self.assertEqual(len(counters.bash_commands), 1)
+        cmd = counters.bash_commands[0]
+        self.assertTrue(cmd.startswith("grep -n"))
+        self.assertIn(" && sed -i ''", cmd)
+        self.assertIn(" && grep -n", cmd)
+        self.assertIn("t7_progress.md", cmd)
+        self.assertNotIn("./md", cmd)
+        kinds = [classify_command_kind(c) for c in counters.bash_commands]
+        self.assertEqual(kinds, self.EXPECTED_AUDIT_KIND_SEQUENCE)
+
+    def test_guard_events_expose_andand_chain_decomposition_asymmetry(self) -> None:
+        if not self.UNIX_AUDIT_PATH.exists() or not self.UNIX_GUARD_PATH.exists():
+            self.skipTest(f"iter-65 T7 unix PI bundle artifacts not present at {self.UNIX_BUNDLE_DIR}")
+        events = load_pi_audit_events(self.UNIX_AUDIT_PATH)
+        guard_events = load_guard_events(self.UNIX_GUARD_PATH)
+
+        # The structurally novel `&&` chain decomposition: 1 audit
+        # bash_command vs 3 guard events on a clean (allow-only)
+        # trajectory. The agent inlined the full query→mutation→query
+        # cycle into a single bash_command, but the guarded shell
+        # wrapper at bench/command_policy.py:66-104 intercepts each
+        # `&&`-chained subprocess independently — yielding [grep, sed,
+        # grep] base_commands. All three guard entries are decision='allow'.
+        self.assertEqual(len(guard_events), 3)
+        self.assertTrue(all(e.decision == "allow" for e in guard_events))
+        self.assertEqual(guard_events[0].base_command, "grep")
+        self.assertEqual(guard_events[1].base_command, "sed")
+        self.assertEqual(guard_events[2].base_command, "grep")
+        self.assertTrue(guard_events[0].raw_command.startswith("grep -n"))
+        self.assertTrue(guard_events[1].raw_command.startswith("sed -i ''"))
+        self.assertIn("t7_progress.md", guard_events[1].raw_command)
+        self.assertTrue(guard_events[2].raw_command.startswith("grep -n"))
+
+        # SCALAR-counter asymmetry on a clean trajectory: the line-113
+        # `effective_sequence = guard_sequence or call_sequence`
+        # selection in bench/pi_audit_adapter.py propagates the guard
+        # subprocess decomposition into scalar counters when
+        # guard_events are supplied. Audit-only sees only the leading
+        # grep token (mutations=0, requeried=False); guard-augmented
+        # sees the full [grep, sed, grep] sequence whose canonical
+        # query→mutation→query shape yields mutations=1 and
+        # requeried=True. This is structurally distinct from iter-51
+        # T12's policy_violations asymmetry (0→1 on decision='deny',
+        # line-103-106 deny-counting loop) and from iter-61 T7 hybrid's
+        # pipe-decomposition asymmetry (kind-sequence-length only,
+        # scalar counters preserved symmetric). FIRST PI bundle to
+        # exercise the line-113 selection branch on a non-deny-driven
+        # divergent path.
+        audit_only = summarize_pi_audit_events(events)
+        guard_augmented = summarize_pi_audit_events(events, guard_events=guard_events)
+        # tool_calls / policy_violations preserve symmetry — both are
+        # driven by audit-event-count and decision='deny' counting
+        # respectively, neither of which crosses the line-113 branch.
+        self.assertEqual(audit_only.tool_calls, guard_augmented.tool_calls)
+        self.assertEqual(audit_only.tool_calls, 1)
+        self.assertEqual(audit_only.policy_violations, guard_augmented.policy_violations)
+        self.assertEqual(audit_only.policy_violations, 0)
+        # mutations / requeried DIVERGE: audit-only=0/False vs
+        # guard-augmented=1/True via the line-113 effective_sequence
+        # selection branch.
+        self.assertEqual(audit_only.mutations, 0)
+        self.assertEqual(guard_augmented.mutations, 1)
+        self.assertFalse(audit_only.requeried)
+        self.assertTrue(guard_augmented.requeried)
+
+        # Kind-sequence-length asymmetry: audit-side derives from
+        # bash_commands (length 1, kinds=['query']), guard-side derives
+        # from guard_events (length 3, kinds=['query', 'mutation',
+        # 'query']). +2 asymmetry from `&&` chain decomposition,
+        # distinct from iter-61 T7 hybrid's +1 from pipe decomposition.
+        audit_kinds = [classify_command_kind(c) for c in audit_only.bash_commands]
+        guard_kinds = [
+            classify_command_kind(e.raw_command, e.base_command) for e in guard_events
+        ]
+        self.assertEqual(len(audit_kinds), 1)
+        self.assertEqual(len(guard_kinds), 3)
+        self.assertEqual(audit_kinds, self.EXPECTED_AUDIT_KIND_SEQUENCE)
+        self.assertEqual(guard_kinds, self.EXPECTED_GUARD_KIND_SEQUENCE)
+        # Guard-side encodes the canonical query→mutation→query cycle
+        # that the audit-only bash_command obscures.
+        self.assertEqual(guard_kinds, ["query", "mutation", "query"])
+
+    def test_t7_unix_completes_3_mode_comparable_trinity(self) -> None:
+        if not (
+            self.UNIX_RESULTS_JSON.exists()
+            and self.UNIX_RUN_JSON.exists()
+            and self.HYBRID_RESULTS_JSON.exists()
+            and self.HYBRID_RUN_JSON.exists()
+            and self.MDTOOLS_RESULTS_JSON.exists()
+            and self.MDTOOLS_RUN_JSON.exists()
+        ):
+            self.skipTest("T7 unix, hybrid, or mdtools PI bundle metadata not present")
+
+        unix_results = json.loads(self.UNIX_RESULTS_JSON.read_text())
+        hybrid_results = json.loads(self.HYBRID_RESULTS_JSON.read_text())
+        mdtools_results = json.loads(self.MDTOOLS_RESULTS_JSON.read_text())
+        unix_run = json.loads(self.UNIX_RUN_JSON.read_text())
+        hybrid_run = json.loads(self.HYBRID_RUN_JSON.read_text())
+        mdtools_run = json.loads(self.MDTOOLS_RUN_JSON.read_text())
+
+        self.assertEqual(len(unix_results), 1)
+        self.assertEqual(len(hybrid_results), 1)
+        self.assertEqual(len(mdtools_results), 1)
+        u_row = unix_results[0]
+        h_row = hybrid_results[0]
+        m_row = mdtools_results[0]
+
+        # Six-axis apples-to-apples match across all three bundles
+        # (task_id, model, thinking_level, executor, runs_per_task,
+        # task-set version). Mode (mdtools vs hybrid vs unix) is the
+        # only varying axis. Second PI 3-mode comparable cell trinity
+        # in inventory (after iter-57's T1 trinity), and FIRST trinity
+        # on a non-T1 task — extends the iter-57 T1 trinity-baseline
+        # pattern from extraction-family to mutation-family.
+        self.assertEqual(u_row["task_id"], "T7")
+        self.assertEqual(h_row["task_id"], "T7")
+        self.assertEqual(m_row["task_id"], "T7")
+        self.assertEqual(u_row["model"], h_row["model"])
+        self.assertEqual(u_row["model"], m_row["model"])
+        self.assertEqual(u_row["model"], "openai-codex/gpt-5.4-mini")
+        self.assertEqual(u_row["thinking_level"], h_row["thinking_level"])
+        self.assertEqual(u_row["thinking_level"], m_row["thinking_level"])
+        self.assertEqual(u_row["thinking_level"], "minimal")
+        self.assertEqual(unix_run["runner"], hybrid_run["runner"])
+        self.assertEqual(unix_run["runner"], mdtools_run["runner"])
+        self.assertEqual(unix_run["runner"], "pi-json")
+        self.assertEqual(unix_run["runs_per_task"], hybrid_run["runs_per_task"])
+        self.assertEqual(unix_run["runs_per_task"], mdtools_run["runs_per_task"])
+        self.assertEqual(unix_run["runs_per_task"], 1)
+        self.assertEqual(unix_run["selected_task_ids"], hybrid_run["selected_task_ids"])
+        self.assertEqual(unix_run["selected_task_ids"], mdtools_run["selected_task_ids"])
+        self.assertEqual(unix_run["selected_task_ids"], ["T7"])
+
+        # Mode is the varying axis — three distinct values across the trinity.
+        self.assertEqual(u_row["mode"], "unix")
+        self.assertEqual(h_row["mode"], "hybrid")
+        self.assertEqual(m_row["mode"], "mdtools")
+        self.assertEqual(unix_run["modes"], ["unix"])
+        self.assertEqual(hybrid_run["modes"], ["hybrid"])
+        self.assertEqual(mdtools_run["modes"], ["mdtools"])
+        self.assertEqual({u_row["mode"], h_row["mode"], m_row["mode"]}, {"unix", "hybrid", "mdtools"})
+
+        # holdout_version: unix and hybrid bundles have explicit 1
+        # (post-iter-17 stamping); mdtools bundle (iter-10) predates
+        # iter-17 stamping and lacks the field. iter-17's forward-compat
+        # 'absence reads as v1 by date inference' convention:
+        # .get('holdout_version', 1) yields 1 for all three bundles.
+        # The assertNotIn pins the iter-10 bundle's absent state
+        # bit-exact, preventing retroactive edits (which would be
+        # holdout-repair-shaped artifact edits even though T7 is
+        # search-side, because the iter-10 bundle is a typed artifact).
+        self.assertEqual(unix_run["holdout_version"], 1)
+        self.assertEqual(hybrid_run["holdout_version"], 1)
+        self.assertNotIn("holdout_version", mdtools_run)
+        self.assertEqual(unix_run.get("holdout_version", 1), 1)
+        self.assertEqual(hybrid_run.get("holdout_version", 1), 1)
+        self.assertEqual(mdtools_run.get("holdout_version", 1), 1)
+
+        # Verdict trinity: PASS (mdtools) + PASS (hybrid) + PASS (unix).
+        # Distinct from the cross-mode-extraction trail's T1
+        # PASS+PASS+FAIL — T7's raw_bytes scorer accepts the byte-level
+        # mutation contract regardless of base command (sed -i '' or md
+        # set-task), while T1's structural+json_envelope scorer requires
+        # the mdtools.v1 envelope. Empirical evidence supporting the
+        # hypothesis that raw_bytes-branch tasks may unanimously pass
+        # across modes while structural+json_envelope-branch tasks
+        # exhibit unix-FAIL via output-shape mismatch.
+        self.assertTrue(m_row["correct"] and m_row["correct_neutral"])
+        self.assertTrue(h_row["correct"] and h_row["correct_neutral"])
+        self.assertTrue(u_row["correct"] and u_row["correct_neutral"])
+
+        # Trajectory shape divergence by mode on T7: unix=1 inline
+        # `&&`-chained tool_call (inlined trajectory), mdtools=3 separate
+        # tool_calls, hybrid=3 separate tool_calls (with the third
+        # piped). All three have requeried=True from the canonical cycle
+        # (audit-only path for mdtools/hybrid; guard-augmented path for
+        # unix via the line-113 effective_sequence selection). All three
+        # have policy_violations=0 (clean trajectories) and
+        # runner_error=null.
+        self.assertEqual(u_row["tool_calls"], 1)
+        self.assertEqual(h_row["tool_calls"], 3)
+        self.assertEqual(m_row["tool_calls"], 3)
+        # results.json's mutations and requeried fields surface the
+        # guard-augmented values when present (the harness invokes
+        # summarize_pi_audit_events with guard_events). All three bundles
+        # show mutations=1 / requeried=True at the published-row level.
+        self.assertEqual(u_row["mutations"], 1)
+        self.assertEqual(h_row["mutations"], 1)
+        self.assertEqual(m_row["mutations"], 1)
+        self.assertTrue(u_row["requeried"])
+        self.assertTrue(h_row["requeried"])
+        self.assertTrue(m_row["requeried"])
+        self.assertEqual(u_row["policy_violations"], 0)
+        self.assertEqual(h_row["policy_violations"], 0)
+        self.assertEqual(m_row["policy_violations"], 0)
+        self.assertIsNone(u_row["runner_error"])
+        self.assertIsNone(h_row["runner_error"])
+        self.assertIsNone(m_row["runner_error"])
+
+        # bytes_prompt ordering invariant: unix=844 < mdtools=4316 <
+        # hybrid=4670. UNIX_DOCS replaces (not extends) MDTOOLS_DOCS,
+        # while HYBRID_DOCS extends MDTOOLS_DOCS with the unix-tools
+        # section. Cross-task UNIX_DOCS template footprint invariant:
+        # T7 mdtools→unix delta -3,472 bytes matches iter-57 T1's -3,469
+        # within ±3 bytes. Cross-task HYBRID_DOCS template footprint
+        # invariant: T7 mdtools→hybrid delta +354 bytes matches
+        # iter-53 T1's +355 within ±1 byte. UNIX_DOCS is approximately
+        # 1/5 the size of MDTOOLS_DOCS — a structural distinction the
+        # cross-mode coverage trail mechanically tests across both
+        # task families.
+        self.assertEqual(u_row["bytes_prompt"], 844)
+        self.assertEqual(m_row["bytes_prompt"], 4316)
+        self.assertEqual(h_row["bytes_prompt"], 4670)
+        self.assertLess(u_row["bytes_prompt"], m_row["bytes_prompt"])
+        self.assertLess(m_row["bytes_prompt"], h_row["bytes_prompt"])
+        unix_to_mdtools_delta = m_row["bytes_prompt"] - u_row["bytes_prompt"]
+        mdtools_to_hybrid_delta = h_row["bytes_prompt"] - m_row["bytes_prompt"]
+        unix_to_hybrid_delta = h_row["bytes_prompt"] - u_row["bytes_prompt"]
+        self.assertEqual(unix_to_mdtools_delta, 3472)
+        self.assertEqual(mdtools_to_hybrid_delta, 354)
+        self.assertEqual(unix_to_hybrid_delta, 3826)
+        # Cross-task UNIX_DOCS invariant: T7 -3,472 within ±3 bytes
+        # of iter-57 T1's -3,469.
+        self.assertLessEqual(abs(unix_to_mdtools_delta - 3469), 3)
+        # Cross-task HYBRID_DOCS invariant: T7 +354 within ±1 byte
+        # of iter-53 T1's +355.
+        self.assertLessEqual(abs(mdtools_to_hybrid_delta - 355), 1)
+        # Closed three-mode prompt-template-footprint algebraic
+        # identity: HYBRID−MDTOOLS + MDTOOLS−UNIX = HYBRID−UNIX.
+        # T7: 354 + 3472 = 3826 ✓ (mirrors T1: 355 + 3469 = 3824 ✓
+        # at iter-65's cash-out).
+        self.assertEqual(
+            mdtools_to_hybrid_delta + unix_to_mdtools_delta,
+            unix_to_hybrid_delta,
+        )
+
+        # Diff_report: all three modes produce OK on both scorers
+        # (raw_bytes-branch task — the byte-level mutation contract is
+        # mode-independent). Distinct from T1's diff_report MISMATCH on
+        # unix mode (structural+json_envelope-branch task).
+        self.assertIn("OK", u_row["diff_report"])
+        self.assertIn("OK", h_row["diff_report"])
+        self.assertIn("OK", m_row["diff_report"])
+        self.assertNotIn("MISMATCH", u_row["diff_report"])
+        self.assertNotIn("MISMATCH", h_row["diff_report"])
+        self.assertNotIn("MISMATCH", m_row["diff_report"])
+
+
 if __name__ == "__main__":
     unittest.main()
