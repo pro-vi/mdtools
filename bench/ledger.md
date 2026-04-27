@@ -14,7 +14,7 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-_None._
+- **F8-7** — `neutral_block_texts` (bench/harness.py:86) over-normalizes block content in two ways: (1) hardcodes `"---"` for any horizontal rule regardless of source style (`---`/`***`/`___`); (2) drops the heading marker prefix (`# `, `## `, etc.) and setext underline so heading blocks are indistinguishable from paragraph blocks. `_md_block_texts` preserves both via byte slicing of the raw source. P2 SCORER DIVERGENCE on the cross-check direction — md correctly catches both classes today and gates `BenchResult.correct = ok_md`, so binary correct flag is preserved on a wrong agent answer; the cross-check is structurally broken and would mask any future md-side regression mirroring neutral's leniency. Mirror of F8-6 (P1, md was over-lenient side); F8-7 puts over-leniency on neutral (non-gating side). Filed T8 iter 14. Closure plan: align `neutral_block_texts` to `_md_block_texts`'s source-fidelity contract via `tok.map` line slicing OR `tok.markup` + level-marker reconstruction. Attribution probe = rerun `bench/probes/F8-7-neutral-block-texts-over-normalization/probe.py` expecting exit 0 on all three stages.
 
 ## Closed in T8
 
@@ -71,6 +71,12 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 14 (2026-04-26): Fresh failing trace — F8-7 neutral_block_texts over-normalizes hr style + heading prefix
+
+Item 1 (fresh failing trace). Filed F8-7 against `neutral_block_texts` (bench/harness.py:86): the function hardcodes `"---"` for any hr token (regardless of source `---`/`***`/`___`) and drops the heading-level marker prefix on heading blocks (returning only inline content while `_md_block_texts` preserves the full `# Hello` byte slice). Probe `bench/probes/F8-7-neutral-block-texts-over-normalization/probe.py` exits 1 on all three stages: Stage A direct extractor divergence shows 4 of 7 blocks disagree on a single 7-block sample; Stage B end-to-end SCORER DIVERGENCE on `compare_block_text` where actual=`Configuration` (heading dropped) vs expected=`# Configuration` — md correctly says MISMATCH, neutral falsely says OK; Stage C similar but on hr style swap (`---` vs `***`).
+
+Severity P2 (cross-check direction): md gates `BenchResult.correct` and correctly catches both classes, so binary correct flag is preserved on the wrong answer. Mirror of F8-6 (P1, md over-lenient side); F8-7 has neutral as the over-lenient side (P2 because non-gating). Hooked from iter 13's learning ("iter 14 may need to invoke the auto-research generator or reach for a different surface"); cheap surface-mining yielded a seventh fresh trace (F8-1..F8-7) without invoking auto-research. Cheap channel green pre-filing: 53 cargo + 115 python unittest + 24 corpus all PASS. Axis: failing-trace-freshness (counter resets to 0). Closure plan: align `neutral_block_texts` to `_md_block_texts`'s source-fidelity contract via `tok.map` line slicing or `tok.markup` + level-marker reconstruction; pin with three tests in `bench/test_harness_json.py`.
 
 ### Iter 13 (2026-04-26): Close F8-6 — render neutral_heading_tree inline children to plaintext
 

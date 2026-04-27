@@ -1,0 +1,32 @@
+Filed T8 iter 14 (2026-04-26): exit 1 = LIVE
+  Stage A: direct extractor divergence on a 7-block sample with three hr
+    styles (---/***/___) and two heading levels (h1/h2).
+      md      = ['# Hello', '---', '## Subsection', '***', 'foo', '___', 'bar']
+      neutral = ['Hello',   '---', 'Subsection',    '---', 'foo', '---', 'bar']
+    4 of 7 blocks disagree:
+      hr#2: md='***'  vs neutral='---'
+      hr#3: md='___'  vs neutral='---'
+      h1:   md='# Hello'       vs neutral='Hello'
+      h2:   md='## Subsection' vs neutral='Subsection'
+  Stage B: end-to-end SCORER DIVERGENCE on compare_block_text task —
+      expected = '# Configuration\n\nSettings live here.\n'
+      actual   = 'Configuration\n\nSettings live here.\n' (heading dropped)
+      md says block_text MISMATCH (correctly catches `# Configuration` vs `Configuration`)
+      neutral says block_text OK (over-lenient: drops `# ` prefix from heading,
+        making heading indistinguishable from paragraph)
+      ok_md=False  ok_neutral=True
+      BenchResult.correct = ok_md = False, so binary correct flag preserved.
+      SCORER DIVERGENCE warning logged but does not gate `correct`.
+  Stage C: end-to-end SCORER DIVERGENCE on compare_block_text task —
+      expected = '# Hello\n\n---\n\nfoo\n'
+      actual   = '# Hello\n\n***\n\nfoo\n' (hr style swap)
+      md says block_text MISMATCH (correctly catches `---` vs `***`)
+      neutral says block_text OK (over-lenient: hardcodes `---` for any hr)
+      ok_md=False  ok_neutral=True
+      BenchResult.correct = ok_md = False, so binary correct flag preserved.
+
+Severity: P2 SCORER DIVERGENCE on the cross-check direction. Mirror of F8-6
+which had md as the over-lenient side (P1, since md gates correct flag);
+F8-7 has neutral as the over-lenient side (P2, since neutral does not gate).
+The defect is structural: `score_normalized_text_neutral`'s purpose is to
+provide an independent cross-check, but over-normalization defeats that role.
