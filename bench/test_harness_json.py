@@ -7,8 +7,10 @@ from pathlib import Path
 from bench.harness import (
     StructuralDiffPolicy,
     _md_block_texts,
+    _md_heading_tree,
     extract_last_json,
     load_tasks,
+    neutral_heading_tree,
     parse_agent_output,
     score_normalized_text_md,
     score_normalized_text_neutral,
@@ -628,6 +630,86 @@ class MdBlockTextsUtf8Tests(unittest.TestCase):
         self.assertFalse(ok_md, "md scorer must reject wrong UTF-8 answer post-fix")
         self.assertFalse(ok_neutral, "neutral scorer already rejects this answer")
         self.assertEqual(ok_md, ok_neutral, "scorers must agree on UTF-8 content")
+
+
+class NeutralHeadingTreeInlineRenderingTests(unittest.TestCase):
+    """F8-6 closure (T8 iter 13) — `neutral_heading_tree` returned the raw
+    inline source `tokens[i+1].content` while `_md_heading_tree` returned
+    `md outline --json`'s already-rendered plaintext, creating SCORER
+    DIVERGENCE on any heading containing inline markdown (inline code,
+    emphasis, links, images, html). The probe lives at
+    `bench/probes/F8-6-heading-tree-inline-formatting-divergence/probe.py`.
+    Closure renders inline children to plaintext to match md outline."""
+
+    def test_neutral_heading_tree_renders_inline_to_plaintext(self) -> None:
+        """The F8-6 stage A trace: a sample with inline code, bold, and
+        link headings. Pre-fix neutral returned raw markdown source like
+        '`md tasks` command' / '**Important** notes' / '[docs](url)';
+        post-fix neutral matches md outline's stripped plaintext."""
+        sample = (
+            "# The `md tasks` command\n"
+            "\n"
+            "## **Important** notes\n"
+            "\n"
+            "### See [docs](https://example.com)\n"
+        )
+        self.assertEqual(
+            neutral_heading_tree(sample),
+            [
+                (1, "The md tasks command"),
+                (2, "Important notes"),
+                (3, "See docs"),
+            ],
+        )
+        self.assertEqual(
+            neutral_heading_tree(sample),
+            _md_heading_tree(sample, MD_BIN),
+            "neutral and md heading_tree must agree on inline-markdown "
+            "rendering after F8-6 closure",
+        )
+
+    def test_score_normalized_text_md_and_neutral_agree_on_emphasis_diff(self) -> None:
+        """The F8-6 stage B trace: SCORER DIVERGENCE pre-fix. expected has
+        plain '# Configuration', actual injected '# **Configuration**'.
+        Pre-fix ok_md=True (renders both to 'Configuration'),
+        ok_neutral=False (raw source differs). Post-fix both scorers agree
+        that the two heading texts are heading-tree-equivalent — the md
+        outline contract treats them as the same heading."""
+        expected = "# Configuration\n\nSettings live here.\n"
+        actual = "# **Configuration**\n\nSettings live here.\n"
+        policy = StructuralDiffPolicy(
+            kind="normalized_text",
+            normalize_line_endings=True,
+            ignore_trailing_whitespace=True,
+            compare_frontmatter_json=False,
+            compare_heading_tree=True,
+            compare_block_order=False,
+            compare_link_destinations=False,
+            compare_block_text=False,
+        )
+        ok_md = score_normalized_text_md(policy, actual, expected, MD_BIN, [])
+        ok_neutral = score_normalized_text_neutral(policy, actual, expected, [])
+        self.assertEqual(
+            ok_md,
+            ok_neutral,
+            "scorers must agree on inline-markdown heading-tree equivalence",
+        )
+
+    def test_neutral_heading_tree_handles_image_alt_and_html_inline(self) -> None:
+        """Non-regression on the broader inline-markdown surface: image
+        renders to alt text (via children recursion), html_inline tags
+        drop while their bracketed text content survives via sibling text
+        tokens. Validates the closure generalizes beyond emphasis/code/link."""
+        sample = (
+            "# Heading with ![alt text](img.png) suffix\n"
+            "\n"
+            "## Heading with <span>html</span> body\n"
+        )
+        self.assertEqual(
+            neutral_heading_tree(sample),
+            _md_heading_tree(sample, MD_BIN),
+            "neutral must match md outline on image+html_inline headings",
+        )
 
 
 if __name__ == "__main__":

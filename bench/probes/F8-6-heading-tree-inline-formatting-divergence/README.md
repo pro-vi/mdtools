@@ -1,6 +1,11 @@
 # F8-6 — `_md_heading_tree` strips inline markdown; `neutral_heading_tree` does not
 
-**Status:** OPEN (filed T8 iter 12, 2026-04-26)
+**Status:** CLOSED (filed T8 iter 12, closed T8 iter 13, 2026-04-26)
+
+**Closure pin pointers:**
+- Hardening: `bench/harness.py:51-69` (new `_render_inline_to_plaintext` helper) and `bench/harness.py:72-83` (`neutral_heading_tree` now calls the helper on `tokens[i+1].children`). The helper concatenates `.content` of `text` and `code_inline` children, recurses into `image` children for alt text, and drops markup wrappers (strong/em/link/strikethrough open/close, html_inline, soft/hardbreak).
+- Pinned by `bench/test_harness_json.py::NeutralHeadingTreeInlineRenderingTests` — three methods: stage-A direct extractor agreement, stage-B end-to-end scorer agreement, and an image+html_inline non-regression that validates the closure generalizes beyond the filed fixtures.
+- Attribution probe rerun: `python3 bench/probes/F8-6-heading-tree-inline-formatting-divergence/probe.py` exits 0 on both stages (was exit 1 pre-fix). See `verdict.txt` for filed/closure verdicts side-by-side.
 
 **Severity:** P1 false-POSITIVE on `compare_heading_tree` tasks where any
 heading text contains inline markdown (inline code, emphasis, links). The

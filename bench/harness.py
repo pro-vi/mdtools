@@ -48,6 +48,26 @@ from markdown_it import MarkdownIt
 _NEUTRAL_MD = MarkdownIt("commonmark", {"html": True}).enable(["table"])
 
 
+def _render_inline_to_plaintext(children) -> str:
+    """Concatenate text-bearing inline children, dropping markup wrappers.
+
+    Matches `md outline`'s rendered-plaintext contract: text + code_inline
+    content survive (backticks already stripped by tokenizer), image renders
+    its alt text via children, and emphasis/link/strikethrough/html_inline
+    markup is dropped while the wrapped text content survives via sibling
+    text tokens. Without this rendering, `neutral_heading_tree` returned the
+    raw markdown source (`tokens[i+1].content`), creating SCORER DIVERGENCE
+    against `_md_heading_tree` on any heading with inline formatting (F8-6).
+    """
+    parts = []
+    for child in children or []:
+        if child.type in ("text", "code_inline"):
+            parts.append(child.content)
+        elif child.type == "image":
+            parts.append(_render_inline_to_plaintext(child.children))
+    return "".join(parts)
+
+
 def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
     """Extract heading tree using markdown-it-py (independent of md binary)."""
     tokens = _NEUTRAL_MD.parse(content)
@@ -55,9 +75,8 @@ def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
     for i, tok in enumerate(tokens):
         if tok.type == "heading_open":
             level = int(tok.tag[1:])
-            # Next token is the inline content
             if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
-                text = tokens[i + 1].content
+                text = _render_inline_to_plaintext(tokens[i + 1].children)
             else:
                 text = ""
             tree.append((level, text))
