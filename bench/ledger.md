@@ -14,7 +14,7 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-(none)
+- **F8-3** — `extract_last_json` depth scanner is brace-in-string blind. P1 false-NEGATIVE on json_envelope tasks where the wrapping envelope's heading/text/snippet string values contain `}`/`]`/`{`/`[`. Filed T8 iter 6. Probe at `bench/probes/F8-3-brace-in-string-value/probe.py` (exit 1 = live). Symmetric to F8-2 but on candidate enumeration: the wrapping envelope is never recorded as a `{…}` candidate at all. Closure plan: string-aware depth scanner; attribution probe = rerun probe.py expecting exit 0 on both stages.
 
 ## Closed in T8
 
@@ -67,6 +67,52 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 6 (2026-04-26): Fresh failing trace — F8-3 extract_last_json brace-in-string blind
+
+**Substantive move:** item 1 (fresh failing trace against existing
+surface). Filed F8-3 against `extract_last_json`
+(`bench/harness.py:1539-1587`) and the text-output branch of
+`select_json_envelope_actual`. The two-pass character-walk depth
+scanner counts `}`/`]`/`{`/`[` characters inside JSON string values
+as real closers/openers. When a wrapping envelope's heading.text
+contains a `}` (extremely common in technical Markdown — e.g.
+`Configuration {key: value}`, format strings, shell expansions),
+the `{`/`}` pass closes prematurely on a truncated candidate, the
+candidate fails `json.loads`, `start` resets, and the actual outer
+envelope is never recorded. Only the inner `entries` array (recorded
+by the brace-blind `[`/`]` pass on this shape) survives, which the
+text-output branch propagates unchecked to `score_structural_json`.
+
+**Probe:** `bench/probes/F8-3-brace-in-string-value/probe.py` exits 1
+on both stages (direct extractor + harness text-output branch). The
+probe is a standalone script under `bench/probes/`, not a unit test,
+so the cheap channel stays green while F8-3 is OPEN.
+
+**Symmetry to prior F8 closures:** F8-1 (CLOSED iter 3) hardened the
+tool-output shape match (intersection→subset). F8-2 (CLOSED iter 5)
+fixed extract_last_json's preference rule (array→object via
+highest-end-position). Both prior closures assumed the wrapping
+envelope is always recorded as a candidate; F8-3 falsifies that
+assumption — when string values carry brace characters, the wrapping
+envelope is never enumerated. Neither prior closure fires on this
+shape.
+
+**Axis served:** failing-trace-freshness (counter resets to 0).
+Hooked from iter 5's hypothesis-mining heuristic ("where else does
+the json_envelope shape-discrimination discipline NOT apply?") —
+asking it on extract_last_json's candidate enumeration (rather than
+its preference rule, which iter 5 closed) yielded F8-3.
+
+**Cheap channel:** green pre- and post-change. The probe directory is
+the only addition; no production code touched.
+
+**Closure plan:** next iteration may close F8-3 by replacing the
+character-walk depth scanner with a string-aware scanner that skips
+characters between unescaped `"` boundaries when counting depth. Pin
+with a unit test in `bench/test_harness_json.py` mirroring the
+probe's stage-A shape. Attribution probe = rerun `probe.py`; expect
+exit 0 on both stages.
 
 ### Iter 5 (2026-04-26): Close F8-2 — highest-end-position rule on extract_last_json
 

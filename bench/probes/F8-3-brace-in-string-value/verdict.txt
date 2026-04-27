@@ -1,0 +1,21 @@
+F8-3 attribution probe verdicts.
+
+Each block records the probe's stdout and exit code at a named state.
+Stage A = direct extract_last_json. Stage B = harness path through
+select_json_envelope_actual text-output branch.
+
+==============================================================
+[filed] T8 iter 6 (2026-04-26) — extract_last_json brace-in-string blind
+exit code: 1 (live failing trace)
+--------------------------------------------------------------
+[FAIL stage A] extract_last_json returned the wrong candidate
+  type: list
+  candidate prefix: '[{"heading":{"level":1,"text":"Heading with } brace","block_index":0}}]'
+  expected: dict with schema_version key
+[FAIL stage B] select_json_envelope_actual surfaced the wrong shape
+  type: list
+  actual prefix: '[{"heading":{"level":1,"text":"Heading with } brace","block_index":0}}]'
+  expected: dict envelope with schema_version
+
+[F8-3 live] depth scanner is brace-in-string blind
+==============================================================
