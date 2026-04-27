@@ -14,7 +14,11 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-- **F8-1** — `select_json_envelope_actual` accepts `schema_version`-only overlap as a shape match. P1. Filed T8 iter 2. Probe: `bench/probes/F8-1-schema-version-overlap/`. Hypothesis: replace intersection check with subset check (`expected_top_keys.issubset(...)`). Attribution probe rerun expected on closure iter.
+(none)
+
+## Closed in T8
+
+- **F8-1** — `select_json_envelope_actual` accepted `schema_version`-only overlap as a shape match. P1. Filed T8 iter 2, CLOSED T8 iter 3. Subset check at `bench/harness.py:1510`; pinned by `bench/test_harness_json.py::test_schema_version_only_overlap_rejected` + `::test_subset_check_preserves_extra_keys_on_actual`. Attribution probe rerun: `bench/probes/F8-1-schema-version-overlap/probe.py` exit 0 = inert.
 
 ## Archived findings (T7, iter 1–67)
 
@@ -62,6 +66,40 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 3 (2026-04-26): Close F8-1 — subset check on json_envelope shape match
+
+**Substantive move:** item 2 (close finding by hardening existing surface
+with typed artifact pinning the fix). Replaced the F4 intersection check
+(`_json_top_keys(parsed) & expected_top_keys`) at
+`bench/harness.py:1481-1526` with a subset check
+(`expected_top_keys.issubset(_json_top_keys(parsed))`). Subset requires
+every discriminating key from the expected shape to be present in the
+candidate, which rejects schema_version-only overlap and surfaces the
+correct envelope.
+
+**Attribution probe:** rerun
+`bench/probes/F8-1-schema-version-overlap/probe.py` → exit 0 (inert).
+Pre-fix exit was 1 (live failing trace). Probe directory verdict.txt now
+captures both the filed and closure verdicts side-by-side.
+
+**Pinned by:** two tests in `bench/test_harness_json.py` —
+`test_schema_version_only_overlap_rejected` (the F8-1 trace) and
+`test_subset_check_preserves_extra_keys_on_actual` (regression-protection
+that an envelope with extra fields still matches). Both pass.
+
+**Cheap channel:** green. 104 python unittest tests pass; 116 cargo unit
+tests pass; harness dry-run all 24 tasks PASS dual scorer.
+
+**Axis served:** surface-hardening cadence (F8-1 closed within 1
+iteration of filing, satisfies the disturbance-sign threshold of ≤2
+iterations). Failing-trace-freshness counter resets on the typed
+artifact (`bench/test_harness_json.py` adds two new tests directly
+attributable to F8-1). All OPEN findings closed → halt condition #2
+(hardening exhaustion) is conditionally live: the next iteration must
+either produce a fresh failing trace, run an auto-research generator
+pass, or move on a candidate, or the loop will halt by quiet-trace
+counter at iter 6.
 
 ### Iter 2 (2026-04-26): Fresh failing trace — F8-1 scorer false-negative
 

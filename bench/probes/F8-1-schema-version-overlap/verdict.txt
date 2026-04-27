@@ -1,3 +1,4 @@
+# Filed (T8 iter 2, pre-fix) — exit 1 = live failure trace
 expected envelope keys: schema_version, file, entries
 tasks envelope keys:    schema_version, results
 intersection:           {schema_version}  (single universal key)
@@ -7,3 +8,17 @@ actual selected (first 100 chars): {"schema_version":"mdtools.v1","results":[{"f
 VERDICT: FAIL — scorer selected tasks envelope on schema_version-only overlap.
   Downstream structural comparison will see entries=missing on the tasks envelope and mark the task FAIL even though the agent's correct answer is in all_tool_outputs[0].
 exit=1
+
+# Closure (T8 iter 3, post-fix) — exit 0 = inert
+# Subset check at bench/harness.py:1510 replaced the F4 intersection.
+# Cheap-channel pin: bench.test_harness_json
+#   .test_schema_version_only_overlap_rejected
+#   .test_subset_check_preserves_extra_keys_on_actual
+expected envelope keys: schema_version, file, entries
+tasks envelope keys:    schema_version, results
+intersection:           {schema_version}  (single universal key)
+
+actual selected (first 100 chars): {"schema_version":"mdtools.v1","file":"x.md","entries":[{"heading":{"level":1,"text":"H1"}}]}
+
+VERDICT: PASS — scorer correctly preferred outline envelope.
+exit=0

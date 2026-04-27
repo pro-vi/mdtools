@@ -1,9 +1,12 @@
 # F8-1 — `select_json_envelope_actual` accepts schema_version-only overlap
 
-**Status:** OPEN (filed 2026-04-26 at T8 iter 2)
+**Status:** CLOSED 2026-04-26 at T8 iter 3 (filed at T8 iter 2)
 **Surface:** scorer (`bench/harness.py:1481-1526`, `select_json_envelope_actual`)
 **Class:** scorer false-negative
-**Severity:** P1 — affects all `json_envelope` extraction tasks (T1, T5, T9, T11, T19, T22) when an agent runs >1 mdtools command and the last invocation is not the task's intended command.
+**Severity:** P1 — affected all `json_envelope` extraction tasks (T1, T5, T9, T11, T19, T22) when an agent runs >1 mdtools command and the last invocation is not the task's intended command.
+**Closure pin:** `bench/harness.py:1510` (intersection → subset);
+`bench/test_harness_json.py::test_schema_version_only_overlap_rejected` and
+`::test_subset_check_preserves_extra_keys_on_actual`.
 
 ## Failure trace
 

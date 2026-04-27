@@ -251,6 +251,53 @@ class JsonEnvelopeActualSelectionTests(unittest.TestCase):
         )
         self.assertEqual(json.loads(actual), {"x": 1})
 
+    def test_schema_version_only_overlap_rejected(self) -> None:
+        """F8-1 closure (T8 iter 3) — schema_version-only overlap with the
+        expected envelope is not sufficient for shape match. Without the
+        subset check, every mdtools envelope would shape-match every other
+        mdtools envelope on the universal `schema_version` key, so an
+        intermediate `md tasks --json` call would be selected as `actual`
+        when the task asks for `md outline --json`. The probe lives at
+        `bench/probes/F8-1-schema-version-overlap/probe.py`."""
+        outline_envelope = json.dumps({
+            "schema_version": "mdtools.v1",
+            "file": "x.md",
+            "entries": [{"heading": {"level": 1, "text": "H1"}}],
+        })
+        tasks_envelope = json.dumps({
+            "schema_version": "mdtools.v1",
+            "results": [{"file": "x.md", "tasks": []}],
+        })
+        expected = outline_envelope
+        # Chronological: outline first (correct), tasks second (intermediate).
+        # Reverse iteration sees tasks first; pre-F8-1 it accepted on
+        # schema_version overlap. Post-fix the subset check rejects it
+        # and the loop continues to the outline envelope.
+        actual = select_json_envelope_actual(
+            [outline_envelope, tasks_envelope], [], "", expected
+        )
+        self.assertEqual(json.loads(actual), json.loads(expected))
+
+    def test_subset_check_preserves_extra_keys_on_actual(self) -> None:
+        """Subset check must still accept an actual whose top-level keys
+        are a *superset* of expected keys (e.g. an envelope adding a
+        debug field). Pins that the F8-1 fix did not over-tighten."""
+        expected = json.dumps({
+            "schema_version": "mdtools.v1",
+            "file": "x.md",
+            "entries": [{"heading": {"level": 1, "text": "H1"}}],
+        })
+        tool_with_extra = json.dumps({
+            "schema_version": "mdtools.v1",
+            "file": "x.md",
+            "entries": [{"heading": {"level": 1, "text": "H1"}}],
+            "warnings": [],
+        })
+        actual = select_json_envelope_actual(
+            [tool_with_extra], [], "", expected
+        )
+        self.assertEqual(json.loads(actual), json.loads(tool_with_extra))
+
 
 class F4ClosureBundleReplayTests(unittest.TestCase):
     """F4 closure end-to-end (iter 32) — replay the iter-29 T16 PI bundle's

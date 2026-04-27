@@ -1494,7 +1494,17 @@ def select_json_envelope_actual(
     agent's correct projected answer is in assistant text. When no
     shape-matching tool output exists, fall through to text outputs
     first, and only then accept any non-empty parseable JSON tool
-    output (preserving pre-F4 behavior as the final fallback)."""
+    output (preserving pre-F4 behavior as the final fallback).
+
+    F8-1 closure (T8 iter 3): the F4 intersection check
+    (`_json_top_keys(parsed) & expected_top_keys`) is satisfied by any
+    pair of mdtools envelopes via the universal `schema_version` key,
+    so it falsely accepts an intermediate `md tasks --json` envelope
+    when the expected shape is `md outline --json`. The subset check
+    (`expected_top_keys.issubset(_json_top_keys(parsed))`) requires
+    every discriminating key from the expected shape to be present,
+    which rejects schema_version-only overlap and surfaces the correct
+    envelope (or, on no match, the fallback tool output)."""
     expected_top_keys = _expected_json_top_keys(expected_str)
     fallback_tool_actual = ""
 
@@ -1507,7 +1517,7 @@ def select_json_envelope_actual(
             continue
         if expected_top_keys is None:
             return tool_out.strip()
-        if _json_top_keys(parsed) & expected_top_keys:
+        if expected_top_keys.issubset(_json_top_keys(parsed)):
             return tool_out.strip()
         if not fallback_tool_actual:
             fallback_tool_actual = tool_out.strip()
