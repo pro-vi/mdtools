@@ -121,6 +121,36 @@ def neutral_block_texts(content: str) -> list[str]:
                 texts.append((tok.content or "").strip())
                 i += 1
                 continue
+            # F8-8 closure: source-fidelity slicing for the five collection-type
+            # blocks via tok.map mirrors F8-7's hr/heading fix and _md_block_texts'
+            # byte-slice contract — preserves list markers (- , 1. ), blockquote
+            # prefixes (> ), table separators (|, ---), and indentation that
+            # distinguishes nesting levels and that the prior inline-collection
+            # path dropped. Defensive fallback to the inline-collection path when
+            # tok.map is None (e.g. parser configurations that disable source maps).
+            if tok.type in (
+                "paragraph_open",
+                "bullet_list_open",
+                "ordered_list_open",
+                "blockquote_open",
+                "table_open",
+            ) and tok.map is not None:
+                start, end = tok.map
+                texts.append("\n".join(lines[start:end]).strip())
+                close_type = tok.type.replace("_open", "_close")
+                depth = 1
+                i += 1
+                while i < len(tokens) and depth > 0:
+                    t = tokens[i]
+                    if t.type == tok.type:
+                        depth += 1
+                    elif t.type == close_type:
+                        depth -= 1
+                        if depth == 0:
+                            i += 1  # past the close
+                            break
+                    i += 1
+                continue
             # Find the close token
             close_type = tok.type.replace("_open", "_close")
             depth = 1

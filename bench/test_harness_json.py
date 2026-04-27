@@ -831,5 +831,93 @@ class NeutralBlockTextsSourceFidelityTests(unittest.TestCase):
         self.assertEqual(ok_md, ok_neutral, "scorers must agree on hr style swap")
 
 
+class NeutralBlockTextsCollectionFidelityTests(unittest.TestCase):
+    """F8-8 closure (T8 follow-up) — symmetric mirror of F8-7 on the five
+    collection-type tokens (paragraph_open, bullet_list_open, ordered_list_open,
+    blockquote_open, table_open). Probe at
+    `bench/probes/F8-8-neutral-block-texts-collection-over-normalization/probe.py`.
+    Closure extends F8-7's `tok.map` line-slice fix to the remaining branch."""
+
+    def test_neutral_block_texts_preserves_list_markers(self) -> None:
+        """F8-8 stage A subset: bullet vs ordered lists. Pre-fix neutral
+        collapsed both to inline `foo\\nbar`; post-fix neutral preserves the
+        `- ` and `1. ` markers via byte-slicing."""
+        sample = "- bullet a\n- bullet b\n\n1. ordered a\n2. ordered b\n"
+        self.assertEqual(
+            neutral_block_texts(sample),
+            ["- bullet a\n- bullet b", "1. ordered a\n2. ordered b"],
+        )
+        self.assertEqual(
+            neutral_block_texts(sample),
+            _md_block_texts(sample, MD_BIN),
+            "neutral and md block_texts must agree on list-marker fidelity",
+        )
+
+    def test_neutral_block_texts_preserves_blockquote_prefix_and_table(self) -> None:
+        """F8-8 stage A subset: blockquote `> ` prefix and table `|`/`---`
+        separators. Pre-fix neutral dropped both."""
+        sample = (
+            "> quoted line\n"
+            "> still quoted\n"
+            "\n"
+            "| col1 | col2 |\n"
+            "| --- | --- |\n"
+            "| a | b |\n"
+        )
+        self.assertEqual(
+            neutral_block_texts(sample),
+            _md_block_texts(sample, MD_BIN),
+            "neutral and md block_texts must agree on blockquote/table fidelity",
+        )
+        # Spot-check: blockquote prefix survives the round-trip.
+        self.assertIn("> quoted line", neutral_block_texts(sample)[0])
+
+    def test_score_normalized_text_md_and_neutral_agree_on_blockquote_flattening(self) -> None:
+        """F8-8 stage C trace: SCORER DIVERGENCE pre-fix on a blockquote→
+        paragraph flattening (a realistic doc-maintenance failure mode). md
+        correctly reported MISMATCH via byte-slicing; neutral falsely OK
+        pre-fix. Post-fix both scorers agree on MISMATCH."""
+        expected = "# Notice\n\n> Important note\n> Do not forget.\n"
+        actual = "# Notice\n\nImportant note\nDo not forget.\n"
+        policy = StructuralDiffPolicy(
+            kind="normalized_text",
+            normalize_line_endings=True,
+            ignore_trailing_whitespace=True,
+            compare_frontmatter_json=False,
+            compare_heading_tree=False,
+            compare_block_order=False,
+            compare_link_destinations=False,
+            compare_block_text=True,
+        )
+        ok_md = score_normalized_text_md(policy, actual, expected, MD_BIN, [])
+        ok_neutral = score_normalized_text_neutral(policy, actual, expected, [])
+        self.assertFalse(ok_md, "md scorer correctly catches blockquote flattening")
+        self.assertFalse(ok_neutral, "neutral must reject blockquote flattening post-fix")
+        self.assertEqual(ok_md, ok_neutral, "scorers must agree on blockquote flattening")
+
+    def test_score_normalized_text_md_and_neutral_agree_on_nested_list_flattening(self) -> None:
+        """F8-8 stage D trace: SCORER DIVERGENCE pre-fix on a nested→flat
+        list flattening (changes commonmark nesting semantics). md correctly
+        reported MISMATCH via byte-slicing the indentation; neutral falsely
+        OK pre-fix. Post-fix both scorers agree on MISMATCH."""
+        expected = "- top\n  - inner\n  - inner2\n"
+        actual = "- top\n- inner\n- inner2\n"
+        policy = StructuralDiffPolicy(
+            kind="normalized_text",
+            normalize_line_endings=True,
+            ignore_trailing_whitespace=True,
+            compare_frontmatter_json=False,
+            compare_heading_tree=False,
+            compare_block_order=False,
+            compare_link_destinations=False,
+            compare_block_text=True,
+        )
+        ok_md = score_normalized_text_md(policy, actual, expected, MD_BIN, [])
+        ok_neutral = score_normalized_text_neutral(policy, actual, expected, [])
+        self.assertFalse(ok_md, "md scorer correctly catches nested list flattening")
+        self.assertFalse(ok_neutral, "neutral must reject nested list flattening post-fix")
+        self.assertEqual(ok_md, ok_neutral, "scorers must agree on nested list flattening")
+
+
 if __name__ == "__main__":
     unittest.main()
