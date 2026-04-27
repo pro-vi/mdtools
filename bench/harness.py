@@ -1666,7 +1666,12 @@ def main():
 
     started_at = time.time()
     tasks = load_tasks(args.tasks_path)
-    holdout_breach = check_holdout_integrity(tasks_path=args.tasks_path)
+    # L1 guard scope: the holdout fingerprints are bound to the canonical
+    # corpus, not to whatever subset the user happens to be running. Always
+    # check the canonical corpus so alternate --tasks-path experiments
+    # (subsets, scratch corpora) can run without false-positive breach
+    # errors, while loop tampering with bench/tasks/tasks.json still fires.
+    holdout_breach = check_holdout_integrity()
     if holdout_breach is not None:
         parser.error(holdout_breach)
     holdout_version = read_holdout_version()

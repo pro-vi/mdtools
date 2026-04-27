@@ -75,6 +75,8 @@ def parse_pi_json_output(raw_stdout: str) -> PiJsonTrace:
     trace = PiJsonTrace(stdout=raw_stdout)
     assistant_text_by_message: list[str] = []
     errors: list[str] = []
+    saw_tool_execution_end = False
+    deferred_tool_results: list[str] = []
 
     for line in raw_stdout.splitlines():
         if not line.strip():
@@ -92,6 +94,7 @@ def parse_pi_json_output(raw_stdout: str) -> PiJsonTrace:
         elif event_type == "tool_execution_start":
             trace.tool_calls += 1
         elif event_type == "tool_execution_end":
+            saw_tool_execution_end = True
             output = _tool_result_text(event.get("result"))
             if output:
                 trace.tool_outputs.append(output)
@@ -114,16 +117,21 @@ def parse_pi_json_output(raw_stdout: str) -> PiJsonTrace:
                 if message.get("stopReason") == "error":
                     errors.append(_compact_error("assistant_error", message.get("model"), message.get("errorMessage") or text))
             elif role == "toolResult":
-                # Some Pi versions also emit tool results as message_end. Avoid
-                # double-counting bytes if tool_execution_end was present, but keep
-                # a fallback when it was not.
-                if not trace.tool_outputs:
-                    text = _message_text(message)
-                    if text:
-                        trace.tool_outputs.append(text)
-                        trace.bytes_observation += len(text.encode())
+                # Buffer toolResult message_ends. Pi versions that emit
+                # tool_execution_end use that as the authoritative source;
+                # versions that don't fall through to these buffered values.
+                # Decided after the loop so multi-tool-call traces on the
+                # message_end path are captured fully, not just the first.
+                text = _message_text(message)
+                if text:
+                    deferred_tool_results.append(text)
         elif event_type == "extension_error":
             errors.append(_compact_error("extension_error", event.get("extensionPath"), event.get("error")))
+
+    if not saw_tool_execution_end and deferred_tool_results:
+        for text in deferred_tool_results:
+            trace.tool_outputs.append(text)
+            trace.bytes_observation += len(text.encode())
 
     trace.text_outputs = assistant_text_by_message
     combined = trace.tool_outputs + trace.text_outputs

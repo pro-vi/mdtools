@@ -144,6 +144,68 @@ class PiRunnerTests(unittest.TestCase):
         self.assertEqual(parsed.text_outputs, ["DONE"])
         self.assertIn("DONE", parsed.stdout)
 
+    def test_parse_pi_json_output_message_end_fallback_captures_all_tool_results(self) -> None:
+        # Pi versions that emit tool outputs only via message_end (no
+        # tool_execution_end) must capture every tool result, not just the
+        # first one. A previous implementation guarded the fallback on
+        # `if not trace.tool_outputs:`, silently dropping the 2nd+ results
+        # and undercounting bytes_observation on multi-step traces.
+        def tool_msg(text: str) -> dict:
+            return {
+                "type": "message_end",
+                "message": {
+                    "role": "toolResult",
+                    "content": [{"type": "text", "text": text}],
+                },
+            }
+
+        lines = [
+            {"type": "turn_start"},
+            {"type": "tool_execution_start", "toolCallId": "1"},
+            tool_msg("first"),
+            {"type": "tool_execution_start", "toolCallId": "2"},
+            tool_msg("second"),
+            {"type": "tool_execution_start", "toolCallId": "3"},
+            tool_msg("third"),
+        ]
+        raw = "\n".join(json.dumps(line) for line in lines)
+        parsed = parse_pi_json_output(raw)
+
+        self.assertEqual(parsed.tool_calls, 3)
+        self.assertEqual(parsed.tool_outputs, ["first", "second", "third"])
+        self.assertEqual(
+            parsed.bytes_observation,
+            len(b"first") + len(b"second") + len(b"third"),
+        )
+
+    def test_parse_pi_json_output_prefers_tool_execution_end_over_message_end(self) -> None:
+        # When both tool_execution_end and message_end carry the same tool
+        # result (Pi versions that emit both), we must not double-count.
+        # tool_execution_end is authoritative; message_end fallback only
+        # fires when no tool_execution_end ever appeared.
+        lines = [
+            {"type": "turn_start"},
+            {"type": "tool_execution_start", "toolCallId": "1"},
+            {
+                "type": "tool_execution_end",
+                "toolCallId": "1",
+                "isError": False,
+                "result": {"content": [{"type": "text", "text": "via-end"}]},
+            },
+            {
+                "type": "message_end",
+                "message": {
+                    "role": "toolResult",
+                    "content": [{"type": "text", "text": "via-end"}],
+                },
+            },
+        ]
+        raw = "\n".join(json.dumps(line) for line in lines)
+        parsed = parse_pi_json_output(raw)
+
+        self.assertEqual(parsed.tool_outputs, ["via-end"])
+        self.assertEqual(parsed.bytes_observation, len(b"via-end"))
+
 
 class T10CanonicalReQueryCycleTests(unittest.TestCase):
     """Canonical re-query mutation moat (iter 43) — promotes iter-41's
