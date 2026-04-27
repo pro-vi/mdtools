@@ -1,0 +1,21 @@
+Filed T8 iter 12 (2026-04-26): exit 1 = LIVE
+  Stage A: direct extractor divergence on `# The `md tasks` command`,
+    `## **Important** notes`, `### See [docs](url)`.
+    md returns rendered plaintext (markdown stripped); neutral returns
+    raw markdown source (formatting preserved).
+  Stage B: end-to-end SCORER DIVERGENCE on compare_heading_tree task —
+    expected `# Configuration`, actual `# **Configuration**`.
+    md scorer says heading_tree OK (false-POSITIVE PASS).
+    neutral correctly says MISMATCH.
+    BenchResult.correct = ok_md, so wrong answer aggregates as benchmark PASS.
+
+Closed T8 iter 13 (2026-04-26): exit 0 = INERT
+  Stage A: both extractors agree.
+    md      = [(1, 'The md tasks command'), (2, 'Important notes'), (3, 'See docs')]
+    neutral = [(1, 'The md tasks command'), (2, 'Important notes'), (3, 'See docs')]
+  Stage B: scorers agree on inline-markdown heading-tree equivalence.
+    ok_md=True  ok_neutral=True (both treat `# Configuration` ≈ `# **Configuration**`
+    at the heading-tree level, matching md outline's rendered-plaintext contract).
+  Hardening: bench/harness.py `_render_inline_to_plaintext` helper renders inline
+    children (text + code_inline content; image alt via children recursion; markup
+    wrappers dropped). Pinned by NeutralHeadingTreeInlineRenderingTests.

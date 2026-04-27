@@ -19,7 +19,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -49,6 +48,31 @@ from markdown_it import MarkdownIt
 _NEUTRAL_MD = MarkdownIt("commonmark", {"html": True}).enable(["table"])
 
 
+def _render_inline_to_plaintext(children) -> str:
+    """Concatenate text-bearing inline children, dropping markup wrappers.
+
+    Matches `md outline`'s rendered-plaintext contract: text + code_inline
+    content survive (backticks already stripped by tokenizer), image renders
+    its alt text via children, and emphasis/link/strikethrough/html_inline
+    markup is dropped while the wrapped text content survives via sibling
+    text tokens. Without this rendering, `neutral_heading_tree` returned the
+    raw markdown source (`tokens[i+1].content`), creating SCORER DIVERGENCE
+    against `_md_heading_tree` on any heading with inline formatting (F8-6).
+    """
+    parts = []
+    for child in children or []:
+        if child.type in ("text", "code_inline"):
+            parts.append(child.content)
+        elif child.type == "image":
+            parts.append(_render_inline_to_plaintext(child.children))
+        elif child.type in ("softbreak", "hardbreak"):
+            # Multi-line setext headings carry softbreaks between physical
+            # lines. Dropping them concatenates words and partially undoes
+            # F8-6 by reintroducing scorer divergence on multi-line headings.
+            parts.append(" ")
+    return "".join(parts)
+
+
 def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
     """Extract heading tree using markdown-it-py (independent of md binary)."""
     tokens = _NEUTRAL_MD.parse(content)
@@ -56,9 +80,8 @@ def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
     for i, tok in enumerate(tokens):
         if tok.type == "heading_open":
             level = int(tok.tag[1:])
-            # Next token is the inline content
             if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
-                text = tokens[i + 1].content
+                text = _render_inline_to_plaintext(tokens[i + 1].children)
             else:
                 text = ""
             tree.append((level, text))
@@ -68,6 +91,7 @@ def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
 def neutral_block_texts(content: str) -> list[str]:
     """Extract normalized block-level text using markdown-it-py."""
     tokens = _NEUTRAL_MD.parse(content)
+    lines = content.splitlines()
     texts = []
     i = 0
     while i < len(tokens):
@@ -76,14 +100,61 @@ def neutral_block_texts(content: str) -> list[str]:
         if tok.type in ("heading_open", "paragraph_open", "bullet_list_open",
                         "ordered_list_open", "blockquote_open", "table_open",
                         "html_block", "code_block", "fence", "hr"):
-            # Collect all content until the matching close
+            # F8-7 closure: source-fidelity slicing for hr and heading via
+            # tok.map mirrors _md_block_texts's byte-slice contract — preserves
+            # hr style (---/***/___) and heading marker prefix (# / ##) or
+            # setext underline that the prior inline-collection path dropped.
             if tok.type == "hr":
-                texts.append("---")
+                if tok.map is not None:
+                    start, end = tok.map
+                    texts.append("\n".join(lines[start:end]).strip())
+                else:
+                    texts.append("---")
                 i += 1
+                continue
+            if tok.type == "heading_open":
+                if tok.map is not None:
+                    start, end = tok.map
+                    texts.append("\n".join(lines[start:end]).strip())
+                elif i + 1 < len(tokens) and tokens[i + 1].type == "inline":
+                    texts.append((tokens[i + 1].content or "").strip())
+                while i < len(tokens) and tokens[i].type != "heading_close":
+                    i += 1
+                i += 1  # past heading_close
                 continue
             if tok.type in ("html_block", "code_block", "fence"):
                 texts.append((tok.content or "").strip())
                 i += 1
+                continue
+            # F8-8 closure: source-fidelity slicing for the five collection-type
+            # blocks via tok.map mirrors F8-7's hr/heading fix and _md_block_texts'
+            # byte-slice contract — preserves list markers (- , 1. ), blockquote
+            # prefixes (> ), table separators (|, ---), and indentation that
+            # distinguishes nesting levels and that the prior inline-collection
+            # path dropped. Defensive fallback to the inline-collection path when
+            # tok.map is None (e.g. parser configurations that disable source maps).
+            if tok.type in (
+                "paragraph_open",
+                "bullet_list_open",
+                "ordered_list_open",
+                "blockquote_open",
+                "table_open",
+            ) and tok.map is not None:
+                start, end = tok.map
+                texts.append("\n".join(lines[start:end]).strip())
+                close_type = tok.type.replace("_open", "_close")
+                depth = 1
+                i += 1
+                while i < len(tokens) and depth > 0:
+                    t = tokens[i]
+                    if t.type == tok.type:
+                        depth += 1
+                    elif t.type == close_type:
+                        depth -= 1
+                        if depth == 0:
+                            i += 1  # past the close
+                            break
+                    i += 1
                 continue
             # Find the close token
             close_type = tok.type.replace("_open", "_close")
@@ -653,7 +724,8 @@ def _md_block_texts(content: str, md_binary: str) -> list[str]:
     if not out:
         return []
     data = json.loads(out)
-    return [content[b["span"]["byte_start"]:b["span"]["byte_end"]].strip()
+    content_bytes = content.encode("utf-8")
+    return [content_bytes[b["span"]["byte_start"]:b["span"]["byte_end"]].decode("utf-8").strip()
             for b in data.get("blocks", [])]
 
 
@@ -1494,7 +1566,17 @@ def select_json_envelope_actual(
     agent's correct projected answer is in assistant text. When no
     shape-matching tool output exists, fall through to text outputs
     first, and only then accept any non-empty parseable JSON tool
-    output (preserving pre-F4 behavior as the final fallback)."""
+    output (preserving pre-F4 behavior as the final fallback).
+
+    F8-1 closure (T8 iter 3): the F4 intersection check
+    (`_json_top_keys(parsed) & expected_top_keys`) is satisfied by any
+    pair of mdtools envelopes via the universal `schema_version` key,
+    so it falsely accepts an intermediate `md tasks --json` envelope
+    when the expected shape is `md outline --json`. The subset check
+    (`expected_top_keys.issubset(_json_top_keys(parsed))`) requires
+    every discriminating key from the expected shape to be present,
+    which rejects schema_version-only overlap and surfaces the correct
+    envelope (or, on no match, the fallback tool output)."""
     expected_top_keys = _expected_json_top_keys(expected_str)
     fallback_tool_actual = ""
 
@@ -1507,7 +1589,7 @@ def select_json_envelope_actual(
             continue
         if expected_top_keys is None:
             return tool_out.strip()
-        if _json_top_keys(parsed) & expected_top_keys:
+        if expected_top_keys.issubset(_json_top_keys(parsed)):
             return tool_out.strip()
         if not fallback_tool_actual:
             fallback_tool_actual = tool_out.strip()
@@ -1527,51 +1609,105 @@ def select_json_envelope_actual(
 
 
 def extract_last_json(text: str) -> str:
-    """Extract the best JSON from agent output, stripping code fences.
-    Tries each valid JSON substring and returns the last one that parses.
-    Prefers arrays over objects (agent often wraps results in an array)."""
-    clean = re.sub(r"```(?:json)?\s*\n?", "", text)
+    """Extract the best JSON from agent output.
+    Tries each valid JSON substring and returns the candidate whose
+    source-span end position is highest.
 
+    F8-2 closure (T8 iter 5): the legacy rule preferred the last array
+    over the last object unconditionally, which selected an inner
+    `entries`/`results`/`links` array over its own wrapping envelope
+    when the envelope was embedded in agent prose. Highest-end-position
+    subsumes both intended behaviors: when one candidate's span
+    contains another (e.g. envelope wrapping a nested array), the
+    container's end is greater; when candidates are non-overlapping
+    siblings (independent JSON documents in the agent text), the later
+    one has a greater end and is the agent's final answer.
+
+    F8-3 closure (T8 iter 7): the depth scanner now skips characters
+    between unescaped `"` boundaries so brace/bracket characters
+    inside JSON string values do not falsely close a candidate. Pre-
+    fix, a `}` inside a heading.text value caused the {/} pass to
+    record a truncated candidate that failed json.loads, then reset
+    start = -1, so the actual wrapping envelope was never enumerated.
+
+    F8-4 closure (T8 iter 9): a global ` ``` ` fence-strip regex
+    (`re.sub(r"```(?:json)?\s*\n?", "", text)`) used to run before
+    the depth scanner. It was string-blind on backticks: a backtick
+    triplet inside a JSON string value (e.g. an `entries[].heading.text`
+    that names the language of a code-fence example) was silently
+    stripped, mutating the candidate's string content while keeping
+    the JSON syntactically parseable. Downstream `score_structural_json`
+    then FAILed an agent answer that was byte-exact correct in the
+    input text. The fix is to drop the preprocessor: the F8-3
+    string-aware depth scanner already finds the JSON region inside
+    surrounding ` ```json ` fences (the brace tracker enters at the
+    inner `{`/`[` and ignores backticks entirely)."""
     try:
-        parsed = json.loads(clean)
+        parsed = json.loads(text)
         if isinstance(parsed, (list, dict)):
-            return clean
+            return text
     except json.JSONDecodeError:
         pass
 
     candidates = []
     for opener, closer in [("[", "]"), ("{", "}")]:
-        depth = 0
-        start = -1
-        for i, ch in enumerate(clean):
-            if ch == opener:
-                if depth == 0:
-                    start = i
-                depth += 1
-            elif ch == closer:
-                depth -= 1
-                if depth == 0 and start >= 0:
-                    candidate = clean[start:i + 1]
-                    try:
-                        json.loads(candidate)
-                        candidates.append((start, candidate, opener))
-                    except json.JSONDecodeError:
-                        pass
-                    start = -1
+        # Two-pass scan per opener/closer with an opener stack instead of
+        # a depth counter. The stack tracks the *position* of every unmatched
+        # opener; a closer pops the most recent opener and emits a candidate
+        # for that span. A closer with no matching opener is ignored (stray
+        # prose closer). Orphaned openers stay on the stack and don't poison
+        # subsequent matches — `}{` followed by a real envelope `{...}` no
+        # longer pins `start` at the stray opener position (PR #4 round 4).
+        #
+        # - Shielded pass: tracks quotes so braces/brackets inside JSON
+        #   string values stay invisible (F8-3) AND balanced quoted braces
+        #   in prose (`He said "}"`) don't leak into the brace count
+        #   (PR #4 round 2). Newline aborts in_string so an unmatched
+        #   prose quote can't latch forever (PR #4 round 1).
+        # - Unshielded pass: ignores quotes entirely. Catches the same-line
+        #   case where the JSON envelope follows an unmatched prose quote
+        #   without any newline (PR #4 round 3). Invalid prose-shaped
+        #   candidates are filtered by json.loads.
+        #
+        # Both passes' candidates are collected; the highest-end-position
+        # rule (sort by end, return last) selects the genuine envelope.
+        for shielded in (True, False):
+            opener_stack: list[int] = []
+            in_string = False
+            escape = False
+            for i, ch in enumerate(text):
+                if shielded and in_string:
+                    if escape:
+                        escape = False
+                    elif ch == "\\":
+                        escape = True
+                    elif ch == '"':
+                        in_string = False
+                    elif ch == "\n":
+                        in_string = False
+                    continue
+                if shielded and ch == '"':
+                    in_string = True
+                    continue
+                if ch == opener:
+                    opener_stack.append(i)
+                elif ch == closer:
+                    if opener_stack:
+                        start = opener_stack.pop()
+                        end_exc = i + 1
+                        candidate = text[start:end_exc]
+                        try:
+                            json.loads(candidate)
+                            candidates.append((start, end_exc, candidate))
+                        except json.JSONDecodeError:
+                            pass
+                    # else: stray prose closer with no matching opener; ignore
 
     if not candidates:
         return text
 
-    # Prefer: last array > last object
-    # "Last" because the agent typically produces the final answer after intermediate results
-    arrays = [c for _, c, o in candidates if o == "["]
-    objects = [c for _, c, o in candidates if o == "{"]
-
-    if arrays:
-        return arrays[-1]
-    if objects:
-        return objects[-1]
-    return text
+    candidates.sort(key=lambda c: c[1])
+    return candidates[-1][2]
 
 
 def extract_final_text(

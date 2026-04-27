@@ -1,0 +1,39 @@
+F8-5 attribution probe verdicts.
+
+Each block records the probe's stdout and exit code at a named state.
+Stage A = direct _md_block_texts call on UTF-8 content.
+Stage B = end-to-end SCORER DIVERGENCE on a wrong agent answer.
+
+==============================================================
+[filed] T8 iter 10 (2026-04-26) — _md_block_texts uses char-indexed slicing on byte offsets
+exit code: 1 (live failing trace)
+--------------------------------------------------------------
+[FAIL stage A] _md_block_texts drifts on UTF-8 content
+  content: '# Héllo\n\nA: foo\n\nB: bar\n'
+  byte-correct (expected): ['# Héllo', 'A: foo', 'B: bar']
+  actual (drifted):        ['# Héllo', ': foo', ': bar']
+
+[FAIL stage B] md scorer accepts WRONG answer as PASS (false-POSITIVE)
+  expected: '# café\n\nFOO\n\nbar\n'
+  actual:   '# café\n\nFOO\n\nXar\n'
+  ok_md=True  ok_neutral=False  ← divergence
+  [md]      heading_tree [md]: OK
+  [md]      block_text [md]: OK
+  [neutral] heading_tree [neutral]: OK
+  [neutral] block_text [neutral]: MISMATCH
+  [neutral]   block 2: 'bar' vs 'Xar'
+
+[F8-5 live] _md_block_texts uses char-indexed slicing on byte offsets
+==============================================================
+
+==============================================================
+[closure] T8 iter 11 (2026-04-26) — _md_block_texts encodes content to bytes once and slices the byte sequence
+exit code: 0 (inert; closure landed)
+--------------------------------------------------------------
+[OK stage A] _md_block_texts honors UTF-8 byte boundaries
+  block_texts: ['# Héllo', 'A: foo', 'B: bar']
+
+[OK stage B] both scorers reject the wrong answer (no divergence)
+
+[F8-5 inert] _md_block_texts honors UTF-8 byte boundaries
+==============================================================
