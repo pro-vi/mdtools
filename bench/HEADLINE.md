@@ -29,11 +29,12 @@ count.
 
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
-| hybrid pass rate | 66.7% (6/9) | 2026-04-27 | iter 1 + iter 2 hybrid bundles |
-| unix pass rate | 22.2% (2/9) | 2026-04-27 | iter 1 + iter 2 unix bundles |
-| **Gap (hybrid − unix)** | **+44.4pp** | 2026-04-27 | both |
-| Measured subset | extraction + mutation (9/18 search corpus): T1, T5, T7, T9, T10, T11, T13, T16, T19 | 2026-04-27 | iter 2 |
+| hybrid pass rate | 72.7% (8/11) | 2026-04-27 | iter 1 + iter 2 + iter 3 hybrid bundles |
+| unix pass rate | 18.2% (2/11) | 2026-04-27 | iter 1 + iter 2 + iter 3 unix bundles |
+| **Gap (hybrid − unix)** | **+54.5pp** | 2026-04-27 | both |
+| Measured subset | extraction + mutation + multi-step (11/18 search corpus): T1, T5, T7, T9, T10, T11, T13, T15, T16, T18, T19 | 2026-04-27 | iter 3 |
 | Corpus size (search total) | 18 (24 total − 6 holdout) | 2026-04-27 | — |
+| Cross-model trigger | **fired** — iter 2→3 gap moved +10.1pp; iter 4 must run cross-model check before any other work | 2026-04-27 | per T9 spec § "Cross-model trigger" |
 
 ## Hill-climb history
 
@@ -44,6 +45,7 @@ _(loop appends one row per iteration that moves the gap or grows the corpus)_
 | _none yet_ | | | | | | | |
 | 1 | 2026-04-27 | +50.0pp | 6 | corpus baseline | 6 | first baseline (extraction subset) | bench/runs/headline-baseline-hybrid-Qwen3.5-27B-4bit-2026-04-27/ + bench/runs/headline-baseline-unix-Qwen3.5-27B-4bit-2026-04-27/ |
 | 2 | 2026-04-27 | +44.4pp | 9 | −5.6pp | +3 | extend baseline to mutation family (T7, T10, T13); hybrid 3/3, unix 2/3 (T13 fails) — mutation gap +33.3pp dilutes the extraction-only +50.0pp toward a more honest 9-task baseline | bench/runs/headline-mutation-hybrid-Qwen3.5-27B-4bit-2026-04-27/ + bench/runs/headline-mutation-unix-Qwen3.5-27B-4bit-2026-04-27/ |
+| 3 | 2026-04-27 | +54.5pp | 11 | +10.1pp | +2 | extend baseline to multi-step family (T15, T18); hybrid 2/2, unix 0/2 — multi-step gap +100pp confirms CLAUDE.md "Strong" rating: re-query pattern after delete-section is the moat. Unix T15 made 7 mutations across 9 calls but couldn't recover from index drift; T18 hit policy denials (deny:2) and produced 0 mutations. Cross-model trigger fired (Δ +10.1pp ≥ +5pp threshold) — iter 4 must run cross-model on `Qwen3.5-122B-A10B-4bit` before any other work | bench/runs/headline-multistep-hybrid-Qwen3.5-27B-4bit-2026-04-27/ + bench/runs/headline-multistep-unix-Qwen3.5-27B-4bit-2026-04-27/ |
 
 ## Hill-climb rules (delta from T9 spec)
 
