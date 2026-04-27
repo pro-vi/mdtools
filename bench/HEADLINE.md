@@ -18,12 +18,12 @@ count.
 
 | Field | Value |
 |---|---|
-| Primary model | `Qwen3.6-35B-A3B-8bit` (small MoE, 3B active params) |
+| Primary model | `Qwen3.5-27B-4bit` (small dense, established T7 baseline) |
 | Endpoint | `http://localhost:10240/v1` (OAI-compatible MLX) |
 | Modes | `unix` / `mdtools` / `hybrid` (all three required for gap calc) |
 | Corpus | `bench/tasks/tasks.json` minus `bench/holdout/task_ids.json` IDs |
 | Holdout | `bench/holdout/` — never read by the loop, only by post-run audit |
-| Cross-model stability check | `Qwen3.5-27B-4bit` (single confirmation run when gap moves ≥+5pp) |
+| Cross-model stability check | `Qwen3.5-122B-A10B-4bit` (same family, larger; isolates model-size effect when gap moves ≥+5pp) |
 
 ## Current value
 
@@ -51,8 +51,13 @@ _(loop appends one row per iteration that moves the gap or grows the corpus)_
   realism + unix-adversary review records the candidate pointer.
 - An iteration that does **neither** is inadmissible (per T9 core law).
 - Cross-model stability check fires automatically when the gap moves ≥+5pp:
-  re-run the full corpus on `Qwen3.5-27B-4bit` and record both numbers.
-  If the cross-model gap diverges from the primary by >10pp, file a finding.
+  re-run the full corpus on `Qwen3.5-122B-A10B-4bit` (same family, larger) and
+  record both numbers. If the cross-model gap diverges from the primary by
+  >10pp, file a finding. Per CLAUDE.md the gap is expected to *shrink* on the
+  larger model ("tool benefit inversely proportional to model capability") —
+  the divergence guard is for the unexpected case (gap *grows* on larger
+  model, suggesting the corpus is overfit to small-model pathologies rather
+  than measuring real structural advantage).
 
 ## Halt criteria for the headline
 

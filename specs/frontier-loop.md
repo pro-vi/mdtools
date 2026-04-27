@@ -106,7 +106,7 @@ primary engine, with the 8 discipline rules as load-bearing requirements.
 The MLX server on `http://localhost:10240/v1` (OAI-compatible) hosts the
 target models. Pass `--runner oai-loop --oai-api-base
 http://localhost:10240/v1 --oai-api-key 215069 --model
-Qwen3.6-35B-A3B-8bit` to `bench/harness.py --run`.
+Qwen3.5-27B-4bit` to `bench/harness.py --run`.
 
 ## Reward channels
 
@@ -124,7 +124,10 @@ Qwen3.6-35B-A3B-8bit` to `bench/harness.py --run`.
   and the current `holdout_version` stamp.
 - **Cross-model channel (triggered):** when the gap moves ≥+5pp,
   re-score the full corpus on the cross-model target
-  (`Qwen3.5-27B-4bit`) and record divergence in HEADLINE.md.
+  (`Qwen3.5-122B-A10B-4bit`, same family larger) and record divergence
+  in HEADLINE.md. Gap is expected to shrink on the larger model per
+  CLAUDE.md's "tool benefit inversely proportional to model capability"
+  finding; the >10pp divergence guard fires on the unexpected direction.
 
 ## Per-iteration shape
 
@@ -298,9 +301,10 @@ recommendation for the next loop (if any).
 - `bench/search/candidates/`, `bench/search/quarantine/`, and
   `bench/search/accepted/` do not exist. The first auto-research pass
   creates them.
-- MLX endpoint live on port 10240 with the listed models. Confirmed
-  `Qwen3.6-35B-A3B-8bit` (primary) and `Qwen3.5-27B-4bit` (cross-model)
-  are loaded.
+- MLX endpoint live on port 10240. Primary target `Qwen3.5-27B-4bit`
+  and cross-model target `Qwen3.5-122B-A10B-4bit` are both loaded.
+  `Qwen3.6-35B-A3B-8bit` and Gemma-4 are downloading and may join the
+  matrix later as additional cross-model checks.
 - T7+T8 evaluator substrate carries forward intact: dual scorer with F8
   fixes, mechanical L1 guard, holdout_version stamping, PI runner with
   audit, cross-executor comparability rule, opener-stack JSON extractor.
@@ -313,7 +317,7 @@ recommendation for the next loop (if any).
 - **Auto-research as primary engine** finally exercises the channel T8
   spec admitted but never ran. The 8 discipline rules become operational
   requirements, not guardrails.
-- **Endpoint is real.** No more theoretical hill-climb — Qwen3.6-35B-A3B
+- **Endpoint is real.** No more theoretical hill-climb — Qwen3.5-27B-4bit
   on MLX is one curl away. T8's blocker is gone.
 - **Anti-overfit by construction** via realism review + unix-adversary
   review (only AST-structural gaps count) + cross-model trigger
