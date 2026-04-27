@@ -1,77 +1,112 @@
-# mdtools Frontier Loop Prompt — T8 (Hill-Climb on Existing Surfaces)
+# mdtools Frontier Loop Prompt — T9 (Headline-Metric Hill-Climb)
 
 ## Rationale
 
-T7 (53+ iterations on `frontier-loop/t7-run`, merged via PR #3) closed every OPEN oracle-trustworthiness finding (F3, F4, L1, P3) within ~30 iterations using mode-neutral fixes and mechanical guards (SHA-256 fingerprint manifest, runtime exit-code-2 enforcement, holdout-version stamping). It then drifted: ~35 further iterations produced well-formed coverage-matrix work without halting because "intervention diversity" was self-satisfied by enumerating PI bundle cells. `bench/ledger.md` reached 10,691 lines.
+T7 (PR #3) closed every OPEN oracle-trustworthiness finding and built the
+mechanical guards. T8 (PR #4) closed 8 latent scorer/extractor bugs that T7
+had never surfaced (F8-1 through F8-8), including 2 false-POSITIVES that
+compromised past benchmark verdicts. Both runs hardened the *evaluator*; the
+*product* was untouched.
 
-In parallel, the bridge-contract spike (`specs/fract-ai-bridge-contract.md`) falsified the "build new CLI surfaces to align with FRAC-147 ChangeSet IR" hypothesis. Per GPT Pro Extended (`mdtools-T7-loop-design` thread, 2026-04-26): no new mdtools product surface (`md apply`, `md move-block`, generalized `md set-state`, HTML body support) is justified by FRAC-147 alone. Every "missing op" case is also a Lexical-NodeKey-preservation case that mdtools structurally cannot solve. The bridge work is a one-shot artifact pending fract-ai owner verdict on four open questions.
+T9 turns the loop outward. The repo's legitimacy claim is one sentence:
+*"agents perform measurably better on Markdown editing with mdtools than
+without."* That claim is a **gap** — hybrid-mode pass rate minus unix-mode
+pass rate on a target small model, on a growing realistic corpus. The gap is
+the headline number. The loop's only job is to make it go up over time, by
+either growing the corpus (auto-research-style task discovery surviving
+realism + unix-adversary review) or by hardening existing surfaces against
+specific failing traces that the gap surfaced.
 
-**T8 is what the loop should do while the bridge contract waits.** It is a hill-climb on **existing mdtools surfaces** — better selectors, scorer hardening on real failing traces, auto-research-driven task discovery, telemetry on existing commands. It explicitly forbids inventing new CLI primitives; that work, if any, comes from Workstream A (bridge contract) or from `/route` outside the loop, never from auto-research output.
+T7's evaluator substrate (search/holdout split, mechanical L1 guard,
+holdout_version stamping, PI runner with audit, cross-executor comparability
+rule, dual scorer with F8-series fixes) is treated as frozen baseline. T8's
+"hill-climb on existing surfaces" framing carries forward as a sub-channel,
+but the *primary* discovery engine is now auto-research producing realistic
+task families that distinguish mdtools from unix.
 
-T8 carries forward T7's evaluator substrate (search/holdout split, mechanical L1 guard, holdout_version stamping, PI runner with audit, cross-executor comparability rule) as a frozen baseline. Do not rebuild, re-prove, or re-celebrate it.
+T9 differs from T8 in three structural ways:
 
-T8 differs from T7 in five structural ways:
-
-1. **Single homeostatic goal:** discover failing traces on existing surfaces, harden the surfaces that fail. Coverage expansion is no longer admissible as homeostasis restoration.
-2. **Auto-research is the primary discovery channel**, with the 8 discipline rules carried forward from T7's spec (mdtools-blind generator, realism review before gap measurement, family-level splits, cross-model stability, unix-adversary review, dual scorers, rejected-candidate ledger, holdout never auto-grows).
-3. **Anti-folklore lock:** auto-research output drives **scorer / selector / harness hardening on existing surfaces only**. New CLI primitives are forbidden inside this loop. Period.
-4. **Hard ledger budget** (≤500 lines, with mechanical overflow archive) plus a ratification-of-ratification ban.
-5. **Halt is decisive:** 3 iterations without a fresh failing trace, fresh auto-research candidate, or fresh probe variant → `stop-and-summarize`. Coverage cells alone never reset the counter.
+1. **Single declared metric.** `bench/HEADLINE.md` carries one number — the
+   gap on the primary target model. Every accepted iteration must move it
+   up or grow the corpus underneath it.
+2. **Auto-research is the primary engine, not a sub-channel.** T8 admitted
+   it but never ran it. T9 makes it the iteration default. The 8 discipline
+   rules from T7's spec are now load-bearing operational requirements, not
+   guardrails for an optional sub-flow.
+3. **The endpoint is real.** MLX server on port 10240 is reachable; the OAI
+   loop runner already speaks to it. Iterations that need to score a
+   candidate task on the target model can run it cheaply.
 
 ## Prompt
 
 ```md
-You are running a research-and-hardening loop on this repository.
+You are running a hill-climb loop on this repository.
 
-Your job is to find ways current mdtools fails on realistic Markdown-agent
-tasks, and harden the surfaces that fail. You are not building new CLI
-commands. You are not aligning to fract-ai's ChangeSet IR. You are not
-re-proving T7's closure trail.
+Your job is to make ONE number go up over time:
+**hybrid mode pass rate minus unix mode pass rate**, on the target small
+model, over the full search corpus, recorded in `bench/HEADLINE.md`.
+
+That gap is the legitimacy claim — "agents perform measurably better on
+Markdown editing with mdtools than without." Each iteration must move
+the gap up OR grow the corpus underneath it with a task that survived
+realism + unix-adversary review.
 
 ## Motive
 
-Improve the evidence-backed claim that mdtools materially helps small
-agents on file-backed Markdown structural tasks, by discovering tasks
-where current mdtools is weak and hardening the existing surfaces (scorer,
-selectors, JSON stability, telemetry) that produce those weaknesses.
+Build a defensible, growing evidence base for the headline claim. The
+gap is the metric; the corpus growth is the moat. A gap of +20pp on
+24 tasks is weaker evidence than +20pp on 100 tasks of demonstrably
+realistic Markdown-agent work — both the *level* and the *breadth* matter.
 
 ## Core law
 
 Each iteration must do exactly one of these — nothing else is admissible:
 
-1. produce a fresh failing trace against an existing mdtools surface
-   (scorer false-negative, selector ambiguity, JSON instability, harness
-   defect) and file it on the ledger
-2. close a finding by hardening the existing surface, with a typed
-   artifact (test or probe) pinning the fix
-3. run an auto-research generator pass and surface candidates under
-   `bench/search/candidates/` for human-review-before-promotion
-4. run a unix-adversary review on a candidate task family to label its
-   gap class (AST-structural / shell-quoting / planning / prompting /
-   scorer-artifact / current-mdtools-command-shape-match)
-5. add telemetry on an existing command per the telemetry contract
-6. emit `stop-and-summarize` because the halt conditions are met
+1. **Grow the corpus:** propose a new realistic Markdown-agent task,
+   verify realism (LLM judge or heuristic), run all 3 modes against
+   the target model, label gap class via unix-adversary review, and if
+   the family qualifies, file under `bench/search/candidates/`.
+2. **Promote a candidate:** move a candidate from
+   `bench/search/candidates/` → `bench/search/accepted/` →
+   `bench/search/` proper after dual scorer agreement and family-level
+   stability across multiple seeds.
+3. **Harden against a fresh failing trace:** if a candidate or existing
+   task surfaces a real scorer/selector/JSON-stability defect (T8-style
+   F-series finding), close it with a typed artifact and an attribution
+   probe.
+4. **Update HEADLINE.md** after a corpus-growing or surface-hardening
+   move that actually changes the gap or the corpus size.
+5. **Cross-model stability check:** when the gap has moved ≥+5pp since
+   the last check, run the full corpus on the cross-model target and
+   record both numbers. If divergence > 10pp, file a finding.
+6. Emit `stop-and-summarize` because the halt conditions are met.
 
-The following are inadmissible in T8:
+The following are inadmissible in T9:
 
-- producing a PI bundle whose only purpose is coverage-cell-filling
+- producing a bundle whose only purpose is coverage cell-filling
 - promoting a prose claim to a typed test that doesn't fix or pin a
-  finding
+  finding the gap surfaced
 - ratifying a previous iteration bit-exact as the iteration's sole
   content
 - adding any new CLI command, flag, op type, or agent action surface
+  (the T8 anti-folklore lock carries forward)
 - aligning mdtools' op vocabulary to FRAC-147's ChangeSet IR
-- extending the cross-executor comparability table without a finding
-- writing to `specs/fract-ai-bridge-contract.md` (frozen artifact;
-  changes go through `/route`, not this loop)
+- writing to `specs/fract-ai-bridge-contract.md` (frozen artifact)
+- modifying `bench/holdout/` or any holdout fingerprints (L1 guard)
 
 ## Evaluator maturity
 
-Current tier: T8.
-T7's substrate is frozen baseline. Cite once when needed; do not
-re-derive. The frontier moves only by surfacing fresh failing traces
-on existing surfaces or by auto-research expanding the search corpus
-under realism discipline.
+Current tier: T9.
+T7+T8's substrate is frozen baseline. The headline metric is the new top
+of the funnel; the loop's job is to climb it. Auto-research is the
+primary engine, with the 8 discipline rules as load-bearing requirements.
+
+## Endpoint configuration
+
+The MLX server on `http://localhost:10240/v1` (OAI-compatible) hosts the
+target models. Pass `--runner oai-loop --oai-api-base
+http://localhost:10240/v1 --oai-api-key 215069 --model
+Qwen3.6-35B-A3B-8bit` to `bench/harness.py --run`.
 
 ## Reward channels
 
@@ -80,173 +115,105 @@ under realism discipline.
   bench.test_harness_json bench.test_harness_run_artifacts
   bench.test_harness_task_split bench.test_analyze_inputs
   bench.test_report_inputs`, `python3 bench/harness.py --md-binary
-  target/release/md`. Run every iteration. Green is a precondition,
+  target/release/md`. Run every iteration. Green is precondition,
   not progress.
-- **Auto-research channel:** generator passes producing candidate
-  task families under `bench/search/candidates/`. Each candidate
-  carries a realism-review note and a unix-adversary gap-class label.
-  Generator is mdtools-blind: it never sees current `md` command
-  names, the current corpus, or which tasks produced mdtools wins.
-- **Probe channel:** for any candidate finding that proposes a
-  scorer/selector hardening, run the probe variant first (does the
-  hardening actually move the named failure class on the affected
-  trace, not just a pass rate?) and record under `bench/probes/`.
-- **Expensive outer channel:** PI runner bundles or OAI loop runs
-  are admissible only when directly motivated by a finding hypothesis
-  (e.g. "is this scorer false-negative reproducible across models?").
-  Not admissible to fill a coverage cell.
+- **Expensive outer channel (primary engine):** OAI loop runner against
+  the target model on candidate tasks (3 modes × N runs) AND on the
+  full search corpus when a promotion happens. Bundles land under
+  `bench/runs/` with the standard `run.json` + `results.json` shape
+  and the current `holdout_version` stamp.
+- **Cross-model channel (triggered):** when the gap moves ≥+5pp,
+  re-score the full corpus on the cross-model target
+  (`Qwen3.5-27B-4bit`) and record divergence in HEADLINE.md.
 
-## Signal hierarchy
+## Per-iteration shape
 
-1. Externally reviewed findings (highest authority).
-2. Typed / machine-derived artifacts: harness state, scorer verdicts,
-   probe variant outputs, `pi-audit.v1` JSONL events, auto-research
-   ledger rows.
-3. Self-authored ledger prose (weaker; can narrativize drift).
-4. Commit log narratives (weakest; anti-repetition signal only).
+1. Read `bench/HEADLINE.md` to know the current gap and corpus size.
+2. Diagnose: is the gap stalling, the corpus stalling, or is there an
+   open failing trace from a recent run?
+3. Pick the admissible move that most directly addresses the diagnosis:
+   - Stalling on both → propose new task family (auto-research generator
+     pass).
+   - Candidate accumulating in `candidates/` → promote one through
+     realism + unix-adversary review.
+   - Failing trace open → harden the surface.
+4. Make the change. Run the cheap validator. If green, run the expensive
+   channel for the candidate (3 modes × N).
+5. If the change moved the gap or grew the corpus, append a row to
+   `bench/HEADLINE.md`'s history table with the bundle pointer.
+6. If gap moved ≥+5pp since last cross-model check, run cross-model.
 
-## Homeostasis
+## Auto-research discipline (load-bearing in T9)
 
-T8 collapses T7's six axes into three:
-
-- **Failing-trace freshness** — has the loop produced a fresh failing
-  trace on an existing mdtools surface in the last 3 iterations?
-  Disturbance signs: 3+ consecutive iterations producing only
-  hardening, ratification, or coverage moves. The fix is a
-  generator pass or a focused expensive-channel run targeting an
-  unchecked failure-class hypothesis.
-
-- **Surface hardening cadence** — when a fresh failing trace appears,
-  is it closed within 1-2 iterations with a typed artifact, or does
-  it linger as a ratification chain?
-  Disturbance signs: a finding stays OPEN for >3 iterations without
-  a hardening attempt, OR the hardening attempt produces a typed
-  artifact that doesn't actually move the failing trace on the
-  attribution probe.
-
-- **Auto-research realism** — are auto-generated candidates passing
-  the realism review and the unix-adversary review with honest gap
-  labels, or is the generator producing mdtools-shaped tasks?
-  Disturbance signs: candidate family rejection rate > 50% over 5
-  consecutive generator passes (generator is overfitting to current
-  command shape), OR no candidate has been promoted from
-  `candidates/` to `search/` after 5 generator passes (realism
-  review is too strict / generator is too weak), OR the rejected-
-  candidate ledger only contains mdtools wins.
-
-## Iteration protocol
-
-1. Read state: `bench/ledger.md` index, latest `bench/probes/` and
-   `bench/search/candidates/` entries, current OPEN finding count.
-2. Diagnose: which of the three axes is most disturbed?
-3. Pick the admissible move that restores balance. If no axis is
-   disturbed and no admissible move exists, emit `stop-and-summarize`.
-4. Write the intervention's shape as a single line before editing:
-   axis, hypothesis, success criterion (what failing trace will move
-   or what realism check will pass), rollback condition.
-5. Make one small reversible change.
-6. Run the cheap validator. If it passes, run the relevant probe.
-7. Update the ledger entry: 1-2 short paragraphs maximum. No bit-exact
-   re-citation. No multi-paragraph parentheticals. No counter-of-
-   counters bookkeeping. If the entry would push the ledger over 500
-   lines, archive overflow first (see "Hard rules" below).
-
-## Hard rules
-
-### Ledger budget (mechanical)
-
-`bench/ledger.md` must remain ≤500 lines. When an iteration's append
-would exceed the budget:
-
-1. Move all entries older than the most-recent 30 iterations to
-   `bench/ledger-archive/<YYYY-Qn>.md`.
-2. The index header in `bench/ledger.md` keeps a one-line-per-
-   archived-finding pointer to the archive.
-3. The archive append is a separate iteration step; it does not
-   count as the iteration's substantive move.
-
-If the budget cannot be restored within the iteration, halt with
-`stop-and-summarize` and request operator-level archive maintenance.
-
-### Ratification-of-ratification ban
-
-An iteration whose sole substantive content is "ratifying iter N-1
-bit-exact" or "verifying that no fresh failing trace surfaced" is
-inadmissible. Closure-discipline confirmation may happen but only as
-a one-line annotation under an iteration that also produces real
-forward progress (a fresh failing trace, an auto-research candidate,
-a hardening fix, a probe verdict, or telemetry).
-
-### Coverage expansion is not intervention diversity
-
-Producing the "first PI bundle exercising X" or "Nth bundle on
-scorer branch Y" is **not** a fresh-axis disturbance restoration in
-T8. The intervention-diversity axis is restored only by:
-- a fresh failing trace
-- a fresh auto-research candidate (post-realism-review)
-- a fresh probe variant result
-- a substantive hardening of an existing surface
-
-If an iteration cannot articulate which of these it delivers, it is
-inadmissible.
-
-### Anti-folklore lock (no new CLI surfaces)
-
-T8 may not add any new `md` command, flag, op type, or agent action
-surface. The forbidden list is named explicitly:
-
-- `md apply` (transactional multi-edit)
-- `md move-block`
-- generalized `md set-state` (beyond existing `md set-task`)
-- HTML body support on existing ops
-- new "ChangeSet-shaped" CLI vocabulary
-- speculative new selectors, parsers, or addressing schemes
-
-`md fingerprint <loc>` is the single MAYBE Pro identified — admissible
-only if a specific failing trace requires it. Not as speculative
-ergonomics.
-
-If T8 surfaces evidence that a new CLI primitive *is* warranted (e.g.
-the bridge owner returns verdicts unblocking a specific build, or a
-second consumer surfaces real demand), halt with `stop-and-summarize`
-and route that work outside this loop.
-
-### Auto-research discipline (carried forward from T7)
+These were guardrails in T8; they are operational requirements in T9.
 
 1. **Generator is mdtools-blind.** Prompt shape: "realistic Markdown
    document-maintenance tasks an AI coding agent might need to perform
    in READMEs, specs, changelogs, runbooks, design docs, task lists."
-   Generator must not see current `md` command names, current corpus
-   IDs, or which tasks produced mdtools wins.
+   Generator must NOT see current `md` command names, current corpus
+   IDs, or which tasks produced mdtools wins. Concretely: spawn the
+   generator with a system prompt that omits mdtools entirely; describe
+   the desired output shape (input doc, expected output, scorer policy)
+   in vocabulary that doesn't bias toward AST-aware tooling.
 2. **Realism review precedes gap measurement.** A candidate family is
-   accepted as realistic before any unix vs mdtools run.
+   accepted as realistic *before* any unix vs mdtools run. Selection
+   on realism, not on mdtools wins. Realism review can be a separate
+   LLM judge with a prompt like "is this a task a human would actually
+   perform on a real document?" and a yes/no verdict.
 3. **Holdout never auto-grows.** Output flows
    `bench/search/candidates/` → `bench/search/quarantine/` →
-   `bench/search/accepted/`. Promotion to `bench/holdout/` requires
-   human review and a `holdout_version` bump.
-4. **Family-level splits, not instance cherry-picking.** Accept or
-   reject the family; promotion uses fresh unseen instances generated
-   from the family.
+   `bench/search/accepted/` → `bench/search/` proper. Promotion to
+   `bench/holdout/` requires human review and a `holdout_version` bump.
+4. **Family-level splits, not instance cherry-picking.** If a generator
+   produces 30 instances of a family and mdtools wins 6, the *family*
+   is accepted or rejected; promotion uses fresh unseen instances
+   generated from the accepted family.
 5. **Cross-model and cross-seed stability.** Candidate retention
-   requires gaps that survive multiple seeds and at least two models.
-6. **Unix-adversary review.** A separate model or human proposes the
-   best plausible unix strategy. Gap is then labeled: AST-structural /
+   requires gaps that survive multiple seeds and the cross-model check.
+6. **Unix-adversary review.** A separate model proposes the best
+   plausible unix strategy. Gap is then labeled: AST-structural /
    shell-quoting / planning / prompting / scorer-artifact /
-   current-mdtools-command-shape-match. Only AST-structural gaps are
-   strong product evidence.
+   current-mdtools-command-shape-match. **Only AST-structural gaps
+   count as legitimate corpus members.** This is the load-bearing rule
+   that prevents the corpus from filling with overfit tasks.
 7. **Dual independent scorers.** Generator may not also generate the
-   scorer.
-8. **Rejected candidates are stored.** A healthy ledger contains
-   mdtools wins, unix wins, both-fail, both-pass, scorer-rejected,
-   realism-rejected, suspected-tool-shape-artifact buckets. A ledger
-   that contains only mdtools wins is benchmark farming.
+   scorer. Use the existing dual-scorer dispatch (md binary + neutral
+   markdown-it-py).
+8. **Rejected candidates are stored.** Healthy ledger contains mdtools
+   wins, unix wins, both-fail, both-pass, scorer-rejected, realism-
+   rejected, suspected-tool-shape-artifact buckets. A ledger that
+   contains only mdtools wins is benchmark farming.
+
+## Hard rules
+
+### Ledger budget (mechanical, unchanged from T8)
+
+`bench/ledger.md` ≤ 500 lines. Overflow archives to
+`bench/ledger-archive/<YYYY-Qn>.md` per T8 protocol.
+
+### Ratification-of-ratification ban (unchanged from T8)
+
+An iteration whose sole substantive content is "ratifying iter N-1
+bit-exact" or "verifying that no fresh failing trace surfaced" is
+inadmissible.
+
+### Anti-folklore lock (unchanged from T8)
+
+No new `md` commands, flags, op types, or agent action surfaces. Forbidden
+list: `md apply`, `md move-block`, generalized `md set-state`, HTML body
+support, ChangeSet-shaped CLI vocabulary, `md fingerprint <loc>` (the
+single MAYBE Pro identified is admissible only if a specific failing
+trace requires it — not as speculative ergonomics).
+
+If T9 surfaces evidence that a new CLI primitive *is* warranted, halt
+with `stop-and-summarize` and route that work outside this loop via
+`/route` or the bridge-contract escalation path.
 
 ### Apples-to-apples normalization (unchanged from T7)
 
-Minimum normalization axes for cross-cell comparison: model identity,
-`thinking_level` (per-result + per-run), executor (OAI vs PI),
-runs-per-task, `holdout_version`. Movements crossing any axis are
-search-set observations, not comparisons.
+Cross-cell comparison requires: model identity, `thinking_level`,
+executor, runs-per-task, `holdout_version`. Movements crossing any axis
+are search-set observations, not gap movements.
 
 ### Status-theater prohibition (unchanged)
 
@@ -254,117 +221,104 @@ No upfront plans. No rollout narration. No completion summaries
 mid-run. Typed artifacts are truth; ledger entries are short index
 pointers.
 
-### Attribution requirement (carried forward, sharpened)
+### Attribution requirement (unchanged from T8)
 
-For any hardening intervention, the accept gate is "the named failure
-class moves on the attribution probe declared at iteration step 4,"
-not "headline pass rate moved." A pass-rate movement without
-attribution is logged as a search-set observation, not as progress.
+Hardening interventions accept on "named failure class moved on
+attribution probe," not "headline pass rate moved." (The headline gap
+is a different number — at the *corpus* level, not the *task* level.
+A task-level pass-rate movement still requires attribution; the corpus-
+level gap is what HEADLINE.md tracks.)
 
-## Telemetry contract
+### Promotion gate (new in T9)
 
-Telemetry is a no-regret hardening track per Pro's review. Add per
-existing command, not for new ones. Each command should record
-(stdout-only metric, no external sink in T8):
+A candidate task family does not enter `bench/search/` proper unless
+ALL of these are true:
 
-- the command name and minimum identifying args
-- target selector type if applicable (loc / heading / search)
-- input size class (bytes range)
-- output type (json / text / mutation / no-op)
-- mutation indicator if applicable (fields changed / blocks moved)
-- error class if non-zero exit (parse / address-unresolved / IO / ambiguity)
+- Realism review verdict: yes (logged with reviewer model + prompt).
+- Unix-adversary review label: AST-structural (other labels reject).
+- Cross-seed stability: gap appears across at least 3 seeds.
+- Dual scorer agreement on at least one mdtools win in the family.
+- Family is named in `bench/search/accepted/<family>/manifest.json`
+  with input docs, expected outputs, scorer policies, and per-instance
+  bundle pointers.
 
-Telemetry contract artifact lives under `bench/telemetry/<command>.md`.
-Adding the artifact is admissible (counts as item 5 in core law).
-Implementing the actual telemetry hook in `src/` is admissible only if
-paired with a finding or candidate that benefits from it.
+### Cross-model trigger (new in T9)
+
+When the headline gap moves ≥+5pp since the last cross-model check,
+the next iteration MUST run the cross-model check before any other
+work. If divergence > 10pp, file a finding (P0 if it crosses an
+acceptance metric, P1 otherwise) and halt corpus growth until resolved.
 
 ## Halt conditions
 
 Halt fires on the **first** of:
 
-1. **Quiet-trace halt:** 3 consecutive iterations with no fresh failing
-   trace, no fresh auto-research candidate post-realism, no fresh
-   probe variant result. Coverage cells, ratifications, and ledger
-   archive moves do not reset the counter.
-2. **Hardening exhaustion:** all OPEN findings closed AND auto-research
-   has produced ≥3 family-rejection rounds with no candidate promoted
-   to `bench/search/accepted/` (the generator has converged on the
-   current corpus shape; further hill-climb requires either a new
-   generator strategy or an external corpus injection, neither of
-   which T8 admits).
-3. **CLI temptation:** any iteration that proposes a new CLI surface
-   triggers `stop-and-summarize` with a routing recommendation
-   ("escalate to /route for X primitive"). T8 does not litigate.
-4. **Ledger budget breach** that cannot be resolved by the in-iteration
-   archive move. Halt and request operator maintenance.
-5. **Bridge unblock:** the fract-ai bridge owner returns verdicts on
-   the four open questions in `specs/fract-ai-bridge-contract.md` AND
-   any of the verdicts is `would call`. Halt and route the resulting
-   build outside this loop.
-6. **Cheap channel red** that cannot be restored within the iteration.
+1. **Gap saturation:** 3 consecutive promotion attempts produce no gap
+   movement AND no corpus growth surviving review. Corpus has converged
+   on the current generator's reach for the target model.
+2. **Cross-model divergence:** primary-vs-cross-model gap diverges by
+   >10pp without a clean explanation. Halt and investigate.
+3. **Endpoint failure:** MLX server unreachable for >5 consecutive
+   iterations.
+4. **Cheap channel red** that cannot be restored within the iteration.
+5. **Ledger budget breach** unrepairable in iteration.
+6. **CLI temptation:** any iteration proposing a new CLI primitive
+   triggers `stop-and-summarize` with a routing recommendation.
 
-The halt summary lives at `bench/probes/t8-summary.md`, ≤200 lines,
-containing: findings closed, auto-research candidates accepted/rejected
-with gap labels, telemetry artifacts added, the disposition of each
-halt condition that fired, and a one-paragraph recommendation for
-what the next loop (if any) should be.
+The halt summary lives at `bench/probes/t9-summary.md`, ≤200 lines,
+with: final gap, final corpus size, families accepted/rejected with
+gap labels, cross-model divergence at halt, telemetry/findings
+delta, the disposition of each fired halt condition, and a one-paragraph
+recommendation for the next loop (if any).
 
 ## Artifacts to maintain
 
-- **Ledger** (`bench/ledger.md`): index + ≤30 most recent entries,
-  one finding per row, P0/P1/P2 tagged.
-- **Ledger archive** (`bench/ledger-archive/<YYYY-Qn>.md`): overflow
-  prose narratives.
-- **Probes** (`bench/probes/`): per-finding subdirectories with
-  variant outputs and verdicts.
+- **HEADLINE.md** (`bench/HEADLINE.md`): the one number, current and
+  history. Updated only on iterations that move the gap or grow the
+  corpus.
+- **Ledger** (`bench/ledger.md`): index of findings, ≤500 lines.
+- **Ledger archive** (`bench/ledger-archive/<YYYY-Qn>.md`): overflow.
+- **Probes** (`bench/probes/`): per-finding directories with variant
+  outputs and verdicts.
 - **Auto-research staging** (`bench/search/candidates/`,
   `bench/search/quarantine/`, `bench/search/accepted/`): per-family
   staging with realism notes, unix-adversary gap labels, rejected-
   candidate buckets.
 - **Telemetry contracts** (`bench/telemetry/<command>.md`): per-command
-  recording shape.
-- **Run bundles** (`bench/runs/`): only when motivated by a finding;
-  `holdout_version` stamped per T7 spec.
-- **Halt summary** (`bench/probes/t8-summary.md`): bounded, single-
-  artifact halt deliverable.
+  recording shape — admissible to add when a finding requires it.
+- **Run bundles** (`bench/runs/`): per-iteration with `holdout_version`.
+- **Halt summary** (`bench/probes/t9-summary.md`): bounded.
 ```
 
-## Outstanding repo state at T8 launch
+## Outstanding repo state at T9 launch
 
-- `bench/ledger-archive/` does not exist. Iteration 1 (or whichever
-  iteration first risks ledger overflow) creates `2026-Q2.md` and
-  archives T7's iter-1 through iter-67 narrative entries.
-- `bench/probes/` does not exist. The first iteration that runs an
-  attribution probe creates it.
-- `bench/search/candidates/` does not exist. The first auto-research
-  pass creates it; promotion paths (`quarantine/`, `accepted/`) are
-  documented in `bench/ledger.md`.
-- `bench/telemetry/` does not exist. The first telemetry-contract
-  artifact creates it.
-- `specs/fract-ai-bridge-contract.md` is **frozen** in T8 scope.
-  Updates require `/route`, not loop iteration.
-- T7's PI runner (`bench/pi_runner.py`) carries the message_end
-  fallback fix from PR #3 commit `48e4731`. T7's L1 guard scoping
-  fix (`bench/harness.py:check_holdout_integrity()` no longer
-  threading `--tasks-path`) is also live.
+- `bench/HEADLINE.md` exists (created at T9 launch with placeholder
+  current value). Iteration 1 must run the full search corpus on the
+  target model in all 3 modes to populate the first real value.
+- `bench/search/candidates/`, `bench/search/quarantine/`, and
+  `bench/search/accepted/` do not exist. The first auto-research pass
+  creates them.
+- MLX endpoint live on port 10240 with the listed models. Confirmed
+  `Qwen3.6-35B-A3B-8bit` (primary) and `Qwen3.5-27B-4bit` (cross-model)
+  are loaded.
+- T7+T8 evaluator substrate carries forward intact: dual scorer with F8
+  fixes, mechanical L1 guard, holdout_version stamping, PI runner with
+  audit, cross-executor comparability rule, opener-stack JSON extractor.
 
 ## Why this is the right next loop
 
-- **Single homeostatic goal** (failing-trace freshness + surface
-  hardening + auto-research realism) replaces T7's six-axis homeostasis
-  that the loop self-satisfied with coverage moves.
-- **Auto-research is the primary discovery channel** rather than an
-  optional sub-skill, with the discipline rules promoted from T7's
-  spec to load-bearing.
-- **Anti-folklore lock by enumeration** — the forbidden new-CLI list
-  is named, so the loop cannot accidentally re-anchor on `md apply`
-  or `md move-block` via auto-research output.
-- **Mechanical ledger budget** kills the 10,691-line failure mode by
-  construction.
-- **Halt by trace-freshness counter, not by review-pass counter** —
-  3 iterations without a fresh trace halts immediately, no matter how
-  many ratifications happened.
-- **Halt summary is bounded** (200 lines, structured) — produces a
-  real handoff to either a follow-on loop, a `/route` decision, or
-  shipping the work as-is.
+- **Single declared metric** (the gap in HEADLINE.md) replaces T8's
+  diffuse "research and harden" framing. There is one number, and the
+  loop's only job is to make it go up.
+- **Auto-research as primary engine** finally exercises the channel T8
+  spec admitted but never ran. The 8 discipline rules become operational
+  requirements, not guardrails.
+- **Endpoint is real.** No more theoretical hill-climb — Qwen3.6-35B-A3B
+  on MLX is one curl away. T8's blocker is gone.
+- **Anti-overfit by construction** via realism review + unix-adversary
+  review (only AST-structural gaps count) + cross-model trigger
+  (≥+5pp moves require Qwen3.5-27B confirmation).
+- **Halts cleanly** when the corpus saturates against the current
+  generator + target model. No drift mode, because every iteration must
+  cite a gap movement, a corpus growth, or a hardening fix tied to the
+  gap.
