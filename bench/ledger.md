@@ -14,7 +14,7 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-_None._
+- **F8-8** — `neutral_block_texts` (bench/harness.py:120-144) over-normalizes the four non-{hr, heading, html_block, code_block, fence} collection-type blocks (paragraph_open, bullet_list_open, ordered_list_open, blockquote_open, table_open) by collecting only inline content from child tokens, dropping list markers (`- `, `1. `), blockquote prefixes (`> `), table separators (`|`, `---`), and indentation that distinguishes nesting levels. `_md_block_texts` byte-slices the source and preserves all of the above. P2 SCORER DIVERGENCE on the cross-check direction: md gates `BenchResult.correct = ok_md` and correctly catches all four classes today, but the independent neutral cross-check is structurally broken on collection-type blocks and would mask any future md-side regression mirroring neutral's leniency. Filed T8 iter 16. Symmetric mirror of F8-7 (closed iter 15) on the remaining branch — F8-7 closed the hr/heading half of `neutral_block_texts`'s dispatch via `tok.map` line slicing; F8-8 closes the collection-type half by extending the same fix shape. Probe: `bench/probes/F8-8-neutral-block-texts-collection-over-normalization/probe.py` (exit 1 = LIVE on stages A/B/C/D). Closure plan: extend F8-7's `tok.map`-line-slicing to paragraph_open/bullet_list_open/ordered_list_open/blockquote_open/table_open, with defensive fallback to the existing inline-collection path when `tok.map is None`. Attribution probe = rerun probe.py expecting exit 0 on all four stages.
 
 ## Closed in T8
 
@@ -72,6 +72,12 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 16 (2026-04-26): Fresh failing trace — F8-8 neutral_block_texts collection-type over-normalization
+
+Item 1 (fresh failing trace). Filed F8-8 against `neutral_block_texts` (bench/harness.py:120-144): the inline-collection branch dispatching paragraph_open/bullet_list_open/ordered_list_open/blockquote_open/table_open collects only `inline.content` from child tokens, dropping list markers (`- `/`1. `), blockquote prefixes (`> `), table separators (`|`/`---`), and indentation that distinguishes nesting levels. `_md_block_texts` byte-slices the source and preserves all of the above. Probe `bench/probes/F8-8-neutral-block-texts-collection-over-normalization/probe.py` exits 1 on all four stages: Stage A direct extractor divergence (5 of 6 collection-type blocks disagree on a single mixed sample); Stages B/C/D end-to-end SCORER DIVERGENCE on bullet→ordered swap, blockquote→paragraph flattening, and nested→flat list flattening (md=MISMATCH correctly, neutral=OK falsely on each).
+
+Severity P2 (cross-check direction, mirror of F8-7's hr/heading half): md gates `BenchResult.correct` and correctly catches all four traces today, so binary correct flag preserved. Hooked from iter 15's learning ("the not-yet-touched paragraph/list/blockquote/table inline-collection paths in neutral_block_texts" remain unmined); cheap surface-mining yielded an 8th fresh trace (F8-1..F8-8) without invoking the auto-research generator. Closure plan: extend F8-7's `tok.map`-line-slicing fix to the five collection-type branches. Cheap channel green pre-filing: 119 python unittests + 116 cargo unit tests + harness dry-run all 24 corpus tasks PASS dual scorer; F8-7 probe still exit 0 (prior closure intact). Axis: failing-trace-freshness (counter resets to 0).
 
 ### Iter 15 (2026-04-26): Close F8-7 — source-fidelity slicing for hr/heading in neutral_block_texts
 

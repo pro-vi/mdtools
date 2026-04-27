@@ -1,0 +1,17 @@
+F8-8 attribution probe verdicts
+================================
+
+Filed (T8 iter 16, 2026-04-26): exit 1 = LIVE
+  Stage A: direct extractor divergence (5 of 6 blocks disagree on
+    bullet/ordered/blockquote/table/nested-list; only plain paragraph agrees)
+  Stage B: end-to-end SCORER DIVERGENCE on bullet→ordered list swap
+    (md=MISMATCH correctly, neutral=OK falsely)
+  Stage C: end-to-end SCORER DIVERGENCE on blockquote→paragraph flattening
+    (md=MISMATCH correctly, neutral=OK falsely)
+  Stage D: end-to-end SCORER DIVERGENCE on nested→flat list flattening
+    (md=MISMATCH correctly, neutral=OK falsely)
+
+Closure (T8 iter NN): exit 0 = INERT (pending closure iteration)
+  All four stages re-run after fix; expect exit 0 with extractors agreeing
+  on collection-type blocks (paragraph/list/blockquote/table) and end-to-end
+  scorers agreeing on B/C/D failure-mode shapes.
