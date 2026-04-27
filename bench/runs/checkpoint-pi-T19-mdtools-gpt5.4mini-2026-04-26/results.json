@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T19",
+    "mode": "mdtools",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "openai-codex/gpt-5.4-mini",
+    "thinking_level": "minimal",
+    "bytes_prompt": 4497,
+    "bytes_output": 7099931,
+    "bytes_observation": 32943,
+    "tool_calls": 4,
+    "turns": 4,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 41.1,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  }
+]

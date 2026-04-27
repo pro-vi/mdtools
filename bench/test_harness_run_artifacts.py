@@ -284,5 +284,59 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual(result.bytes_observation, 1024)
 
 
+class HoldoutVersionMetadataTests(unittest.TestCase):
+    """build_run_metadata stamps holdout_version onto run.json metadata.
+
+    Cross-version comparability of holdout bundles requires the version to be
+    recorded on each bundle, per the frontier-loop spec's holdout-repair
+    exception path ("stamp the new version onto subsequent run bundles").
+    """
+
+    def _make_metadata(self, *, holdout_version: int | None) -> dict:
+        return build_run_metadata(
+            run_kind="dry-run",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["mdtools"],
+            md_binary="target/release/md",
+            runner=None,
+            executor=None,
+            model=None,
+            runs_per_task=1,
+            results=[],
+            started_at=0,
+            finished_at=1,
+            holdout_version=holdout_version,
+        )
+
+    def test_metadata_includes_holdout_version_when_provided(self) -> None:
+        metadata = self._make_metadata(holdout_version=1)
+        self.assertEqual(metadata["holdout_version"], 1)
+
+    def test_metadata_holdout_version_is_none_by_default(self) -> None:
+        metadata = build_run_metadata(
+            run_kind="dry-run",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["mdtools"],
+            md_binary="target/release/md",
+            runner=None,
+            executor=None,
+            model=None,
+            runs_per_task=1,
+            results=[],
+            started_at=0,
+            finished_at=1,
+        )
+        self.assertIn("holdout_version", metadata)
+        self.assertIsNone(metadata["holdout_version"])
+
+    def test_metadata_propagates_future_version_bumps(self) -> None:
+        metadata = self._make_metadata(holdout_version=2)
+        self.assertEqual(metadata["holdout_version"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

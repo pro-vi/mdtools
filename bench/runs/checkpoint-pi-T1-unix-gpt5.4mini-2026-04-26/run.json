@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-26T22:46:35Z",
+  "finished_at": "2026-04-26T22:46:42Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": null,
+  "selected_task_ids": [
+    "T1"
+  ],
+  "modes": [
+    "unix"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "pi-json",
+  "executor": "guarded",
+  "model": "openai-codex/gpt-5.4-mini",
+  "thinking_level": "minimal",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "neutral_pass_count": 0,
+      "neutral_pass_rate": 0.0,
+      "avg_elapsed_seconds": 7.47,
+      "avg_tool_calls": 1.0,
+      "avg_bytes_output": 1228098.0,
+      "avg_bytes_observation": 554.0,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 0.0,
+      "avg_unique_invalid_responses": 0.0,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "unix": {
+        "runs": 1,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 7.47,
+        "avg_tool_calls": 1.0,
+        "avg_bytes_output": 1228098.0,
+        "avg_bytes_observation": 554.0,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

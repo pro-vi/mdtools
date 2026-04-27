@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -32,10 +33,14 @@ from typing import Literal
 try:
     from bench.command_policy import create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
+    from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
+    from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
+    from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
+    from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 
 # ── Independent scorer (no md dependency) ─────────────────────
 
@@ -143,6 +148,7 @@ class BenchResult:
     correct: bool
     correct_neutral: bool = True  # Independent scorer agreement
     model: str | None = None
+    thinking_level: str | None = None
     bytes_prompt: int = 0
     bytes_output: int = 0
     bytes_observation: int = 0   # total tool-result content agent had to read
@@ -162,6 +168,7 @@ class BenchResult:
 class ParsedAgentOutput:
     stdout: str
     model: str | None = None
+    thinking_level: str | None = None
     tool_calls: int = 0
     turns: int = 0
     bytes_observation: int = 0
@@ -447,6 +454,23 @@ def score_structural_json(
         report.append(f"JSON parse error: {exc}")
         return False, False
 
+    # F3 closure: when compare_link_destinations is the sole structural check,
+    # accept a top-level JSON array as equivalent to {"links": [...]}. The task
+    # description is intentionally tool-neutral and unix-mode agents reasonably
+    # emit a list directly; the structural scorer must not mode-contaminate.
+    only_link_destinations = (
+        policy.compare_link_destinations
+        and not policy.compare_heading_tree
+        and not policy.compare_frontmatter_json
+        and not policy.compare_block_order
+        and not policy.compare_block_text
+    )
+    if only_link_destinations:
+        if isinstance(actual_json, list):
+            actual_json = {"links": actual_json}
+        if isinstance(expected_json, list):
+            expected_json = {"links": expected_json}
+
     if not isinstance(actual_json, dict) or not isinstance(expected_json, dict):
         report.append(
             "json_envelope: MISMATCH expected top-level JSON object "
@@ -678,6 +702,151 @@ def select_tasks(tasks: list[BenchTask], task_ids: list[str]) -> list[BenchTask]
     return [by_id[task_id] for task_id in task_ids]
 
 
+# ── Holdout immutability guard (L1 closure) ─────────────────────
+# A task in the holdout split must not change without a holdout-repair
+# exception path being followed (ledger entry + holdout_version bump).
+# This guard fingerprints the canonical task JSON entry and the bytes of
+# every input/expected/support file. Any divergence between the live
+# tasks file and bench/holdout/fingerprints.json is a holdout-immutability
+# breach (P0 oracle-trustworthiness disturbance).
+
+def _sha256_file(path: str) -> str:
+    with open(path, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def _sha256_task_json(task_entry: dict) -> str:
+    canonical = json.dumps(task_entry, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def compute_task_fingerprint(task_entry: dict) -> dict:
+    """Fingerprint a raw task entry (the dict from tasks.json) plus its referenced files."""
+    fp = {
+        "task_json_sha256": _sha256_task_json(task_entry),
+        "input_files_sha256": {p: _sha256_file(p) for p in task_entry["input_files"]},
+        "expected_output_sha256": _sha256_file(task_entry["expected_output"]),
+    }
+    if task_entry.get("support_files"):
+        fp["support_files_sha256"] = {p: _sha256_file(p) for p in task_entry["support_files"]}
+    return fp
+
+
+def load_holdout_fingerprints(path: str = "bench/holdout/fingerprints.json") -> dict:
+    with open(path) as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must be a JSON object")
+    if "holdout_version" not in data or not isinstance(data["holdout_version"], int):
+        raise ValueError(f"{path} missing integer 'holdout_version'")
+    if "fingerprints" not in data or not isinstance(data["fingerprints"], dict):
+        raise ValueError(f"{path} missing object 'fingerprints'")
+    return data
+
+
+def check_holdout_integrity(
+    tasks_path: str = "bench/tasks/tasks.json",
+    holdout_ids_path: str = "bench/holdout/task_ids.json",
+    fingerprints_path: str = "bench/holdout/fingerprints.json",
+) -> str | None:
+    """Runtime wrapper around verify_holdout_fingerprints for harness invocation.
+
+    Returns None if no drift was detected or if the holdout split is not
+    configured in this checkout (either holdout_ids_path or fingerprints_path
+    missing). Returns the breach message string when drift is detected, so
+    the caller can surface it via parser.error or equivalent.
+
+    Skipped silently for missing files because mdtools forks may opt out of
+    the holdout split entirely; the cheap-channel unit test still pins live
+    repo integrity. The runtime check exists to convert L1 from procedural
+    to mechanical for any harness invocation that runs against a configured
+    holdout split.
+    """
+    if not (os.path.exists(holdout_ids_path) and os.path.exists(fingerprints_path)):
+        return None
+    try:
+        verify_holdout_fingerprints(
+            tasks_path=tasks_path,
+            holdout_ids_path=holdout_ids_path,
+            fingerprints_path=fingerprints_path,
+        )
+    except ValueError as exc:
+        return str(exc)
+    return None
+
+
+def read_holdout_version(
+    fingerprints_path: str = "bench/holdout/fingerprints.json",
+) -> int | None:
+    """Return the integer ``holdout_version`` from the fingerprints manifest.
+
+    Returns None if the manifest file is absent (fork compat) or malformed,
+    so callers can stamp the value onto run.json metadata when present and
+    leave it null otherwise. The spec's holdout-repair exception path
+    requires bundles to carry the version under which they were produced;
+    this helper provides the single authoritative read used at run start.
+    """
+    if not os.path.exists(fingerprints_path):
+        return None
+    try:
+        manifest = load_holdout_fingerprints(fingerprints_path)
+    except (ValueError, OSError):
+        return None
+    return int(manifest["holdout_version"])
+
+
+def verify_holdout_fingerprints(
+    tasks_path: str = "bench/tasks/tasks.json",
+    holdout_ids_path: str = "bench/holdout/task_ids.json",
+    fingerprints_path: str = "bench/holdout/fingerprints.json",
+) -> None:
+    """Raise ValueError if any holdout task drifted from the recorded fingerprint.
+
+    To legitimately mutate a holdout task, follow the holdout-repair exception
+    path in the frontier-loop spec: file a P0 ledger entry, bump
+    `holdout_version` in fingerprints.json, regenerate fingerprints, and mark
+    prior holdout results non-comparable in bench/RESULTS.md.
+    """
+    holdout_ids = load_task_ids(holdout_ids_path)
+    manifest = load_holdout_fingerprints(fingerprints_path)
+    expected = manifest["fingerprints"]
+
+    with open(tasks_path) as fh:
+        raw_tasks = json.load(fh)
+    by_id = {t["id"]: t for t in raw_tasks}
+
+    drift: list[str] = []
+    for tid in holdout_ids:
+        if tid not in by_id:
+            drift.append(f"{tid}: holdout task missing from {tasks_path}")
+            continue
+        if tid not in expected:
+            drift.append(f"{tid}: no fingerprint baseline in {fingerprints_path}")
+            continue
+        live = compute_task_fingerprint(by_id[tid])
+        baseline = expected[tid]
+        if live != baseline:
+            diffs = []
+            for key in sorted(set(live) | set(baseline)):
+                if live.get(key) != baseline.get(key):
+                    diffs.append(key)
+            drift.append(f"{tid}: fingerprint drift in fields {diffs}")
+
+    extra = sorted(set(expected) - set(holdout_ids))
+    if extra:
+        drift.append(
+            f"fingerprint baseline contains task IDs not in holdout split: {extra}"
+        )
+
+    if drift:
+        raise ValueError(
+            "holdout-immutability breach (holdout_version="
+            f"{manifest['holdout_version']}): "
+            + "; ".join(drift)
+            + " — follow the holdout-repair exception path before reporting holdout results."
+        )
+
+
 def _iso_timestamp(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -735,6 +904,8 @@ def build_run_metadata(
     results: list[BenchResult],
     started_at: float,
     finished_at: float,
+    thinking_level: str | None = None,
+    holdout_version: int | None = None,
 ) -> dict[str, object]:
     resolved_model = model
     if resolved_model is None:
@@ -745,6 +916,16 @@ def build_run_metadata(
         }
         if len(observed_models) == 1:
             resolved_model = next(iter(observed_models))
+
+    resolved_thinking_level = thinking_level
+    if resolved_thinking_level is None:
+        observed_thinking_levels = {
+            result.thinking_level
+            for result in results
+            if isinstance(result.thinking_level, str) and result.thinking_level.strip()
+        }
+        if len(observed_thinking_levels) == 1:
+            resolved_thinking_level = next(iter(observed_thinking_levels))
 
     by_mode: dict[str, dict[str, float | int]] = {}
     for mode in modes:
@@ -765,7 +946,9 @@ def build_run_metadata(
         "runner": runner,
         "executor": executor,
         "model": resolved_model,
+        "thinking_level": resolved_thinking_level,
         "runs_per_task": runs_per_task,
+        "holdout_version": holdout_version,
         "aggregates": {
             "overall": aggregate_results(results),
             "by_mode": by_mode,
@@ -958,6 +1141,7 @@ def run_agent(
     oai_api_key: str | None = None,
     oai_request_timeout: int = 60,
     oai_tool_timeout: int = 30,
+    thinking_level: str | None = None,
 ) -> BenchResult:
     """Run an agent subprocess to complete a task."""
     workdir = tempfile.mkdtemp(prefix=f"mdtools_bench_{task.id}_{mode}_")
@@ -1018,9 +1202,12 @@ def run_agent(
     unique_invalid_responses = 0
     runner_error = None
     resolved_model = model
+    resolved_thinking_level = thinking_level if runner == "pi-json" else None
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
+
+    pi_audit_log_path: Path | None = None
 
     if runner == "oai-loop":
         if not oai_api_base:
@@ -1067,6 +1254,54 @@ def run_agent(
             all_tool_outputs = trace.tool_outputs
             all_text_outputs = trace.text_outputs
             stdout = "\n".join(all_tool_outputs + all_text_outputs)
+    elif runner == "pi-json":
+        pi_audit_log_path = workdir_path / ".pi-audit.jsonl"
+        pi_session_dir = workdir_path / ".pi-sessions"
+        audit_extension_path = default_audit_extension_path()
+        cmd = build_pi_json_command(
+            agent_cmd=agent_cmd,
+            model=model,
+            audit_extension_path=audit_extension_path,
+            session_dir=pi_session_dir,
+            tools=("bash",),
+            thinking_level=thinking_level,
+        )
+        pi_env = child_env.copy()
+        pi_env["PI_AUDIT_LOG"] = str(pi_audit_log_path)
+        pi_env.setdefault("PI_SKIP_VERSION_CHECK", "1")
+        try:
+            result = subprocess.run(
+                [*cmd, prompt],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                cwd=workdir,
+                env=pi_env,
+            )
+            raw_stdout = result.stdout
+            bytes_output = len(raw_stdout.encode())
+            if result.returncode != 0:
+                stderr = " ".join((result.stderr or "").split())
+                runner_error = (
+                    f"pi_json_error: exit {result.returncode}: {stderr}"
+                    if stderr
+                    else f"pi_json_error: exit {result.returncode}"
+                )
+        except subprocess.TimeoutExpired:
+            raw_stdout = ""
+            bytes_output = 0
+            runner_error = "pi_json_error: timeout"
+
+        parsed_output = parse_pi_json_output(raw_stdout)
+        stdout = parsed_output.stdout
+        tool_calls = parsed_output.tool_calls
+        num_turns = parsed_output.turns
+        bytes_observation = parsed_output.bytes_observation
+        all_tool_outputs = parsed_output.tool_outputs
+        all_text_outputs = parsed_output.text_outputs
+        runner_error = runner_error or parsed_output.runner_error
+        resolved_model = parsed_output.model or model
+        resolved_thinking_level = parsed_output.thinking_level or thinking_level
     else:
         cmd = _build_agent_cmd(agent_cmd, mode, local_md, model, max_turns)
         try:
@@ -1096,17 +1331,34 @@ def run_agent(
         resolved_model = model or parsed_output.model
     elapsed = time.time() - start
 
-    if guard_log_path is not None:
-        for event in load_guard_events(guard_log_path):
-            if event.decision != "allow":
-                policy_violations += 1
-                continue
-            kind = event.kind
-            if kind == "mutation":
-                mutations += 1
-                call_sequence.append("mutation")
-            elif kind == "query":
-                call_sequence.append("query")
+    guard_events = load_guard_events(guard_log_path) if guard_log_path is not None else []
+    for event in guard_events:
+        if event.decision != "allow":
+            policy_violations += 1
+            continue
+        kind = event.kind
+        if kind == "mutation":
+            mutations += 1
+            call_sequence.append("mutation")
+        elif kind == "query":
+            call_sequence.append("query")
+
+    if pi_audit_log_path is not None:
+        audit_counters = summarize_pi_audit_events(
+            load_pi_audit_events(pi_audit_log_path),
+            guard_events=guard_events,
+        )
+        if tool_calls == 0:
+            tool_calls = audit_counters.tool_calls
+        if bytes_observation == 0:
+            bytes_observation = audit_counters.bytes_observation
+        if audit_counters.model and (not resolved_model or resolved_model == model):
+            resolved_model = audit_counters.model
+        if audit_counters.thinking_level:
+            resolved_thinking_level = audit_counters.thinking_level
+        policy_violations = max(policy_violations, audit_counters.policy_violations)
+        mutations = max(mutations, audit_counters.mutations)
+        requeried = requeried or audit_counters.requeried
 
     saw_mutation = False
     for kind in call_sequence:
@@ -1150,30 +1402,9 @@ def run_agent(
             actual = ""
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "json_envelope":
-        # Search tool outputs individually (last non-trivial JSON wins),
-        # then fall back to text outputs, then combined stdout.
-        actual = ""
-        for tool_out in reversed(all_tool_outputs):
-            try:
-                parsed = json.loads(tool_out.strip())
-                if (isinstance(parsed, (list, dict)) and len(parsed) > 0):
-                    actual = tool_out.strip()
-                    break
-            except (json.JSONDecodeError, TypeError):
-                continue
-        if not actual:
-            # Try extracting from text outputs (agent may embed JSON in prose)
-            for text_out in reversed(all_text_outputs):
-                candidate = extract_last_json(text_out)
-                try:
-                    parsed = json.loads(candidate)
-                    if (isinstance(parsed, (list, dict)) and len(parsed) > 0):
-                        actual = candidate
-                        break
-                except (json.JSONDecodeError, TypeError):
-                    continue
-        if not actual:
-            actual = extract_last_json(stdout)
+        actual = select_json_envelope_actual(
+            all_tool_outputs, all_text_outputs, stdout, expected_content
+        )
         ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "stdout_text":
         actual = extract_final_text(all_tool_outputs, all_text_outputs, stdout)
@@ -1192,6 +1423,11 @@ def run_agent(
         (run_log_dir / "agent_output.txt").write_text(raw_stdout)
         if guard_log_path is not None and guard_log_path.exists():
             shutil.copy2(guard_log_path, run_log_dir / "guard.log")
+        if pi_audit_log_path is not None and pi_audit_log_path.exists():
+            shutil.copy2(pi_audit_log_path, run_log_dir / "pi-audit.jsonl")
+        pi_session_root = workdir_path / ".pi-sessions"
+        if pi_session_root.exists():
+            shutil.copytree(pi_session_root, run_log_dir / "pi-sessions", dirs_exist_ok=True)
 
     shutil.rmtree(workdir, ignore_errors=True)
 
@@ -1201,6 +1437,7 @@ def run_agent(
         correct=ok_md,
         correct_neutral=ok_neutral,
         model=resolved_model,
+        thinking_level=resolved_thinking_level,
         bytes_prompt=bytes_prompt,
         bytes_output=bytes_output,
         bytes_observation=bytes_observation,
@@ -1215,6 +1452,78 @@ def run_agent(
         diff_report=report,
         runner_error=runner_error,
     )
+
+
+def _json_top_keys(parsed) -> set[str]:
+    """Top-level key set of a parsed JSON value, used for shape matching.
+
+    Returns a dict's keys, or the first element's keys for a non-empty
+    list of dicts. Empty set otherwise (no observable key shape)."""
+    if isinstance(parsed, dict):
+        return set(parsed.keys())
+    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+        return set(parsed[0].keys())
+    return set()
+
+
+def _expected_json_top_keys(expected_str: str) -> set[str] | None:
+    """Top-level key set of the expected JSON, or None when no
+    parseable shape is available (the caller then falls back to the
+    pre-F4 'first non-empty JSON wins' rule)."""
+    try:
+        parsed = json.loads(expected_str)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    keys = _json_top_keys(parsed)
+    return keys if keys else None
+
+
+def select_json_envelope_actual(
+    all_tool_outputs: list[str],
+    all_text_outputs: list[str],
+    stdout: str,
+    expected_str: str,
+) -> str:
+    """Pick the best `actual` string for a json_envelope task.
+
+    F4 closure (iter 30): when the expected JSON has a discoverable
+    top-level shape, prefer tool outputs whose parsed shape's
+    top-level keys overlap with the expected shape. This protects
+    against intermediate tool calls (e.g. `./md tasks --json` emitting
+    `{"schema_version":..., "results":[...]}`) being captured when the
+    agent's correct projected answer is in assistant text. When no
+    shape-matching tool output exists, fall through to text outputs
+    first, and only then accept any non-empty parseable JSON tool
+    output (preserving pre-F4 behavior as the final fallback)."""
+    expected_top_keys = _expected_json_top_keys(expected_str)
+    fallback_tool_actual = ""
+
+    for tool_out in reversed(all_tool_outputs):
+        try:
+            parsed = json.loads(tool_out.strip())
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(parsed, (list, dict)) or len(parsed) == 0:
+            continue
+        if expected_top_keys is None:
+            return tool_out.strip()
+        if _json_top_keys(parsed) & expected_top_keys:
+            return tool_out.strip()
+        if not fallback_tool_actual:
+            fallback_tool_actual = tool_out.strip()
+
+    for text_out in reversed(all_text_outputs):
+        candidate = extract_last_json(text_out)
+        try:
+            parsed = json.loads(candidate)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(parsed, (list, dict)) and len(parsed) > 0:
+            return candidate
+
+    if fallback_tool_actual:
+        return fallback_tool_actual
+    return extract_last_json(stdout)
 
 
 def extract_last_json(text: str) -> str:
@@ -1290,12 +1599,18 @@ def main():
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument(
         "--runner",
-        choices=["claude-cli", "oai-loop"],
+        choices=["claude-cli", "oai-loop", "pi-json"],
         default="claude-cli",
         help="Runner backend for agent execution",
     )
     parser.add_argument("--agent", default="claude -p", help="Agent command")
-    parser.add_argument("--model", default=None, help="Model override (e.g., claude-haiku-4-5-20251001)")
+    parser.add_argument("--model", default=None, help="Model override (e.g., openai-codex/gpt-5.3-codex-spark)")
+    parser.add_argument(
+        "--thinking",
+        choices=["off", "minimal", "low", "medium", "high", "xhigh"],
+        default=None,
+        help="Thinking level for Pi-backed benchmark runs",
+    )
     parser.add_argument("--md-binary", default="md", help="Path to md binary")
     parser.add_argument("--max-turns", type=int, default=30, help="Maximum agent turns per run")
     parser.add_argument(
@@ -1351,6 +1666,15 @@ def main():
 
     started_at = time.time()
     tasks = load_tasks(args.tasks_path)
+    # L1 guard scope: the holdout fingerprints are bound to the canonical
+    # corpus, not to whatever subset the user happens to be running. Always
+    # check the canonical corpus so alternate --tasks-path experiments
+    # (subsets, scratch corpora) can run without false-positive breach
+    # errors, while loop tampering with bench/tasks/tasks.json still fires.
+    holdout_breach = check_holdout_integrity()
+    if holdout_breach is not None:
+        parser.error(holdout_breach)
+    holdout_version = read_holdout_version()
     if args.task_ids_path:
         try:
             tasks = select_tasks(tasks, load_task_ids(args.task_ids_path))
@@ -1399,6 +1723,7 @@ def main():
                 results=results,
                 started_at=started_at,
                 finished_at=time.time(),
+                holdout_version=holdout_version,
             )
             write_run_artifacts(
                 args.results_dir,
@@ -1418,7 +1743,8 @@ def main():
 
     for mode in modes:
         model_label = f", model={args.model}" if args.model else ""
-        print(f"\n=== MODE: {mode} (N={args.N}{model_label}) ===\n")
+        thinking_label = f", thinking={args.thinking}" if args.thinking and args.runner == "pi-json" else ""
+        print(f"\n=== MODE: {mode} (N={args.N}{model_label}{thinking_label}) ===\n")
         for task in tasks:
             for run_i in range(args.N):
                 label = f"{task.id} run {run_i+1}/{args.N}" if args.N > 1 else task.id
@@ -1437,6 +1763,7 @@ def main():
                     oai_api_key=args.oai_api_key,
                     oai_request_timeout=args.oai_request_timeout,
                     oai_tool_timeout=args.oai_tool_timeout,
+                    thinking_level=args.thinking,
                 )
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"
@@ -1459,9 +1786,11 @@ def main():
                         executor=args.executor,
                         model=args.model,
                         runs_per_task=args.N,
+                        thinking_level=args.thinking if args.runner == "pi-json" else None,
                         results=all_results,
                         started_at=started_at,
                         finished_at=time.time(),
+                        holdout_version=holdout_version,
                     )
                     write_run_artifacts(
                         args.results_dir,
@@ -1517,9 +1846,11 @@ def main():
             executor=args.executor,
             model=args.model,
             runs_per_task=args.N,
+            thinking_level=args.thinking if args.runner == "pi-json" else None,
             results=all_results,
             started_at=started_at,
             finished_at=time.time(),
+            holdout_version=holdout_version,
         )
         write_run_artifacts(
             args.results_dir,

@@ -1,0 +1,47 @@
+{
+  "holdout_version": 1,
+  "fingerprints": {
+    "T4": {
+      "task_json_sha256": "d05f0417274c99a1c57af497e882243234c05ab9ada3220c988dc78684cac54e",
+      "input_files_sha256": {
+        "bench/inputs/t4_word_replace.md": "c735f32148ea00e3b64571b54ccb1d23fef0cb36f67f740fdd08e5a9df8da4fd"
+      },
+      "expected_output_sha256": "336972d069e87ae1596e9389387358012f4d42ad97bf9fa86788e9f78fc5907a"
+    },
+    "T14": {
+      "task_json_sha256": "28b81c268023adb7a702db4fded1e275258e722ad3951f85ce216dd2038d4e9c",
+      "input_files_sha256": {
+        "bench/inputs/t14_nested_dupes.md": "27bf40d5519f80dec4c836f2aed1a9edb3abd77510d783e9d3a50477f7dcca4d"
+      },
+      "expected_output_sha256": "27bf40d5519f80dec4c836f2aed1a9edb3abd77510d783e9d3a50477f7dcca4d"
+    },
+    "T20": {
+      "task_json_sha256": "42667d98abb0ac8b89ba67daa9cdbfc50bbbeb789b010ad950a32a7b1f2fbec3",
+      "input_files_sha256": {
+        "bench/inputs/t20_scale.md": "55b587e761cc9a7ab9909cf5e6fa7ab6aa060b7d2732632ed488d989a0862191"
+      },
+      "expected_output_sha256": "f2cad4f1f7f6801f0c7c314bc642367bb7bba59aca22651600035bdb3a22e2d4"
+    },
+    "T22": {
+      "task_json_sha256": "dc6efcb0b1e0c24afac8b18a78b352aecf8993653202423cd4c0776e2cda0840",
+      "input_files_sha256": {
+        "bench/inputs/t22_links.md": "22dc2fa4999ee20a64b25448473c4b2b6fd3b71cf8211f3f73e38c166380d5f3"
+      },
+      "expected_output_sha256": "b7cda59e7a42d9e204b23ee8dc53f9315f1a1c15b5afd23b9fb882e5edda3550"
+    },
+    "T23": {
+      "task_json_sha256": "f7e35744a93f90eab5fd91ff845d84b36d8e645086ceeec939a9d7f49ded3cd9",
+      "input_files_sha256": {
+        "bench/inputs/t23_table.md": "f1249e142ef99230992201da3cb0b2ee8a6972491e4354e755ee8b558a3dd1b7"
+      },
+      "expected_output_sha256": "a124496d57fe39f0bf7dc9f558b32575a8b14ec8a2199fa5b018b41af2d78cb8"
+    },
+    "T24": {
+      "task_json_sha256": "94dd80a3ce0506bcc97bb80682bec64daac29c3ff839bc4e14bafb2b4f98eacf",
+      "input_files_sha256": {
+        "bench/inputs/t24_set.md": "7820487e450cd8ce43bfff919b6a6a2358d9e2d0754a338db1a98e4d67d9e839"
+      },
+      "expected_output_sha256": "2e9215e93be349453ed3985f8e774672d45415a532fdba1fc9ca626f35f03687"
+    }
+  }
+}
