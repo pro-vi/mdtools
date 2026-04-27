@@ -29,10 +29,10 @@ count.
 
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
-| hybrid pass rate | 50.0% (3/6) | 2026-04-27 | `bench/runs/headline-baseline-hybrid-Qwen3.5-27B-4bit-2026-04-27/` |
-| unix pass rate | 0.0% (0/6) | 2026-04-27 | `bench/runs/headline-baseline-unix-Qwen3.5-27B-4bit-2026-04-27/` |
-| **Gap (hybrid − unix)** | **+50.0pp** | 2026-04-27 | both |
-| Measured subset | extraction subset (6/18 search corpus): T1, T11, T16, T19, T5, T9 | 2026-04-27 | iter 1 |
+| hybrid pass rate | 66.7% (6/9) | 2026-04-27 | iter 1 + iter 2 hybrid bundles |
+| unix pass rate | 22.2% (2/9) | 2026-04-27 | iter 1 + iter 2 unix bundles |
+| **Gap (hybrid − unix)** | **+44.4pp** | 2026-04-27 | both |
+| Measured subset | extraction + mutation (9/18 search corpus): T1, T5, T7, T9, T10, T11, T13, T16, T19 | 2026-04-27 | iter 2 |
 | Corpus size (search total) | 18 (24 total − 6 holdout) | 2026-04-27 | — |
 
 ## Hill-climb history
@@ -43,6 +43,7 @@ _(loop appends one row per iteration that moves the gap or grows the corpus)_
 |---:|---|---:|---:|---:|---:|---|---|
 | _none yet_ | | | | | | | |
 | 1 | 2026-04-27 | +50.0pp | 6 | corpus baseline | 6 | first baseline (extraction subset) | bench/runs/headline-baseline-hybrid-Qwen3.5-27B-4bit-2026-04-27/ + bench/runs/headline-baseline-unix-Qwen3.5-27B-4bit-2026-04-27/ |
+| 2 | 2026-04-27 | +44.4pp | 9 | −5.6pp | +3 | extend baseline to mutation family (T7, T10, T13); hybrid 3/3, unix 2/3 (T13 fails) — mutation gap +33.3pp dilutes the extraction-only +50.0pp toward a more honest 9-task baseline | bench/runs/headline-mutation-hybrid-Qwen3.5-27B-4bit-2026-04-27/ + bench/runs/headline-mutation-unix-Qwen3.5-27B-4bit-2026-04-27/ |
 
 ## Hill-climb rules (delta from T9 spec)
 

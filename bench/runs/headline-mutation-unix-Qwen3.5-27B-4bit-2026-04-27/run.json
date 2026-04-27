@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-27T12:39:07Z",
+  "finished_at": "2026-04-27T12:48:46Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": "/tmp/t9-iter2-logs/mutation-subset.json",
+  "selected_task_ids": [
+    "T7",
+    "T10",
+    "T13"
+  ],
+  "modes": [
+    "unix"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-27B-4bit",
+  "thinking_level": null,
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 2,
+      "pass_rate": 0.6666666666666666,
+      "neutral_pass_count": 2,
+      "neutral_pass_rate": 0.6666666666666666,
+      "avg_elapsed_seconds": 192.82333333333335,
+      "avg_tool_calls": 3.6666666666666665,
+      "avg_bytes_output": 9684.333333333334,
+      "avg_bytes_observation": 4848.666666666667,
+      "avg_mutations": 2.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 4.333333333333333,
+      "avg_unique_invalid_responses": 4.333333333333333,
+      "requery_rate": 0.6666666666666666
+    },
+    "by_mode": {
+      "unix": {
+        "runs": 3,
+        "pass_count": 2,
+        "pass_rate": 0.6666666666666666,
+        "neutral_pass_count": 2,
+        "neutral_pass_rate": 0.6666666666666666,
+        "avg_elapsed_seconds": 192.82333333333335,
+        "avg_tool_calls": 3.6666666666666665,
+        "avg_bytes_output": 9684.333333333334,
+        "avg_bytes_observation": 4848.666666666667,
+        "avg_mutations": 2.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 4.333333333333333,
+        "avg_unique_invalid_responses": 4.333333333333333,
+        "requery_rate": 0.6666666666666666
+      }
+    }
+  }
+}
