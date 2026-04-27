@@ -18,9 +18,28 @@ F8-2 — extract_last_json prefers a nested array over the wrapping object
 
   exit code: 1 (live)
 
-== closure verdict ==
+== closure verdict (T8 iter 5, 2026-04-26) ==
 
-  (pending) — to be appended when F8-2 is closed by a follow-up
-  iteration that hardens extract_last_json to prefer the wrapping
-  object over a nested array. Expect exit code 0 with the wrapping
-  envelope returned on both stages.
+  $ python3 bench/probes/F8-2-extract-prefers-nested-array/probe.py
+  Stage A — extract_last_json on raw agent text:
+    returned (first 100 chars): {"file":"doc.md","entries":[{"heading":{"level":1,"text":"Top"}}]}
+    parsed type: dict
+
+  Stage B — select_json_envelope_actual (text-only transcript):
+    returned (first 100 chars): {"file":"doc.md","entries":[{"heading":{"level":1,"text":"Top"}}]}
+    parsed type: dict
+
+  VERDICT: PASS — extractor preferred wrapping envelope on both stages.
+
+  exit code: 0 (inert)
+
+  Hardening: bench/harness.py extract_last_json replaced "prefer last
+  array, then last object" with "prefer candidate with highest end
+  position." Highest-end-position subsumes both intended behaviors —
+  containment (outer span has greater end than nested) and sibling
+  recency (later sibling has greater end than earlier).
+
+  Pinned by:
+    bench/test_harness_json.py::HarnessJsonExtractionTests
+      ::test_extract_last_json_prefers_wrapping_envelope_over_nested_array
+      ::test_extract_last_json_prefers_latest_sibling_when_no_containment

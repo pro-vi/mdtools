@@ -1538,8 +1538,18 @@ def select_json_envelope_actual(
 
 def extract_last_json(text: str) -> str:
     """Extract the best JSON from agent output, stripping code fences.
-    Tries each valid JSON substring and returns the last one that parses.
-    Prefers arrays over objects (agent often wraps results in an array)."""
+    Tries each valid JSON substring and returns the candidate whose
+    source-span end position is highest.
+
+    F8-2 closure (T8 iter 5): the legacy rule preferred the last array
+    over the last object unconditionally, which selected an inner
+    `entries`/`results`/`links` array over its own wrapping envelope
+    when the envelope was embedded in agent prose. Highest-end-position
+    subsumes both intended behaviors: when one candidate's span
+    contains another (e.g. envelope wrapping a nested array), the
+    container's end is greater; when candidates are non-overlapping
+    siblings (independent JSON documents in the agent text), the later
+    one has a greater end and is the agent's final answer."""
     clean = re.sub(r"```(?:json)?\s*\n?", "", text)
 
     try:
@@ -1561,10 +1571,11 @@ def extract_last_json(text: str) -> str:
             elif ch == closer:
                 depth -= 1
                 if depth == 0 and start >= 0:
-                    candidate = clean[start:i + 1]
+                    end_exc = i + 1
+                    candidate = clean[start:end_exc]
                     try:
                         json.loads(candidate)
-                        candidates.append((start, candidate, opener))
+                        candidates.append((start, end_exc, candidate))
                     except json.JSONDecodeError:
                         pass
                     start = -1
@@ -1572,16 +1583,8 @@ def extract_last_json(text: str) -> str:
     if not candidates:
         return text
 
-    # Prefer: last array > last object
-    # "Last" because the agent typically produces the final answer after intermediate results
-    arrays = [c for _, c, o in candidates if o == "["]
-    objects = [c for _, c, o in candidates if o == "{"]
-
-    if arrays:
-        return arrays[-1]
-    if objects:
-        return objects[-1]
-    return text
+    candidates.sort(key=lambda c: c[1])
+    return candidates[-1][2]
 
 
 def extract_final_text(

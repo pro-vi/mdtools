@@ -100,6 +100,43 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         payload = json.dumps({"file": "doc.md", "entries": [{"heading": {"text": "One"}}]})
         self.assertEqual(json.loads(extract_last_json(payload)), json.loads(payload))
 
+    def test_extract_last_json_prefers_wrapping_envelope_over_nested_array(self) -> None:
+        """F8-2 closure (T8 iter 5) — when the agent's wrapping envelope
+        is embedded in prose, the inner `entries` array is contained
+        within the outer object's source span; the highest-end-position
+        rule selects the wrapping envelope. Pre-fix the legacy
+        "prefer last array" rule returned the nested array, which the
+        text-output branch of `select_json_envelope_actual` propagated
+        unchecked into a false-NEGATIVE on json_envelope tasks
+        (`bench/probes/F8-2-extract-prefers-nested-array/probe.py`)."""
+        wrapping_envelope = (
+            '{"file":"doc.md","entries":[{"heading":{"level":1,"text":"Top"}}]}'
+        )
+        agent_text = (
+            "The headings for doc.md are:\n"
+            "- # Top\n"
+            "\n"
+            "Here is the JSON:\n"
+            f"{wrapping_envelope}\n"
+        )
+        result = extract_last_json(agent_text)
+        self.assertEqual(json.loads(result), json.loads(wrapping_envelope))
+
+    def test_extract_last_json_prefers_latest_sibling_when_no_containment(self) -> None:
+        """Non-regression for the highest-end-position rule under the
+        sibling case: two independent top-level JSON documents emitted
+        in agent text, neither contained in the other. The latest
+        (highest end) wins, which represents the agent's final answer
+        emitted after intermediate analysis."""
+        intermediate = '[1,2,3]'
+        final_answer = '{"total":6}'
+        agent_text = (
+            f"First I tabulated the inputs: {intermediate}.\n"
+            f"The result envelope is: {final_answer}\n"
+        )
+        result = extract_last_json(agent_text)
+        self.assertEqual(json.loads(result), json.loads(final_answer))
+
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {

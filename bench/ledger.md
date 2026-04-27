@@ -14,10 +14,11 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-- **F8-2** — `extract_last_json` prefers a nested array over the wrapping object, causing a false-NEGATIVE on json_envelope tasks where the agent's text output embeds the answer envelope (`{…,"entries":[…]}`) within prose. P1. Filed T8 iter 4. Probe at `bench/probes/F8-2-extract-prefers-nested-array/probe.py` (Stage A direct extractor + Stage B harness path through `select_json_envelope_actual`); both stages exit 1 = live. Closure plan: prefer outermost candidate (or shape-aware preference) on the text-output branch; pin with a unit test in `bench/test_harness_json.py`.
+(none)
 
 ## Closed in T8
 
+- **F8-2** — `extract_last_json` preferred a nested array over the wrapping object, causing a false-NEGATIVE on json_envelope tasks where the agent's text output embeds the answer envelope (`{…,"entries":[…]}`) within prose. P1. Filed T8 iter 4, CLOSED T8 iter 5. Highest-end-position rule at `bench/harness.py` `extract_last_json`; pinned by `bench/test_harness_json.py::test_extract_last_json_prefers_wrapping_envelope_over_nested_array` + `::test_extract_last_json_prefers_latest_sibling_when_no_containment`. Attribution probe rerun: `bench/probes/F8-2-extract-prefers-nested-array/probe.py` exit 0 = inert.
 - **F8-1** — `select_json_envelope_actual` accepted `schema_version`-only overlap as a shape match. P1. Filed T8 iter 2, CLOSED T8 iter 3. Subset check at `bench/harness.py:1510`; pinned by `bench/test_harness_json.py::test_schema_version_only_overlap_rejected` + `::test_subset_check_preserves_extra_keys_on_actual`. Attribution probe rerun: `bench/probes/F8-1-schema-version-overlap/probe.py` exit 0 = inert.
 
 ## Archived findings (T7, iter 1–67)
@@ -66,6 +67,47 @@ Iteration index pointer (all → `bench/ledger-archive/2026-Q2.md`):
 - 10 "Halt-condition / quiet-signal status" blocks for iters 58–67 (drift narrative; carried no fresh failing trace).
 
 ## T8 iterations
+
+### Iter 5 (2026-04-26): Close F8-2 — highest-end-position rule on extract_last_json
+
+**Substantive move:** item 2 (close finding by hardening existing surface
+with typed artifact pinning the fix). Replaced the legacy "prefer last
+array, then last object" rule in `bench/harness.py` `extract_last_json`
+with "prefer the candidate whose source-span end position is highest."
+Highest-end-position subsumes both intended behaviors with a single
+comparator: when one candidate's span contains another (F8-2's nested
+entries array inside its own envelope), the container has the greater
+end; when candidates are non-overlapping siblings (independent JSON
+documents in agent text), the later one has the greater end and is
+the agent's final answer.
+
+**Attribution probe:** rerun
+`bench/probes/F8-2-extract-prefers-nested-array/probe.py` → exit 0 on
+both stages (direct extractor + harness path through
+`select_json_envelope_actual`). Pre-fix exit was 1 (live failing
+trace). Probe directory verdict.txt now captures both verdicts
+side-by-side; README.md status flipped to CLOSED.
+
+**Pinned by:** two tests in `bench/test_harness_json.py` —
+`test_extract_last_json_prefers_wrapping_envelope_over_nested_array`
+(the F8-2 trace as a typed test) and
+`test_extract_last_json_prefers_latest_sibling_when_no_containment`
+(non-regression for the highest-end-position rule under the sibling
+case). Both pass.
+
+**Cheap channel:** green pre- and post-change. 106 python unittest
+tests pass (was 104; +2 new); 116 cargo unit tests pass; harness
+dry-run all 24 tasks PASS dual scorer.
+
+**Axis served:** surface-hardening cadence (F8-2 closed within 1
+iteration of filing — same canonical file→close shape as F8-1). Both
+text-output (F8-2) and tool-output (F8-1) branches of the
+json_envelope selector path are now shape-aware. After closing F8-2,
+the OPEN finding count is back to zero, so halt condition #2
+(hardening exhaustion) is conditionally live again. The next
+iteration must produce a fresh failing trace, run an auto-research
+generator pass, or operate the probe channel with a new variant —
+otherwise the quiet-trace counter starts ticking toward halt.
 
 ### Iter 4 (2026-04-26): Fresh failing trace — F8-2 extract_last_json prefers nested array
 

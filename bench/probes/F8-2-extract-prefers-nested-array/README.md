@@ -1,6 +1,8 @@
 # F8-2 — `extract_last_json` prefers a nested array over the wrapping object
 
-**Status:** OPEN (filed T8 iter 4, 2026-04-26).
+**Status:** CLOSED (T8 iter 5, 2026-04-26). Hardening at
+`bench/harness.py` `extract_last_json` (highest-end-position rule);
+pinned by two tests in `bench/test_harness_json.py`. Filed T8 iter 4.
 **Surface:** `bench/harness.py` — `extract_last_json` (line 1539) and the
 text-output branch of `select_json_envelope_actual` (lines 1525-1532).
 **Severity:** P1 (false-NEGATIVE on the unix-mode path through the
