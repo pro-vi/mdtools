@@ -255,6 +255,25 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         result = extract_last_json(text)
         self.assertEqual(json.loads(result), {"final": "envelope"})
 
+    def test_extract_last_json_handles_balanced_prose_quoted_brace(self) -> None:
+        """PR #4 second-round Codex finding: a balanced prose `"}"` before
+        the JSON envelope. The first fix gated `in_string` on `depth > 0`,
+        which made the `}` inside `"}"` visible to the depth scanner,
+        driving depth negative and missing the trailing `{...}` candidate.
+        The second fix removes the depth gate and aborts in_string at
+        newlines, so balanced quoted braces in prose stay shielded while
+        unmatched prose quotes can no longer latch across line breaks."""
+        text = 'He said "}" before the answer.\n{"key":"value"}\n'
+        result = extract_last_json(text)
+        self.assertEqual(json.loads(result), {"key": "value"})
+
+    def test_extract_last_json_handles_balanced_quoted_bracket_in_prose(self) -> None:
+        """Symmetric case for the [/] pass: a balanced prose `"["` and
+        `"]"` before the JSON array. Pins both opener/closer passes."""
+        text = 'Note: see "[item]" for details.\n[1,2,3]\n'
+        result = extract_last_json(text)
+        self.assertEqual(json.loads(result), [1, 2, 3])
+
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
             {

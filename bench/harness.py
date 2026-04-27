@@ -1663,13 +1663,17 @@ def extract_last_json(text: str) -> str:
                     escape = True
                 elif ch == '"':
                     in_string = False
+                elif ch == "\n":
+                    # JSON strings cannot contain raw newlines (escapes are
+                    # the spec); prose quotes typically don't span lines.
+                    # Aborting in_string at a newline cleanly handles both
+                    # the unmatched-prose-quote case (PR #4 first-round
+                    # fix) and the balanced-prose-`"}"` case (PR #4
+                    # second-round Codex finding) without a depth gate that
+                    # would expose `}` in `He said "}"` to the depth scanner.
+                    in_string = False
                 continue
-            # Quote-state is meaningful only inside an active JSON span.
-            # Outside any candidate (depth == 0) prose quotes must be
-            # ignored: an unmatched quote in a prose prefix would otherwise
-            # latch in_string=True forever and skip every subsequent
-            # opener, returning raw text instead of the trailing envelope.
-            if depth > 0 and ch == '"':
+            if ch == '"':
                 in_string = True
                 continue
             if ch == opener:
