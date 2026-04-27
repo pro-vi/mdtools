@@ -286,14 +286,28 @@ class HarnessJsonExtractionTests(unittest.TestCase):
         self.assertEqual(json.loads(result), {"answer": 42})
 
     def test_extract_last_json_handles_stray_prose_closer_before_envelope(self) -> None:
-        """Depth-clamp at 0 lower bound: a stray prose `}` before any
-        opener used to drive depth negative, preventing the next `{` from
-        setting `start` (because `if depth == 0` never matched on the
-        opener). Clamping at 0 keeps the scanner synced for the genuine
-        trailing envelope."""
+        """Stray prose `}` before any opener used to drive depth negative,
+        preventing the next `{` from being recorded. The opener-stack
+        scanner ignores closers with no matching opener, so the trailing
+        envelope still records cleanly."""
         text = 'leftover prose with stray } closer\n{"k":"v"}\n'
         result = extract_last_json(text)
         self.assertEqual(json.loads(result), {"k": "v"})
+
+    def test_extract_last_json_handles_stray_close_then_open_prose(self) -> None:
+        """PR #4 round 4 Codex finding: prose contains `}{` immediately
+        before the real envelope. With a depth counter + clamp, the stray
+        `}` was ignored but the stray `{` set start at the wrong position,
+        and the real envelope's outer `}` only brought depth from 2 to 1
+        — so the candidate never recorded. The opener-stack approach pops
+        on the inner close, emitting the correct candidate, and leaves
+        the orphaned outer opener harmlessly on the stack at EOF."""
+        text = '}{{"schema_version":"mdtools.v1","entries":[1,2,3]}'
+        result = extract_last_json(text)
+        self.assertEqual(
+            json.loads(result),
+            {"schema_version": "mdtools.v1", "entries": [1, 2, 3]},
+        )
 
     def test_parse_agent_output_surfaces_runner_auth_failure(self) -> None:
         payload = json.dumps([
