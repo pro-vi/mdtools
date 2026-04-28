@@ -6,11 +6,11 @@ The number(s) this repo's loop is hill-climbing.
 
 phase: baseline-buildup
 
-Fixed-anchor 18-task baseline does not yet exist (15/18 measured).
+Fixed-anchor 18-task baseline does not yet exist (16/18 measured).
 Cross-model triggers, auto-research, and hill-climb interpretation are
 deferred to steady-state. The only admissible move is to extend
 baseline coverage. Phase flips to `phase: steady-state` when the
-missing 3 tasks land.
+missing 2 tasks land.
 
 ## The numbers
 
@@ -43,12 +43,11 @@ to prevent this drift.
 
 ## Missing primary-baseline tasks
 
-3 of 18 search-corpus tasks remain unmeasured. Subsequent buildup
+2 of 18 search-corpus tasks remain unmeasured. Subsequent buildup
 iterations must close this list before phase flips to `steady-state`.
 
 | Task | Family (per CLAUDE.md) | Expected mdtools advantage |
 |---|---|---|
-| T2 | content-delivery | Moderate |
 | T3 | content-delivery | Moderate |
 | T8 | content-delivery | Moderate |
 
@@ -56,11 +55,11 @@ iterations must close this list before phase flips to `steady-state`.
 
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
-| Fixed-anchor gap | _undefined_ (baseline-buildup, 15/18) | 2026-04-28 | — |
-| Current-corpus gap (hybrid − unix) | **+46.7pp** | 2026-04-28 | T9-1+2+3 + T10-2+3+4+6 bundles |
-| Current-corpus hybrid | 66.7% (10/15) | 2026-04-28 | — |
-| Current-corpus unix | 20.0% (3/15) | 2026-04-28 | — |
-| Measured subset | T1, T5, T6, T7, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21 | 2026-04-28 | — |
+| Fixed-anchor gap | _undefined_ (baseline-buildup, 16/18) | 2026-04-28 | — |
+| Current-corpus gap (hybrid − unix) | **+43.8pp** | 2026-04-28 | T9-1+2+3 + T10-2+3+4+6+8 bundles |
+| Current-corpus hybrid | 62.5% (10/16) | 2026-04-28 | — |
+| Current-corpus unix | 18.8% (3/16) | 2026-04-28 | — |
+| Measured subset | T1, T2, T5, T6, T7, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21 | 2026-04-28 | — |
 | Search corpus size | 18 (24 total − 6 holdout) | — | — |
 
 ## Hill-climb history
@@ -77,6 +76,7 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T10-3 | 2026-04-28 | buildup | current-corpus +53.8pp (13/18) | +3.8 | baseline-buildup (T12 added; hybrid PASS in 176s/15 calls/8 mut, unix FAIL after 1237s/30 turns/29 invalid responses/1 tool call — model produced 81KB of malformed output and never reached a working sed/awk plan; per-family gap = +100pp on the batch-mutation family. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T12-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 | T10-4 | 2026-04-28 | buildup | current-corpus +50.0pp (14/18) | −3.8 | baseline-buildup (T17 added; hybrid PASS in 42.7s/2 calls/1 mut/3 turns, unix PASS in 187.8s/11 calls/1 mut/13 turns/2 deny — agent tried `md replace-section` twice (denied), then succeeded via head/cat/tail/mv splice on the 19-line file; per-family gap = 0pp on this single content-delivery instance. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T17-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 | T10-6 | 2026-04-28 | buildup | current-corpus +46.7pp (15/18) | −3.3 | baseline-buildup (T6 added; hybrid FAIL in 679.7s/19 calls/8 mut/30 turns/11 invalid responses, unix FAIL in 382.2s/17 calls/5 mut/30 turns/13 invalid/1 policy-deny — both modes max-turn out, scorer agreement: dual scorers BOTH false. block_order MISMATCH: actual output has 1 extra block (44 vs expected 43), neither mode removed the Phase 3 thematic break. Per-family gap = 0pp on this single text-manipulation instance, contradicting CLAUDE.md's "unix wins simple sed/awk" prediction — Qwen3.5-27B can't plan the compound 3-step edit in either mode. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T6-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
+| T10-8 | 2026-04-28 | buildup | current-corpus +43.8pp (16/18) | −3.0 | baseline-buildup (T2 added — runs launched in parallel per iter-7 recommendation; hybrid FAIL in 1260.2s/4 calls/0 mut/30 turns/26 invalid/10 unique/2 policy-deny, unix FAIL in 582.7s/2 calls/0 mut/13 turns/10 invalid/9 unique/1 policy-deny — both modes never wrote to file (mutations=0). dual scorer agreement: md and neutral both false. block_order MISMATCH: actual output is identical to input (7 blocks), expected has 9 (the inserted v2.5 heading + paragraph). Per-family gap = 0pp on this single content-delivery instance — Qwen3.5-27B can't plan the insert-section-after-block-N operation in either mode without writing to disk. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T2-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 
 ## T9 iter 4 (aborted)
 
@@ -110,7 +110,7 @@ Populated as baseline-buildup completes. Family definitions per
 | Targeted mutation | T7, T10, T13 (T20 holdout) | 3/3 | 2/3 | +33.3pp |
 | Batch mutation | T12 | 1/1 | 0/1 | +100.0pp |
 | Multi-step | T15, T18 | 2/2 | 0/2 | +100.0pp |
-| Content delivery | T2, T3, T8, T17 | 1/1 (T17 only) | 1/1 (T17 only) | 0.0pp (T17 only) |
+| Content delivery | T2, T3, T8, T17 | 1/2 (T17 pass, T2 fail) | 1/2 (T17 pass, T2 fail) | 0.0pp (T2+T17 measured) |
 | Text manipulation | T6 (T4 holdout) | 0/1 | 0/1 | 0.0pp |
 | Other | T21 | 0/1 | 0/1 | 0.0pp |
 

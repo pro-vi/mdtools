@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T2",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 923,
+    "bytes_output": 34312,
+    "bytes_observation": 434,
+    "tool_calls": 2,
+    "turns": 13,
+    "mutations": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 10,
+    "unique_invalid_responses": 9,
+    "elapsed_seconds": 582.65,
+    "diff_report": "block_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\nblock_text [neutral]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\n  count: 9 vs 7",
+    "runner_error": null
+  }
+]
