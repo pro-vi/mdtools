@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-27T11:55:13Z",
+  "finished_at": "2026-04-27T12:07:25Z",
+  "tasks_path": "bench/tasks/tasks.json",
+  "task_ids_path": "/tmp/t9-iter1-logs/extraction-subset.json",
+  "selected_task_ids": [
+    "T1",
+    "T5",
+    "T9",
+    "T11",
+    "T16",
+    "T19"
+  ],
+  "modes": [
+    "hybrid"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-27B-4bit",
+  "thinking_level": null,
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 6,
+      "pass_count": 3,
+      "pass_rate": 0.5,
+      "neutral_pass_count": 3,
+      "neutral_pass_rate": 0.5,
+      "avg_elapsed_seconds": 121.97000000000001,
+      "avg_tool_calls": 5.666666666666667,
+      "avg_bytes_output": 3913.1666666666665,
+      "avg_bytes_observation": 12040.5,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 1.3333333333333333,
+      "avg_invalid_responses": 1.3333333333333333,
+      "avg_unique_invalid_responses": 1.3333333333333333,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "hybrid": {
+        "runs": 6,
+        "pass_count": 3,
+        "pass_rate": 0.5,
+        "neutral_pass_count": 3,
+        "neutral_pass_rate": 0.5,
+        "avg_elapsed_seconds": 121.97000000000001,
+        "avg_tool_calls": 5.666666666666667,
+        "avg_bytes_output": 3913.1666666666665,
+        "avg_bytes_observation": 12040.5,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 1.3333333333333333,
+        "avg_invalid_responses": 1.3333333333333333,
+        "avg_unique_invalid_responses": 1.3333333333333333,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

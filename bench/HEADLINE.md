@@ -1,18 +1,34 @@
 # mdtools Headline Metric
 
-The single number this repo's loop is hill-climbing.
+The number(s) this repo's loop is hill-climbing.
 
-## The number
+## Phase
 
-**Hybrid pass rate minus unix pass rate**, on the target small model, over the
-full search corpus (`bench/search/` + `bench/tasks/tasks.json`-listed members
-of `bench/holdout/task_ids.json` excluded).
+phase: baseline-buildup
 
-This is the *gap* — the legitimacy claim is "agents perform measurably better
-on Markdown editing with mdtools than without," and a gap directly measures
-that claim. The gap can grow either by hybrid going up (mdtools wins more) or
-by unix going down (corpus added tasks unix is structurally bad at) — both
-count.
+Fixed-anchor 18-task baseline does not yet exist (11/18 measured).
+Cross-model triggers, auto-research, and hill-climb interpretation are
+deferred to steady-state. The only admissible move is to extend
+baseline coverage. Phase flips to `phase: steady-state` when the
+missing 7 tasks land.
+
+## The numbers
+
+T10 declares two gaps:
+
+- **Fixed-anchor gap** = hybrid pass rate − unix pass rate on the
+  original 18-task search corpus (`bench/tasks/tasks.json` minus
+  `bench/holdout/task_ids.json` IDs). This is the legitimate
+  hill-climb signal — moves only via product/scorer/agent change,
+  never via composition. **Currently undefined** (baseline-buildup).
+- **Current-corpus gap** = hybrid pass rate − unix pass rate on the
+  currently-measured corpus. Descriptive only — moves with composition.
+
+Per Pro consensus (T9 iter 3 second-opinion, both lanes 0.84
+confidence): the iter 2→3 +10.1pp current-corpus delta was a
+denominator change (added the multi-step family, +100pp per-family),
+not a hill-climb signal. T10 rebuilds the metric with explicit phases
+to prevent this drift.
 
 ## Target
 
@@ -21,61 +37,119 @@ count.
 | Primary model | `Qwen3.5-27B-4bit` (small dense, established T7 baseline) |
 | Endpoint | `http://localhost:10240/v1` (OAI-compatible MLX) |
 | Modes | `unix` / `mdtools` / `hybrid` (all three required for gap calc) |
-| Corpus | `bench/tasks/tasks.json` minus `bench/holdout/task_ids.json` IDs |
+| Search corpus | 18 tasks (`bench/tasks/tasks.json` minus 6 holdout IDs) |
 | Holdout | `bench/holdout/` — never read by the loop, only by post-run audit |
-| Cross-model stability check | `Qwen3.5-122B-A10B-4bit` (same family, larger; isolates model-size effect when gap moves ≥+5pp) |
+| Cross-model stability check | `Qwen3.5-122B-A10B-4bit` (same family, larger; isolates model-size effect when **fixed-anchor** gap moves ≥+5pp in steady-state) |
+
+## Missing primary-baseline tasks
+
+7 of 18 search-corpus tasks remain unmeasured. T10 iter 1 must close
+this list before phase flips to `steady-state`.
+
+| Task | Family (per CLAUDE.md) | Expected mdtools advantage |
+|---|---|---|
+| T2 | content-delivery | Moderate |
+| T3 | content-delivery | Moderate |
+| T6 | text-manipulation | **Weak** (unix wins simple sed/awk) |
+| T8 | content-delivery | Moderate |
+| T12 | batch-mutation | Strong |
+| T17 | content-delivery | Moderate |
+| T21 | (not in CLAUDE.md table) | — |
 
 ## Current value
 
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
-| hybrid pass rate | _pending first run_ | — | — |
-| unix pass rate | _pending first run_ | — | — |
-| **Gap (hybrid − unix)** | **_pending_** | — | — |
-| Corpus size | 18 (24 total − 6 holdout) | 2026-04-27 | — |
+| Fixed-anchor gap | _undefined_ (baseline-buildup, 11/18) | 2026-04-28 | — |
+| Current-corpus gap (hybrid − unix) | **+54.5pp** | 2026-04-27 | iter 1+2+3 bundles |
+| Current-corpus hybrid | 72.7% (8/11) | 2026-04-27 | — |
+| Current-corpus unix | 18.2% (2/11) | 2026-04-27 | — |
+| Measured subset | T1, T5, T7, T9, T10, T11, T13, T15, T16, T18, T19 | 2026-04-27 | — |
+| Search corpus size | 18 (24 total − 6 holdout) | — | — |
 
 ## Hill-climb history
 
-_(loop appends one row per iteration that moves the gap or grows the corpus)_
+_(loop appends one row per iteration that extends baseline, moves a
+gap, or grows the corpus. Every row carries a `cause` label.)_
 
-| Iter | Date | Gap | Corpus | Δ Gap | Δ Corpus | Move | Bundle |
-|---:|---|---:|---:|---:|---:|---|---|
-| _none yet_ | | | | | | | |
+| Iter | Date | Phase | Gap (kind, value) | Δ | Cause | Bundle |
+|---:|---|---|---|---:|---|---|
+| T9-1 | 2026-04-27 | buildup | current-corpus +50.0pp (6/18) | — | baseline-buildup | bench/runs/headline-baseline-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-27/ |
+| T9-2 | 2026-04-27 | buildup | current-corpus +44.4pp (9/18) | −5.6 | baseline-buildup | bench/runs/headline-mutation-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-27/ |
+| T9-3 | 2026-04-27 | buildup | current-corpus +54.5pp (11/18) | +10.1 | baseline-buildup (originally mis-classified as hill-climb; retroactively re-labeled per T10 spec — composition, not improvement) | bench/runs/headline-multistep-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-27/ |
 
-## Hill-climb rules (delta from T9 spec)
+## T9 iter 4 (aborted)
 
-- An iteration that **moves the gap up** (via product hardening, scorer fix
-  on existing surface, or unix-mode degradation discovered) records its bundle
-  pointer in the history table.
-- An iteration that **grows the corpus** with a candidate that survived
-  realism + unix-adversary review records the candidate pointer.
-- An iteration that does **neither** is inadmissible (per T9 core law).
-- Cross-model stability check fires automatically when the gap moves ≥+5pp:
-  re-run the full corpus on `Qwen3.5-122B-A10B-4bit` (same family, larger) and
-  record both numbers. If the cross-model gap diverges from the primary by
-  >10pp, file a finding. Per CLAUDE.md the gap is expected to *shrink* on the
-  larger model ("tool benefit inversely proportional to model capability") —
-  the divergence guard is for the unexpected case (gap *grows* on larger
-  model, suggesting the corpus is overfit to small-model pathologies rather
-  than measuring real structural advantage).
+Iter 4 fired a cross-model run on `Qwen3.5-122B-A10B-4bit` for the
+6-task extraction subset and hit the 5h wall clock before the harness
+finished scoring. No `results.json` / `run.json` were produced;
+agent transcripts under `logs/` are gitignored, so no committed
+bundle exists for this run. **No headline evidence base entry**.
+T10 starts fresh — iter 4's partial activity is not part of the
+auditable history.
 
-## Halt criteria for the headline
+## Phase transition criteria
 
-The loop should stop hill-climbing when either:
+Flip `phase: baseline-buildup` → `phase: steady-state` when:
 
-1. **Gap saturates:** 3 consecutive promotion attempts produce no gap movement
-   AND no corpus growth survives review. The corpus is converged for the
-   target model.
-2. **Cross-model divergence:** primary-vs-cross-model gap diverges by >10pp,
-   suggesting the primary metric is overfit to the target model. Halt and
-   investigate before continuing.
-3. **Endpoint failure:** MLX server unreachable for >5 consecutive iterations.
-4. **Cheap channel red:** any committed change breaks `cargo test` or the
-   python unittest suite.
+1. All 18 search-corpus tasks measured on `Qwen3.5-27B-4bit` in
+   hybrid + unix modes with dual scorer agreement.
+2. Fixed-anchor gap stamped as the inaugural steady-state value.
+3. Per-family table populated.
+4. Spec contract: phase transition counts as that iteration's
+   substantive move.
+
+## Per-family pass rate (companion table)
+
+Populated as baseline-buildup completes. Family definitions per
+`CLAUDE.md § Task families`.
+
+| Family | Tasks | hybrid | unix | per-family gap |
+|---|---|---:|---:|---:|
+| Extraction | T1, T5, T9, T11, T16, T19 | 3/6 | 0/6 | +50.0pp |
+| Targeted mutation | T7, T10, T13 (T20 holdout) | 3/3 | 2/3 | +33.3pp |
+| Batch mutation | T12 | _pending_ | _pending_ | _pending_ |
+| Multi-step | T15, T18 | 2/2 | 0/2 | +100.0pp |
+| Content delivery | T2, T3, T8, T17 | _pending_ | _pending_ | _pending_ |
+| Text manipulation | T6 (T4 holdout) | _pending_ | _pending_ | _pending_ |
+| Other | T21 | _pending_ | _pending_ | _pending_ |
+
+(Holdout-only families: T14 = safe-fail, T22/T23/T24 = misc.)
+
+## Hill-climb rules (delta from T10 spec)
+
+- **Baseline-buildup phase:** only "extend baseline coverage" is
+  admissible. All Δ columns are labeled `composition` (since the
+  denominator changes by adding tasks). Cross-model triggers, auto-
+  research, and hill-climb interpretation deferred to steady-state.
+- **Steady-state phase:** T9's 5 admissible moves activate (grow
+  corpus, promote candidate, harden trace, cross-model, halt). Every
+  history row carries a `cause` label
+  (product / agent / corpus-growth / composition / cross-model).
+- **Cross-model trigger:** fires only in steady-state, only on
+  fixed-anchor gap movement ≥+5pp. Current-corpus deltas never trigger.
+- **Composition discipline:** if a steady-state iteration moves only
+  `current-corpus` gap via composition, it is admissible bookkeeping
+  but does NOT count as hill-climb progress.
+
+## Halt criteria
+
+Per T10 spec § Halt conditions:
+
+1. **Gap saturation (steady-state only):** 3 consecutive promotion
+   attempts without fixed-anchor movement or surviving corpus growth.
+2. **Cross-model divergence:** primary-vs-cross-model fixed-anchor
+   gap diverges >10pp.
+3. **Endpoint failure:** MLX unreachable >5 consecutive iterations.
+4. **Cheap channel red** unrepairable in iteration.
+5. **Ledger budget breach** unrepairable.
+6. **CLI temptation:** any new CLI primitive proposal halts.
+7. **Spec incoherence:** rules contradict or block all moves.
+8. **Buildup stall:** 3 consecutive iterations fail to extend baseline.
 
 ## What this file is NOT
 
 - Not the ledger (findings live in `bench/ledger.md`).
 - Not the spec (rules live in `specs/frontier-loop.md`).
 - Not a snapshot of past runs (history lives in `bench/runs/` per-bundle).
-- Just the one number, what it currently is, and how it has moved over time.
+- Just the two numbers, the current phase, and the move history.
