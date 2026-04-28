@@ -4,11 +4,13 @@ The number(s) this repo's loop is hill-climbing.
 
 ## Phase
 
-**`baseline-buildup`** — fixed-anchor 18-task baseline does not yet
-exist (11/18 measured). Cross-model triggers, auto-research, and
-hill-climb interpretation are deferred to steady-state. The only
-admissible move is to extend baseline coverage. Phase flips to
-`steady-state` when the missing 7 tasks land.
+phase: baseline-buildup
+
+Fixed-anchor 18-task baseline does not yet exist (11/18 measured).
+Cross-model triggers, auto-research, and hill-climb interpretation are
+deferred to steady-state. The only admissible move is to extend
+baseline coverage. Phase flips to `phase: steady-state` when the
+missing 7 tasks land.
 
 ## The numbers
 
@@ -76,22 +78,15 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T9-2 | 2026-04-27 | buildup | current-corpus +44.4pp (9/18) | −5.6 | baseline-buildup | bench/runs/headline-mutation-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-27/ |
 | T9-3 | 2026-04-27 | buildup | current-corpus +54.5pp (11/18) | +10.1 | baseline-buildup (originally mis-classified as hill-climb; retroactively re-labeled per T10 spec — composition, not improvement) | bench/runs/headline-multistep-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-27/ |
 
-## T9 iter 4 (incomplete) — partial cross-model data
+## T9 iter 4 (aborted)
 
 Iter 4 fired a cross-model run on `Qwen3.5-122B-A10B-4bit` for the
-6-task extraction subset only (loop hit 5h wall clock). Raw outcome:
-
-| Mode | Tasks | Pass | Fail mode |
-|---|---|---:|---|
-| hybrid | T1, T5, T9, T11, T16, T19 | 5/6 | T19 = MAX_TURNS_EXCEEDED |
-| unix | T1, T5, T9, T11, T16, T19 | 0/6 | all 6 = MAX_TURNS_EXCEEDED |
-
-**Status: exploratory data, not counted toward the cross-model
-trigger.** Per T10 spec § Cross-model trigger: only fixed-anchor
-movement triggers cross-model, and the trigger requires the full
-18-task corpus. These bundles are kept under
-`bench/runs/headline-crossmodel-extraction-*-Qwen3.5-122B-A10B-4bit-2026-04-27/`
-for future reference.
+6-task extraction subset and hit the 5h wall clock before the harness
+finished scoring. No `results.json` / `run.json` were produced;
+agent transcripts under `logs/` are gitignored, so no committed
+bundle exists for this run. **No headline evidence base entry**.
+T10 starts fresh — iter 4's partial activity is not part of the
+auditable history.
 
 ## Phase transition criteria
 
