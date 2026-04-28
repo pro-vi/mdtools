@@ -1,67 +1,115 @@
-# mdtools Frontier Loop Prompt — T9 (Headline-Metric Hill-Climb)
+# mdtools Frontier Loop Prompt — T10 (Phased Headline-Metric Hill-Climb)
 
 ## Rationale
 
-T7 (PR #3) closed every OPEN oracle-trustworthiness finding and built the
-mechanical guards. T8 (PR #4) closed 8 latent scorer/extractor bugs that T7
-had never surfaced (F8-1 through F8-8), including 2 false-POSITIVES that
-compromised past benchmark verdicts. Both runs hardened the *evaluator*; the
-*product* was untouched.
+T9 launched a single-metric hill-climb on the gap (hybrid pass rate − unix
+pass rate). It ran 3 iterations and self-flagged a structural defect via
+its own `/meta` lens at end of iter 3, escalated to paired GPT Pro
+consultations: **denominator drift / unratified phase drift**. The loop's
+5 admissible moves were written for steady-state on a complete baseline,
+but iter 1 substituted a 6-task subset (full corpus was multi-hour and
+infeasible in one iteration). Iter 2/3 extended the subset by one family
+each. The iter 2→3 +10.1pp gap movement was not a hill-climb signal — it
+was a composition delta from adding the multi-step family (which has a
++100pp per-family gap) to the denominator. The cross-model trigger fired
+on a denominator change, not a real improvement.
 
-T9 turns the loop outward. The repo's legitimacy claim is one sentence:
-*"agents perform measurably better on Markdown editing with mdtools than
-without."* That claim is a **gap** — hybrid-mode pass rate minus unix-mode
-pass rate on a target small model, on a growing realistic corpus. The gap is
-the headline number. The loop's only job is to make it go up over time, by
-either growing the corpus (auto-research-style task discovery surviving
-realism + unix-adversary review) or by hardening existing surfaces against
-specific failing traces that the gap surfaced.
+Both Pro lanes (0.84 confidence, independent agreement) recommended
+halting iter 4, repairing the spec, and resuming with explicit phases
+before any cross-model interpretation. T10 is that repair.
 
-T7's evaluator substrate (search/holdout split, mechanical L1 guard,
-holdout_version stamping, PI runner with audit, cross-executor comparability
-rule, dual scorer with F8-series fixes) is treated as frozen baseline. T8's
-"hill-climb on existing surfaces" framing carries forward as a sub-channel,
-but the *primary* discovery engine is now auto-research producing realistic
-task families that distinguish mdtools from unix.
+T10 differs from T9 in four structural ways:
 
-T9 differs from T8 in three structural ways:
+1. **Two declared phases.** `baseline-buildup` (until full primary
+   18-task baseline measured once on target model) vs `steady-state`
+   (after). Admissible moves and trigger semantics differ between phases.
+2. **Two declared gaps.** `fixed-anchor gap` = hybrid − unix on the
+   original 18-task corpus (the legitimate hill-climb signal).
+   `current-corpus gap` = hybrid − unix on the currently-grown corpus
+   (descriptive only, can move via composition). HEADLINE.md tracks both.
+3. **Cross-model trigger is phase-gated.** Fires only in steady-state,
+   on `fixed-anchor gap` movement. During buildup, gap deltas are
+   composition deltas, not improvement deltas, and trigger nothing.
+4. **Iter 1 is bounded.** T10 iter 1 = "complete the missing 7 primary-
+   baseline tasks (T2, T3, T6, T8, T12, T17, T21) on Qwen3.5-27B-4bit
+   in hybrid + unix modes." No other moves admissible until baseline
+   exists.
 
-1. **Single declared metric.** `bench/HEADLINE.md` carries one number — the
-   gap on the primary target model. Every accepted iteration must move it
-   up or grow the corpus underneath it.
-2. **Auto-research is the primary engine, not a sub-channel.** T8 admitted
-   it but never ran it. T9 makes it the iteration default. The 8 discipline
-   rules from T7's spec are now load-bearing operational requirements, not
-   guardrails for an optional sub-flow.
-3. **The endpoint is real.** MLX server on port 10240 is reachable; the OAI
-   loop runner already speaks to it. Iterations that need to score a
-   candidate task on the target model can run it cheaply.
+T7+T8 substrate (dual scorer with F8 fixes, L1 holdout guard,
+holdout_version stamping, PI runner with audit, opener-stack JSON
+extractor, cross-executor comparability rule) carries forward as frozen
+baseline. T9's auto-research discipline rules carry forward unchanged
+and become active in steady-state.
 
 ## Prompt
 
 ```md
-You are running a hill-climb loop on this repository.
+You are running a phased hill-climb loop on this repository.
 
-Your job is to make ONE number go up over time:
-**hybrid mode pass rate minus unix mode pass rate**, on the target small
-model, over the full search corpus, recorded in `bench/HEADLINE.md`.
+Your job is to make ONE number go up over time, but only after the
+denominator is fixed:
 
-That gap is the legitimacy claim — "agents perform measurably better on
-Markdown editing with mdtools than without." Each iteration must move
-the gap up OR grow the corpus underneath it with a task that survived
-realism + unix-adversary review.
+- **fixed-anchor gap** = hybrid mode pass rate − unix mode pass rate,
+  on the original 18-task search corpus, on the target small model.
+  This is the legitimate hill-climb signal — it can only move via
+  product/scorer/agent change, never via composition.
+
+The loop has two phases:
+
+- **baseline-buildup:** the fixed-anchor gap does not yet exist
+  because not all 18 tasks have been measured. The only admissible
+  move is to extend coverage of the primary baseline. No cross-model
+  triggers, no auto-research, no hardening interpretation tied to
+  headline movement.
+- **steady-state:** the fixed-anchor gap exists. T9's full set of
+  moves becomes admissible. The current-corpus gap may also be tracked
+  as a descriptive companion when corpus grows beyond 18.
+
+Phase is declared in `bench/HEADLINE.md` and gates trigger semantics.
 
 ## Motive
 
-Build a defensible, growing evidence base for the headline claim. The
-gap is the metric; the corpus growth is the moat. A gap of +20pp on
-24 tasks is weaker evidence than +20pp on 100 tasks of demonstrably
-realistic Markdown-agent work — both the *level* and the *breadth* matter.
+Build a defensible, growing evidence base for the headline claim
+("agents perform measurably better on Markdown editing with mdtools
+than without"). The fixed-anchor gap is the metric; corpus growth is
+the moat. A fixed-anchor +20pp on 18 tasks plus +20pp on 100 grown
+tasks is stronger evidence than either alone.
 
 ## Core law
 
-Each iteration must do exactly one of these substantive moves — nothing
-else is admissible:
+### Phase 1: baseline-buildup
+
+Active until all 18 primary-baseline tasks (`bench/tasks/tasks.json`
+minus `bench/holdout/task_ids.json`) have been measured on the target
+model in hybrid + unix modes. Admissible moves:
+
+1. **Extend baseline coverage:** run one or more of the missing
+   primary-baseline tasks in hybrid + unix on the target model, dual
+   scorer, holdout_version stamped. Append the bundle to HEADLINE.md
+   under the buildup-phase row format.
+2. **Stop-and-summarize** if halt conditions fire.
+
+Inadmissible during buildup:
+
+- Auto-research (no candidates, no realism review, no unix-adversary
+  review). Defer to steady-state.
+- Cross-model checks. Defer to steady-state.
+- Hardening tied to "the gap moved" — only attribution-probe-grounded
+  hardening is admissible, and only if the iteration also extends
+  baseline coverage.
+- Treating any composition-driven HEADLINE delta as a hill-climb
+  signal. All buildup-phase Δ columns are labeled `composition` and
+  do not count as movement.
+
+T10 launches into buildup phase with 11/18 tasks measured. The
+remaining 7 are: **T2, T3, T6, T8, T12, T17, T21**. When all 18 are
+measured, transition to steady-state by stamping the fixed-anchor
+baseline row and flipping `phase: steady-state` in HEADLINE.md.
+
+### Phase 2: steady-state
+
+Activates once the fixed-anchor 18-task baseline exists. Each
+iteration must do exactly one of these substantive moves:
 
 1. **Grow the corpus:** propose a new realistic Markdown-agent task,
    verify realism (LLM judge or heuristic), run all 3 modes against
@@ -75,20 +123,25 @@ else is admissible:
    task surfaces a real scorer/selector/JSON-stability defect (T8-style
    F-series finding), close it with a typed artifact and an attribution
    probe.
-4. **Cross-model stability check:** when the gap has moved ≥+5pp since
-   the last check, run the full corpus on the cross-model target and
-   record both numbers. If divergence > 10pp, file a finding.
+4. **Cross-model stability check:** when the **fixed-anchor gap** has
+   moved ≥+5pp since the last check, run the full 18-task fixed-anchor
+   corpus on the cross-model target and record both numbers. If
+   divergence > 10pp, file a finding. Current-corpus gap movement does
+   NOT trigger this — only fixed-anchor.
 5. Emit `stop-and-summarize` because the halt conditions are met.
 
-**Required tail action on items 1–4:** if the iteration moved the gap
-or grew the corpus, append a row to `bench/HEADLINE.md`'s history table
-with the bundle pointer in the same iteration. HEADLINE.md update is
-never a standalone iteration; it is the bookkeeping that closes a real
-move.
+**Required tail action on items 1–4:** if the iteration moved a gap
+or grew the corpus, append a row to `bench/HEADLINE.md`'s history
+table with the bundle pointer AND a `cause` label
+(`product` / `scorer` / `agent` / `composition` / `corpus-growth`).
+HEADLINE.md update is never a standalone iteration; it is the
+bookkeeping that closes a real move.
 
-The following are inadmissible in T9:
+The following are inadmissible in T10 (both phases):
 
 - producing a bundle whose only purpose is coverage cell-filling
+  (does NOT apply to baseline-buildup; extending the missing 7 is
+  legitimate completion of the spec-mandated baseline)
 - promoting a prose claim to a typed test that doesn't fix or pin a
   finding the gap surfaced
 - ratifying a previous iteration bit-exact as the iteration's sole
@@ -98,13 +151,16 @@ The following are inadmissible in T9:
 - aligning mdtools' op vocabulary to FRAC-147's ChangeSet IR
 - writing to `specs/fract-ai-bridge-contract.md` (frozen artifact)
 - modifying `bench/holdout/` or any holdout fingerprints (L1 guard)
+- treating a current-corpus gap delta as a hill-climb signal
+  (current-corpus is descriptive only; only fixed-anchor moves count)
 
 ## Evaluator maturity
 
-Current tier: T9.
-T7+T8's substrate is frozen baseline. The headline metric is the new top
-of the funnel; the loop's job is to climb it. Auto-research is the
-primary engine, with the 8 discipline rules as load-bearing requirements.
+Current tier: T10.
+T7+T8's substrate is frozen baseline. T9's headline-as-single-metric
+framing is preserved but split into fixed-anchor + current-corpus and
+phase-gated. Auto-research and the 8 discipline rules are deferred to
+steady-state.
 
 ## Endpoint configuration
 
@@ -136,24 +192,37 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
 
 ## Per-iteration shape
 
-1. Read `bench/HEADLINE.md` to know the current gap and corpus size.
-2. Diagnose: is the gap stalling, the corpus stalling, or is there an
-   open failing trace from a recent run?
-3. Pick the admissible move that most directly addresses the diagnosis:
-   - Stalling on both → propose new task family (auto-research generator
-     pass).
-   - Candidate accumulating in `candidates/` → promote one through
-     realism + unix-adversary review.
-   - Failing trace open → harden the surface.
-4. Make the change. Run the cheap validator. If green, run the expensive
-   channel for the candidate (3 modes × N).
-5. If the change moved the gap or grew the corpus, append a row to
-   `bench/HEADLINE.md`'s history table with the bundle pointer.
-6. If gap moved ≥+5pp since last cross-model check, run cross-model.
+1. Read `bench/HEADLINE.md` to know the current phase, fixed-anchor
+   gap (if exists), current-corpus gap, and corpus size.
+2. **If phase = baseline-buildup:**
+   - Pick 1–3 of the missing primary-baseline tasks. (Aim for the
+     largest subset feasible within the iteration's wall-clock; do
+     NOT batch the full 7 in one iteration if it risks exceeding
+     the orchestrator's per-iteration window.)
+   - Run hybrid + unix modes against the target model with dual
+     scorer, holdout_version stamped. Append a buildup-phase row.
+   - When the missing-list reaches 0, stamp the fixed-anchor baseline
+     row and flip `phase: steady-state` in HEADLINE.md. That phase
+     transition counts as the iteration's substantive move.
+3. **If phase = steady-state:**
+   - Diagnose: is the fixed-anchor gap stalling, the corpus stalling,
+     or is there an open failing trace from a recent run?
+   - Pick the admissible move that most directly addresses the
+     diagnosis:
+     - Stalling on both → propose new task family (auto-research).
+     - Candidate accumulating in `candidates/` → promote one.
+     - Failing trace open → harden the surface.
+   - Make the change. Run the cheap validator. If green, run the
+     expensive channel for the candidate (3 modes × N).
+   - If the change moved a gap or grew the corpus, append a row to
+     HEADLINE.md with the bundle pointer AND cause label.
+   - If **fixed-anchor** gap moved ≥+5pp since last cross-model
+     check, run cross-model on the 18-task fixed-anchor corpus.
 
-## Auto-research discipline (load-bearing in T9)
+## Auto-research discipline (load-bearing in steady-state only)
 
-These were guardrails in T8; they are operational requirements in T9.
+These were guardrails in T8; they are operational requirements in
+T10's steady-state phase. Inactive during baseline-buildup.
 
 1. **Generator is mdtools-blind.** Prompt shape: "realistic Markdown
    document-maintenance tasks an AI coding agent might need to perform
@@ -237,7 +306,7 @@ is a different number — at the *corpus* level, not the *task* level.
 A task-level pass-rate movement still requires attribution; the corpus-
 level gap is what HEADLINE.md tracks.)
 
-### Promotion gate (new in T9)
+### Promotion gate (steady-state only)
 
 A candidate task family does not enter `bench/search/` proper unless
 ALL of these are true:
@@ -250,46 +319,77 @@ ALL of these are true:
   with input docs, expected outputs, scorer policies, and per-instance
   bundle pointers.
 
-### Cross-model trigger (new in T9)
+### Cross-model trigger (steady-state only, fixed-anchor only)
 
-When the headline gap moves ≥+5pp since the last cross-model check,
-the next iteration MUST run the cross-model check before any other
-work. If divergence > 10pp, file a finding (P0 if it crosses an
-acceptance metric, P1 otherwise) and halt corpus growth until resolved.
+When the **fixed-anchor gap** moves ≥+5pp since the last cross-model
+check, the next iteration MUST run the cross-model check on the
+18-task fixed-anchor corpus before any other work. If divergence
+> 10pp, file a finding (P0 if it crosses an acceptance metric, P1
+otherwise) and halt corpus growth until resolved. Current-corpus gap
+movement does NOT trigger this — only fixed-anchor.
+
+### Composition discipline (new in T10)
+
+Every HEADLINE.md history row in steady-state MUST carry a `cause`
+label. Allowed values:
+
+- `product` — mdtools binary or scorer changed; same denominator
+- `agent` — runner/prompt/policy changed; same denominator
+- `corpus-growth` — denominator changed (current-corpus only)
+- `composition` — denominator changed via re-running a different
+  subset (current-corpus only; flagged as descriptive)
+- `baseline-buildup` — buildup-phase row, no improvement claim
+- `cross-model` — cross-model verification, no headline movement
+
+Iterations that move only `current-corpus` gap via `composition` are
+admissible only as bookkeeping during buildup. In steady-state,
+moving only current-corpus is admissible but does not constitute
+hill-climb progress for halt-condition counting.
 
 ## Halt conditions
 
 Halt fires on the **first** of:
 
-1. **Gap saturation:** 3 consecutive promotion attempts produce no gap
-   movement AND no corpus growth surviving review. Corpus has converged
-   on the current generator's reach for the target model.
-2. **Cross-model divergence:** primary-vs-cross-model gap diverges by
-   >10pp without a clean explanation. Halt and investigate.
+1. **Gap saturation (steady-state only):** 3 consecutive promotion
+   attempts produce no fixed-anchor gap movement AND no corpus growth
+   surviving review. Corpus has converged on the current generator's
+   reach for the target model.
+2. **Cross-model divergence:** primary-vs-cross-model fixed-anchor
+   gap diverges by >10pp without a clean explanation. Halt and
+   investigate.
 3. **Endpoint failure:** MLX server unreachable for >5 consecutive
    iterations.
 4. **Cheap channel red** that cannot be restored within the iteration.
 5. **Ledger budget breach** unrepairable in iteration.
 6. **CLI temptation:** any iteration proposing a new CLI primitive
    triggers `stop-and-summarize` with a routing recommendation.
-7. **Spec incoherence:** the loop discovers that T9's own rules
-   contradict each other or block all admissible moves (e.g. cross-
-   model trigger stuck because endpoint timeout, or all admissible
-   moves blocked by an open finding that nothing in scope can close).
-   Halt and request a spec-level repair from the operator rather than
-   inventing a workaround.
+7. **Spec incoherence:** the loop discovers that T10's own rules
+   contradict each other or block all admissible moves. Halt and
+   request a spec-level repair from the operator rather than
+   inventing a workaround. (T9's iter 3 self-flagging of denominator
+   drift is the canonical precedent — that disposition produced T10.)
+8. **Buildup stall:** in baseline-buildup phase, 3 consecutive
+   iterations fail to extend baseline coverage (e.g. all remaining
+   missing tasks fail with `MAX_TURNS_EXCEEDED` or runner errors).
+   Halt with a routing recommendation rather than carrying an
+   incomplete baseline into steady-state.
 
-The halt summary lives at `bench/probes/t9-summary.md`, ≤200 lines,
-with: final gap, final corpus size, families accepted/rejected with
-gap labels, cross-model divergence at halt, telemetry/findings
-delta, the disposition of each fired halt condition, and a one-paragraph
-recommendation for the next loop (if any).
+The halt summary lives at `bench/probes/t10-summary.md`, ≤200 lines,
+with: final fixed-anchor gap (or "buildup incomplete"), final
+current-corpus gap, final corpus size, phase at halt, families
+accepted/rejected with gap labels, cross-model divergence at halt,
+telemetry/findings delta, the disposition of each fired halt
+condition, and a one-paragraph recommendation for the next loop.
 
 ## Artifacts to maintain
 
-- **HEADLINE.md** (`bench/HEADLINE.md`): the one number, current and
-  history. Updated only on iterations that move the gap or grow the
-  corpus.
+- **HEADLINE.md** (`bench/HEADLINE.md`): two numbers (fixed-anchor
+  gap + current-corpus gap), current phase, and history. Updated only
+  on iterations that extend baseline coverage, move a gap, or grow
+  the corpus. Every history row carries a `cause` label.
+- **Per-family table** (`bench/HEADLINE.md` companion section):
+  per-family hybrid/unix pass rates, used to detect composition
+  artifacts. Updated whenever a baseline row lands.
 - **Ledger** (`bench/ledger.md`): index of findings, ≤500 lines.
 - **Ledger archive** (`bench/ledger-archive/<YYYY-Qn>.md`): overflow.
 - **Probes** (`bench/probes/`): per-finding directories with variant
@@ -297,44 +397,56 @@ recommendation for the next loop (if any).
 - **Auto-research staging** (`bench/search/candidates/`,
   `bench/search/quarantine/`, `bench/search/accepted/`): per-family
   staging with realism notes, unix-adversary gap labels, rejected-
-  candidate buckets.
+  candidate buckets. Created lazily on first steady-state iteration
+  that uses them.
 - **Telemetry contracts** (`bench/telemetry/<command>.md`): per-command
   recording shape — admissible to add when a finding requires it.
 - **Run bundles** (`bench/runs/`): per-iteration with `holdout_version`.
-- **Halt summary** (`bench/probes/t9-summary.md`): bounded.
+- **Halt summary** (`bench/probes/t10-summary.md`): bounded.
 ```
 
-## Outstanding repo state at T9 launch
+## Outstanding repo state at T10 launch
 
-- `bench/HEADLINE.md` exists (created at T9 launch with placeholder
-  current value). Iteration 1 must run the full search corpus on the
-  target model in all 3 modes to populate the first real value.
+- `bench/HEADLINE.md` carries T9's iter 1–3 history (extraction +
+  mutation + multi-step subsets, current-corpus gap +54.5pp on 11/18
+  tasks). T10 launch must:
+  - Add `phase: baseline-buildup` declaration at the top.
+  - Re-label all existing history rows with `cause: baseline-buildup`.
+  - Add a `Missing primary-baseline` callout listing T2, T3, T6, T8,
+    T12, T17, T21.
+  - Add stub for fixed-anchor gap (will be populated at phase
+    transition).
+- T9 iter 4 cross-model bundles exist for the 6-task extraction
+  subset on `Qwen3.5-122B-A10B-4bit` (hybrid 5/6, unix 0/6 — all
+  MAX_TURNS_EXCEEDED). These do NOT count toward the cross-model
+  trigger; they were composition-driven and on the wrong model
+  for steady-state. Treat as exploratory data only.
 - `bench/search/candidates/`, `bench/search/quarantine/`, and
-  `bench/search/accepted/` do not exist. The first auto-research pass
-  creates them.
+  `bench/search/accepted/` do not exist. Steady-state phase will
+  create them on first auto-research pass.
 - MLX endpoint live on port 10240. Primary target `Qwen3.5-27B-4bit`
   and cross-model target `Qwen3.5-122B-A10B-4bit` are both loaded.
-  `Qwen3.6-35B-A3B-8bit` and Gemma-4 are downloading and may join the
-  matrix later as additional cross-model checks.
-- T7+T8 evaluator substrate carries forward intact: dual scorer with F8
-  fixes, mechanical L1 guard, holdout_version stamping, PI runner with
-  audit, cross-executor comparability rule, opener-stack JSON extractor.
+- T7+T8 evaluator substrate carries forward intact: dual scorer with
+  F8 fixes, mechanical L1 guard, holdout_version stamping, PI runner
+  with audit, cross-executor comparability rule, opener-stack JSON
+  extractor.
 
 ## Why this is the right next loop
 
-- **Single declared metric** (the gap in HEADLINE.md) replaces T8's
-  diffuse "research and harden" framing. There is one number, and the
-  loop's only job is to make it go up.
-- **Auto-research as primary engine** finally exercises the channel T8
-  spec admitted but never ran. The 8 discipline rules become operational
-  requirements, not guardrails.
-- **Endpoint is real.** No more theoretical hill-climb — Qwen3.5-27B-4bit
-  on MLX is one curl away. T8's blocker is gone.
-- **Anti-overfit by construction** via realism review + unix-adversary
-  review (only AST-structural gaps count) + cross-model trigger
-  (≥+5pp moves require Qwen3.5-122B-A10B confirmation, where the gap
-  is expected to shrink rather than grow).
-- **Halts cleanly** when the corpus saturates against the current
-  generator + target model. No drift mode, because every iteration must
-  cite a gap movement, a corpus growth, or a hardening fix tied to the
-  gap.
+- **Phase declaration ends denominator drift.** T9's iter 2→3 +10.1pp
+  movement was a composition artifact. T10 makes that diagnosis
+  structural: composition deltas are labeled, never count as
+  improvement, and never trigger cross-model.
+- **Fixed-anchor gap is the real hill-climb signal.** Once the
+  18-task baseline exists, that number can only move via product /
+  scorer / agent change. Current-corpus gap is preserved as a
+  growth-tracking companion.
+- **Iter 1 is bounded and feasible.** The remaining 7 tasks (T2, T3,
+  T6, T8, T12, T17, T21) can be measured across 1–3 iterations of
+  buildup phase before steady-state activates.
+- **All T9/T8/T7 substrate preserved.** Auto-research, cross-model,
+  promotion gate, ledger budget, anti-folklore lock, L1 guard — all
+  carry forward unchanged into steady-state.
+- **Halts cleanly** in either phase (buildup stall has its own halt
+  condition; steady-state inherits T9's halt set, gated on
+  fixed-anchor gap).
