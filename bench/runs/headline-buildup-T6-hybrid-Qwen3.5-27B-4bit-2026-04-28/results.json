@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T6",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4838,
+    "bytes_output": 34746,
+    "bytes_observation": 43342,
+    "tool_calls": 19,
+    "turns": 30,
+    "mutations": 8,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 11,
+    "unique_invalid_responses": 8,
+    "elapsed_seconds": 679.71,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\n  count: 43 vs 44",
+    "runner_error": null
+  }
+]
