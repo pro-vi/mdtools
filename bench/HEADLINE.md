@@ -6,11 +6,11 @@ The number(s) this repo's loop is hill-climbing.
 
 phase: baseline-buildup
 
-Fixed-anchor 18-task baseline does not yet exist (13/18 measured).
+Fixed-anchor 18-task baseline does not yet exist (14/18 measured).
 Cross-model triggers, auto-research, and hill-climb interpretation are
 deferred to steady-state. The only admissible move is to extend
 baseline coverage. Phase flips to `phase: steady-state` when the
-missing 5 tasks land.
+missing 4 tasks land.
 
 ## The numbers
 
@@ -43,7 +43,7 @@ to prevent this drift.
 
 ## Missing primary-baseline tasks
 
-5 of 18 search-corpus tasks remain unmeasured. Subsequent buildup
+4 of 18 search-corpus tasks remain unmeasured. Subsequent buildup
 iterations must close this list before phase flips to `steady-state`.
 
 | Task | Family (per CLAUDE.md) | Expected mdtools advantage |
@@ -52,17 +52,16 @@ iterations must close this list before phase flips to `steady-state`.
 | T3 | content-delivery | Moderate |
 | T6 | text-manipulation | **Weak** (unix wins simple sed/awk) |
 | T8 | content-delivery | Moderate |
-| T17 | content-delivery | Moderate |
 
 ## Current value
 
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
-| Fixed-anchor gap | _undefined_ (baseline-buildup, 13/18) | 2026-04-28 | — |
-| Current-corpus gap (hybrid − unix) | **+53.8pp** | 2026-04-28 | T9-1+2+3 + T10-2+3 bundles |
-| Current-corpus hybrid | 69.2% (9/13) | 2026-04-28 | — |
-| Current-corpus unix | 15.4% (2/13) | 2026-04-28 | — |
-| Measured subset | T1, T5, T7, T9, T10, T11, T12, T13, T15, T16, T18, T19, T21 | 2026-04-28 | — |
+| Fixed-anchor gap | _undefined_ (baseline-buildup, 14/18) | 2026-04-28 | — |
+| Current-corpus gap (hybrid − unix) | **+50.0pp** | 2026-04-28 | T9-1+2+3 + T10-2+3+4 bundles |
+| Current-corpus hybrid | 71.4% (10/14) | 2026-04-28 | — |
+| Current-corpus unix | 21.4% (3/14) | 2026-04-28 | — |
+| Measured subset | T1, T5, T7, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21 | 2026-04-28 | — |
 | Search corpus size | 18 (24 total − 6 holdout) | — | — |
 
 ## Hill-climb history
@@ -77,6 +76,7 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T9-3 | 2026-04-27 | buildup | current-corpus +54.5pp (11/18) | +10.1 | baseline-buildup (originally mis-classified as hill-climb; retroactively re-labeled per T10 spec — composition, not improvement) | bench/runs/headline-multistep-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-27/ |
 | T10-2 | 2026-04-28 | buildup | current-corpus +50.0pp (12/18) | −4.5 | baseline-buildup (T21 added; both modes failed scoring with `frontmatter_json: MISMATCH` — Qwen3.5-27B emitted just the parsed `data` payload instead of the full `md frontmatter --json` envelope; both modes had equal-shape failure so denominator-only delta) | bench/runs/headline-buildup-T21-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 | T10-3 | 2026-04-28 | buildup | current-corpus +53.8pp (13/18) | +3.8 | baseline-buildup (T12 added; hybrid PASS in 176s/15 calls/8 mut, unix FAIL after 1237s/30 turns/29 invalid responses/1 tool call — model produced 81KB of malformed output and never reached a working sed/awk plan; per-family gap = +100pp on the batch-mutation family. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T12-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
+| T10-4 | 2026-04-28 | buildup | current-corpus +50.0pp (14/18) | −3.8 | baseline-buildup (T17 added; hybrid PASS in 42.7s/2 calls/1 mut/3 turns, unix PASS in 187.8s/11 calls/1 mut/13 turns/2 deny — agent tried `md replace-section` twice (denied), then succeeded via head/cat/tail/mv splice on the 19-line file; per-family gap = 0pp on this single content-delivery instance. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T17-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 
 ## T9 iter 4 (aborted)
 
@@ -110,7 +110,7 @@ Populated as baseline-buildup completes. Family definitions per
 | Targeted mutation | T7, T10, T13 (T20 holdout) | 3/3 | 2/3 | +33.3pp |
 | Batch mutation | T12 | 1/1 | 0/1 | +100.0pp |
 | Multi-step | T15, T18 | 2/2 | 0/2 | +100.0pp |
-| Content delivery | T2, T3, T8, T17 | _pending_ | _pending_ | _pending_ |
+| Content delivery | T2, T3, T8, T17 | 1/1 (T17 only) | 1/1 (T17 only) | 0.0pp (T17 only) |
 | Text manipulation | T6 (T4 holdout) | _pending_ | _pending_ | _pending_ |
 | Other | T21 | 0/1 | 0/1 | 0.0pp |
 
