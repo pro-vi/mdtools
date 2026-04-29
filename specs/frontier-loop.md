@@ -405,31 +405,27 @@ condition, and a one-paragraph recommendation for the next loop.
 - **Halt summary** (`bench/probes/t10-summary.md`): bounded.
 ```
 
-## Outstanding repo state at T10 launch
+## Outstanding repo state
 
-- `bench/HEADLINE.md` carries T9's iter 1–3 history (extraction +
-  mutation + multi-step subsets, current-corpus gap +54.5pp on 11/18
-  tasks). T10 launch must:
-  - Add `phase: baseline-buildup` declaration at the top.
-  - Re-label all existing history rows with `cause: baseline-buildup`.
-  - Add a `Missing primary-baseline` callout listing T2, T3, T6, T8,
-    T12, T17, T21.
-  - Add stub for fixed-anchor gap (will be populated at phase
-    transition).
-- T9 iter 4 cross-model bundles exist for the 6-task extraction
-  subset on `Qwen3.5-122B-A10B-4bit` (hybrid 5/6, unix 0/6 — all
-  MAX_TURNS_EXCEEDED). These do NOT count toward the cross-model
-  trigger; they were composition-driven and on the wrong model
-  for steady-state. Treat as exploratory data only.
-- `bench/search/candidates/`, `bench/search/quarantine/`, and
-  `bench/search/accepted/` do not exist. Steady-state phase will
-  create them on first auto-research pass.
-- MLX endpoint live on port 10240. Primary target `Qwen3.5-27B-4bit`
-  and cross-model target `Qwen3.5-122B-A10B-4bit` are both loaded.
-- T7+T8 evaluator substrate carries forward intact: dual scorer with
-  F8 fixes, mechanical L1 guard, holdout_version stamping, PI runner
-  with audit, cross-executor comparability rule, opener-stack JSON
-  extractor.
+- **`bench/HEADLINE.md` is canonical runtime state.** Read it for
+  current `phase`, `Missing primary-baseline tasks` list, history,
+  and per-family table. Do NOT assume the launch-time list — it
+  evolves every iteration. As of this revision, the loop has
+  measured 16/18 baseline tasks across T9 + T10 runs; 2 remain.
+- **Search staging (`bench/search/{candidates,quarantine,accepted}/`)
+  may not exist yet.** Steady-state phase creates them lazily on
+  the first auto-research pass.
+- **MLX endpoint live on port 10240.** Primary target
+  `Qwen3.5-27B-4bit` and cross-model target `Qwen3.5-122B-A10B-4bit`
+  are both loaded.
+- **T7+T8 evaluator substrate carries forward intact:** dual scorer
+  with F8 fixes, mechanical L1 guard, holdout_version stamping, PI
+  runner with audit, cross-executor comparability rule, opener-stack
+  JSON extractor.
+- **Known agent-side workload risks** (from prior runs, not blocking):
+  Qwen3.5-27B-4bit unix mode is prone to invalid-response loops on
+  multi-step tasks; content-delivery tasks (e.g. T3, T8) can take
+  >20 min wall clock per mode. Plan iteration scope accordingly.
 
 ## Why this is the right next loop
 
