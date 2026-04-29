@@ -1,0 +1,10 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "This is a common technical-documentation refactoring task. Operations and release engineers often move a specific procedure from a maintenance section into an operations flow while preserving tables, command blocks, and nearby archive material.",
+  "review_preceded_gap_measurement": true,
+  "review_notes": [
+    "The strict reviewer retry returned fenced JSON and omitted the review_preceded_gap_measurement field; this typed artifact records the reviewer verdict plus the fact that review happened before any gap measurement."
+  ]
+}

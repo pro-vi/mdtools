@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-25",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4687,
+    "bytes_output": 47661,
+    "bytes_observation": 14642,
+    "tool_calls": 15,
+    "turns": 30,
+    "mutations": 2,
+    "policy_violations": 1,
+    "requeried": true,
+    "invalid_responses": 15,
+    "unique_invalid_responses": 10,
+    "elapsed_seconds": 950.13,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Operations Runbook'), (1, 'Operations'), (2, 'Startup Sequence'), (2, 'Shutdown Sequence'), (2, 'Backup Procedure'), (2, 'Scheduled Tasks'), (1, 'Maintenance'), (2, 'Restore Procedure'), (1, 'Historical Notes'), (2, 'Backup Procedure Archive')] vs [(1, 'Operations Runbook'), (1, 'Operations'), (2, 'Startup Sequence'), (2, 'Shutdown Sequence'), (2, 'Backup Procedure'), (2, 'Backup Procedure'), (2, 'Scheduled Tasks'), (1, 'Maintenance'), (2, 'Backup Procedure'), (2, 'Restore Procedure'), (1, 'Historical Notes'), (2, 'Backup Procedure Archive')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'Heading', 'Table', 'Heading', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'CodeFence'] vs ['Heading', 'Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Heading', 'Table', 'Heading', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 7: 'Follow this procedure before weekly releases.' vs '## Backup Procedure'\nheading_tree [neutral]: MISMATCH [(1, 'Operations Runbook'), (1, 'Operations'), (2, 'Startup Sequence'), (2, 'Shutdown Sequence'), (2, 'Backup Procedure'), (2, 'Scheduled Tasks'), (1, 'Maintenance'), (2, 'Restore Procedure'), (1, 'Historical Notes'), (2, 'Backup Procedure Archive')] vs [(1, 'Operations Runbook'), (1, 'Operations'), (2, 'Startup Sequence'), (2, 'Shutdown Sequence'), (2, 'Backup Procedure'), (2, 'Backup Procedure'), (2, 'Scheduled Tasks'), (1, 'Maintenance'), (2, 'Backup Procedure'), (2, 'Restore Procedure'), (1, 'Historical Notes'), (2, 'Backup Procedure Archive')]\nblock_text [neutral]: MISMATCH\n  block 7: 'Follow this procedure before weekly releases.' vs '## Backup Procedure'\n  count: 19 vs 21",
+    "runner_error": null
+  }
+]
