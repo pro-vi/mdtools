@@ -1,0 +1,8 @@
+{
+  "reviewer_model": "Qwen3.6-35B-A3B-8bit",
+  "best_unix_strategy": "awk-based line extraction and reinsertion",
+  "observed_outcome": "unix-pass/hybrid-fail",
+  "gap_label": "unix-win/no-mdtools-advantage",
+  "accepted_as_ast_structural": false,
+  "rationale": "Hybrid failed due to a missing blank line causing paragraph merge, while unix succeeded via awk. Per the promotion gate, hybrid failure combined with unix pass mandates rejection regardless of the underlying cause. The condition 'hybrid pass rate > unix pass rate' is not met."
+}

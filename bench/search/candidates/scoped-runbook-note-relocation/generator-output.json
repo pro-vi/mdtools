@@ -1,0 +1,10 @@
+{
+  "family_slug": "md-test-edit-task",
+  "family_name": "Markdown Editing Task",
+  "rationale": "The task requires non-trivial understanding of Markdown document structure. The agent must identify a targeted section, perform a non-append edit, and ignore certain syntactic elements like code fences and quoted blocks. The exact operation is to move one specific note between two subsections.",
+  "task_id": "move_note_between_subsections",
+  "task_description": "Move a specific note item from one subsection to another designated subsection within the same overall section.",
+  "input_markdown": "## System Configuration Guide\n\n### Database\n**Credentials**: Use service account `db_admin` with passphrase.\n\n**Note**: Rotate credentials quarterly; see example below:\n\n```\n$ mysql_secure_installation --enforce-strong-passwords\n```\n**Note**: Always back up database before schema changes.\n\n### Network\n**Firewall Rules**: Whitelist IPs: 10.0.0.0/8, 172.16.0.0/12.\n\n**Note**: Test connectivity post-update with:\n\n```\nping -c 4 target_host\n```\n**Note**: Log all changes in change tracking system.\n",
+  "expected_markdown": "## System Configuration Guide\n\n### Database\n**Credentials**: Use service account `db_admin` with passphrase.\n\n**Note**: Rotate credentials quarterly; see example below:\n\n```\n$ mysql_secure_installation --enforce-strong-passwords\n```\n\n### Network\n**Firewall Rules**: Whitelist IPs: 10.0.0.0/8, 172.16.0.0/12.\n\n**Note**: Always back up database before schema changes.\n**Note**: Test connectivity post-update with:\n\n```\nping -c 4 target_host\n```\n**Note**: Log all changes in change tracking system.\n",
+  "scorer_policy": "Exact match of full Markdown content."
+}
