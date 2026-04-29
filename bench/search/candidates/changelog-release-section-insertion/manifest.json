@@ -1,0 +1,62 @@
+{
+  "family_slug": "changelog-release-section-insertion",
+  "family_name": "Changelog release section insertion",
+  "status": "rejected-both-fail-no-gap",
+  "created_at": "2026-04-29",
+  "source": {
+    "generator_model": "magnum-v4-123b-4bit",
+    "generator_prompt": "generator-prompt.md",
+    "generator_output": "generator-output.json",
+    "normalization_notes": "candidate-normalization.md"
+  },
+  "realism_review": {
+    "reviewer_model": "gemma-4-e4b-it-8bit",
+    "artifact": "realism-review.json",
+    "verdict": "yes",
+    "confidence": 0.95,
+    "review_preceded_gap_measurement": true
+  },
+  "task_definition": {
+    "tasks_path": "tasks.json",
+    "task_ids_path": "task_ids.json",
+    "task_ids": [
+      "C-T10-21"
+    ],
+    "input_docs": [
+      "input.md"
+    ],
+    "expected_outputs": [
+      "expected.md"
+    ],
+    "scorer_policies": [
+      "normalized_text: heading_tree + block_order + block_text"
+    ]
+  },
+  "measurements": {
+    "artifact": "measurement-summary.json",
+    "model": "Qwen3.5-27B-4bit",
+    "runner": "oai-loop",
+    "executor": "guarded",
+    "runs_per_task": 1,
+    "holdout_version": 1,
+    "max_turns": 8,
+    "request_timeout_seconds": 60,
+    "bundles": {
+      "mdtools": "bench/runs/t10-21-changelog-release-section-insertion-mdtools-N1-max8-Qwen3.5-27B-4bit-2026-04-29/",
+      "hybrid": "bench/runs/t10-21-changelog-release-section-insertion-hybrid-N1-max8-Qwen3.5-27B-4bit-2026-04-29/",
+      "unix": "bench/runs/t10-21-changelog-release-section-insertion-unix-N1-max8-Qwen3.5-27B-4bit-2026-04-29/"
+    },
+    "outcome": {
+      "mdtools": "fail",
+      "hybrid": "fail",
+      "unix": "fail",
+      "hybrid_minus_unix_pp": 0.0
+    }
+  },
+  "unix_adversary_review": {
+    "artifact": "unix-adversary-review.json",
+    "reviewer_model": "gemma-4-e4b-it-8bit",
+    "gap_label": "both-fail/no-gap",
+    "accepted_as_ast_structural": false
+  }
+}
