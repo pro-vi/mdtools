@@ -1,0 +1,71 @@
+{
+  "measured_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-30"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-30-delivery-receipt-verification-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "hybrid": "bench/runs/t10-30-delivery-receipt-verification-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "unix": "bench/runs/t10-30-delivery-receipt-verification-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 225.61,
+      "tool_calls": 9,
+      "turns": 10,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The mdtools run completed the subsection relocation with dual-scorer agreement."
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 534.31,
+      "tool_calls": 18,
+      "turns": 21,
+      "mutations": 9,
+      "invalid_responses": 2,
+      "unique_invalid_responses": 2,
+      "policy_violations": 0,
+      "failure_summary": "The hybrid run moved the target subsection but dropped the `### Archive` heading, leaving the archive quote as bare blockquote content before `### Return Intake`."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 991.9,
+      "tool_calls": 12,
+      "turns": 30,
+      "mutations": 4,
+      "invalid_responses": 18,
+      "unique_invalid_responses": 14,
+      "policy_violations": 0,
+      "failure_summary": "The unix run reached the turn cap with the target subsection still under `## Intake`; dual scorers found the expected `### Dispatch Notes` block displaced by the original `### Delivery Receipt Verification` block."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 100.0,
+    "unix_gap_label": "hybrid-fail/no-gap",
+    "accepted_as_ast_structural_candidate": false,
+    "current_corpus_member": false,
+    "promotion_required": null,
+    "promotion_artifact": null,
+    "promotion_status": "rejected-hybrid-fail-no-gap",
+    "rejection_reason": "The candidate produced an mdtools-only win, but T10's promotable metric is hybrid-minus-unix; with hybrid and unix both failing, there is no promotable gap."
+  },
+  "notes": [
+    "The candidate is realistic and mdtools-only succeeded, but hybrid failed by dropping a sibling heading.",
+    "Because hybrid and unix both failed, the family is rejected without HEADLINE movement."
+  ]
+}
+

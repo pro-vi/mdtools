@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-30",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1266,
+    "bytes_output": 45526,
+    "bytes_observation": 4986,
+    "tool_calls": 12,
+    "turns": 30,
+    "mutations": 4,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 18,
+    "unique_invalid_responses": 14,
+    "elapsed_seconds": 991.9,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Product Delivery Runbook'), (2, 'Intake'), (3, 'Route Confirmation'), (3, 'Dispatch Notes'), (2, 'Completion'), (3, 'Delivery Receipt Verification'), (3, 'Customer Handoff'), (3, 'Receipt Verification Exceptions'), (3, 'Archive'), (3, 'Return Intake')] vs [(1, 'Product Delivery Runbook'), (2, 'Intake'), (3, 'Route Confirmation'), (3, 'Delivery Receipt Verification'), (3, 'Dispatch Notes'), (2, 'Completion'), (3, 'Customer Handoff'), (3, 'Receipt Verification Exceptions'), (3, 'Archive'), (3, 'Return Intake')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'List', 'Heading', 'BlockQuote', 'Heading', 'List'] vs ['Heading', 'Heading', 'Heading', 'List', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'List', 'Heading', 'Heading', 'List', 'Heading', 'Paragraph', 'List', 'Heading', 'BlockQuote', 'Heading', 'List']\nblock_text [md]: MISMATCH\n  block 4: '### Dispatch Notes' vs '### Delivery Receipt Verification'\nheading_tree [neutral]: MISMATCH [(1, 'Product Delivery Runbook'), (2, 'Intake'), (3, 'Route Confirmation'), (3, 'Dispatch Notes'), (2, 'Completion'), (3, 'Delivery Receipt Verification'), (3, 'Customer Handoff'), (3, 'Receipt Verification Exceptions'), (3, 'Archive'), (3, 'Return Intake')] vs [(1, 'Product Delivery Runbook'), (2, 'Intake'), (3, 'Route Confirmation'), (3, 'Delivery Receipt Verification'), (3, 'Dispatch Notes'), (2, 'Completion'), (3, 'Customer Handoff'), (3, 'Receipt Verification Exceptions'), (3, 'Archive'), (3, 'Return Intake')]\nblock_text [neutral]: MISMATCH\n  block 4: '### Dispatch Notes' vs '### Delivery Receipt Verification'",
+    "runner_error": null
+  }
+]

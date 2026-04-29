@@ -1,0 +1,14 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "This task involves precise structural editing by moving a subsection while preserving content integrity, including a table, fenced block, decoy subsection, and quoted archive text. This is a common document-maintenance task for delivery runbooks when a workflow step is reclassified under a later process phase.",
+  "realistic_user": "technical writer",
+  "concerns": "The adjacent decoy and archived heading mention require careful context awareness, but that is typical for real documentation maintenance rather than artificial puzzle behavior.",
+  "review_preceded_gap_measurement": true,
+  "review_notes": [
+    "The reviewer response labeled reviewer_model generically as realism_reviewer and wrapped the response in a JSON code fence; this artifact records the actual model and normalized JSON content.",
+    "The review was performed before any target-model mdtools, hybrid, or unix measurement."
+  ]
+}
+
