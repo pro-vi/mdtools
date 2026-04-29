@@ -362,10 +362,10 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
             input_file = os.path.join(workdir, inp_dir) + "/"
         else:
             input_file = " ".join(
-                os.path.join(workdir, os.path.basename(f)) for f in task.input_files
+                copied_input_path(f, workdir) for f in task.input_files
             )
     else:
-        input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
+        input_file = copied_input_path(task.input_files[0], workdir)
 
     if task.expected_artifact == "json_envelope":
         output_instruction = "Print the result as JSON to stdout."
@@ -393,6 +393,15 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
         tool_docs=tool_docs,
         completion_instruction=completion_instruction,
     )
+
+
+def copied_input_path(input_path: str, workdir: str) -> str:
+    """Return the path where run_agent copies an input file inside workdir."""
+    inp_dir = os.path.dirname(input_path)
+    inp_parent = os.path.basename(inp_dir) if inp_dir else ""
+    if inp_parent and inp_parent != "inputs":
+        return os.path.join(workdir, inp_parent, os.path.basename(input_path))
+    return os.path.join(workdir, os.path.basename(input_path))
 
 
 # ── Dual scorer ───────────────────────────────────────────────
@@ -1257,7 +1266,7 @@ def run_agent(
         guard_log_path = restricted_env.guard_log_path
 
     prompt = build_prompt(task, mode, workdir)
-    input_file = os.path.join(workdir, os.path.basename(task.input_files[0]))
+    input_file = copied_input_path(task.input_files[0], workdir)
 
     bytes_prompt = len(prompt.encode())
 

@@ -7,7 +7,16 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bench import harness
-from bench.harness import BenchResult, build_run_metadata, load_tasks, run_agent, select_tasks, write_run_artifacts
+from bench.harness import (
+    BenchResult,
+    BenchTask,
+    StructuralDiffPolicy,
+    build_run_metadata,
+    load_tasks,
+    run_agent,
+    select_tasks,
+    write_run_artifacts,
+)
 from bench.oai_loop import LoopError, LoopTrace
 
 
@@ -282,6 +291,81 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual(result.turns, 4)
         self.assertEqual(result.bytes_output, 512)
         self.assertEqual(result.bytes_observation, 1024)
+
+    def test_run_agent_scores_input_file_copied_under_non_inputs_parent(self) -> None:
+        """Candidate tasks under bench/search/candidates keep their parent
+        directory in the temp workspace; prompt and scorer must point at that
+        copied path instead of workdir/<basename>."""
+        md_binary = "target/release/md"
+        if not Path(md_binary).exists():
+            self.skipTest(f"{md_binary} not built")
+
+        with tempfile.TemporaryDirectory(prefix="bench_candidate_path_") as tmpdir:
+            tmp = Path(tmpdir)
+            candidate_dir = tmp / "candidate-family"
+            candidate_dir.mkdir()
+            input_path = candidate_dir / "input.md"
+            expected_path = candidate_dir / "expected.md"
+            input_path.write_text("# Tasks\n\n- [ ] Ship docs\n")
+            expected_path.write_text("# Tasks\n\n- [x] Ship docs\n")
+
+            task = BenchTask(
+                id="C-PATH",
+                description="Mark the Ship docs task as done.",
+                input_files=[str(input_path)],
+                expected_output=str(expected_path),
+                expected_artifact="file_contents",
+                difficulty="intermediate",
+                scorer=StructuralDiffPolicy(
+                    kind="normalized_text",
+                    normalize_line_endings=True,
+                    ignore_trailing_whitespace=True,
+                    compare_frontmatter_json=False,
+                    compare_heading_tree=True,
+                    compare_block_order=True,
+                    compare_link_destinations=False,
+                    compare_block_text=True,
+                ),
+            )
+
+            def complete_task(**kwargs):
+                workdir = Path(kwargs["workdir"])
+                copied_input = workdir / "candidate-family" / "input.md"
+                self.assertIn(str(copied_input), kwargs["prompt"])
+                self.assertNotIn(f"{workdir}/input.md", kwargs["prompt"])
+                copied_input.write_text(expected_path.read_text())
+                return LoopTrace(
+                    raw_output="done",
+                    text_outputs=["done"],
+                    tool_outputs=[],
+                    bytes_output=4,
+                    bytes_observation=0,
+                    tool_calls=1,
+                    turns=1,
+                    invalid_responses=0,
+                    unique_invalid_responses=0,
+                )
+
+            with patch.object(harness, "run_oai_loop", side_effect=complete_task):
+                result = run_agent(
+                    task,
+                    "hybrid",
+                    agent_cmd="unused",
+                    md_binary=md_binary,
+                    model="Hermes-4-70B-4bit",
+                    runner="oai-loop",
+                    executor="guarded",
+                    log_dir=None,
+                    max_turns=30,
+                    oai_api_base="http://127.0.0.1:10240/v1",
+                    oai_api_key="test-key",
+                    oai_request_timeout=60,
+                    oai_tool_timeout=30,
+                )
+
+        self.assertTrue(result.correct, result.diff_report)
+        self.assertTrue(result.correct_neutral, result.diff_report)
+        self.assertIsNone(result.runner_error)
 
 
 class HoldoutVersionMetadataTests(unittest.TestCase):

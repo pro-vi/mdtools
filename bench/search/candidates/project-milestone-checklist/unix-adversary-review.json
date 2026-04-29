@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk with a section-state flag: set the flag at the Project Milestones heading, clear it at Project Milestones Archive, and substitute only the matching unchecked Finalize API documentation line while the flag is active; write to a temp file and move it back.",
+  "gap_label": "shell-quoting",
+  "rationale": "The unix failure was not caused by lack of a plausible text strategy. The run produced the right awk idea, then repeatedly failed the harness action schema while trying to quote the awk command as JSON, eventually exhausting turns with the target line unchanged. This is a shell quoting / action-format failure rather than an AST-structural Markdown gap.",
+  "accepted_as_ast_structural": false
+}

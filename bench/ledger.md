@@ -16,6 +16,11 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 _None._
 
+## T10 steady-state
+
+- **T10-11 candidate rejected** — `bench/search/candidates/project-milestone-checklist/` records the first steady-state auto-research candidate. Realism review passed before measurement. Qwen3.5-27B-4bit results: mdtools PASS, hybrid PASS, unix FAIL, dual scorers agreed in every cell. Unix-adversary label: `shell-quoting`, not AST-structural, because the unix run formed the right awk plan but spent 27 invalid responses failing to emit it as valid JSON. Stored as rejected candidate evidence; not promoted, no HEADLINE gap movement.
+- **F10-1 closed** — candidate measurement exposed a harness path bug for tasks outside `bench/inputs/`: `run_agent` copied `bench/search/candidates/<family>/input.md` into a temp subdirectory, while `build_prompt` and file-content scoring still pointed at `workdir/input.md`. Fixed by centralizing the copied-input path mapping and reusing it for prompt and scoring. Pinned by `bench.test_harness_run_artifacts.HarnessRunArtifactTests.test_run_agent_scores_input_file_copied_under_non_inputs_parent`.
+
 ## Closed in T8
 
 - **F8-8** — `neutral_block_texts` (bench/harness.py) collection-type branch over-normalized the five non-{hr, heading, html_block, code_block, fence} block tokens (paragraph_open, bullet_list_open, ordered_list_open, blockquote_open, table_open) by collecting only inline content, dropping list markers, blockquote prefixes, table separators, and nesting indentation that `_md_block_texts` preserves via byte slicing. P2 SCORER DIVERGENCE — md gated `correct` correctly today but the cross-check would mask any future md-side regression mirroring neutral's leniency. Filed T8 iter 16, CLOSED post-loop. Hardening: extended F8-7's `tok.map` line-slice to all five collection-type tokens, with defensive fallback to the inline-collection path when `tok.map is None`. Pinned by `bench/test_harness_json.py::NeutralBlockTextsCollectionFidelityTests` (4 tests covering list markers, blockquote/table fidelity, end-to-end blockquote→paragraph flattening, end-to-end nested→flat list flattening). Attribution probe rerun: `bench/probes/F8-8-neutral-block-texts-collection-over-normalization/probe.py` exit 0 = inert on all four stages.
