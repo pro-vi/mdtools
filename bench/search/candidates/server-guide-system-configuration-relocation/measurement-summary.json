@@ -57,7 +57,36 @@
     "mdtools_minus_unix_pp": 100.0,
     "accepted_as_ast_structural_candidate": true,
     "current_corpus_member": false,
-    "promotion_required": true,
-    "promotion_artifact": null
+    "promotion_required": false,
+    "promotion_artifact": "bench/runs/t10-18-server-guide-system-configuration-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+    "promotion_status": "rejected-cross-seed-instability"
+  },
+  "promotion_attempt": {
+    "attempted_at": "2026-04-29",
+    "model": "Qwen3.5-27B-4bit",
+    "runner": "oai-loop",
+    "executor": "guarded",
+    "runs_per_task": 2,
+    "holdout_version": 1,
+    "request_timeout_seconds": 240,
+    "bundle": "bench/runs/t10-18-server-guide-system-configuration-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+    "results": {
+      "fresh_hybrid": {
+        "pass": 0,
+        "neutral_pass": 0,
+        "runs": 2,
+        "avg_elapsed_seconds": 579.63,
+        "avg_tool_calls": 25.5,
+        "avg_mutations": 8.0,
+        "avg_invalid_responses": 4.5,
+        "avg_unique_invalid_responses": 4.5,
+        "avg_policy_violations": 1.0
+      }
+    },
+    "decision": {
+      "outcome": "rejected-cross-seed-instability",
+      "unix_reruns_skipped": true,
+      "reason": "The promotion gate requires cross-seed stability. Both fresh hybrid seeds failed with md and neutral scorer agreement, so additional unix failure evidence could not make the family promotable."
+    }
   }
 }

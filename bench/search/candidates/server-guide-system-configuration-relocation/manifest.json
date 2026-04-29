@@ -1,7 +1,7 @@
 {
   "family_slug": "server-guide-system-configuration-relocation",
   "family_name": "Server guide System Configuration relocation",
-  "status": "staged-for-promotion",
+  "status": "rejected-cross-seed-instability",
   "created_at": "2026-04-29",
   "source": {
     "generator_model": "Hermes-4-70B-4bit",
@@ -57,5 +57,14 @@
     "gap_label": "AST-structural",
     "accepted_as_ast_structural": true
   },
-  "promotion_notes": "Staged as an AST-structural promotion candidate. Promotion still requires fresh cross-seed stability runs before entering the current search corpus."
+  "promotion_attempt": {
+    "attempted_at": "2026-04-29",
+    "outcome": "rejected-cross-seed-instability",
+    "bundle": "bench/runs/t10-18-server-guide-system-configuration-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+    "fresh_hybrid_seeds": 2,
+    "fresh_hybrid_passes": 0,
+    "fresh_hybrid_neutral_passes": 0,
+    "reason": "Promotion gate failed before unix reruns: both fresh hybrid seeds failed under dual scoring, so the initial mdtools/hybrid win did not survive cross-seed stability."
+  },
+  "promotion_notes": "Rejected during promotion because the AST-structural single-seed gap was not stable across fresh hybrid seeds. Stored as rejected candidate evidence with no HEADLINE movement."
 }
