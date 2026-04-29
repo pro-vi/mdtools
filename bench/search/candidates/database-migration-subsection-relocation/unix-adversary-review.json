@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk or perl to identify the exact source subsection by its heading, capture every line through the next heading at the same or higher level, delete that captured range from the original location, then insert the captured block after the Data Integrity Checks subsection and before the existing Database Migration Checklist subsection.",
+  "gap_label": "planning",
+  "rationale": "The task requires complex structural rearrangement: identifying a specific subsection and all of its contents, extracting it, and inserting it at a precise location relative to two other existing blocks. Plain Unix tools can perform this with a careful range-capture and reinsertion script, but the measured unix agent failed before producing that plan or mutating the file. The observed gap is therefore classified as planning rather than accepted as an intrinsic AST-structural corpus member.",
+  "accepted_as_ast_structural": false
+}
