@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk or perl to capture the exact `### Isolate Affected Systems` subsection under `## Initial Triage`, delete that source range through the next level-3 heading, then insert the captured block immediately after the `## Containment` intro paragraph and before `### Limit Spread` while preserving the checklist and fenced-code mention.",
+  "gap_label": "both-fail/no-gap",
+  "rationale": "All three modes failed under both scorers, so the hybrid-minus-unix pass-rate gap is 0.0 percentage points and there is no positive unix gap to classify as AST-structural. The task remains realistic, but it is too hard for the target model in this seed across tool-enabled and unix-only modes.",
+  "accepted_as_ast_structural": false
+}

@@ -1,0 +1,12 @@
+{
+  "generator_model": "magnum-v4-123b-4bit",
+  "raw_response": {
+    "family_slug": "doc_maintenance",
+    "family_name": "Document Maintenance",
+    "task_id_suggestion": "move_subsection_in_runbook",
+    "description": "Move a level-3 subsection from one level-2 parent to another in a Markdown operations runbook.",
+    "input_md": "# Incident Response Runbook\n\n## Initial Triage\n\n### Gather Information\n\n- Identify affected systems\n- Determine severity and impact\n- Notify stakeholders\n\n### Isolate Affected Systems\n\n- Quarantine compromised hosts\n- Disconnect from network if needed\n- Preserve evidence for forensics\n\n## Containment\n\n### Limit Spread\n\n- Apply temporary patches\n- Block malicious IPs\n- Disable vulnerable services\n\n### Eradicate Threat\n\n- Remove malware\n- Reset compromised credentials\n- Patch vulnerabilities\n\n```\nInitial Triage Steps:\n1. Gather Information\n2. Isolate Affected Systems\n```\n\n## Recovery\n\n### Restore Services\n\n- Bring systems back online\n- Monitor for stability\n- Validate data integrity\n\n### Conduct Review\n\n- Document lessons learned\n- Update runbook as needed\n- Conduct training if necessary\n\n## Follow-up\n\n### Monitor\n\n- Watch for recurrence\n- Check for similar incidents\n- Update detection rules\n\n### Report\n\n- Provide incident summary\n- Quantify impact and costs\n- Make recommendations\n",
+    "expected_md": "# Incident Response Runbook\n\n## Initial Triage\n\n### Gather Information\n\n- Identify affected systems\n- Determine severity and impact\n- Notify stakeholders\n\n## Containment\n\n### Isolate Affected Systems\n\n- Quarantine compromised hosts\n- Disconnect from network if needed\n- Preserve evidence for forensics\n\n### Limit Spread\n\n- Apply temporary patches\n- Block malicious IPs\n- Disable vulnerable services\n\n### Eradicate Threat\n\n- Remove malware\n- Reset compromised credentials\n- Patch vulnerabilities\n\n```\nInitial Triage Steps:\n1. Gather Information\n2. Isolate Affected Systems\n```\n\n## Recovery\n\n### Restore Services\n\n- Bring systems back online\n- Monitor for stability\n- Validate data integrity\n\n### Conduct Review\n\n- Document lessons learned\n- Update runbook as needed\n- Conduct training if necessary\n\n## Follow-up\n\n### Monitor\n\n- Watch for recurrence\n- Check for similar incidents\n- Update detection rules\n\n### Report\n\n- Provide incident summary\n- Quantify impact and costs\n- Make recommendations\n",
+    "scorer_policy": "exact_match"
+  }
+}

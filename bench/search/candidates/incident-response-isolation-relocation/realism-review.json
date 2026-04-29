@@ -1,0 +1,9 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.98,
+  "rationale": "This task involves precise structural editing within a well-defined Markdown operations runbook. It requires moving one block of content exactly while leaving related but distinct elements untouched.",
+  "realism_notes": "The complexity is low to medium. It tests understanding of Markdown heading hierarchy and content preservation, which are core skills for human technical writers and AI coding agents.",
+  "review_preceded_gap_measurement": true,
+  "raw_response_format": "fenced_json"
+}
