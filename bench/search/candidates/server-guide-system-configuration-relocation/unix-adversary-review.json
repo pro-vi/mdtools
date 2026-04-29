@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk, sed, or perl to parse heading boundaries, extract the target subsection under Setup, delete it from the original location, and insert it after Backup Procedures under Maintenance while preserving the existing Maintenance subsection with the same title.",
+  "gap_label": "AST-structural",
+  "rationale": "The task requires moving a complete multi-block subsection across Markdown parent sections while distinguishing duplicate same-level headings and ignoring fenced-code mentions. A unix-only strategy must emulate document structure parsing to identify the target block and insertion point. The measured unix failure left the original heading order intact with heading_tree, block_order, and block_text mismatches, while mdtools and hybrid passed under both scorers.",
+  "accepted_as_ast_structural": true
+}

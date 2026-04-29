@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-17",
+    "description": "In the provided Markdown server installation guide, move the complete subsection titled 'System Configuration' from under the 'Setup' section to under the 'Maintenance' section, placing it immediately after the 'Backup Procedures' subsection and before the existing Maintenance 'System Configuration' subsection. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the existing Maintenance 'System Configuration' subsection and all fenced-code mentions of 'System Configuration' untouched.",
+    "input_files": [
+      "bench/search/candidates/server-guide-system-configuration-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/server-guide-system-configuration-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
