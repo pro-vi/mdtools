@@ -1,0 +1,23 @@
+[
+  {
+    "id": "C-T10-12",
+    "description": "Read the provided Markdown release-notes document. Ignore heading-like lines inside fenced code blocks and blockquoted archival notes. Print a JSON object with exactly these keys: document_title (the H1 title text), section_headings (the H2 heading text in source order), and subsection_heading_count (the number of H3 headings outside ignored regions).",
+    "input_files": [
+      "bench/search/candidates/release-notes-heading-summary/input.md"
+    ],
+    "expected_output": "bench/search/candidates/release-notes-heading-summary/expected.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false,
+      "json_canonical": true
+    }
+  }
+]

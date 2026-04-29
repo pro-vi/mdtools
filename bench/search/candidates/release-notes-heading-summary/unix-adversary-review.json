@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "Hermes-4-70B-4bit",
+  "best_unix_strategy": "Use POSIX shell tools to strip fenced code blocks and blockquoted lines, then count heading markers by level and assemble the requested JSON object from the remaining Markdown headings.",
+  "gap_label": "both-pass/no-gap",
+  "rationale": "The unix implementation passed the benchmark using only POSIX shell tools, albeit with 17 invalid responses and 1 policy denial. Both the hybrid and unix approaches successfully parsed the Markdown release notes as required, so there is no hybrid-minus-unix pass-rate gap to admit as AST-structural.",
+  "accepted_as_ast_structural": false
+}

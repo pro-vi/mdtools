@@ -1,0 +1,20 @@
+{
+  "family_slug": "mdx-rel-eng",
+  "family_name": "Markdown Document Engineering Release Tasks",
+  "rationale": "Realistic benchmark for AI agents to parse Markdown files, extract meaningful metadata without processing code blocks or archival quotes, and produce a JSON summary relevant to release engineering.",
+  "task_id": "mdx-rel-eng-001",
+  "task_description": "Read the provided Markdown file, ignore any fenced code blocks or quoted archival notes, and generate a JSON summary containing the document title, the first-level headers, and the total count of second-level headers.",
+  "input_markdown": "# Release Notes for Version 2.1.0\n\n## Overview\n\nThis release includes several important enhancements and bug fixes.\n\n## New Features\n\n### User Interface Improvements\n\nThe dashboard has been redesigned for better usability.\n\n### Performance Optimizations\n\nBackend response times have been reduced by 30%.\n\n## Bug Fixes\n\n### Resolved Issues\n\nFixed login timeout error occurring under high load.\n\n### Known Issues\n\nIntermittent profile save failure still under investigation.\n\n```python\n# Archived: legacy middleware module (to be deprecated)\nimport sys\n\ndef legacy_handler():\n    print(\"Deprecated handler called\")\n```\n\n## Documentation\n\n### Updated Guides\n\nAll user manuals have been updated to reflect recent changes.\n\n### Archived Notes\n\n> The following notes are preserved for historical reference only.\n> Module `auth` API v1.3 deprecated as of 2023-01-01.\n\n## Support\n\n### Contact Information\n\nFor enterprise support email support@company.example.com\n\n### License\n\nSee LICENSE.md for complete licensing details.",
+  "expected_json": {
+    "document_title": "Release Notes for Version 2.1.0",
+    "first_level_headers": [
+      "Overview",
+      "New Features",
+      "Bug Fixes",
+      "Documentation",
+      "Support"
+    ],
+    "second_level_header_count": 7
+  },
+  "scorer_policy": "Exact match of JSON structure and values. Overall structure must be an object containing exactly the keys: document_title (string), first_level_headers (array of strings), and second_level_header_count (integer). Nested objects or arrays are not permitted. All string values must match exactly, including whitespace."
+}
