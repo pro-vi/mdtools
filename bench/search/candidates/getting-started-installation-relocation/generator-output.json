@@ -1,0 +1,10 @@
+{
+  "family_slug": "markdown_maintenance",
+  "family_name": "Markdown Maintenance",
+  "rationale": "Moving a nested subsection to a different parent section in a Markdown document is a common task in technical writing and documentation.",
+  "task_id": "move_subsection",
+  "task_description": "Move the 'Installation' subsection under the 'Getting Started' section to the 'Prerequisites' section in the Markdown document.",
+  "input_markdown": "# My Project\n\n## Getting Started\n\n### Installation\n\nFollow these steps to install the project:\n\n1. Clone the repository\n2. Run `npm install`\n\n### Running the Project\n\nTo run the project, use the following command:\n\n```\n$ npm start\n```\n\n## Prerequisites\n\n### Node.js\n\nMake sure you have Node.js version 12 or higher installed.\n\n### Python\n\nPython 3.6 or higher is required for some build scripts.\n\n## Contributing\n\n### Code Style\n\nFollow the [style guide](https://github.com/style-guide) for coding conventions.\n\n### Submitting Pull Requests\n\n1. Fork the repository\n2. Create a new branch\n3. Make your changes\n4. Submit a pull request",
+  "expected_markdown": "# My Project\n\n## Getting Started\n\n### Running the Project\n\nTo run the project, use the following command:\n\n```\n$ npm start\n```\n\n## Prerequisites\n\n### Installation\n\nFollow these steps to install the project:\n\n1. Clone the repository\n2. Run `npm install`\n\n### Node.js\n\nMake sure you have Node.js version 12 or higher installed.\n\n### Python\n\nPython 3.6 or higher is required for some build scripts.\n\n## Contributing\n\n### Code Style\n\nFollow the [style guide](https://github.com/style-guide) for coding conventions.\n\n### Submitting Pull Requests\n\n1. Fork the repository\n2. Create a new branch\n3. Make your changes\n4. Submit a pull request",
+  "scorer_policy": "The edited Markdown document must have the 'Installation' subsection moved from the 'Getting Started' section to the 'Prerequisites' section, while keeping the rest of the document unchanged."
+}

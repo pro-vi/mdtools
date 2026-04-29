@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk or perl with explicit fence-state tracking to find the real `### Installation` heading under `## Getting Started`, capture through the next peer heading, delete that exact block, and insert it immediately before `### Runtime Versions` under `## Prerequisites` while preserving the checklist and fenced command block.",
+  "gap_label": "planning",
+  "rationale": "The measured headline cell was hybrid PASS versus unix FAIL, but the strict review classified the unix trace as planning/state-management failure rather than a clean AST-structural gap: the unix run made many mutations over 30 turns yet left the real `### Installation` subsection in the wrong parent. A broader first review labeled the same trace AST-structural, so the conservative disposition is to reject rather than promote or stage this family.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "Initial broader review labeled the gap `AST-structural`; strict retry with the exact reviewer_model field labeled it `planning`.",
+    "Because T10 only promotes AST-structural families and this candidate also lacks a mdtools-only PASS seed, it is rejected despite the raw +100pp hybrid-minus-unix result."
+  ]
+}
