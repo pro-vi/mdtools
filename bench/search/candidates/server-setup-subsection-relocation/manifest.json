@@ -1,7 +1,7 @@
 {
   "family_slug": "server-setup-subsection-relocation",
   "family_name": "Server setup subsection relocation",
-  "status": "accepted-ast-structural-pending-promotion",
+  "status": "promoted-to-search",
   "created_at": "2026-04-29",
   "source": {
     "generator_model": "Hermes-4-70B-4bit",
@@ -57,5 +57,5 @@
     "gap_label": "AST-structural",
     "accepted_as_ast_structural": true
   },
-  "promotion_notes": "Staged as an AST-structural candidate. Not a current-corpus member yet; promotion still requires the T10 gate, including cross-seed stability across at least 3 seeds."
+  "promotion_notes": "Promoted to search proper on 2026-04-29 after two additional hybrid runs passed and two additional unix runs failed, yielding a stable 3/3 vs 0/3 hybrid-minus-unix gap with dual-scorer agreement. Accepted artifact: bench/search/accepted/server-setup-subsection-relocation/manifest.json."
 }

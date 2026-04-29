@@ -1,0 +1,58 @@
+{
+  "family_slug": "server-setup-subsection-relocation",
+  "family_name": "Server setup subsection relocation",
+  "status": "promoted-to-search",
+  "promoted_at": "2026-04-29",
+  "search_task_ids": [
+    "C-T10-15"
+  ],
+  "source_candidate": "bench/search/candidates/server-setup-subsection-relocation/",
+  "realism_review": {
+    "verdict": "yes",
+    "reviewer_model": "gemma-4-e4b-it-8bit",
+    "artifact": "bench/search/candidates/server-setup-subsection-relocation/realism-review.json",
+    "review_preceded_gap_measurement": true
+  },
+  "unix_adversary_review": {
+    "gap_label": "AST-structural",
+    "reviewer_model": "gemma-4-e4b-it-8bit",
+    "artifact": "bench/search/candidates/server-setup-subsection-relocation/unix-adversary-review.json"
+  },
+  "task_definition": {
+    "tasks_path": "tasks.json",
+    "task_ids_path": "task_ids.json",
+    "input_docs": [
+      "input.md"
+    ],
+    "expected_outputs": [
+      "expected.md"
+    ],
+    "scorer_policies": [
+      "normalized_text: heading_tree + block_order + block_text"
+    ]
+  },
+  "promotion_gates": {
+    "realism_review_yes": true,
+    "unix_adversary_label_ast_structural": true,
+    "cross_seed_stability": {
+      "seeds": 3,
+      "hybrid_passes": 3,
+      "unix_passes": 0,
+      "hybrid_minus_unix_pp": 100.0,
+      "bundle_pointers": {
+        "seed_1_mdtools": "bench/runs/t10-15-server-setup-subsection-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+        "seed_1_hybrid": "bench/runs/t10-15-server-setup-subsection-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+        "seed_1_unix": "bench/runs/t10-15-server-setup-subsection-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/",
+        "seeds_2_3_hybrid": "bench/runs/t10-16-server-setup-subsection-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+        "seeds_2_3_unix": "bench/runs/t10-16-server-setup-subsection-relocation-unix-N2-Qwen3.5-27B-4bit-2026-04-29/"
+      }
+    },
+    "dual_scorer_mdtools_win": true
+  },
+  "current_corpus_effect": {
+    "fixed_anchor_gap_pp": 38.9,
+    "current_corpus_gap_pp_after_promotion": 42.1,
+    "current_corpus_hybrid": "12/19",
+    "current_corpus_unix": "4/19"
+  }
+}
