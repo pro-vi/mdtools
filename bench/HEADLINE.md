@@ -21,7 +21,7 @@ T10 declares two gaps:
   never via composition. **Current baseline: +38.9pp**.
 - **Current-corpus gap** = hybrid pass rate − unix pass rate on the
   currently-measured corpus. Descriptive only — moves with composition.
-  Now includes one promoted post-baseline corpus-growth task.
+  Now includes two promoted post-baseline corpus-growth tasks.
 
 Per Pro consensus (T9 iter 3 second-opinion, both lanes 0.84
 confidence): the iter 2→3 +10.1pp current-corpus delta was a
@@ -37,7 +37,7 @@ to prevent this drift.
 | Endpoint | `http://localhost:10240/v1` (OAI-compatible MLX) |
 | Modes | `unix` / `mdtools` / `hybrid` (all three required for gap calc) |
 | Fixed-anchor corpus | Original 18 tasks (`bench/tasks/tasks.json` minus 6 holdout IDs at T10-10 stamp) |
-| Current search corpus | 19 tasks (original 18 + 1 promoted post-baseline task) |
+| Current search corpus | 20 tasks (original 18 + 2 promoted post-baseline tasks) |
 | Holdout | `bench/holdout/` — never read by the loop, only by post-run audit |
 | Cross-model stability check | `Qwen3.5-122B-A10B-4bit` (same family, larger; isolates model-size effect when **fixed-anchor** gap moves ≥+5pp in steady-state) |
 
@@ -54,11 +54,11 @@ All 18 fixed-anchor search-corpus tasks are measured. Baseline-buildup is comple
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
 | Fixed-anchor gap | **+38.9pp** (18/18 baseline stamped) | 2026-04-28 | T9-1+2+3 + T10-2+3+4+6+8+9+10 bundles |
-| Current-corpus gap (hybrid − unix) | **+42.1pp** | 2026-04-29 | T9-1+2+3 + T10-2+3+4+6+8+9+10 + T10-16 bundles |
-| Current-corpus hybrid | 63.2% (12/19) | 2026-04-29 | — |
-| Current-corpus unix | 21.1% (4/19) | 2026-04-29 | — |
-| Measured subset | T1, T2, T3, T5, T6, T7, T8, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21, C-T10-15 | 2026-04-29 | — |
-| Search corpus size | 19 (25 total − 6 holdout) | — | — |
+| Current-corpus gap (hybrid − unix) | **+45.0pp** | 2026-04-29 | T9-1+2+3 + T10-2+3+4+6+8+9+10 + T10-16+29 bundles |
+| Current-corpus hybrid | 65.0% (13/20) | 2026-04-29 | — |
+| Current-corpus unix | 20.0% (4/20) | 2026-04-29 | — |
+| Measured subset | T1, T2, T3, T5, T6, T7, T8, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21, C-T10-15, C-T10-28 | 2026-04-29 | — |
+| Search corpus size | 20 (26 total − 6 holdout) | — | — |
 
 ## Hill-climb history
 
@@ -78,6 +78,7 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T10-9 | 2026-04-28 | buildup | current-corpus +41.2pp (17/18) | −2.6 | baseline-buildup (T3 added; hybrid PASS in 696.9s/12 calls/3 mut/30 turns/18 invalid/10 unique/2 policy-deny, unix PASS in 886.1s/22 calls/9 mut/30 turns/8 invalid/7 unique. dual scorer agreement: md and neutral both true. Both modes eventually replaced only the second duplicate `## Methods` section and removed the blank line before `## Changelog`; per-family gap remains 0pp for measured content-delivery tasks because both modes pass T3. Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T3-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 | T10-10 | 2026-04-28 | buildup → steady-state | fixed-anchor +38.9pp stamped; current-corpus +38.9pp (18/18) | −2.3 | baseline-buildup (T8 added; hybrid FAIL in 287.0s/9 calls/3 mut/14 turns/4 invalid/4 unique/2 policy-deny, unix FAIL in 1413.2s/7 calls/5 mut/30 turns/23 invalid/12 unique. dual scorer agreement: md and neutral both false. Hybrid inserted the Phase 7 body but omitted/misplaced the leading thematic break; unix inserted Phase 7 but dropped the `Checkpoint Notes Template` heading and following code fence. Per-family gap remains 0pp for content-delivery. Baseline is now complete; Δ is composition only, not a hill-climb signal) | bench/runs/headline-buildup-T8-{hybrid,unix}-Qwen3.5-27B-4bit-2026-04-28/ |
 | T10-16 | 2026-04-29 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +42.1pp (19 tasks) | +3.2 current-corpus only | corpus-growth (promoted `server-setup-subsection-relocation` as C-T10-15 after realism=yes, unix-adversary=`AST-structural`, mdtools seed-1 PASS, hybrid 3/3 PASS, unix 0/3 PASS, and dual-scorer agreement on all promotion cells. Fixed-anchor denominator did not change and no cross-model trigger fires.) | bench/search/accepted/server-setup-subsection-relocation/ + bench/runs/t10-16-server-setup-subsection-relocation-{hybrid,unix}-N2-Qwen3.5-27B-4bit-2026-04-29/ |
+| T10-29 | 2026-04-29 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +2.9 current-corpus only | corpus-growth (promoted `error-logging-format-relocation` as C-T10-28 after realism=yes, unix-adversary=`AST-structural`, mdtools seed-1 PASS, hybrid 3/3 PASS, unix 0/3 PASS, and dual-scorer agreement on all promotion cells. Fixed-anchor denominator did not change and no cross-model trigger fires.) | bench/search/accepted/error-logging-format-relocation/ + bench/runs/t10-29-error-logging-format-relocation-{hybrid,unix}-N2-Qwen3.5-27B-4bit-2026-04-29/ |
 
 ## T9 iter 4 (aborted)
 
@@ -115,7 +116,7 @@ Populated as baseline-buildup completes. Family definitions per
 | Content delivery | T2, T3, T8, T17 | 2/4 (T3, T17 pass; T2, T8 fail) | 2/4 (T3, T17 pass; T2, T8 fail) | 0.0pp |
 | Text manipulation | T6 (T4 holdout) | 0/1 | 0/1 | 0.0pp |
 | Other | T21 | 0/1 | 0/1 | 0.0pp |
-| Accepted subsection relocation | C-T10-15 | 1/1 | 0/1 | +100.0pp |
+| Accepted subsection relocation | C-T10-15, C-T10-28 | 2/2 | 0/2 | +100.0pp |
 
 (Holdout-only families: T14 = safe-fail, T22/T23/T24 = misc.)
 
