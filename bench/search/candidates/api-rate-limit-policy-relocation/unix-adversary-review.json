@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use a shell script with awk or sed address ranges to capture the exact `### API Rate Limiting` heading block under `## API Guidelines` through the line before the next peer heading, delete that source range, and insert the captured block immediately after the `### Data Retention` subsection body under `## Operational Policies`, treating the table, fenced YAML block, appendix decoy, and quoted archive mention as opaque text.",
+  "gap_label": "both-fail/no-gap",
+  "rationale": "The unix run failed with zero mutations and left the original heading order intact, but the hybrid run also failed after damaging the section tree and reaching the turn cap. Since hybrid did not beat unix on the target metric, this is a both-fail/no-gap result rather than an AST-structural candidate.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The strict gemma reviewer labeled the result `both-fail/no-gap`; its first response used the wrong reviewer_model metadata and a second response proposed an insufficient sed substitution, so this artifact records a normalized concrete unix strategy plus the conservative label.",
+    "A Qwen3.6 retry also failed to return strict JSON but independently described a sed address-range extraction/deletion/insertion strategy, supporting the normalized best_unix_strategy recorded here."
+  ]
+}
