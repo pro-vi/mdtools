@@ -1,0 +1,61 @@
+{
+  "measured_at": "2026-04-28",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-14"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-14-oncall-escalation-table-summary-mdtools-Qwen3.5-27B-4bit-2026-04-28/",
+    "hybrid": "bench/runs/t10-14-oncall-escalation-table-summary-hybrid-Qwen3.5-27B-4bit-2026-04-28/",
+    "unix": "bench/runs/t10-14-oncall-escalation-table-summary-unix-Qwen3.5-27B-4bit-2026-04-28/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 107.46,
+      "tool_calls": 6,
+      "turns": 7,
+      "mutations": 0,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The agent used md section/table discovery, selected the table block, piped md table JSON through jq, and emitted the expected JSON."
+    },
+    "hybrid": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 147.62,
+      "tool_calls": 7,
+      "turns": 8,
+      "mutations": 0,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The agent used the same md table plus jq strategy as mdtools mode, after one over-broad jq predicate that it corrected before final output."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 530.31,
+      "tool_calls": 18,
+      "turns": 30,
+      "mutations": 6,
+      "invalid_responses": 12,
+      "unique_invalid_responses": 9,
+      "policy_violations": 1,
+      "failure_summary": "The agent extracted the correct source rows and parsed a correct TSV, but maxed out while trying to assemble valid final JSON through guarded sed/awk commands; the final scored output was MAX_TURNS_EXCEEDED with a JSON parse error."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 100.0,
+    "mdtools_minus_unix_pp": 100.0,
+    "accepted_as_corpus_member": false,
+    "rejection_reason": "unix-adversary label is shell-quoting, not AST-structural"
+  }
+}

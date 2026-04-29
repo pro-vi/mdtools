@@ -1,0 +1,23 @@
+[
+  {
+    "id": "C-T10-14",
+    "description": "Read the provided Markdown on-call handoff. Ignore any table-shaped text inside fenced code blocks or blockquotes. From the real table under the 'Active Escalations' heading, output a JSON object with key 'critical_services' containing rows whose Severity is 1 or 2, in source order. Each row object must include service, severity as a number, owner, runbook, and next_step. Preserve literal pipe characters that are part of a cell value, but remove Markdown link markup from runbook names.",
+    "input_files": [
+      "bench/search/candidates/oncall-escalation-table-summary/input.md"
+    ],
+    "expected_output": "bench/search/candidates/oncall-escalation-table-summary/expected.json",
+    "expected_artifact": "json_envelope",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "structural",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false,
+      "json_canonical": true
+    }
+  }
+]
