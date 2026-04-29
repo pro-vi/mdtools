@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T3",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1171,
+    "bytes_output": 17146,
+    "bytes_observation": 9314,
+    "tool_calls": 22,
+    "turns": 30,
+    "mutations": 9,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 8,
+    "unique_invalid_responses": 7,
+    "elapsed_seconds": 886.11,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  }
+]
