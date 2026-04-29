@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-24",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5079,
+    "bytes_output": 6588,
+    "bytes_observation": 13381,
+    "tool_calls": 11,
+    "turns": 13,
+    "mutations": 6,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 217.08,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project README'), (2, 'Introduction'), (2, 'Setup'), (3, 'Prerequisites'), (3, 'Installation'), (2, 'Usage'), (2, 'Advanced Settings'), (3, 'Database Configuration'), (3, 'Logging'), (3, 'Database Configuration Archive'), (3, 'Caching'), (2, 'Contributing')] vs [(1, 'Project README'), (2, 'Introduction'), (2, 'Setup'), (3, 'Prerequisites'), (2, 'Usage'), (2, 'Advanced Settings'), (3, 'Database Configuration'), (3, 'Logging'), (3, 'Database Configuration Archive'), (3, 'Caching'), (2, 'Contributing')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'List', 'List', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 6: '### Installation' vs '1. Clone the repository\\n2. Run `npm install`'\nheading_tree [neutral]: MISMATCH [(1, 'Project README'), (2, 'Introduction'), (2, 'Setup'), (3, 'Prerequisites'), (3, 'Installation'), (2, 'Usage'), (2, 'Advanced Settings'), (3, 'Database Configuration'), (3, 'Logging'), (3, 'Database Configuration Archive'), (3, 'Caching'), (2, 'Contributing')] vs [(1, 'Project README'), (2, 'Introduction'), (2, 'Setup'), (3, 'Prerequisites'), (2, 'Usage'), (2, 'Advanced Settings'), (3, 'Database Configuration'), (3, 'Logging'), (3, 'Database Configuration Archive'), (3, 'Caching'), (2, 'Contributing')]\nblock_text [neutral]: MISMATCH\n  block 6: '### Installation' vs '1. Clone the repository\\n2. Run `npm install`'\n  count: 23 vs 22",
+    "runner_error": null
+  }
+]

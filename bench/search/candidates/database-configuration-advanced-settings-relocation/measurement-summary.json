@@ -1,0 +1,67 @@
+{
+  "measured_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-24"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-24-database-configuration-advanced-settings-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "hybrid": "bench/runs/t10-24-database-configuration-advanced-settings-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "unix": "bench/runs/t10-24-database-configuration-advanced-settings-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 160.49,
+      "tool_calls": 11,
+      "turns": 13,
+      "mutations": 2,
+      "invalid_responses": 1,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0,
+      "success_summary": "The mdtools-only run completed the subsection relocation with dual-scorer agreement."
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 217.08,
+      "tool_calls": 11,
+      "turns": 13,
+      "mutations": 6,
+      "invalid_responses": 1,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0,
+      "failure_summary": "The hybrid run moved the target subsection but damaged the source sibling by deleting the `### Installation` heading and leaving its list under Setup; both scorers reported heading_tree, block_order, and block_text mismatches."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 920.61,
+      "tool_calls": 9,
+      "turns": 30,
+      "mutations": 6,
+      "invalid_responses": 21,
+      "unique_invalid_responses": 12,
+      "policy_violations": 0,
+      "failure_summary": "The unix run reached MAX_TURNS_EXCEEDED while repeatedly failing to emit valid single-command JSON for awk/sed insertion before `### Logging`; both scorers reported heading_tree, block_order, and block_text mismatches."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 100.0,
+    "accepted_as_ast_structural_candidate": false,
+    "current_corpus_member": false,
+    "promotion_required": false,
+    "promotion_status": "rejected-both-fail-no-gap"
+  },
+  "notes": [
+    "The candidate is realistic and mdtools-only passed, but T10's promotable headline cell is hybrid-minus-unix; because hybrid and unix both failed, there is no headline gap.",
+    "The unix-adversary review labels the result `both-fail/no-gap`, so the family is rejected without HEADLINE movement."
+  ]
+}
