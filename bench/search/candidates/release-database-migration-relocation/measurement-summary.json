@@ -1,0 +1,67 @@
+{
+  "measured_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-22"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-22-release-database-migration-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "hybrid": "bench/runs/t10-22-release-database-migration-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "unix": "bench/runs/t10-22-release-database-migration-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 140.21,
+      "tool_calls": 12,
+      "turns": 13,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The agent completed the subsection relocation with dual-scorer agreement."
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 254.62,
+      "tool_calls": 15,
+      "turns": 16,
+      "mutations": 6,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "failure_summary": "The agent moved Database Migration under Maintenance but dropped the Server Provisioning subsection, producing heading_tree, block_order, and block_text mismatches under both scorers."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 990.25,
+      "tool_calls": 10,
+      "turns": 30,
+      "mutations": 6,
+      "invalid_responses": 20,
+      "unique_invalid_responses": 10,
+      "policy_violations": 0,
+      "failure_summary": "The agent reached the 30-turn cap with Database Migration still under Deployment rather than moved under Maintenance; both scorers reported heading_tree, block_order, and block_text mismatches."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 100.0,
+    "accepted_as_ast_structural_candidate": false,
+    "current_corpus_member": false,
+    "promotion_required": false,
+    "promotion_status": "rejected-hybrid-fail-no-gap"
+  },
+  "notes": [
+    "This candidate produced an mdtools-only pass, but T10's headline and promotion gates use hybrid-minus-unix; with hybrid and unix both failing, there is no promotable gap.",
+    "The unix-adversary review labels the measured outcome as both-fail/no-gap, not AST-structural, because the tool-enabled hybrid cell did not pass."
+  ]
+}
