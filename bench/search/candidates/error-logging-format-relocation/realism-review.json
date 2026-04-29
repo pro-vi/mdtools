@@ -1,0 +1,10 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.98,
+  "rationale": "This task is highly realistic. It involves precise structural manipulation, moving a block of content between two sections, content preservation, keeping the table, checklist, and code block intact, and adherence to specific constraints, leaving decoy headings untouched. This mirrors real-world technical documentation maintenance where content needs to be refactored without losing fidelity.",
+  "risks": [
+    "The reviewer response labeled itself generically as Benchmark Realism Reviewer; the artifact records the actual model used.",
+    "The primary realism risk is an agent misinterpreting the scope of preserving the moved subsection exactly, especially table and checklist formatting."
+  ]
+}

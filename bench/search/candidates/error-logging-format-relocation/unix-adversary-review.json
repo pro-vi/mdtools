@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk or sed range logic to locate the exact `### Error Logging Format` subsection under `## Data Processing`, capture through the line before the next peer heading, delete that source range, and insert the captured block immediately before `### Report Generation Schedule` under `## Reporting`, treating the table, checklist, fenced code block, decoy heading, and archive blockquote as opaque text.",
+  "gap_label": "AST-structural",
+  "rationale": "The task requires moving a complete Markdown subsection as a structural unit while preserving its owned table, fenced code block, and checklist and ignoring a similarly named decoy plus an archive mention. The unix run failed with zero mutations and left the original heading order intact, while both tool-enabled modes completed the structural relocation with dual-scorer agreement.",
+  "accepted_as_ast_structural": true,
+  "review_notes": [
+    "The reviewer response labeled itself generically as Unix-Adversary; this artifact records the actual reviewer model.",
+    "The raw review classified the result as AST-structural because the failure centers on isolating and relocating a Markdown subtree rather than shell quoting, output protocol, or scorer behavior."
+  ]
+}
