@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-26",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1258,
+    "bytes_output": 67702,
+    "bytes_observation": 6495,
+    "tool_calls": 11,
+    "turns": 30,
+    "mutations": 6,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 19,
+    "unique_invalid_responses": 13,
+    "elapsed_seconds": 863.38,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Platform Runbook'), (2, 'Security Procedures'), (3, 'Key Inventory'), (3, 'Access Review'), (2, 'Operations Playbook'), (3, 'Health Check'), (3, 'Certificate Rotation'), (3, 'Maintenance Window'), (3, 'Rollback Steps'), (2, 'Audit Notes'), (3, 'Certificate Rotation Archive')] vs [(1, 'Platform Runbook'), (2, 'Security Procedures'), (3, 'Key Inventory'), (3, 'Access Review'), (2, 'Operations Playbook'), (3, 'Health Check'), (3, 'Maintenance Window'), (3, 'Certificate Rotation'), (3, 'Rollback Steps'), (2, 'Audit Notes'), (3, 'Certificate Rotation Archive')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Table', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'CodeFence'] vs ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'List', 'Table', 'CodeFence', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 9: '### Certificate Rotation' vs '### Maintenance Window'\nheading_tree [neutral]: MISMATCH [(1, 'Platform Runbook'), (2, 'Security Procedures'), (3, 'Key Inventory'), (3, 'Access Review'), (2, 'Operations Playbook'), (3, 'Health Check'), (3, 'Certificate Rotation'), (3, 'Maintenance Window'), (3, 'Rollback Steps'), (2, 'Audit Notes'), (3, 'Certificate Rotation Archive')] vs [(1, 'Platform Runbook'), (2, 'Security Procedures'), (3, 'Key Inventory'), (3, 'Access Review'), (2, 'Operations Playbook'), (3, 'Health Check'), (3, 'Maintenance Window'), (3, 'Certificate Rotation'), (3, 'Rollback Steps'), (2, 'Audit Notes'), (3, 'Certificate Rotation Archive')]\nblock_text [neutral]: MISMATCH\n  block 9: '### Certificate Rotation' vs '### Maintenance Window'",
+    "runner_error": null
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk, perl, or ed to capture the complete `### Certificate Rotation` heading range under `## Security Procedures`, delete that range through the next peer heading, and insert the captured block immediately before `### Maintenance Window` under `## Operations Playbook` while treating fenced content as opaque text.",
+  "gap_label": "AST-structural",
+  "rationale": "The unix run attempted the block movement but placed `### Certificate Rotation` after `### Maintenance Window` rather than before it, producing heading-tree, block-order, and block-text mismatches. The failure is structural: the shell strategy did not preserve the requested heading-scoped insertion point.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The raw reviewer response labeled the unix failure AST-structural, but this artifact keeps `accepted_as_ast_structural` false because mdtools mode failed the same candidate and the T10 promotion gate requires at least one mdtools win.",
+    "The raw reviewer response was wrapped in a JSON code fence; this artifact records the normalized JSON content."
+  ]
+}

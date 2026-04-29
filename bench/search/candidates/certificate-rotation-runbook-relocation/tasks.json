@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-26",
+    "description": "In the platform runbook, move the complete `Certificate Rotation` subsection from under `Security Procedures` to under `Operations Playbook`, placing it immediately before `Maintenance Window`. Preserve the moved subsection exactly, including its checklist, table, and fenced shell block. Leave the `Certificate Rotation Archive` decoy heading and the fenced archived mention of `### Certificate Rotation` untouched.",
+    "input_files": [
+      "bench/search/candidates/certificate-rotation-runbook-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/certificate-rotation-runbook-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
