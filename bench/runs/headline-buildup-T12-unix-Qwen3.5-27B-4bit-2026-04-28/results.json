@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 941,
+    "bytes_output": 81972,
+    "bytes_observation": 1612,
+    "tool_calls": 1,
+    "turns": 30,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 9,
+    "elapsed_seconds": 1236.89,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T21",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4611,
+    "bytes_output": 689,
+    "bytes_observation": 1322,
+    "tool_calls": 3,
+    "turns": 4,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 47.79,
+    "diff_report": "frontmatter_json: MISMATCH",
+    "runner_error": null
+  }
+]

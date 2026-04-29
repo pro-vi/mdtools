@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4767,
+    "bytes_output": 2590,
+    "bytes_observation": 13667,
+    "tool_calls": 15,
+    "turns": 16,
+    "mutations": 8,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 176.09,
+    "diff_report": "",
+    "runner_error": null
+  }
+]
