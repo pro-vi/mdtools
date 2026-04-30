@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-32",
+    "description": "In the incident response runbook, move the complete `Customer Impact` subsection from under `Detection` to under `Communications`, placing it immediately before `Status Page Update`. Preserve the moved subsection exactly, including its table, checklist, and fenced ticket-template excerpt. Leave the `Customer Impact Exceptions` decoy subsection and the quoted archive mention of `### Customer Impact` untouched.",
+    "input_files": [
+      "bench/search/candidates/runbook-customer-impact-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/runbook-customer-impact-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

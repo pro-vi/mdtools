@@ -1,0 +1,69 @@
+{
+  "measured_at": "2026-04-30",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-32"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-32-runbook-customer-impact-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-30/",
+    "hybrid": "bench/runs/t10-32-runbook-customer-impact-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-30/",
+    "unix": "bench/runs/t10-32-runbook-customer-impact-relocation-unix-Qwen3.5-27B-4bit-2026-04-30/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 256.5,
+      "tool_calls": 9,
+      "turns": 10,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The mdtools run completed the subsection relocation with dual-scorer agreement."
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 437.65,
+      "tool_calls": 14,
+      "turns": 16,
+      "mutations": 7,
+      "invalid_responses": 1,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0,
+      "failure_summary": "The hybrid run moved `### Customer Impact` under `## Communications`, but dropped sibling subsection `### Initial Containment`, causing heading-tree, block-order, and block-text mismatches."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 971.76,
+      "tool_calls": 13,
+      "turns": 30,
+      "mutations": 4,
+      "invalid_responses": 17,
+      "unique_invalid_responses": 14,
+      "policy_violations": 0,
+      "failure_summary": "The unix run reached the 30-turn cap after corrupting the fenced ticket-template excerpt: the extracted range missed the closing fence, left `Paste the short customer-facing summary here.` in the source location, and merged `### Status Page Update` into the code block."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 100.0,
+    "unix_gap_label": "hybrid-fail/no-gap",
+    "accepted_as_ast_structural_candidate": false,
+    "current_corpus_member": false,
+    "promotion_required": false,
+    "promotion_status": "rejected-hybrid-fail-no-gap",
+    "rejection_reason": "The candidate is realistic and mdtools-only passed, but hybrid and unix both failed, so there is no positive hybrid-minus-unix headline gap to promote."
+  },
+  "notes": [
+    "This candidate reproduces the mdtools-only win shape seen in several rejected steady-state candidates: the standalone tool path succeeded while hybrid over-deleted nearby structure.",
+    "The unix trace shows a boundary-selection failure around fenced-code closure rather than pure shell quoting; it repeatedly tried to assemble a line-range solution but missed the closing delimiter."
+  ]
+}
