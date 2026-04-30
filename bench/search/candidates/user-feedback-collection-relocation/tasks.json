@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-35",
+    "description": "In the product launch checklist, move the complete `### User Feedback Collection` subsection from under `## Post-Launch Monitoring` to under `## Beta Testing`, placing it after the complete `### Bug Reporting` subsection and before `### Feature Feedback`. Preserve the moved subsection exactly, including its checklist, table, and fenced archive snippet. Leave the `### User Feedback Exceptions` decoy heading and the quoted archive mention of `### User Feedback Collection` untouched.",
+    "input_files": [
+      "bench/search/candidates/user-feedback-collection-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/user-feedback-collection-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
