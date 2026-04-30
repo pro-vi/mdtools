@@ -1,0 +1,12 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use sed or awk to capture the complete `### Infrastructure Setup` heading range under `## Deployment Guide`, capture the `### API Gateway` section separately, then concatenate start + captured Infrastructure Setup + API Gateway + Deployment Guide intro + remaining document and write the assembled content back to the input file.",
+  "gap_label": "AST-structural",
+  "rationale": "The unix run identified the required structural section reordering and eventually assembled the intended part order, but exhausted the turn limit before applying the assembled file to the benchmark input. The failure centers on preserving and relocating a Markdown heading-scoped subtree relative to peer headings, not on scorer behavior or shell quoting.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The raw reviewer response labeled the unix failure AST-structural and accepted_as_ast_structural=true.",
+    "This normalized artifact keeps the gap label but sets accepted_as_ast_structural=false because the mdtools seed failed and T10 promotion requires at least one mdtools win in the family.",
+    "The raw reviewer response was wrapped in a JSON code fence and used a generic reviewer_model value; this artifact records the actual model and normalized JSON content."
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "family_slug": "readme-infrastructure-setup-relocation",
+  "family_name": "README infrastructure setup relocation",
+  "status": "rejected-mdtools-fail-promotion-blocked",
+  "created_at": "2026-04-29",
+  "source": {
+    "generator_model": "gemma-4-e4b-it-8bit",
+    "generator_prompt": "generator-prompt.md",
+    "generator_output": "generator-output.json",
+    "normalization_notes": "candidate-normalization.md"
+  },
+  "realism_review": {
+    "reviewer_model": "gemma-4-e4b-it-8bit",
+    "artifact": "realism-review.json",
+    "verdict": "yes",
+    "confidence": 0.95,
+    "review_preceded_gap_measurement": true
+  },
+  "task_definition": {
+    "tasks_path": "tasks.json",
+    "task_ids_path": "task_ids.json",
+    "task_ids": [
+      "C-T10-31"
+    ],
+    "input_docs": [
+      "input.md"
+    ],
+    "expected_outputs": [
+      "expected.md"
+    ],
+    "scorer_policies": [
+      "normalized_text: heading_tree + block_order + block_text"
+    ]
+  },
+  "measurements": {
+    "artifact": "measurement-summary.json",
+    "model": "Qwen3.5-27B-4bit",
+    "runner": "oai-loop",
+    "executor": "guarded",
+    "runs_per_task": 1,
+    "holdout_version": 1,
+    "request_timeout_seconds": 240,
+    "bundles": {
+      "mdtools": "bench/runs/t10-31-readme-infrastructure-setup-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+      "hybrid": "bench/runs/t10-31-readme-infrastructure-setup-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+      "unix": "bench/runs/t10-31-readme-infrastructure-setup-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+    },
+    "outcome": {
+      "mdtools": "fail",
+      "hybrid": "pass",
+      "unix": "fail",
+      "hybrid_minus_unix_pp": 100.0,
+      "mdtools_minus_unix_pp": 0.0
+    }
+  },
+  "unix_adversary_review": {
+    "artifact": "unix-adversary-review.json",
+    "reviewer_model": "gemma-4-e4b-it-8bit",
+    "gap_label": "AST-structural",
+    "accepted_as_ast_structural": false
+  },
+  "promotion_notes": "Rejected despite the raw AST-structural hybrid-minus-unix gap because mdtools mode failed the seed; the promotion gate requires at least one mdtools win in the family."
+}
