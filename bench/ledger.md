@@ -14,7 +14,7 @@ Promotion to `bench/holdout/` requires human review and a `holdout_version` bump
 
 ## OPEN findings
 
-_None._
+- **F10-1** — Compound subsection-relocation gap. 3 distinct candidates (T6 baseline + iter 18 C-T10-26 certificate-rotation + iter 27 C-T10-34 pager-rotation-review) exhibit the same structural failure on Qwen3.5-27B-4bit in mdtools mode: the agent cannot reliably move a heading + its body content as a unit while shifting heading levels to match the destination's hierarchy. Heading_tree score is OK in isolation (heading lands in the right outline position) but block_order / block_text MISMATCH (the body paragraph gets orphaned in the source position). Same gap as CLAUDE.md's "T6 fails in all modes — agent planning limitation" note. AST-structural by inspection (the destination shape is well-defined; the problem is composing extract-section + delete-section + insert-section without losing body adjacency). Currently blocked by anti-folklore lock (`md move-block` forbidden, which would cover `md move-section`). **Status: standing escalation candidate, routed to `/code-architect` for design as ordinary product work outside the loop.** Lock remains unchanged in T11; future T12 (or scope expansion) may admit `md move-section` after F10-1's design lands and ships.
 
 ## Closed in T8
 

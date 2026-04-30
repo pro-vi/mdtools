@@ -1,45 +1,55 @@
-# mdtools Frontier Loop Prompt — T10 (Phased Headline-Metric Hill-Climb)
+# mdtools Frontier Loop Prompt — T11 (Saturation-Aware Hill-Climb)
 
 ## Rationale
 
-T9 launched a single-metric hill-climb on the gap (hybrid pass rate − unix
-pass rate). It ran 3 iterations and self-flagged a structural defect via
-its own `/meta` lens at end of iter 3, escalated to paired GPT Pro
-consultations: **denominator drift / unratified phase drift**. The loop's
-5 admissible moves were written for steady-state on a complete baseline,
-but iter 1 substituted a 6-task subset (full corpus was multi-hour and
-infeasible in one iteration). Iter 2/3 extended the subset by one family
-each. The iter 2→3 +10.1pp gap movement was not a hill-climb signal — it
-was a composition delta from adding the multi-step family (which has a
-+100pp per-family gap) to the denominator. The cross-model trigger fired
-on a denominator change, not a real improvement.
+T10 codex run (PR #7) hit fixed-anchor saturation at **+38.9pp** after
+27 substantive iterations. Codex completed the 18-task baseline,
+flipped to steady-state, ran 25 auto-research passes, and surfaced two
+durable observations:
 
-Both Pro lanes (0.84 confidence, independent agreement) recommended
-halting iter 4, repairing the spec, and resuming with explicit phases
-before any cross-model interpretation. T10 is that repair.
+1. **The candidate generator kept rejecting on the same locked surface.**
+   3 distinct candidates (T6 baseline + iter 18 C-T10-26 + iter 27
+   C-T10-34) hit the same compound subsection-relocation gap — heading
+   + body must move as a unit, with optional level-shift to match the
+   destination's hierarchy. This is a real product surface gap, not
+   agent planning, but the anti-folklore lock (`md move-block`
+   forbidden) blocks the natural fix. Codex labeled these
+   `mdtools-fail` rather than escalating, so the loop quietly burned
+   compute spinning on rejections instead of routing the work out.
+2. **+38.9pp is the legitimacy claim won, not a stalled climb.** Per
+   CLAUDE.md "tool benefit inversely proportional to model capability,"
+   a strong gap on a small dense model is the right shape of evidence.
+   Corpus growth 18 → 20 under discipline (2 AST-structural promotions,
+   ~22 honest rejections) demonstrates the moat without overfit. The
+   loop reached structural equilibrium for this model + lock combination.
 
-T10 differs from T9 in four structural ways:
+T11 patches three discipline gaps surfaced by T10:
 
-1. **Two declared phases.** `baseline-buildup` (until full primary
-   18-task baseline measured once on target model) vs `steady-state`
-   (after). Admissible moves and trigger semantics differ between phases.
-2. **Two declared gaps.** `fixed-anchor gap` = hybrid − unix on the
-   original 18-task corpus (the legitimate hill-climb signal).
-   `current-corpus gap` = hybrid − unix on the currently-grown corpus
-   (descriptive only, can move via composition). HEADLINE.md tracks both.
-3. **Cross-model trigger is phase-gated.** Fires only in steady-state,
-   on `fixed-anchor gap` movement. During buildup, gap deltas are
-   composition deltas, not improvement deltas, and trigger nothing.
-4. **Iter 1 is bounded.** T10 iter 1 = "complete the missing 7 primary-
-   baseline tasks (T2, T3, T6, T8, T12, T17, T21) on Qwen3.5-27B-4bit
-   in hybrid + unix modes." No other moves admissible until baseline
-   exists.
+1. **`lock-blocked` rejection category.** When a candidate fails because
+   the necessary primitive is on the anti-folklore forbidden list,
+   label it `lock-blocked`, not `mdtools-fail`. Triggers escalation
+   counter; 3 lock-blocked instances fire stop-and-summarize per halt #6.
+2. **Tighten halt #1.** Count ALL iterations that produce no fixed-anchor
+   movement AND no corpus growth, not just promotion-gate attempts.
+3. **Equilibrium-as-valid halt (new #9).** If fixed-anchor has been
+   stable for 5 consecutive iterations and corpus has grown by ≥2
+   under discipline, declare the legitimacy claim satisfied, halt with
+   `stop-and-summarize`, and route further work as scope expansion
+   (cross-model, lock-lift, or new generator) outside this loop.
+
+The anti-folklore lock is **preserved unchanged** in T11. F10-1
+(compound subsection-relocation gap) is the standing escalation
+candidate, routed to ordinary product work via `/code-architect`.
+A future T12 (or scope expansion) may admit `md move-section` after
+F10-1's design lands and ships, but that's downstream — not a T11
+move.
 
 T7+T8 substrate (dual scorer with F8 fixes, L1 holdout guard,
 holdout_version stamping, PI runner with audit, opener-stack JSON
 extractor, cross-executor comparability rule) carries forward as frozen
-baseline. T9's auto-research discipline rules carry forward unchanged
-and become active in steady-state.
+baseline. T9's auto-research discipline rules carry forward unchanged.
+T10's two-phase + two-gap + composition-discipline framing carries
+forward; T11 only adds the saturation-aware patches above.
 
 ## Prompt
 
@@ -137,7 +147,7 @@ table with the bundle pointer AND a `cause` label
 HEADLINE.md update is never a standalone iteration; it is the
 bookkeeping that closes a real move.
 
-The following are inadmissible in T10 (both phases):
+The following are inadmissible in T11 (both phases):
 
 - producing a bundle whose only purpose is coverage cell-filling
   (does NOT apply to baseline-buildup; extending the missing 7 is
@@ -156,11 +166,12 @@ The following are inadmissible in T10 (both phases):
 
 ## Evaluator maturity
 
-Current tier: T10.
-T7+T8's substrate is frozen baseline. T9's headline-as-single-metric
-framing is preserved but split into fixed-anchor + current-corpus and
-phase-gated. Auto-research and the 8 discipline rules are deferred to
-steady-state.
+Current tier: T11.
+T7+T8's substrate is frozen baseline. T9's headline-as-single-metric +
+T10's two-phase + two-gap + composition-discipline framing all preserved.
+T11 adds: `lock-blocked` rejection category, tightened gap-saturation
+halt, lock-blocked accumulation halt, and equilibrium-as-valid halt.
+Auto-research and the 8 discipline rules are deferred to steady-state.
 
 ## Endpoint configuration
 
@@ -328,7 +339,7 @@ check, the next iteration MUST run the cross-model check on the
 otherwise) and halt corpus growth until resolved. Current-corpus gap
 movement does NOT trigger this — only fixed-anchor.
 
-### Composition discipline (new in T10)
+### Composition discipline (T10) + lock-blocked category (new in T11)
 
 Every HEADLINE.md history row in steady-state MUST carry a `cause`
 label. Allowed values:
@@ -340,6 +351,12 @@ label. Allowed values:
   subset (current-corpus only; flagged as descriptive)
 - `baseline-buildup` — buildup-phase row, no improvement claim
 - `cross-model` — cross-model verification, no headline movement
+- `lock-blocked` (T11) — candidate showed real AST-structural
+  hybrid-vs-unix gap, BUT mdtools mode failed the cross-seed promotion
+  gate because the necessary primitive is on the anti-folklore
+  forbidden list. Label this honestly instead of `mdtools-fail` —
+  the failure is a lock issue, not a tool/agent issue. Triggers the
+  T11 escalation counter (see halt #6 below).
 
 Iterations that move only `current-corpus` gap via `composition` are
 admissible only as bookkeeping during buildup. In steady-state,
@@ -350,10 +367,11 @@ hill-climb progress for halt-condition counting.
 
 Halt fires on the **first** of:
 
-1. **Gap saturation (steady-state only):** 3 consecutive promotion
-   attempts produce no fixed-anchor gap movement AND no corpus growth
-   surviving review. Corpus has converged on the current generator's
-   reach for the target model.
+1. **Gap saturation (steady-state only, T11 tightened):** 3 consecutive
+   iterations produce no fixed-anchor gap movement AND no corpus growth
+   surviving review. Counts ALL iterations, not just promotion-gate
+   attempts. (T10 interpreted this narrowly and burned 25 steady-state
+   iters at flat fixed-anchor.)
 2. **Cross-model divergence:** primary-vs-cross-model fixed-anchor
    gap diverges by >10pp without a clean explanation. Halt and
    investigate.
@@ -361,25 +379,38 @@ Halt fires on the **first** of:
    iterations.
 4. **Cheap channel red** that cannot be restored within the iteration.
 5. **Ledger budget breach** unrepairable in iteration.
-6. **CLI temptation:** any iteration proposing a new CLI primitive
-   triggers `stop-and-summarize` with a routing recommendation.
-7. **Spec incoherence:** the loop discovers that T10's own rules
+6. **CLI temptation / lock-blocked accumulation (T11 expanded):**
+   any iteration proposing a new CLI primitive triggers
+   `stop-and-summarize` with a routing recommendation. Additionally,
+   3 cumulative `lock-blocked` rejections (per the new composition
+   discipline cause label) fire stop-and-summarize with a routing
+   recommendation, even if individual iterations didn't propose a
+   primitive directly. The compounding signal IS the proposal.
+7. **Spec incoherence:** the loop discovers that this spec's own rules
    contradict each other or block all admissible moves. Halt and
    request a spec-level repair from the operator rather than
    inventing a workaround. (T9's iter 3 self-flagging of denominator
    drift is the canonical precedent — that disposition produced T10.)
 8. **Buildup stall:** in baseline-buildup phase, 3 consecutive
-   iterations fail to extend baseline coverage (e.g. all remaining
-   missing tasks fail with `MAX_TURNS_EXCEEDED` or runner errors).
-   Halt with a routing recommendation rather than carrying an
-   incomplete baseline into steady-state.
+   iterations fail to extend baseline coverage. Halt with a routing
+   recommendation rather than carrying an incomplete baseline into
+   steady-state.
+9. **Fixed-anchor equilibrium (new in T11):** if the fixed-anchor gap
+   has been stable for 5 consecutive iterations AND the corpus has
+   grown by ≥2 members under discipline, the legitimacy claim is
+   considered satisfied for this model+lock combination. Halt with
+   `stop-and-summarize`, ship the result, and route any further
+   hill-climb work as scope expansion (cross-model expansion, lock-
+   lift via product work, or new generator/model) outside this loop.
+   This is the success-shaped halt, not the failure-shaped halts above.
 
-The halt summary lives at `bench/probes/t10-summary.md`, ≤200 lines,
-with: final fixed-anchor gap (or "buildup incomplete"), final
-current-corpus gap, final corpus size, phase at halt, families
-accepted/rejected with gap labels, cross-model divergence at halt,
-telemetry/findings delta, the disposition of each fired halt
-condition, and a one-paragraph recommendation for the next loop.
+The halt summary lives at `bench/probes/t11-summary.md`, ≤200 lines,
+with: final fixed-anchor gap, final current-corpus gap, final corpus
+size, phase at halt, families accepted/rejected with gap labels
+(including any `lock-blocked` instances), cross-model divergence at
+halt (if measured), telemetry/findings delta, the disposition of
+each fired halt condition, and a one-paragraph recommendation for
+the next loop or scope-expansion work.
 
 ## Artifacts to maintain
 
@@ -402,7 +433,7 @@ condition, and a one-paragraph recommendation for the next loop.
 - **Telemetry contracts** (`bench/telemetry/<command>.md`): per-command
   recording shape — admissible to add when a finding requires it.
 - **Run bundles** (`bench/runs/`): per-iteration with `holdout_version`.
-- **Halt summary** (`bench/probes/t10-summary.md`): bounded.
+- **Halt summary** (`bench/probes/t11-summary.md`): bounded.
 ```
 
 ## Outstanding repo state
