@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-34",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4735,
+    "bytes_output": 6512,
+    "bytes_observation": 19409,
+    "tool_calls": 11,
+    "turns": 13,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 206.0,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'Paragraph', 'BlockQuote', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Paragraph', 'Heading', 'Paragraph', 'BlockQuote', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 8: 'Record open incidents, paging overrides, and unresolved aler' vs '### Pager Rotation Review'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 8: 'Record open incidents, paging overrides, and unresolved aler' vs '### Pager Rotation Review'",
+    "runner_error": null
+  }
+]

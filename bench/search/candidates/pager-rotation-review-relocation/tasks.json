@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-34",
+    "description": "In the on-call runbook, move the complete `Pager Rotation Review` subsection from under `Alert Triage` to under `Shift Handoff`, placing it immediately after `Shift Closeout Checklist` and before `Follow-up Queue`. Preserve the moved subsection exactly, including its table, checklist, and fenced YAML snippet. Leave the `Pager Rotation Exceptions` decoy heading and the quoted archive mention of `### Pager Rotation Review` untouched.",
+    "input_files": [
+      "bench/search/candidates/pager-rotation-review-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/pager-rotation-review-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
