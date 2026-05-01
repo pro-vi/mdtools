@@ -1,0 +1,92 @@
+{
+  "measured_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-17"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-17-server-guide-system-configuration-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "hybrid": "bench/runs/t10-17-server-guide-system-configuration-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "unix": "bench/runs/t10-17-server-guide-system-configuration-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 120.97,
+      "tool_calls": 9,
+      "turns": 10,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The agent completed the scoped subsection relocation with dual-scorer agreement after using Markdown-aware operations."
+    },
+    "hybrid": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 377.56,
+      "tool_calls": 21,
+      "turns": 23,
+      "mutations": 6,
+      "invalid_responses": 1,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0,
+      "success_summary": "The agent completed the same relocation with dual-scorer agreement through a longer mixed strategy."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 1432.07,
+      "tool_calls": 2,
+      "turns": 30,
+      "mutations": 0,
+      "invalid_responses": 28,
+      "unique_invalid_responses": 12,
+      "policy_violations": 1,
+      "failure_summary": "The agent maxed out without mutating the file. Dual scorers found the original heading order still present: the target System Configuration subsection remained under Setup instead of moving under Maintenance."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 100.0,
+    "mdtools_minus_unix_pp": 100.0,
+    "accepted_as_ast_structural_candidate": true,
+    "current_corpus_member": false,
+    "promotion_required": false,
+    "promotion_artifact": "bench/runs/t10-18-server-guide-system-configuration-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+    "promotion_status": "rejected-cross-seed-instability"
+  },
+  "promotion_attempt": {
+    "attempted_at": "2026-04-29",
+    "model": "Qwen3.5-27B-4bit",
+    "runner": "oai-loop",
+    "executor": "guarded",
+    "runs_per_task": 2,
+    "holdout_version": 1,
+    "request_timeout_seconds": 240,
+    "bundle": "bench/runs/t10-18-server-guide-system-configuration-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+    "results": {
+      "fresh_hybrid": {
+        "pass": 0,
+        "neutral_pass": 0,
+        "runs": 2,
+        "avg_elapsed_seconds": 579.63,
+        "avg_tool_calls": 25.5,
+        "avg_mutations": 8.0,
+        "avg_invalid_responses": 4.5,
+        "avg_unique_invalid_responses": 4.5,
+        "avg_policy_violations": 1.0
+      }
+    },
+    "decision": {
+      "outcome": "rejected-cross-seed-instability",
+      "unix_reruns_skipped": true,
+      "reason": "The promotion gate requires cross-seed stability. Both fresh hybrid seeds failed with md and neutral scorer agreement, so additional unix failure evidence could not make the family promotable."
+    }
+  }
+}

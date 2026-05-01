@@ -1,0 +1,32 @@
+{
+  "promoted_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "holdout_version": 1,
+  "task_ids": [
+    "C-T10-28"
+  ],
+  "bundles": {
+    "seed_1_mdtools": "bench/runs/t10-28-error-logging-format-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "seed_1_hybrid": "bench/runs/t10-28-error-logging-format-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "seed_1_unix": "bench/runs/t10-28-error-logging-format-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/",
+    "seeds_2_3_hybrid": "bench/runs/t10-29-error-logging-format-relocation-hybrid-N2-Qwen3.5-27B-4bit-2026-04-29/",
+    "seeds_2_3_unix": "bench/runs/t10-29-error-logging-format-relocation-unix-N2-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "cross_seed_results": {
+    "hybrid": {
+      "passes": 3,
+      "runs": 3,
+      "dual_scorer_agreement": true
+    },
+    "unix": {
+      "passes": 0,
+      "runs": 3,
+      "dual_scorer_agreement": true
+    },
+    "gap_pp": 100.0
+  },
+  "promotion_verdict": "promoted-to-search",
+  "promotion_rationale": "The candidate passed realism review before measurement, kept an AST-structural unix-adversary label, produced hybrid PASS and unix FAIL across three target-model seeds with dual-scorer agreement, and had an existing dual-scorer mdtools PASS."
+}

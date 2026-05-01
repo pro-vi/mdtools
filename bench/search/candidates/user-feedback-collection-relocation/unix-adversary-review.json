@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "gap_label": "both-fail/no-gap",
+  "accepted_as_ast_structural": false,
+  "best_plausible_unix_strategy": "Use awk or perl to capture the exact line range from `### User Feedback Collection` through the line before `### User Feedback Exceptions`, delete that range from the source parent, then insert the captured block after the complete `### Bug Reporting` subsection and before `### Feature Feedback`.",
+  "rationale": "Both hybrid and unix failed under both scorers, so there is no positive hybrid-minus-unix pass-rate gap to attribute. The unix trace mostly reflects task-execution failure and invalid-response churn, not a demonstrated AST-structural advantage for the tool-enabled modes.",
+  "normalization_notes": [
+    "The raw reviewer response mislabeled `reviewer_model` as `Qwen3.5-27B-4bit`; this artifact records the actual local reviewer model used.",
+    "The raw reviewer returned `N/A` for the unix strategy on a no-gap trace; this artifact records a plausible line-range strategy for audit completeness."
+  ]
+}

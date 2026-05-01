@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use a paragraph-aware awk or perl script to capture the exact `### Database Schema` subsection from its heading through the line immediately before `### Database Tables`, delete that source range, and insert the captured block after the `### Data Models` subsection body but before `### Database Schema Exceptions`, leaving the fenced archive note untouched.",
+  "gap_label": "both-fail/no-gap",
+  "rationale": "The candidate produced no positive headline gap because mdtools, hybrid, and unix all failed under both scorers. Unix did not mutate the file and left the target subsection under `## Current Architecture`, while the tool-enabled modes preserved the heading tree but still produced block-order and block-text mismatches around the destination placement.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The raw reviewer response mislabeled itself as Qwen3.5-27B-4bit and returned an inconsistent `AST-structural` label with `accepted_as_ast_structural: false`; this artifact records the actual local reviewer model and the conservative no-gap disposition.",
+    "Because hybrid did not pass, the unix failure class cannot promote this family even though the unix trace itself resembles a structural/planning failure."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "This task is highly specific, involves structural reorganization by moving a subsection, and requires careful preservation of formatting elements such as a checklist and fenced code block. These are standard, well-defined tasks within Markdown document maintenance, making it realistic for a developer or technical writer.",
+  "review_preceded_gap_measurement": true
+}

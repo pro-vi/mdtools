@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-15",
+    "description": "In the provided Markdown operations document, move the complete subsection titled 'Database Configuration' from under the top-level 'System Configuration' section to under the top-level 'Server Setup' section, placing it immediately after the 'Network Configuration' subsection and before 'Service Status'. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the similarly named 'Database Backups' subsection and the mention of 'Database Configuration' inside the fenced code block untouched.",
+    "input_files": [
+      "bench/search/accepted/server-setup-subsection-relocation/input.md"
+    ],
+    "expected_output": "bench/search/accepted/server-setup-subsection-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

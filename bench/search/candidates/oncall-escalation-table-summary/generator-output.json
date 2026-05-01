@@ -1,0 +1,19 @@
+{
+  "family_slug": "doc-maintenance",
+  "family_name": "Markdown Table Processing",
+  "rationale": "Assess candidate's ability to identify and extract structured data from Markdown tables while ignoring non-table blocks.",
+  "task_id": "mdt-2023-05",
+  "task_description": "Given a Markdown document containing a heading with a real table and a blockquote with a fake table, extract selected rows from the real table and return them as a JSON object. Ignore any content outside of the real table.",
+  "input_markdown": "# User Metrics Report\n\n| User ID | Session Count | Total Duration |\n|---------|--------------|---------------|\n| user_123 | 15          | 1200           |\n| user_456 | 8            | 600            |\n| user_789 | 22          | 1980           |\n\n> This is not a real table:\n> | Header1 | Header2 |\n> | Value1  | Value2  |\n> | Value3  | Value4  |\n\nAdditional text that should be ignored.",
+  "expected_json": {
+    "user_123": {
+      "session_count": 15,
+      "total_duration": 1200
+    },
+    "user_789": {
+      "session_count": 22,
+      "total_duration": 1980
+    }
+  },
+  "scorer_policy": "Exact match of the JSON structure and values, including numeric types for counts and durations."
+}

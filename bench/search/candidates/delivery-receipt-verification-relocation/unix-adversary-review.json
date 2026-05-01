@@ -1,0 +1,12 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use a range-aware text script to identify the exact `### Delivery Receipt Verification` subsection under `## Intake`, capture through the line before the next peer `###` heading, delete that source range, and insert the captured block immediately before `### Customer Handoff` under `## Completion` while leaving the decoy subsection and quoted archive mention untouched.",
+  "gap_label": "hybrid-fail/no-gap",
+  "rationale": "The measured hybrid-minus-unix gap is 0pp because both hybrid and unix failed under both scorers. Hybrid moved the target block but dropped the `### Archive` heading near the decoy/archive region; unix failed to complete the move and left the source heading under `## Intake`. Since the tool-enabled hybrid cell did not pass, this is not a promotable AST-structural gap even though mdtools-only passed.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The reviewer response mislabeled reviewer_model as Qwen3.5-27B-4bit and returned a placeholder best_unix_strategy; this artifact records the actual reviewer model and a normalized unix strategy.",
+    "The response was wrapped in a JSON code fence and represented review_notes as a string; this artifact records normalized JSON content."
+  ]
+}
+

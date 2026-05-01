@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "This task involves structural editing (moving a subsection), content preservation (checklist, shell block), and careful placement relative to other sections. These are standard, realistic tasks for technical writers or documentation engineers who maintain complex technical guides.",
+  "review_preceded_gap_measurement": true
+}

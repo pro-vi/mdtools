@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 1.0,
+  "rationale": "This task involves precise structural editing within a technical documentation set: moving a subsection between two specific points, preserving content integrity, and ensuring related cross-references remain intact. This is a common, realistic maintenance task for technical writers or release engineers.",
+  "review_preceded_gap_measurement": true
+}

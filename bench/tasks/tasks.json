@@ -437,5 +437,41 @@
       "compare_link_destinations": false,
       "compare_block_text": false
     }
+  },
+  {
+    "id": "C-T10-15",
+    "description": "In the provided Markdown operations document, move the complete subsection titled 'Database Configuration' from under the top-level 'System Configuration' section to under the top-level 'Server Setup' section, placing it immediately after the 'Network Configuration' subsection and before 'Service Status'. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the similarly named 'Database Backups' subsection and the mention of 'Database Configuration' inside the fenced code block untouched.",
+    "input_files": ["bench/search/accepted/server-setup-subsection-relocation/input.md"],
+    "expected_output": "bench/search/accepted/server-setup-subsection-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  },
+  {
+    "id": "C-T10-28",
+    "description": "In the operations handbook, move the complete `Error Logging Format` subsection from under `Data Processing` to under `Reporting`, placing it immediately before `Report Generation Schedule`. Preserve the moved subsection exactly, including its table, checklist, and fenced log example. Leave the `Error Logging Exceptions` decoy heading and the quoted archive mention of `### Error Logging Format` untouched.",
+    "input_files": ["bench/search/accepted/error-logging-format-relocation/input.md"],
+    "expected_output": "bench/search/accepted/error-logging-format-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
   }
 ]

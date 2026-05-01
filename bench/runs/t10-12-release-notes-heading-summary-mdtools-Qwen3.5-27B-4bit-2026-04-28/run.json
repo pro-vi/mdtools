@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-04-29T06:03:35Z",
+  "finished_at": "2026-04-29T06:05:08Z",
+  "tasks_path": "bench/search/candidates/release-notes-heading-summary/tasks.json",
+  "task_ids_path": "bench/search/candidates/release-notes-heading-summary/task_ids.json",
+  "selected_task_ids": [
+    "C-T10-12"
+  ],
+  "modes": [
+    "mdtools"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-27B-4bit",
+  "thinking_level": null,
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 1,
+      "pass_count": 1,
+      "pass_rate": 1.0,
+      "neutral_pass_count": 1,
+      "neutral_pass_rate": 1.0,
+      "avg_elapsed_seconds": 93.16,
+      "avg_tool_calls": 2.0,
+      "avg_bytes_output": 4489.0,
+      "avg_bytes_observation": 7358.0,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 1.0,
+      "avg_unique_invalid_responses": 1.0,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "mdtools": {
+        "runs": 1,
+        "pass_count": 1,
+        "pass_rate": 1.0,
+        "neutral_pass_count": 1,
+        "neutral_pass_rate": 1.0,
+        "avg_elapsed_seconds": 93.16,
+        "avg_tool_calls": 2.0,
+        "avg_bytes_output": 4489.0,
+        "avg_bytes_observation": 7358.0,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 1.0,
+        "avg_unique_invalid_responses": 1.0,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

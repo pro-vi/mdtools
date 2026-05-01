@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-31",
+    "description": "In the Project Phoenix README, move the complete `Infrastructure Setup` subsection from under `Deployment Guide` to under `Core Features`, placing it immediately after `Data Ingestion` and before `API Gateway`. Preserve the moved subsection exactly, including its table, checklist, and fenced shell example. Leave the `Infrastructure Setup Exceptions` decoy subsection and the quoted archive mention of `### Infrastructure Setup` untouched.",
+    "input_files": [
+      "bench/search/candidates/readme-infrastructure-setup-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/readme-infrastructure-setup-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

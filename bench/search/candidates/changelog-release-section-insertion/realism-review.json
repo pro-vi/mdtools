@@ -1,0 +1,10 @@
+{
+  "reviewed_at": "2026-04-29",
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "review_preceded_gap_measurement": true,
+  "verdict": "yes",
+  "raw_verdict": "Realistic",
+  "confidence": 0.95,
+  "rationale": "This task is highly realistic for both human technical writers/developers and AI coding agents. It involves precise structural manipulation, content generation with specific bullet points, and strict preservation constraints. This mirrors common maintenance tasks like updating release notes or patching documentation.",
+  "concerns": "The fenced example decoy adds context-parsing complexity, but that is appropriate for a benchmark that distinguishes real Markdown structure from literal text matches."
+}

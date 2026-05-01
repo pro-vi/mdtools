@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "T8",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1276,
+    "bytes_output": 94101,
+    "bytes_observation": 12745,
+    "tool_calls": 7,
+    "turns": 30,
+    "mutations": 5,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 23,
+    "unique_invalid_responses": 12,
+    "elapsed_seconds": 1413.24,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\nheading_tree [neutral]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\n  count: 49 vs 44",
+    "runner_error": null
+  }
+]

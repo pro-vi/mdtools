@@ -1,0 +1,68 @@
+{
+  "measured_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-26"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-26-certificate-rotation-runbook-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "hybrid": "bench/runs/t10-26-certificate-rotation-runbook-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "unix": "bench/runs/t10-26-certificate-rotation-runbook-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 958.53,
+      "tool_calls": 13,
+      "turns": 30,
+      "mutations": 6,
+      "invalid_responses": 17,
+      "unique_invalid_responses": 10,
+      "policy_violations": 0,
+      "failure_summary": "The mdtools-only run reached the turn cap and failed under both scorers. Its final document did not match the expected heading tree or block order for the subsection relocation."
+    },
+    "hybrid": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 125.59,
+      "tool_calls": 9,
+      "turns": 10,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The hybrid run completed the certificate-rotation subsection relocation with dual-scorer agreement."
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 863.38,
+      "tool_calls": 11,
+      "turns": 30,
+      "mutations": 6,
+      "invalid_responses": 19,
+      "unique_invalid_responses": 13,
+      "policy_violations": 0,
+      "failure_summary": "The unix run reached the turn cap after placing `### Certificate Rotation` after `### Maintenance Window` instead of immediately before it, producing heading-tree, block-order, and block-text mismatches under both scorers."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 100.0,
+    "mdtools_minus_unix_pp": 0.0,
+    "unix_gap_label": "AST-structural",
+    "accepted_as_ast_structural_candidate": false,
+    "current_corpus_member": false,
+    "promotion_required": false,
+    "promotion_status": "rejected-mdtools-fail-promotion-blocked"
+  },
+  "notes": [
+    "The candidate produced a raw +100pp hybrid-minus-unix result and the unix failure was labeled AST-structural.",
+    "The family is still rejected because mdtools mode failed the seed, so it cannot satisfy the T10 promotion gate requiring at least one mdtools win."
+  ]
+}

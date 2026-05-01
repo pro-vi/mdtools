@@ -1,0 +1,10 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk, perl, or ed to capture the real `## Backup Procedure` heading range under `# Maintenance`, delete that range through the next peer heading, and insert the captured block immediately before `## Scheduled Tasks` under `# Operations` while treating fenced content as opaque text.",
+  "gap_label": "both-pass/no-gap",
+  "rationale": "Hybrid and unix both passed under both scorers, so the measured headline cell has no positive hybrid-minus-unix gap. Although the task is structurally realistic, this measured instance is not evidence of a unix failure class.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The raw gemma reviewer response supplied the correct `both-pass/no-gap` label but a contradictory accepted flag; this artifact resolves the contradiction mechanically because no-gap candidates cannot be accepted as AST-structural corpus members."
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-25",
+    "description": "In the operations runbook, move the complete `Backup Procedure` subsection from under `Maintenance` to under `Operations`, placing it immediately before `Scheduled Tasks`. Preserve the moved subsection exactly, including its table and fenced shell block. Leave the `Backup Procedure Archive` decoy heading and the fenced archived mention of `## Backup Procedure` untouched.",
+    "input_files": [
+      "bench/search/candidates/maintenance-backup-procedure-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/maintenance-backup-procedure-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-11",
+    "description": "In the provided Markdown document, locate the section titled 'Project Milestones'. Within this section, find the subsection titled 'Phase 2 Deliverables'. Update the nested checklist item 'Finalize API documentation' by changing its status from unchecked to checked. Ensure that the section 'Project Milestones' is preserved and that the similarly named section 'Project Milestones Archive' remains untouched.",
+    "input_files": [
+      "bench/search/candidates/project-milestone-checklist/input.md"
+    ],
+    "expected_output": "bench/search/candidates/project-milestone-checklist/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

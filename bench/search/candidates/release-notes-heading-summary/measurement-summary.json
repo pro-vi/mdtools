@@ -1,0 +1,55 @@
+{
+  "measured_at": "2026-04-28",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-12"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-12-release-notes-heading-summary-mdtools-Qwen3.5-27B-4bit-2026-04-28/",
+    "hybrid": "bench/runs/t10-12-release-notes-heading-summary-hybrid-Qwen3.5-27B-4bit-2026-04-28/",
+    "unix": "bench/runs/t10-12-release-notes-heading-summary-unix-Qwen3.5-27B-4bit-2026-04-28/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 93.16,
+      "tool_calls": 2,
+      "mutations": 0,
+      "invalid_responses": 1,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0
+    },
+    "hybrid": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 151.67,
+      "tool_calls": 2,
+      "mutations": 0,
+      "invalid_responses": 2,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0
+    },
+    "unix": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 462.91,
+      "tool_calls": 5,
+      "mutations": 0,
+      "invalid_responses": 17,
+      "unique_invalid_responses": 9,
+      "policy_violations": 1
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 0.0,
+    "accepted_as_corpus_member": false,
+    "rejection_reason": "both hybrid and unix passed; no pass-rate gap to classify as AST-structural"
+  }
+}

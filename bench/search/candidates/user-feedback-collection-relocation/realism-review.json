@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.98,
+  "rationale": "This is a realistic product-launch checklist maintenance task: it asks for a precise subsection relocation, preserves checklist/table/fenced content, and protects similarly named non-target references.",
+  "review_preceded_gap_measurement": true,
+  "normalization_notes": [
+    "The raw reviewer response mislabeled `reviewer_model` as `AI Coding Agent`; this artifact records the actual local reviewer model used.",
+    "The realism review was run after fixture normalization and before any C-T10-35 gap measurement."
+  ]
+}

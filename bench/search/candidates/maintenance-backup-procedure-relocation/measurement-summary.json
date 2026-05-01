@@ -1,0 +1,67 @@
+{
+  "measured_at": "2026-04-29",
+  "model": "Qwen3.5-27B-4bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 240,
+  "task_ids": [
+    "C-T10-25"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/t10-25-maintenance-backup-procedure-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "hybrid": "bench/runs/t10-25-maintenance-backup-procedure-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
+    "unix": "bench/runs/t10-25-maintenance-backup-procedure-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 950.13,
+      "tool_calls": 15,
+      "turns": 30,
+      "mutations": 2,
+      "invalid_responses": 15,
+      "unique_invalid_responses": 10,
+      "policy_violations": 1,
+      "failure_summary": "The mdtools-only run reached the turn cap and produced a structurally duplicated result: the target heading appeared twice around the destination and also remained under Maintenance, so both scorers reported heading_tree, block_order, and block_text mismatches."
+    },
+    "hybrid": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 122.12,
+      "tool_calls": 9,
+      "turns": 10,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "success_summary": "The hybrid run completed the subsection relocation with dual-scorer agreement."
+    },
+    "unix": {
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 340.79,
+      "tool_calls": 12,
+      "turns": 18,
+      "mutations": 6,
+      "invalid_responses": 5,
+      "unique_invalid_responses": 5,
+      "policy_violations": 0,
+      "success_summary": "The unix run completed the same relocation with dual-scorer agreement after a slower multi-mutation strategy."
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": -100.0,
+    "accepted_as_ast_structural_candidate": false,
+    "current_corpus_member": false,
+    "promotion_required": false,
+    "promotion_status": "rejected-both-pass-no-gap"
+  },
+  "notes": [
+    "The candidate is realistic and hybrid succeeded, but unix also succeeded, so there is no positive hybrid-minus-unix headline gap.",
+    "The mdtools-only failure is informative but not promotable evidence for T10 because the promotion gate requires at least one mdtools win and a positive, AST-structural hybrid-minus-unix gap."
+  ]
+}

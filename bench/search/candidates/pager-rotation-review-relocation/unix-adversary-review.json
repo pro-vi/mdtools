@@ -1,0 +1,12 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use awk or perl range extraction to capture the exact `### Pager Rotation Review` subsection through its checklist, delete that source range, and reinsert the captured block after the full `### Shift Closeout Checklist` section body and before `### Follow-up Queue`, while leaving the decoy heading and quoted archive mention untouched.",
+  "gap_label": "AST-structural",
+  "rationale": "The raw reviewer labeled the hybrid-minus-unix gap AST-structural because the measured unix failure was a block-boundary and insertion-order failure on a complete Markdown subsection move. Unix attempted the move but placed the target block in the wrong structural position and left checklist residue, while hybrid passed the same structural edit.",
+  "accepted_as_ast_structural": false,
+  "review_notes": [
+    "The raw reviewer response mislabeled itself as gpt-4o; this artifact records the actual local model used.",
+    "This artifact keeps `accepted_as_ast_structural` false because mdtools mode failed the seed and the T10 promotion gate requires at least one mdtools win in the family.",
+    "The family is therefore rejected despite the raw +100pp hybrid-minus-unix seed result."
+  ]
+}

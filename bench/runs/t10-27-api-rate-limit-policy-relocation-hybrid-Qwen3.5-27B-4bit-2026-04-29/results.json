@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-27",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5077,
+    "bytes_output": 17577,
+    "bytes_observation": 28301,
+    "tool_calls": 24,
+    "turns": 30,
+    "mutations": 11,
+    "policy_violations": 2,
+    "requeried": true,
+    "invalid_responses": 6,
+    "unique_invalid_responses": 4,
+    "elapsed_seconds": 603.41,
+    "diff_report": "heading_tree [md]: MISMATCH [(2, 'API Guidelines'), (3, 'Pagination Rules'), (2, 'Operational Policies'), (3, 'Data Retention'), (3, 'API Rate Limiting'), (3, 'Support Escalation'), (2, 'Appendix'), (3, 'API Rate Limiting Exceptions')] vs [(2, 'API Guidelines'), (3, 'Support Escalation'), (2, 'Appendix'), (3, 'API Rate Limiting Exceptions')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'BlockQuote'] vs ['Heading', 'Paragraph', 'Table', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'BlockQuote']\nblock_text [md]: MISMATCH\n  block 1: '### Pagination Rules' vs 'API clients must apply the shared request budget before retr'\nheading_tree [neutral]: MISMATCH [(2, 'API Guidelines'), (3, 'Pagination Rules'), (2, 'Operational Policies'), (3, 'Data Retention'), (3, 'API Rate Limiting'), (3, 'Support Escalation'), (2, 'Appendix'), (3, 'API Rate Limiting Exceptions')] vs [(2, 'API Guidelines'), (3, 'Support Escalation'), (2, 'Appendix'), (3, 'API Rate Limiting Exceptions')]\nblock_text [neutral]: MISMATCH\n  block 1: '### Pagination Rules' vs 'API clients must apply the shared request budget before retr'\n  count: 16 vs 10",
+    "runner_error": null
+  }
+]

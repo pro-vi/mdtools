@@ -1,0 +1,14 @@
+{
+  "generator_model": "magnum-v4-123b-4bit",
+  "family_slug": "move_markdown_subsection",
+  "family_name": "Move Markdown Subsection",
+  "rationale": "Assesses an AI agent's ability to correctly move a specified subsection within a Markdown document while preserving the document structure.",
+  "task_description": "Move the 'Launch Event Planning' subsection and all its content from the 'Marketing' section to the 'Events' section. Place it after the 'Conference Planning' subsection. Ignore the archived 'Launch Event Planning' heading text in the code block.",
+  "input_markdown": "## Marketing\n\n### Branding Guidelines\n\nLorem ipsum...\n\n### Launch Event Planning\n\n- Venue selection\n- Guest list\n- Catering\n\n| Task | Owner | Due Date |\n|------|-------|----------|\n| Book venue | Alice | 2023-05-01 |\n\n```\n# Launch Event Planning\nThis is an archived heading, ignore it.\n```\n\n### Social Media Strategy\n\nLorem ipsum...\n\n## Events\n\n### Conference Planning\n\nLorem ipsum...\n\n### Trade Show Booth\n\nLorem ipsum...",
+  "expected_markdown": "## Marketing\n\n### Branding Guidelines\n\nLorem ipsum...\n\n### Social Media Strategy\n\nLorem ipsum...\n\n## Events\n\n### Conference Planning\n\nLorem ipsum...\n\n### Launch Event Planning\n\n- Venue selection\n- Guest list\n- Catering\n\n| Task | Owner | Due Date |\n|------|-------|----------|\n| Book venue | Alice | 2023-05-01 |\n\n```\n# Launch Event Planning\nThis is an archived heading, ignore it.\n```\n\n### Trade Show Booth\n\nLorem ipsum...",
+  "scorer_policy": "Exact match required. The moved subsection must be placed in the correct location with all content intact. Heading levels must be preserved. The archived heading in the code block must be ignored.",
+  "raw_response_notes": [
+    "The generator returned valid JSON but used a generic slug/name, omitted the required similarly named decoy heading, used placeholder prose, and included the archive heading as `# Launch Event Planning` rather than the literal level-3 heading text.",
+    "The normalized fixture keeps the launch-event theme while adding the required decoy heading, replacing placeholders with realistic operations-guide text, and preserving the exact fenced mention `### Launch Event Planning` before realism review and measurement."
+  ]
+}

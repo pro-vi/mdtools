@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-15",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1365,
+    "bytes_output": 52117,
+    "bytes_observation": 2017,
+    "tool_calls": 7,
+    "turns": 30,
+    "mutations": 3,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 23,
+    "unique_invalid_responses": 16,
+    "elapsed_seconds": 908.28,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'System Configuration'), (2, 'Application Settings'), (2, 'Logging'), (2, 'Database Backups'), (1, 'Server Setup'), (2, 'Network Configuration'), (2, 'Database Configuration'), (2, 'Service Status')] vs [(1, 'System Configuration'), (2, 'Application Settings'), (2, 'Database Configuration'), (2, 'Logging'), (2, 'Database Backups'), (1, 'Server Setup'), (2, 'Network Configuration'), (2, 'Service Status')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'List', 'Heading', 'List', 'CodeFence', 'Heading', 'List'] vs ['Heading', 'Heading', 'List', 'Heading', 'List', 'CodeFence', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'List', 'Heading', 'List']\nblock_text [md]: MISMATCH\n  block 3: '## Logging' vs '## Database Configuration'\nheading_tree [neutral]: MISMATCH [(1, 'System Configuration'), (2, 'Application Settings'), (2, 'Logging'), (2, 'Database Backups'), (1, 'Server Setup'), (2, 'Network Configuration'), (2, 'Database Configuration'), (2, 'Service Status')] vs [(1, 'System Configuration'), (2, 'Application Settings'), (2, 'Database Configuration'), (2, 'Logging'), (2, 'Database Backups'), (1, 'Server Setup'), (2, 'Network Configuration'), (2, 'Service Status')]\nblock_text [neutral]: MISMATCH\n  block 3: '## Logging' vs '## Database Configuration'",
+    "runner_error": null
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-23",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5050,
+    "bytes_output": 2248,
+    "bytes_observation": 15237,
+    "tool_calls": 11,
+    "turns": 12,
+    "mutations": 3,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 145.42,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  }
+]

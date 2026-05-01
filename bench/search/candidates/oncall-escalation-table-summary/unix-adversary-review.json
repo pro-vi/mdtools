@@ -1,0 +1,8 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use one unix command such as a Python or awk one-liner to parse only the Active Escalations table, filter Severity 1 or 2, strip Markdown link markup/backticks/backslash escapes, and emit JSON directly instead of building JSON through guarded sed/awk pipelines.",
+  "observed_outcome": "mdtools and hybrid passed; unix failed after extracting the right rows because final JSON assembly/response formatting hit guarded shell quoting and separator constraints.",
+  "gap_label": "shell-quoting",
+  "accepted_as_ast_structural": false,
+  "rationale": "The unix trace already found the right table rows and fields; the failure was JSON emission and shell command quoting/runner protocol, not inability to understand Markdown structure. Therefore it is not promotable under the AST-structural-only gate."
+}

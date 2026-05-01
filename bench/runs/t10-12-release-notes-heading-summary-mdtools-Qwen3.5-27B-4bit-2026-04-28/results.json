@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-12",
+    "mode": "mdtools",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4516,
+    "bytes_output": 4489,
+    "bytes_observation": 7358,
+    "tool_calls": 2,
+    "turns": 4,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 93.16,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  }
+]

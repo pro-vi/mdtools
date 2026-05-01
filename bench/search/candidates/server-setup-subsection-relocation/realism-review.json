@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.98,
+  "rationale": "The task requires a precise structural edit in a Markdown document: moving a specific subsection ('Database Configuration') from one top-level section ('System Configuration') to another ('Server Setup'), while preserving content integrity and relative order of other elements. This is a standard, complex text manipulation task well-suited for an advanced AI coding agent, and a skilled human editor could certainly perform it.",
+  "review_preceded_gap_measurement": true
+}

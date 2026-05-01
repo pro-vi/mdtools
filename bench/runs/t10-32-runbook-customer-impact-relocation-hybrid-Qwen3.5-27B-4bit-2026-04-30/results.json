@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-32",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5070,
+    "bytes_output": 6792,
+    "bytes_observation": 17829,
+    "tool_calls": 14,
+    "turns": 16,
+    "mutations": 7,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 437.65,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Incident Response Runbook'), (2, 'Detection'), (3, 'Alert Criteria'), (3, 'Customer Impact Exceptions'), (3, 'Initial Containment'), (2, 'Mitigation'), (3, 'Rollback Decision'), (3, 'Data Repair'), (2, 'Communications'), (3, 'Customer Impact'), (3, 'Status Page Update'), (3, 'Support Reply')] vs [(1, 'Incident Response Runbook'), (2, 'Detection'), (3, 'Alert Criteria'), (3, 'Customer Impact Exceptions'), (2, 'Mitigation'), (3, 'Rollback Decision'), (3, 'Data Repair'), (2, 'Communications'), (3, 'Customer Impact'), (3, 'Status Page Update'), (3, 'Support Reply')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'List', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'BlockQuote'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'List', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'BlockQuote']\nblock_text [md]: MISMATCH\n  block 7: '### Initial Containment' vs '## Mitigation'\nheading_tree [neutral]: MISMATCH [(1, 'Incident Response Runbook'), (2, 'Detection'), (3, 'Alert Criteria'), (3, 'Customer Impact Exceptions'), (3, 'Initial Containment'), (2, 'Mitigation'), (3, 'Rollback Decision'), (3, 'Data Repair'), (2, 'Communications'), (3, 'Customer Impact'), (3, 'Status Page Update'), (3, 'Support Reply')] vs [(1, 'Incident Response Runbook'), (2, 'Detection'), (3, 'Alert Criteria'), (3, 'Customer Impact Exceptions'), (2, 'Mitigation'), (3, 'Rollback Decision'), (3, 'Data Repair'), (2, 'Communications'), (3, 'Customer Impact'), (3, 'Status Page Update'), (3, 'Support Reply')]\nblock_text [neutral]: MISMATCH\n  block 7: '### Initial Containment' vs '## Mitigation'\n  count: 27 vs 25",
+    "runner_error": null
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.98,
+  "rationale": "This task is highly realistic for an AI coding agent. It involves precise structural manipulation within a runbook, moving a specific subsection while preserving internal formatting such as a table, checklist, and code block, and leaving similarly named non-target content untouched.",
+  "risks": [
+    "The raw reviewer response mislabeled itself as GPT-4o; this artifact records the actual local model used.",
+    "The main task risk is boundary confusion around the target subsection, especially excluding `### Initial Containment` and preserving the fenced `### Customer Impact` mention as literal content.",
+    "Agents may drop table, checklist, or fenced-template formatting while moving the subsection."
+  ]
+}

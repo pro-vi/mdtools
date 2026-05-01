@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "awk/sed/perl script to identify and extract the target block based on surrounding headings, then use sed/awk to delete the block from the old location and insert it at the new location.",
+  "gap_label": "AST-structural",
+  "rationale": "The task requires moving a complex, multi-line block (a subsection including lists and a fenced code block) from one major section ('System Configuration') to another ('Server Setup') while maintaining internal integrity and relative ordering of surrounding elements. This is a structural document manipulation task that is extremely difficult for standard Unix text processing tools (like sed/awk) to handle robustly without a full parser, as it requires understanding the hierarchical structure (Markdown AST) to correctly identify the start/end markers of the block and the correct insertion point relative to other blocks. The failure is due to the complexity of structural block relocation, not simple quoting or line-by-line substitution.",
+  "accepted_as_ast_structural": true
+}

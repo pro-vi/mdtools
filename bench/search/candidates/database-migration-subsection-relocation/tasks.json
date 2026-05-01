@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-19",
+    "description": "In the provided Markdown migration plan, move the complete subsection titled '### 3.1.2 Database Migration' from under '## 3.1 Migration Steps' to under '## 3.2 Verification Steps', placing it immediately after '### 3.2.2 Data Integrity Checks' and before the existing '### 3.2.3 Database Migration Checklist' subsection. Preserve the moved subsection exactly, including its paragraph, list, table, and fenced code block. Leave the existing Database Migration Checklist subsection, the fenced-code mention of Database Migration, and the quoted archive mention untouched.",
+    "input_files": [
+      "bench/search/candidates/database-migration-subsection-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/database-migration-subsection-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "The task describes a precise structural edit within a project README. Moving a complete setup subsection while preserving its table, checklist, and fenced command block is a standard documentation maintenance task, and the decoy subsection plus archived heading mention are realistic context constraints.",
+  "realistic_user": "technical writer or DevOps engineer maintaining README deployment guidance",
+  "concerns": "The edit requires preserving the moved subsection exactly and avoiding similarly named historical notes.",
+  "review_preceded_gap_measurement": true,
+  "review_notes": [
+    "The first raw reviewer response returned the correct yes verdict but set review_preceded_gap_measurement=false despite the review occurring before measurement.",
+    "A strict retry returned review_preceded_gap_measurement=true but used a boolean for realistic_user; this artifact records the actual model and normalized typed content."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "This task is a common documentation maintenance task: it asks for a precise structural edit while preserving content exactly and leaving similarly named existing content untouched. It is realistic for an operations or technical documentation engineer refactoring an installation guide.",
+  "review_preceded_gap_measurement": true
+}

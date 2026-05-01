@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-20",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4794,
+    "bytes_output": 17417,
+    "bytes_observation": 40808,
+    "tool_calls": 25,
+    "turns": 30,
+    "mutations": 8,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 5,
+    "unique_invalid_responses": 4,
+    "elapsed_seconds": 711.37,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Incident Response Runbook'), (2, 'Initial Triage'), (3, 'Gather Information'), (3, 'Open Incident Channel'), (2, 'Containment'), (3, 'Isolate Affected Systems'), (3, 'Limit Spread'), (3, 'Isolate Affected Systems Checklist'), (3, 'Eradicate Threat'), (2, 'Recovery'), (3, 'Restore Services'), (3, 'Conduct Review')] vs [(1, 'Incident Response Runbook'), (2, 'Initial Triage'), (3, 'Gather Information'), (2, 'Containment'), (3, 'Isolate Affected Systems'), (3, 'Limit Spread'), (3, 'Isolate Affected Systems Checklist'), (3, 'Eradicate Threat'), (2, 'Recovery'), (3, 'Restore Services'), (3, 'Conduct Review')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'List', 'BlockQuote', 'Heading', 'List', 'Heading', 'Paragraph', 'Table', 'Heading', 'List', 'CodeFence', 'Heading', 'Heading', 'List', 'Heading', 'List'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'List', 'BlockQuote', 'Heading', 'List', 'Heading', 'Paragraph', 'Table', 'Heading', 'List', 'CodeFence', 'Heading', 'Heading', 'List', 'Heading', 'List']\nblock_text [md]: MISMATCH\n  block 4: '- Identify affected systems\\n- Determine severity and impact\\n' vs '- Identify affected systems\\n- Determine severity and impact\\n'\nheading_tree [neutral]: MISMATCH [(1, 'Incident Response Runbook'), (2, 'Initial Triage'), (3, 'Gather Information'), (3, 'Open Incident Channel'), (2, 'Containment'), (3, 'Isolate Affected Systems'), (3, 'Limit Spread'), (3, 'Isolate Affected Systems Checklist'), (3, 'Eradicate Threat'), (2, 'Recovery'), (3, 'Restore Services'), (3, 'Conduct Review')] vs [(1, 'Incident Response Runbook'), (2, 'Initial Triage'), (3, 'Gather Information'), (2, 'Containment'), (3, 'Isolate Affected Systems'), (3, 'Limit Spread'), (3, 'Isolate Affected Systems Checklist'), (3, 'Eradicate Threat'), (2, 'Recovery'), (3, 'Restore Services'), (3, 'Conduct Review')]\nblock_text [neutral]: MISMATCH\n  block 4: '- Identify affected systems\\n- Determine severity and impact\\n' vs '- Identify affected systems\\n- Determine severity and impact\\n'\n  count: 25 vs 23",
+    "runner_error": null
+  }
+]

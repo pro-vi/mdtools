@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-21",
+    "description": "In the changelog, add a new release section for version 0.4.0 dated 2023-05-01 immediately before the existing 0.3.0 release section. Under the new section add exactly these bullets: under '### Added', '- Integration with Stripe for payments' and '- Notification center to manage alerts'; under '### Changed', '- Redesigned user profiles page' and '- Updated privacy policy'. Preserve all existing release sections exactly. Do not edit the fenced Markdown example that mentions version 0.4.0, and do not edit the Release template section.",
+    "input_files": [
+      "bench/search/candidates/changelog-release-section-insertion/input.md"
+    ],
+    "expected_output": "bench/search/candidates/changelog-release-section-insertion/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-31",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1280,
+    "bytes_output": 54333,
+    "bytes_observation": 5057,
+    "tool_calls": 17,
+    "turns": 30,
+    "mutations": 13,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 13,
+    "unique_invalid_responses": 7,
+    "elapsed_seconds": 956.2,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Phoenix README'), (2, 'Getting Started'), (2, 'Core Features'), (3, 'Data Ingestion'), (3, 'Infrastructure Setup'), (3, 'API Gateway'), (2, 'Deployment Guide'), (3, 'Rollback Procedure'), (2, 'Advanced Topics'), (3, 'Infrastructure Setup Exceptions'), (3, 'Performance Tuning'), (2, 'Changelog')] vs [(1, 'Project Phoenix README'), (2, 'Getting Started'), (2, 'Core Features'), (3, 'Data Ingestion'), (3, 'API Gateway'), (2, 'Deployment Guide'), (3, 'Infrastructure Setup'), (3, 'Rollback Procedure'), (2, 'Advanced Topics'), (3, 'Infrastructure Setup Exceptions'), (3, 'Performance Tuning'), (2, 'Changelog')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'BlockQuote', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Paragraph', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'BlockQuote', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 9: '### Infrastructure Setup' vs '### API Gateway'\nheading_tree [neutral]: MISMATCH [(1, 'Project Phoenix README'), (2, 'Getting Started'), (2, 'Core Features'), (3, 'Data Ingestion'), (3, 'Infrastructure Setup'), (3, 'API Gateway'), (2, 'Deployment Guide'), (3, 'Rollback Procedure'), (2, 'Advanced Topics'), (3, 'Infrastructure Setup Exceptions'), (3, 'Performance Tuning'), (2, 'Changelog')] vs [(1, 'Project Phoenix README'), (2, 'Getting Started'), (2, 'Core Features'), (3, 'Data Ingestion'), (3, 'API Gateway'), (2, 'Deployment Guide'), (3, 'Infrastructure Setup'), (3, 'Rollback Procedure'), (2, 'Advanced Topics'), (3, 'Infrastructure Setup Exceptions'), (3, 'Performance Tuning'), (2, 'Changelog')]\nblock_text [neutral]: MISMATCH\n  block 9: '### Infrastructure Setup' vs '### API Gateway'",
+    "runner_error": null
+  }
+]

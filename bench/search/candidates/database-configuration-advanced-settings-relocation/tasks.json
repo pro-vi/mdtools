@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-24",
+    "description": "In the project README, move the complete `Database Configuration` subsection from under `Setup` to under `Advanced Settings`, placing it immediately before `Logging`. Preserve the moved subsection exactly, including its checklist and fenced shell block. Leave the `Database Configuration Archive` decoy heading and the fenced historical mention of `### Database Configuration` untouched.",
+    "input_files": [
+      "bench/search/candidates/database-configuration-advanced-settings-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/database-configuration-advanced-settings-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "family_slug": "markdown",
+  "family_name": "Markdown",
+  "rationale": "Test the agent's ability to correctly move a nested subsection to a new location in a Markdown document, while ignoring decoys and irrelevant mentions.",
+  "task_id": "move_subsection_with_decoys",
+  "task_description": "Move the 'Configuring SSL' subsection from the 'Security' section to the 'Networking' section. Ignore any similar headings or mentions in code blocks or quoted archives.",
+  "input_markdown": "# System Administration Guide\n\n## Security\n\n### Configuring SSL\n\nTo enable SSL, you need to obtain a certificate from a trusted Certificate Authority (CA). Once you have the certificate and private key files, you can configure the server to use them:\n\n```\nssl_certificate /path/to/certificate.crt;\nssl_certificate_key /path/to/private.key;\n```\n\n### Access Control\n\n...\n\n## Networking\n\n### Port Configuration\n\n...\n\n### Configuring SSL\n\n> Historically, SSL configuration was done in the 'Security' section, but it has been moved here for better organization.\n\n### Load Balancing\n\n...",
+  "expected_markdown": "# System Administration Guide\n\n## Security\n\n### Access Control\n\n...\n\n## Networking\n\n### Port Configuration\n\n...\n\n### Configuring SSL\n\nTo enable SSL, you need to obtain a certificate from a trusted Certificate Authority (CA). Once you have the certificate and private key files, you can configure the server to use them:\n\n```\nssl_certificate /path/to/certificate.crt;\nssl_certificate_key /path/to/private.key;\n```\n\n> Historically, SSL configuration was done in the 'Security' section, but it has been moved here for better organization.\n\n### Load Balancing\n\n...",
+  "scorer_policy": "The 'Configuring SSL' subsection must be moved intact, including all its content, to the 'Networking' section. The original 'Configuring SSL' subsection in the 'Security' section must be removed. Decoy headings and mentions must be ignored."
+}

@@ -1,0 +1,9 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "This is a highly realistic task for a technical writer, SRE, or release engineer. It involves precise structural editing within a runbook while keeping the moved content intact and leaving decoy/archive elements untouched.",
+  "realistic_user": "SRE or release engineer",
+  "concerns": "The strict preservation rules require the agent to maintain context across the whole document structure.",
+  "review_preceded_gap_measurement": true
+}

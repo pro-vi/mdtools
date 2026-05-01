@@ -1,0 +1,18 @@
+{
+  "critical_services": [
+    {
+      "service": "auth-api",
+      "severity": 1,
+      "owner": "Identity",
+      "runbook": "Auth",
+      "next_step": "restart api|worker pair"
+    },
+    {
+      "service": "search-index",
+      "severity": 2,
+      "owner": "Search",
+      "runbook": "Search",
+      "next_step": "page search|platform rotation"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "reviewed_at": "2026-04-29",
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "gap_label": "both-fail/no-gap",
+  "accepted_as_ast_structural": false,
+  "unix_strategy": "No successful unix strategy was observed; unix failed along with hybrid on the same bounded target-model axis.",
+  "rationale": "Hybrid and unix both failed under both scorers, so the hybrid-minus-unix pass-rate gap is 0.0 percentage points. Even though the requested changelog insertion is structurally shaped, the candidate provides no mdtools or hybrid advantage and is not promotable as an AST-structural gap.",
+  "raw_review_note": "The first review response described the task as structurally shaped but also set accepted_as_ast_structural=false. A stricter retry normalized the pass-rate classification to both-fail/no-gap because hybrid and unix both failed."
+}

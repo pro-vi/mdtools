@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-36",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1303,
+    "bytes_output": 103069,
+    "bytes_observation": 2679,
+    "tool_calls": 6,
+    "turns": 30,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 9,
+    "elapsed_seconds": 1073.97,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Marketing Operations Guide'), (2, 'Marketing'), (3, 'Brand Messaging'), (3, 'Launch Event Planning Exceptions'), (2, 'Events'), (3, 'Conference Planning'), (3, 'Launch Event Planning'), (3, 'Venue Checklist'), (2, 'Appendix')] vs [(1, 'Marketing Operations Guide'), (2, 'Marketing'), (3, 'Brand Messaging'), (3, 'Launch Event Planning Exceptions'), (3, 'Launch Event Planning'), (2, 'Events'), (3, 'Conference Planning'), (3, 'Venue Checklist'), (2, 'Appendix')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 6: '## Events' vs '### Launch Event Planning'\nheading_tree [neutral]: MISMATCH [(1, 'Marketing Operations Guide'), (2, 'Marketing'), (3, 'Brand Messaging'), (3, 'Launch Event Planning Exceptions'), (2, 'Events'), (3, 'Conference Planning'), (3, 'Launch Event Planning'), (3, 'Venue Checklist'), (2, 'Appendix')] vs [(1, 'Marketing Operations Guide'), (2, 'Marketing'), (3, 'Brand Messaging'), (3, 'Launch Event Planning Exceptions'), (3, 'Launch Event Planning'), (2, 'Events'), (3, 'Conference Planning'), (3, 'Venue Checklist'), (2, 'Appendix')]\nblock_text [neutral]: MISMATCH\n  block 6: '## Events' vs '### Launch Event Planning'",
+    "runner_error": null
+  }
+]

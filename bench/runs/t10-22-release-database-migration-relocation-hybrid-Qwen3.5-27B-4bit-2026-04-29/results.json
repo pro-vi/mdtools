@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-22",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5025,
+    "bytes_output": 2906,
+    "bytes_observation": 19534,
+    "tool_calls": 15,
+    "turns": 16,
+    "mutations": 6,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 254.62,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Release Engineering Guide'), (2, 'Deployment'), (3, 'Server Provisioning'), (2, 'Maintenance'), (3, 'Database Migration'), (3, 'Log Rotation'), (3, 'Backup Verification'), (2, 'Troubleshooting'), (3, 'Database Migration Issues')] vs [(1, 'Release Engineering Guide'), (2, 'Deployment'), (2, 'Maintenance'), (3, 'Database Migration'), (3, 'Log Rotation'), (3, 'Backup Verification'), (2, 'Troubleshooting'), (3, 'Database Migration Issues')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'List', 'Heading', 'Heading', 'List', 'CodeFence', 'Heading', 'List', 'Heading', 'List', 'CodeFence', 'Heading', 'Heading', 'List'] vs ['Heading', 'Heading', 'Heading', 'Heading', 'List', 'CodeFence', 'Heading', 'List', 'Heading', 'List', 'CodeFence', 'Heading', 'Heading', 'List']\nblock_text [md]: MISMATCH\n  block 2: '### Server Provisioning' vs '## Maintenance'\nheading_tree [neutral]: MISMATCH [(1, 'Release Engineering Guide'), (2, 'Deployment'), (3, 'Server Provisioning'), (2, 'Maintenance'), (3, 'Database Migration'), (3, 'Log Rotation'), (3, 'Backup Verification'), (2, 'Troubleshooting'), (3, 'Database Migration Issues')] vs [(1, 'Release Engineering Guide'), (2, 'Deployment'), (2, 'Maintenance'), (3, 'Database Migration'), (3, 'Log Rotation'), (3, 'Backup Verification'), (2, 'Troubleshooting'), (3, 'Database Migration Issues')]\nblock_text [neutral]: MISMATCH\n  block 2: '### Server Provisioning' vs '## Maintenance'\n  count: 16 vs 14",
+    "runner_error": null
+  }
+]

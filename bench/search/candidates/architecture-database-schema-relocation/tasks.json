@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-33",
+    "description": "In the platform architecture notes, move the complete `Database Schema` subsection from under `Current Architecture` to under `Data Layer`, placing it immediately after `Data Models` and before `Database Schema Exceptions`. Preserve the moved subsection exactly, including its SQL fence and bullet list. Leave the `Database Tables` and `Database Schema Exceptions` decoy subsections untouched, and do not edit the fenced archive note that mentions `### Database Schema` literally.",
+    "input_files": [
+      "bench/search/candidates/architecture-database-schema-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/architecture-database-schema-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

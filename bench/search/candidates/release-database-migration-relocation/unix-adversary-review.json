@@ -1,0 +1,7 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "best_unix_strategy": "Use sed, awk, or perl to identify the start and end markers of the Database Migration subsection, capture the complete block through the next peer heading, delete it from Deployment, and reinsert it immediately before the Log Rotation subsection under Maintenance while preserving the internal checklist and fenced code block.",
+  "gap_label": "both-fail/no-gap",
+  "rationale": "Both hybrid and unix failed on the headline comparison. Hybrid moved the target subsection but dropped the sibling Server Provisioning subsection, indicating a tool-enabled structural editing failure. Unix failed to complete the block move and left Database Migration under Deployment after reaching the turn cap. Since hybrid did not pass, the measured hybrid-minus-unix gap is 0.0pp and the candidate cannot be labeled AST-structural.",
+  "accepted_as_ast_structural": false
+}

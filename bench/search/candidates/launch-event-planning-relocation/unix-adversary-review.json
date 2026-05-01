@@ -1,0 +1,11 @@
+{
+  "reviewer_model": "gemma-4-e4b-it-8bit",
+  "gap_label": "hybrid-fail/no-gap",
+  "accepted_as_ast_structural": false,
+  "best_plausible_unix_strategy": "Use awk or perl to capture the exact line range from the real `### Launch Event Planning` heading through the line before `## Events`, delete that range from the Marketing section, then insert the captured block after the complete `### Conference Planning` subsection and before `### Venue Checklist` while ignoring the fenced archive mention.",
+  "rationale": "The task is structurally meaningful, and mdtools-only passed, but both hybrid and unix failed under both scorers. Because the T10 promotion metric is hybrid-minus-unix, there is no positive gap to attribute and the family is not eligible for AST-structural promotion.",
+  "normalization_notes": [
+    "The raw reviewer response was fenced as JSON and mislabeled `reviewer_model` as `unix-adversary`; this artifact records the actual local reviewer model used.",
+    "The raw reviewer labeled the result `hybrid-fail/no-gap`; this artifact preserves that conservative disposition."
+  ]
+}

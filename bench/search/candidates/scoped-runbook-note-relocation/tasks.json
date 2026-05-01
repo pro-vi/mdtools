@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-T10-13",
+    "description": "In the provided Markdown runbook, move the note line '**Note**: Always back up database before schema changes.' out of the 'Database' subsection and into the 'Network' subsection, placing it immediately before the existing note that starts 'Test connectivity post-update'. Preserve the rest of the document exactly, including command examples inside fenced code blocks and all other note lines.",
+    "input_files": [
+      "bench/search/candidates/scoped-runbook-note-relocation/input.md"
+    ],
+    "expected_output": "bench/search/candidates/scoped-runbook-note-relocation/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
