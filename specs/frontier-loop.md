@@ -64,6 +64,78 @@ baseline. T9's auto-research discipline rules carry forward unchanged.
 T10's two-phase + two-gap + composition-discipline framing carries
 forward; T11 only adds the saturation-aware patches above.
 
+## What T11 lets the loop change vs. what stays locked
+
+T11 is a hill-climb tier: the loop has **broad freedom over the tool
+substrate** and **zero freedom over the measurement substrate**.
+Anything below the line is a legitimate `product`/`agent`/`scorer`
+move; anything above is fixed and tampering is treated as cheating
+under the composition-discipline rule.
+
+**Loop may change (with discipline)**
+
+- **Product** (`cause: product`): mdtools binary — new flags on
+  *admitted* commands, bug fixes, performance work, output-format
+  refinements, new test fixtures pinning behavior. Adding a *new*
+  CLI primitive is still a halt-#6 escalation (route via
+  `/code-architect` → ship → re-launch with the lock amended, the
+  way `md move-section` arrived in T11).
+- **Agent** (`cause: agent`): runner prompt, system prompt, tool-use
+  policy, retry/backoff strategy, turn budget, chain-of-thought
+  surface, mode-specific instructions. Same-binary, same-corpus,
+  same-scorer.
+- **Scorer** (`cause: product`, scorer sub-type): hardening fixes that
+  pin a real divergence between md-side and neutral-side scoring
+  (T8 F8-1..F8-8 are the canonical shape). New scorer rules require
+  an attribution probe + typed test that pins the finding.
+- **Corpus growth** (`cause: corpus-growth`): new candidate families
+  via the auto-research path. Realism review + unix-adversary review +
+  cross-seed stability + dual scorer agreement still gate promotion;
+  only `AST-structural` candidates land in `bench/search/`.
+
+**Locked (tampering = cheating)**
+
+- **Fixed-anchor identity.** The 18-task fixed-anchor corpus is the
+  set stamped at T10-10 (`bench/tasks/tasks.json` minus the 6 holdout
+  IDs at that stamp). Adding/removing tasks from this set is a
+  composition move, never a hill-climb signal. New corpus members
+  enter `current-corpus` only.
+- **Holdout** (`bench/holdout/`). L1 mechanically guarded; never read
+  by the loop; only post-run audit. Promotion to holdout requires
+  human review and a `holdout_version` bump — outside the loop.
+- **Composition discipline.** Any fixed-anchor delta produced by
+  re-running a different subset, swapping seeds, or changing the
+  measurement axis (model, executor, `holdout_version`,
+  `thinking_level`) is a composition delta and does NOT count as
+  movement. Cross-cell comparisons require all five axes equal.
+- **Scorer dual-agreement requirement.** Both md-side and neutral
+  markdown-it-py scorers must agree for a result to gate `correct`.
+  Disabling, bypassing, or unilaterally tuning one scorer to match
+  the other is cheating.
+- **Realism + unix-adversary review.** Generator must be
+  mdtools-blind; realism precedes gap measurement; unix-adversary
+  labels are the only AST-structural verdict that admits a corpus
+  member. Skipping or self-judging either is cheating.
+
+**Counter resets at T11 launch**
+
+T10's `stop-and-summarize` was a tier exit, not a halt that
+T11 inherits. T11 launches with: 0 lock-blocked rejections, 0 stalled
+iterations, 0 buildup stalls. The "5 consecutive stable + corpus grew
+by ≥2" equilibrium counter (halt #9) is measured **from this T11
+launch baseline**, not cumulatively across tiers — the 2 promoted
+candidates from T10 (C-T10-15, C-T10-28) are part of the launch
+state, not partial credit toward this tier's equilibrium.
+
+**Expected first iteration shape**
+
+Because `md move-section` shipped between T10 and T11, the cleanest
+first move is `cause: product` — re-measure T6 (canonical
+subsection-relocation failure in the fixed-anchor baseline) against
+the new binary. If hybrid flips FAIL → PASS, fixed-anchor moves
++5.6pp, and the cross-model trigger fires for iteration 2.
+This is illustrative; the loop chooses its own move.
+
 ## Prompt
 
 ```md
@@ -124,10 +196,12 @@ Inadmissible during buildup:
   signal. All buildup-phase Δ columns are labeled `composition` and
   do not count as movement.
 
-T10 launches into buildup phase with 11/18 tasks measured. The
-remaining 7 are: **T2, T3, T6, T8, T12, T17, T21**. When all 18 are
-measured, transition to steady-state by stamping the fixed-anchor
-baseline row and flipping `phase: steady-state` in HEADLINE.md.
+T11 launches into **steady-state** with 18/18 tasks measured at
+**+38.9pp** fixed-anchor (stamped at T10-10) and current-corpus +45.0pp
+on 20 tasks. Baseline-buildup is complete; the buildup-phase rules above
+are documented for completeness and for any future tier that re-opens
+the baseline (e.g. a new model target whose own baseline must be
+established before steady-state activates).
 
 ### Phase 2: steady-state
 
@@ -230,9 +304,18 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
      transition counts as the iteration's substantive move.
 3. **If phase = steady-state:**
    - Diagnose: is the fixed-anchor gap stalling, the corpus stalling,
-     or is there an open failing trace from a recent run?
+     is there an open failing trace from a recent run, OR has the
+     product surface changed since the last fixed-anchor measurement
+     (new admitted CLI primitive, scorer hardening, agent prompt
+     revision)?
    - Pick the admissible move that most directly addresses the
      diagnosis:
+     - Product surface changed → re-measure affected fixed-anchor
+       tasks with `cause: product` (or `agent` / `scorer` per the
+       sub-axis). Existing candidates labeled `mdtools-fail` /
+       `lock-blocked` whose failure mode the new surface addresses
+       become re-evaluation targets — sweep them before generating
+       new candidates.
      - Stalling on both → propose new task family (auto-research).
      - Candidate accumulating in `candidates/` → promote one.
      - Failing trace open → harden the surface.
@@ -460,13 +543,20 @@ the next loop or scope-expansion work.
 ## Outstanding repo state
 
 - **`bench/HEADLINE.md` is canonical runtime state.** Read it for
-  current `phase`, `Missing primary-baseline tasks` list, history,
-  and per-family table. Do NOT assume the launch-time list — it
-  evolves every iteration. As of this revision, the loop has
-  measured 16/18 baseline tasks across T9 + T10 runs; 2 remain.
-- **Search staging (`bench/search/{candidates,quarantine,accepted}/`)
-  may not exist yet.** Steady-state phase creates them lazily on
-  the first auto-research pass.
+  current `phase`, fixed-anchor gap, current-corpus gap, history, and
+  per-family table. Do NOT assume the launch-time numbers — they evolve
+  every iteration. As of this T11 launch revision: phase is
+  steady-state, fixed-anchor +38.9pp, current-corpus +45.0pp on 20
+  tasks (original 18 + C-T10-15 server-setup-relocation + C-T10-28
+  error-logging-relocation, both promoted under T10's auto-research
+  discipline as `AST-structural`). All 18 fixed-anchor tasks measured.
+- **Search staging is populated.** `bench/search/candidates/`,
+  `bench/search/quarantine/`, and `bench/search/accepted/` already
+  exist. T10 left ~22 candidate bundles in `bench/search/candidates/`
+  rejected as `mdtools-fail`/`hybrid-fail` — many describe
+  subsection-relocation shapes that the newly-admitted `md move-section`
+  primitive may now unblock. T11 may re-evaluate these as a `product`-
+  cause sweep before generating new candidates.
 - **MLX endpoint live on port 10240.** Primary target
   `Qwen3.5-27B-4bit` and cross-model target `Qwen3.5-122B-A10B-4bit`
   are both loaded.
@@ -474,6 +564,12 @@ the next loop or scope-expansion work.
   with F8 fixes, mechanical L1 guard, holdout_version stamping, PI
   runner with audit, cross-executor comparability rule, opener-stack
   JSON extractor.
+- **Product surface as of T11 launch:** `md move-section` is shipped at
+  master `9369af6` and admitted to the supported surface. Other locked
+  surfaces (`md apply`, `md move-block`, generalized `md set-state`,
+  HTML body support, ChangeSet vocabulary) remain forbidden — see
+  § Anti-folklore lock. Bench harness `command_policy.py` already
+  classifies `move-section` as a mutation; agent's `md --help` lists it.
 - **Known agent-side workload risks** (from prior runs, not blocking):
   Qwen3.5-27B-4bit unix mode is prone to invalid-response loops on
   multi-step tasks; content-delivery tasks (e.g. T3, T8) can take

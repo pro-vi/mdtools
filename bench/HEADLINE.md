@@ -138,18 +138,32 @@ Populated as baseline-buildup completes. Family definitions per
 
 ## Halt criteria
 
-Per T10 spec § Halt conditions:
+Per T11 spec § Halt conditions (T10's set + 3 saturation-aware patches):
 
-1. **Gap saturation (steady-state only):** 3 consecutive promotion
-   attempts without fixed-anchor movement or surviving corpus growth.
+1. **Gap saturation (steady-state only, T11 tightened):** 3 consecutive
+   iterations produce no fixed-anchor movement AND no surviving corpus
+   growth. Counts ALL iterations, not just promotion-gate attempts.
 2. **Cross-model divergence:** primary-vs-cross-model fixed-anchor
    gap diverges >10pp.
 3. **Endpoint failure:** MLX unreachable >5 consecutive iterations.
 4. **Cheap channel red** unrepairable in iteration.
 5. **Ledger budget breach** unrepairable.
-6. **CLI temptation:** any new CLI primitive proposal halts.
+6. **CLI temptation / lock-blocked accumulation (T11 expanded):** any
+   new CLI primitive proposal halts; additionally, 3 cumulative
+   `lock-blocked` rejections fire stop-and-summarize even without a
+   direct primitive proposal — the compounding signal IS the proposal.
 7. **Spec incoherence:** rules contradict or block all moves.
 8. **Buildup stall:** 3 consecutive iterations fail to extend baseline.
+9. **Fixed-anchor equilibrium (new in T11):** fixed-anchor gap stable
+   for 5 consecutive iterations AND corpus has grown by ≥2 under
+   discipline since this tier's launch baseline. Success-shaped halt:
+   ship the result and route further hill-climb work as scope expansion
+   outside this loop. Counter measured from T11 launch state — the 2
+   T10-era promotions (C-T10-15, C-T10-28) are part of the launch
+   baseline, not partial credit toward T11's equilibrium.
+
+T11 launch counter resets: 0 lock-blocked, 0 stalled iters, 0 buildup
+stalls, 0 stable iters toward halt #9.
 
 ## What this file is NOT
 
