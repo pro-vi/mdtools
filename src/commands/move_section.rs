@@ -30,8 +30,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     let doc = ParsedDocument::parse(source)?;
 
     // --- Resolve source + destination selectors ---
-    let source_selector =
-        build_selector(&args.source, args.source_occurrence, args.ignore_case)?;
+    let source_selector = build_selector(&args.source, args.source_occurrence, args.ignore_case)?;
     let source_section = find_section(&doc, &source_selector)?;
 
     let (dest_text, dest_mode) = pick_destination(args)?;
@@ -87,10 +86,10 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         })?;
 
     // --- Validate ancestor / descendant containment ---
-    let dest_inside_src = dest_span.byte_start >= src_byte_start
-        && dest_span.byte_end <= src_byte_end;
-    let src_inside_dest = src_byte_start >= dest_span.byte_start
-        && src_byte_end <= dest_span.byte_end;
+    let dest_inside_src =
+        dest_span.byte_start >= src_byte_start && dest_span.byte_end <= src_byte_end;
+    let src_inside_dest =
+        src_byte_start >= dest_span.byte_start && src_byte_end <= dest_span.byte_end;
 
     if dest_inside_src {
         return Err(CommandError::new(
@@ -167,8 +166,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         LineEndingStyle::Crlf => "\r\n",
         _ => "\n",
     };
-    let mut moved =
-        doc.source[src_byte_start as usize..src_byte_end as usize].to_string();
+    let mut moved = doc.source[src_byte_start as usize..src_byte_end as usize].to_string();
 
     if level_delta != 0 {
         moved = rewrite_atx_levels(moved, &source_section, &doc, src_byte_start, level_delta)?;
@@ -195,16 +193,14 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         moved.push_str(separator);
     }
 
-    // Required `\n` count immediately before the moved bytes.
     let source_starts_with_setext = doc
         .blocks
         .get(source_section.block_indices[0] as usize)
         .and_then(|b| b.heading.as_ref())
         .map_or(false, |h| h.kind == HeadingSourceKind::Setext);
-    let required_pre_newlines: usize = if source_starts_with_setext { 2 } else { 1 };
 
     // Walk backward from the post-removal insert position counting
-    // consecutive `\n`s. In the backward-splice case where the insert sits
+    // consecutive line breaks. In the backward-splice case where the insert sits
     // past `src_byte_end`, the chunk doc[src_byte_start..src_byte_end] has
     // been removed, so we clamp the walk at src_byte_end to avoid counting
     // newlines from inside the removed source.
@@ -215,48 +211,44 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     } else {
         (insert_byte_raw as usize, src_byte_end as usize)
     };
-    let mut preceding_trailing_nl: usize = 0;
-    {
-        let mut p = walk_start;
-        while p > walk_lower_bound && bytes_view[p - 1] == b'\n' {
-            preceding_trailing_nl += 1;
-            p -= 1;
-        }
-        // If we walked all the way to position 0, there is no preceding
-        // content — any blank-line requirement is vacuously satisfied.
-        if p == 0 {
-            preceding_trailing_nl = required_pre_newlines;
-        }
-    }
-    let moved_leading_nl = moved.bytes().take_while(|&b| b == b'\n').count();
-    let leading_separators_needed =
-        required_pre_newlines.saturating_sub(preceding_trailing_nl + moved_leading_nl);
+    let (preceding_trailing_breaks, has_preceding_content) =
+        count_trailing_line_breaks(bytes_view, walk_start, walk_lower_bound);
+    let moved_leading_breaks = count_leading_line_breaks(moved.as_bytes());
+
+    let source_heading_text = source_section
+        .heading
+        .as_ref()
+        .map(|h| h.text.clone())
+        .unwrap_or_default();
+
+    let leading_separators_needed = if source_starts_with_setext {
+        choose_setext_leading_separators(
+            &doc.source,
+            &moved,
+            separator,
+            insert_byte_raw,
+            src_byte_start,
+            src_byte_end,
+            &source_heading_text,
+            source_top_level,
+        )
+    } else if has_preceding_content {
+        1usize.saturating_sub(preceding_trailing_breaks + moved_leading_breaks)
+    } else {
+        0
+    };
 
     // Capture the moved section's byte_start in the OUTPUT document while
     // building it — needed for the JSON envelope's target_span_after.
     let leading_pad: String = separator.repeat(leading_separators_needed);
-    let cap = doc.source.len() + moved.len() + leading_pad.len();
-    let (output_doc, moved_byte_start_in_output) = if insert_byte_raw <= src_byte_start {
-        // dest comes before src in the document
-        let mut out = String::with_capacity(cap);
-        out.push_str(&doc.source[..insert_byte_raw as usize]);
-        out.push_str(&leading_pad);
-        let moved_start = out.len() as u32;
-        out.push_str(&moved);
-        out.push_str(&doc.source[insert_byte_raw as usize..src_byte_start as usize]);
-        out.push_str(&doc.source[src_byte_end as usize..]);
-        (out, moved_start)
-    } else {
-        // dest comes after src in the document
-        let mut out = String::with_capacity(cap);
-        out.push_str(&doc.source[..src_byte_start as usize]);
-        out.push_str(&doc.source[src_byte_end as usize..insert_byte_raw as usize]);
-        out.push_str(&leading_pad);
-        let moved_start = out.len() as u32;
-        out.push_str(&moved);
-        out.push_str(&doc.source[insert_byte_raw as usize..]);
-        (out, moved_start)
-    };
+    let (output_doc, moved_byte_start_in_output) = build_spliced_output(
+        &doc.source,
+        &moved,
+        &leading_pad,
+        insert_byte_raw,
+        src_byte_start,
+        src_byte_end,
+    );
 
     let changed = output_doc != doc.source;
     let disposition = if changed {
@@ -304,8 +296,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
                 .filter(|&&b| b == b'\n')
                 .count()
                 + 1) as u32;
-            let total_lines =
-                (output_bytes.iter().filter(|&&b| b == b'\n').count() + 1) as u32;
+            let total_lines = (output_bytes.iter().filter(|&&b| b == b'\n').count() + 1) as u32;
             let byte_end_pos = moved_byte_end_in_output as usize;
             let line_end = if byte_end_pos >= output_doc.len() {
                 total_lines
@@ -380,6 +371,147 @@ fn pick_destination(args: &MoveSectionArgs) -> Result<(&str, InsertMode), Comman
             "exactly one of --after, --before, or --into is required",
         )),
     }
+}
+
+fn build_spliced_output(
+    source: &str,
+    moved: &str,
+    leading_pad: &str,
+    insert_byte_raw: u32,
+    src_byte_start: u32,
+    src_byte_end: u32,
+) -> (String, u32) {
+    let cap = source.len() + moved.len() + leading_pad.len();
+    if insert_byte_raw <= src_byte_start {
+        let mut out = String::with_capacity(cap);
+        out.push_str(&source[..insert_byte_raw as usize]);
+        out.push_str(leading_pad);
+        let moved_start = out.len() as u32;
+        out.push_str(moved);
+        out.push_str(&source[insert_byte_raw as usize..src_byte_start as usize]);
+        out.push_str(&source[src_byte_end as usize..]);
+        (out, moved_start)
+    } else {
+        let mut out = String::with_capacity(cap);
+        out.push_str(&source[..src_byte_start as usize]);
+        out.push_str(&source[src_byte_end as usize..insert_byte_raw as usize]);
+        out.push_str(leading_pad);
+        let moved_start = out.len() as u32;
+        out.push_str(moved);
+        out.push_str(&source[insert_byte_raw as usize..]);
+        (out, moved_start)
+    }
+}
+
+fn choose_setext_leading_separators(
+    source: &str,
+    moved: &str,
+    separator: &str,
+    insert_byte_raw: u32,
+    src_byte_start: u32,
+    src_byte_end: u32,
+    heading_text: &str,
+    expected_level: u8,
+) -> usize {
+    for count in 0..=2 {
+        let leading_pad = separator.repeat(count);
+        let (candidate, moved_start) = build_spliced_output(
+            source,
+            moved,
+            &leading_pad,
+            insert_byte_raw,
+            src_byte_start,
+            src_byte_end,
+        );
+        if moved_section_reparses_at(
+            &candidate,
+            moved_start as usize,
+            moved.len(),
+            heading_text,
+            expected_level,
+        ) {
+            return count;
+        }
+    }
+
+    2
+}
+
+fn moved_section_reparses_at(
+    output: &str,
+    moved_start: usize,
+    moved_len: usize,
+    heading_text: &str,
+    expected_level: u8,
+) -> bool {
+    let parsed = match ParsedDocument::parse(output.to_string()) {
+        Ok(parsed) => parsed,
+        Err(_) => return false,
+    };
+    let bytes = output.as_bytes();
+    let moved_end = moved_start + moved_len;
+
+    for (idx, block) in parsed.blocks.iter().enumerate() {
+        let Some(heading) = &block.heading else {
+            continue;
+        };
+        if heading.text != heading_text || heading.level != expected_level {
+            continue;
+        }
+        if line_start(bytes, block.span.byte_start as usize) != moved_start {
+            continue;
+        }
+
+        let section_end = parsed
+            .blocks
+            .iter()
+            .skip(idx + 1)
+            .find_map(|next| {
+                next.heading.as_ref().and_then(|next_heading| {
+                    if next_heading.level <= heading.level {
+                        Some(line_start(bytes, next.span.byte_start as usize))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .unwrap_or(output.len());
+
+        return section_end == moved_end;
+    }
+
+    false
+}
+
+fn count_trailing_line_breaks(bytes: &[u8], start: usize, lower_bound: usize) -> (usize, bool) {
+    let mut count = 0usize;
+    let mut p = start;
+    while p > lower_bound && bytes[p - 1] == b'\n' {
+        count += 1;
+        p -= 1;
+        if p > lower_bound && bytes[p - 1] == b'\r' {
+            p -= 1;
+        }
+    }
+
+    (count, p > 0)
+}
+
+fn count_leading_line_breaks(bytes: &[u8]) -> usize {
+    let mut count = 0usize;
+    let mut p = 0usize;
+    while p < bytes.len() {
+        if bytes[p] == b'\n' {
+            count += 1;
+            p += 1;
+        } else if p + 1 < bytes.len() && bytes[p] == b'\r' && bytes[p + 1] == b'\n' {
+            count += 1;
+            p += 2;
+        } else {
+            break;
+        }
+    }
+    count
 }
 
 /// Rewrite ATX `#` runs inside `moved` so every heading shifts by `level_delta`.
