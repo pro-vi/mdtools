@@ -193,6 +193,34 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         moved.push_str(separator);
     }
 
+    // If the next block after the insertion point is setext, one newline after
+    // a moved paragraph/list body is not always enough: the following underline
+    // can reinterpret the moved tail as part of the setext heading. Reparse
+    // candidate splices and add the smallest trailing boundary that keeps the
+    // following setext heading anchored at its original line.
+    if content_follows_insert {
+        if let Some((following_text, following_level)) = following_setext_heading_after_insert(
+            &doc,
+            insert_byte_raw,
+            src_byte_start,
+            src_byte_end,
+        ) {
+            let trailing_separators_needed = choose_trailing_separators_before_setext(
+                &doc.source,
+                &moved,
+                separator,
+                insert_byte_raw,
+                src_byte_start,
+                src_byte_end,
+                &following_text,
+                following_level,
+            );
+            if trailing_separators_needed > 0 {
+                moved.push_str(&separator.repeat(trailing_separators_needed));
+            }
+        }
+    }
+
     let source_starts_with_setext = doc
         .blocks
         .get(source_section.block_indices[0] as usize)
@@ -249,6 +277,21 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         src_byte_start,
         src_byte_end,
     );
+
+    let expected_top_level = (source_top_level as i32 + level_delta as i32) as u8;
+    if !moved_section_reparses_at(
+        &output_doc,
+        moved_byte_start_in_output as usize,
+        moved.len(),
+        &source_heading_text,
+        expected_top_level,
+    ) {
+        return Err(CommandError::new(
+            DiagnosticCode::InvalidSelector,
+            "cannot move-section: moved section would absorb or lose adjacent headings; \
+             use --auto-level or choose a destination that preserves the section boundary",
+        ));
+    }
 
     let changed = output_doc != doc.source;
     let disposition = if changed {
@@ -435,6 +478,90 @@ fn choose_setext_leading_separators(
     }
 
     2
+}
+
+fn following_setext_heading_after_insert(
+    doc: &ParsedDocument,
+    insert_byte_raw: u32,
+    src_byte_start: u32,
+    src_byte_end: u32,
+) -> Option<(String, u8)> {
+    let bytes = doc.source.as_bytes();
+    let following_raw = if insert_byte_raw == src_byte_start {
+        src_byte_end
+    } else {
+        insert_byte_raw
+    };
+    if following_raw as usize >= doc.source.len() {
+        return None;
+    }
+
+    doc.blocks.iter().find_map(|block| {
+        let heading = block.heading.as_ref()?;
+        if heading.kind != HeadingSourceKind::Setext {
+            return None;
+        }
+        if line_start(bytes, block.span.byte_start as usize) == following_raw as usize {
+            Some((heading.text.clone(), heading.level))
+        } else {
+            None
+        }
+    })
+}
+
+fn choose_trailing_separators_before_setext(
+    source: &str,
+    moved: &str,
+    separator: &str,
+    insert_byte_raw: u32,
+    src_byte_start: u32,
+    src_byte_end: u32,
+    following_text: &str,
+    following_level: u8,
+) -> usize {
+    for count in 0..=2 {
+        let mut candidate_moved = String::with_capacity(moved.len() + separator.len() * count);
+        candidate_moved.push_str(moved);
+        candidate_moved.push_str(&separator.repeat(count));
+        let (candidate, moved_start) = build_spliced_output(
+            source,
+            &candidate_moved,
+            "",
+            insert_byte_raw,
+            src_byte_start,
+            src_byte_end,
+        );
+        let following_start = moved_start as usize + candidate_moved.len();
+        if setext_heading_reparses_at(&candidate, following_start, following_text, following_level)
+        {
+            return count;
+        }
+    }
+
+    2
+}
+
+fn setext_heading_reparses_at(
+    output: &str,
+    heading_start: usize,
+    heading_text: &str,
+    expected_level: u8,
+) -> bool {
+    let parsed = match ParsedDocument::parse(output.to_string()) {
+        Ok(parsed) => parsed,
+        Err(_) => return false,
+    };
+    let bytes = output.as_bytes();
+
+    parsed.blocks.iter().any(|block| {
+        let Some(heading) = &block.heading else {
+            return false;
+        };
+        heading.kind == HeadingSourceKind::Setext
+            && heading.text == heading_text
+            && heading.level == expected_level
+            && line_start(bytes, block.span.byte_start as usize) == heading_start
+    })
 }
 
 fn moved_section_reparses_at(

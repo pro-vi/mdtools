@@ -1032,6 +1032,182 @@ fn r15_setext_after_fenced_code_uses_minimal_boundary() {
     std::fs::remove_file(&parsed).unwrap();
 }
 
+#[test]
+fn r16_atx_before_setext_destination_preserves_moved_body() {
+    // The following setext underline can reinterpret the moved ATX section's
+    // trailing paragraph as part of the setext heading unless the splice adds a
+    // blank-line boundary after the moved bytes.
+    let tmp = tempfile("# Doc\n\nA\n-\na body\n\n## B\nb body\n\n## C\nc body");
+    let output = md()
+        .args([
+            "move-section",
+            "C",
+            &tmp,
+            "--before",
+            "A",
+            "--keep-level",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let content = json["content"].as_str().unwrap();
+    assert!(
+        content.contains("## C\nc body\n\nA\n-"),
+        "moved section should be separated from following setext heading:\n{}",
+        content
+    );
+
+    let parsed = tempfile(content);
+    let section_out = md()
+        .args(["section", "C", &parsed, "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        section_out.status.success(),
+        "fresh parse lost moved ATX body:\n{}\nstderr: {}",
+        content,
+        String::from_utf8_lossy(&section_out.stderr)
+    );
+    let section_json: serde_json::Value = serde_json::from_slice(&section_out.stdout).unwrap();
+    assert_eq!(
+        json["invariant"]["target_span_after"], section_json["section"]["span"],
+        "move envelope should match fresh section parse"
+    );
+    assert!(
+        section_json["content"].as_str().unwrap().contains("c body"),
+        "fresh section should still own its paragraph body"
+    );
+
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&parsed).unwrap();
+}
+
+#[test]
+fn r17_heading_only_atx_before_setext_uses_minimal_boundary() {
+    // A heading-only ATX section can precede setext with a single newline; do
+    // not add a blank line when CommonMark already reparses both headings.
+    let tmp = tempfile("# Doc\n\nA\n-\na body\n\n## C\n");
+    let output = md()
+        .args(["move-section", "C", &tmp, "--before", "A", "--keep-level"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("## C\nA\n-"),
+        "heading-only move should not grow a blank line:\n{}",
+        stdout
+    );
+    assert!(
+        !stdout.contains("## C\n\nA\n-"),
+        "unexpected blank line inserted:\n{}",
+        stdout
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn r18_atx_list_body_before_setext_gets_block_boundary() {
+    let tmp = tempfile("# Doc\n\nA\n-\na body\n\n## C\n- item");
+    let output = md()
+        .args(["move-section", "C", &tmp, "--before", "A", "--keep-level"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed = tempfile(&stdout);
+    let section_out = md()
+        .args(["section", "C", &parsed, "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        section_out.status.success(),
+        "fresh parse lost moved list section:\n{}\nstderr: {}",
+        stdout,
+        String::from_utf8_lossy(&section_out.stderr)
+    );
+    let section_json: serde_json::Value = serde_json::from_slice(&section_out.stdout).unwrap();
+    assert!(
+        section_json["content"].as_str().unwrap().contains("- item"),
+        "fresh section should still own the moved list body"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&parsed).unwrap();
+}
+
+#[test]
+fn r19_crlf_atx_before_setext_preserves_line_endings() {
+    let tmp = tempfile_bytes(b"# Doc\r\n\r\nA\r\n-\r\na body\r\n\r\n## C\r\nc body");
+    let output = md()
+        .args(["move-section", "C", &tmp, "--before", "A", "--keep-level"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let bytes = output.stdout;
+    let stdout = String::from_utf8_lossy(&bytes);
+    assert!(
+        stdout.contains("## C\r\nc body\r\n\r\nA\r\n-"),
+        "CRLF boundary should be synthesized before setext:\n{:?}",
+        stdout
+    );
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b'\n' {
+            assert!(
+                i > 0 && bytes[i - 1] == b'\r',
+                "bare LF at byte {} in CRLF document: {:?}",
+                i,
+                stdout
+            );
+        }
+    }
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn r20_keep_level_rejects_move_that_would_absorb_following_heading() {
+    // Keeping A at h2 while inserting it before B1 (h3) would make B1 a
+    // descendant of A on fresh parse. That is not a relocation of exactly A's
+    // original section bytes, so the command must fail instead of reporting a
+    // target_span_after that excludes B1.
+    let tmp = tempfile("# Doc\n\n## A\na\n### A1\na1\n\n## B\nb\n### B1\nb1\n\n## C\nc");
+    let output = md()
+        .args(["move-section", "A", &tmp, "--before", "B1", "--keep-level"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(3),
+        "stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("absorb or lose adjacent headings"),
+        "stderr: {}",
+        stderr
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // === Output modes (1) ===
 
 #[test]
