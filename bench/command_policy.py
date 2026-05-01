@@ -33,6 +33,7 @@ MUTATION_MD_COMMANDS = {
     "delete-block",
     "set",
     "set-task",
+    "move-section",
 }
 
 

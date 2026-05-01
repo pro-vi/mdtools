@@ -32,6 +32,7 @@ pub enum Command {
     Table(TableArgs),
     Tasks(TasksArgs),
     SetTask(SetTaskArgs),
+    MoveSection(MoveSectionArgs),
 }
 
 #[derive(Args)]
@@ -218,6 +219,53 @@ pub struct TasksArgs {
     pub recursive: bool,
     #[arg(long)]
     pub status: Option<TaskStatus>,
+}
+
+#[derive(Args)]
+#[command(group = clap::ArgGroup::new("dest").required(true).args(["after", "before", "into"]))]
+#[command(group = clap::ArgGroup::new("level").required(false).args(["auto_level", "keep_level"]))]
+pub struct MoveSectionArgs {
+    /// Source section heading text (matched against `md section <text>`)
+    #[arg(value_name = "SOURCE_HEADING")]
+    pub source: String,
+
+    pub file: PathBuf,
+
+    /// Insert as next sibling of the destination heading
+    #[arg(long, value_name = "DEST_HEADING")]
+    pub after: Option<String>,
+
+    /// Insert as previous sibling of the destination heading
+    #[arg(long, value_name = "DEST_HEADING")]
+    pub before: Option<String>,
+
+    /// Insert as last child of the destination heading
+    #[arg(long, value_name = "DEST_HEADING")]
+    pub into: Option<String>,
+
+    /// Adjust source + descendant heading levels to match destination hierarchy (default)
+    #[arg(long = "auto-level")]
+    pub auto_level: bool,
+
+    /// Preserve source heading levels exactly (byte-exact relocation)
+    #[arg(long = "keep-level")]
+    pub keep_level: bool,
+
+    /// Case-insensitive matching for both source and destination selectors
+    #[arg(long = "ignore-case")]
+    pub ignore_case: bool,
+
+    /// 1-indexed occurrence to disambiguate same-text source headings
+    #[arg(long = "source-occurrence")]
+    pub source_occurrence: Option<u32>,
+
+    /// 1-indexed occurrence to disambiguate same-text destination headings
+    #[arg(long = "dest-occurrence")]
+    pub dest_occurrence: Option<u32>,
+
+    /// Write changes back to the file
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
 }
 
 #[derive(Args)]

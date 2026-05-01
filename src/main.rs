@@ -43,5 +43,6 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::Table(args) => commands::table::run(args, cli.json),
         Command::Tasks(args) => commands::tasks::run_tasks(args, cli.json),
         Command::SetTask(args) => commands::tasks::run_set_task(args, cli.json),
+        Command::MoveSection(args) => commands::move_section::run_move_section(args, cli.json),
     }
 }

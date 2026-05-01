@@ -358,6 +358,7 @@ pub enum MutationCommandKind {
     DeleteSection,
     SetFrontmatter,
     SetTask,
+    MoveSection,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -403,6 +404,24 @@ pub enum MutationTargetRef {
     Insert(InsertTargetRef),
     FrontmatterField(FrontmatterFieldTargetRef),
     TaskItem(TaskItemTargetRef),
+    SectionMove(SectionMoveTargetRef),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InsertMode {
+    AfterSibling,
+    BeforeSibling,
+    IntoAsChild,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct SectionMoveTargetRef {
+    pub kind: MutationTargetKind,
+    pub source: SectionTargetRef,
+    pub destination: SectionTargetRef,
+    pub destination_mode: InsertMode,
+    pub level_shift_applied: i8,
 }
 
 #[derive(Clone, Debug, Serialize)]

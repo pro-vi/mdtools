@@ -193,6 +193,15 @@ pub struct TaskItemInfo {
 pub struct HeadingInfo {
     pub level: u8,
     pub text: String,
+    pub kind: HeadingSourceKind,
+    /// Byte span covering only the `#` run for ATX headings. None for setext.
+    pub marker_span: Option<SourceSpan>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeadingSourceKind {
+    Atx,
+    Setext,
 }
 
 pub struct LinkInfo {
@@ -286,16 +295,31 @@ impl ParsedDocument {
                     let span = line_index.sourcepos_to_span_fixup(sp, is_indented);
 
                     // Extract heading metadata while data is borrowed
-                    let heading_level = if let NodeValue::Heading(h) = &data.value {
-                        Some(h.level)
+                    let heading_meta = if let NodeValue::Heading(h) = &data.value {
+                        Some((h.level, h.setext, sp.start.line))
                     } else {
                         None
                     };
                     drop(data);
 
-                    let heading = heading_level.map(|level| {
+                    let heading = heading_meta.map(|(level, setext, line)| {
                         let text = collect_heading_text(node);
-                        HeadingInfo { level, text }
+                        let kind = if setext {
+                            HeadingSourceKind::Setext
+                        } else {
+                            HeadingSourceKind::Atx
+                        };
+                        let marker_span = if setext {
+                            None
+                        } else {
+                            compute_atx_marker_span(&line_index, &source, line)
+                        };
+                        HeadingInfo {
+                            level,
+                            text,
+                            kind,
+                            marker_span,
+                        }
                     });
 
                     let links = collect_links(node, &line_index, &source);
@@ -338,16 +362,31 @@ impl ParsedDocument {
             let is_indented = matches!(kind, BlockKind::IndentedCode);
             let span = line_index.sourcepos_to_span_fixup(sp, is_indented);
 
-            let heading_level = if let NodeValue::Heading(h) = &data.value {
-                Some(h.level)
+            let heading_meta = if let NodeValue::Heading(h) = &data.value {
+                Some((h.level, h.setext, sp.start.line))
             } else {
                 None
             };
             drop(data);
 
-            let heading = heading_level.map(|level| {
+            let heading = heading_meta.map(|(level, setext, line)| {
                 let text = collect_heading_text(node);
-                HeadingInfo { level, text }
+                let kind = if setext {
+                    HeadingSourceKind::Setext
+                } else {
+                    HeadingSourceKind::Atx
+                };
+                let marker_span = if setext {
+                    None
+                } else {
+                    compute_atx_marker_span(&line_index, &source, line)
+                };
+                HeadingInfo {
+                    level,
+                    text,
+                    kind,
+                    marker_span,
+                }
             });
 
             let links = collect_links(node, &line_index, &source);
@@ -400,6 +439,41 @@ impl ParsedDocument {
             (true, true) => LineEndingStyle::Mixed,
         }
     }
+}
+
+/// Compute the byte span covering an ATX heading's `#` run.
+///
+/// CommonMark allows 0-3 leading spaces before the `#`s. Returns None if the
+/// line does not begin (after that indentation) with `#` — i.e. a setext
+/// heading or anything else.
+fn compute_atx_marker_span(
+    line_index: &LineIndex,
+    source: &str,
+    line: usize,
+) -> Option<SourceSpan> {
+    let line_start_byte = line_index.to_byte(line, 1)?;
+    let bytes = source.as_bytes();
+    if line_start_byte > bytes.len() {
+        return None;
+    }
+    let mut p = line_start_byte;
+    let indent_limit = (line_start_byte + 3).min(bytes.len());
+    while p < indent_limit && bytes[p] == b' ' {
+        p += 1;
+    }
+    if p >= bytes.len() || bytes[p] != b'#' {
+        return None;
+    }
+    let marker_start = p;
+    while p < bytes.len() && bytes[p] == b'#' {
+        p += 1;
+    }
+    Some(SourceSpan {
+        line_start: line as u32,
+        line_end: line as u32,
+        byte_start: marker_start as u32,
+        byte_end: p as u32,
+    })
 }
 
 // --- Task item extraction ---

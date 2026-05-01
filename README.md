@@ -206,6 +206,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 | `insert-block` | Insert a new block at a position |
 | `delete-block` | Remove a block |
 | `delete-section` | Remove an entire section |
+| `move-section` | Relocate a section (heading + body) with optional auto-leveling |
 
 ## Benchmark
 
