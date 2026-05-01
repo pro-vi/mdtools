@@ -11,11 +11,15 @@ durable observations:
    3 distinct candidates (T6 baseline + iter 18 C-T10-26 + iter 27
    C-T10-34) hit the same compound subsection-relocation gap — heading
    + body must move as a unit, with optional level-shift to match the
-   destination's hierarchy. This is a real product surface gap, not
+   destination's hierarchy. This was a real product surface gap, not
    agent planning, but the anti-folklore lock (`md move-block`
-   forbidden) blocks the natural fix. Codex labeled these
+   forbidden) blocked the natural fix. Codex labeled these
    `mdtools-fail` rather than escalating, so the loop quietly burned
    compute spinning on rejections instead of routing the work out.
+   **Resolved post-T11:** F10-1 was routed to `/code-architect` as
+   ordinary product work, `md move-section` shipped at master `9369af6`,
+   and the lock has been amended to admit it (see § Anti-folklore lock
+   below). T12+ runs can target this primitive directly.
 2. **+38.9pp is the legitimacy claim won, not a stalled climb.** Per
    CLAUDE.md "tool benefit inversely proportional to model capability,"
    a strong gap on a small dense model is the right shape of evidence.
@@ -37,12 +41,21 @@ T11 patches three discipline gaps surfaced by T10:
    `stop-and-summarize`, and route further work as scope expansion
    (cross-model, lock-lift, or new generator) outside this loop.
 
-The anti-folklore lock is **preserved unchanged** in T11. F10-1
-(compound subsection-relocation gap) is the standing escalation
-candidate, routed to ordinary product work via `/code-architect`.
-A future T12 (or scope expansion) may admit `md move-section` after
-F10-1's design lands and ships, but that's downstream — not a T11
-move.
+The anti-folklore lock is **preserved unchanged** in T11 with one
+admission: F10-1 (compound subsection-relocation gap) was routed to
+ordinary product work via `/code-architect`, the design landed in
+`specs/move-section-design.md` (Pro 2-lane review, 0.83/0.83 confidence),
+and `md move-section` shipped at master `9369af6` with 32 dedicated tests
+and zero regressions vs the prior 283-test baseline. Per the original
+T11 conditional ("future T12 [...] may admit `md move-section` after
+F10-1's design lands and ships"), that condition is now met:
+`md move-section` is **admitted** to the supported surface and removed
+from the forbidden list.
+
+Other locked surfaces (`md apply`, `md move-block`, generalized
+`md set-state`, HTML body support, ChangeSet vocabulary) remain
+forbidden. The lock-blocked category and escalation counter still apply
+to those.
 
 T7+T8 substrate (dual scorer with F8 fixes, L1 holdout guard,
 holdout_version stamping, PI runner with audit, opener-stack JSON
@@ -285,7 +298,7 @@ An iteration whose sole substantive content is "ratifying iter N-1
 bit-exact" or "verifying that no fresh failing trace surfaced" is
 inadmissible.
 
-### Anti-folklore lock (unchanged from T8)
+### Anti-folklore lock (T8, with one T11 admission)
 
 No new `md` commands, flags, op types, or agent action surfaces. Forbidden
 list: `md apply`, `md move-block`, generalized `md set-state`, HTML body
@@ -293,9 +306,17 @@ support, ChangeSet-shaped CLI vocabulary, `md fingerprint <loc>` (the
 single MAYBE Pro identified is admissible only if a specific failing
 trace requires it — not as speculative ergonomics).
 
-If T9 surfaces evidence that a new CLI primitive *is* warranted, halt
-with `stop-and-summarize` and route that work outside this loop via
-`/route` or the bridge-contract escalation path.
+**Admitted in T11 (post-shipment):** `md move-section` — section-aware
+heading + body relocation with optional level cascade. Distinct from the
+forbidden `md move-block` (arbitrary block movement); shipped with
+`specs/move-section-design.md` and 32 dedicated tests after F10-1
+escalated as ordinary product work. Now part of the supported surface;
+candidate generators may target it freely.
+
+If T11+ surfaces evidence that another new CLI primitive *is* warranted,
+halt with `stop-and-summarize` and route that work outside this loop via
+`/route` or the bridge-contract escalation path. Do not in-loop expand
+the admitted list.
 
 ### Apples-to-apples normalization (unchanged from T7)
 
