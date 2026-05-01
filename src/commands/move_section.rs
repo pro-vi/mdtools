@@ -283,9 +283,9 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
 
     // The post-move span describes where the moved section now lives in the
     // OUTPUT doc. For NoChange this is identical to span_before; for Replaced
-    // we count newlines in the output up to moved_byte_start_in_output to
-    // derive the new line_start, then add the moved section's internal
-    // newline count for line_end (mirrors replace-section's convention).
+    // we derive line_start/line_end from the output bytes using the same
+    // convention as find_heading_section (subtract one when byte_end follows
+    // a newline, since byte_end points to the start of the next thing).
     let span_after = match disposition {
         MutationDisposition::NoChange => Some(span_before),
         MutationDisposition::Replaced => {
@@ -296,10 +296,26 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
                 .filter(|&&b| b == b'\n')
                 .count()
                 + 1) as u32;
-            let line_count = moved.matches('\n').count() as u32;
+            let total_lines =
+                (output_bytes.iter().filter(|&&b| b == b'\n').count() + 1) as u32;
+            let byte_end_pos = moved_byte_end_in_output as usize;
+            let line_end = if byte_end_pos >= output_doc.len() {
+                total_lines
+            } else {
+                let line_at_end = (output_bytes[..byte_end_pos]
+                    .iter()
+                    .filter(|&&b| b == b'\n')
+                    .count()
+                    + 1) as u32;
+                if byte_end_pos > 0 && output_bytes[byte_end_pos - 1] == b'\n' {
+                    line_at_end - 1
+                } else {
+                    line_at_end
+                }
+            };
             Some(SourceSpan {
                 line_start,
-                line_end: line_start + line_count,
+                line_end,
                 byte_start: moved_byte_start_in_output,
                 byte_end: moved_byte_end_in_output,
             })

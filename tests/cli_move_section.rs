@@ -660,6 +660,51 @@ fn r08_replaced_envelope_after_span_locates_moved_bytes() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn r09_after_span_matches_fresh_parse_of_output() {
+    // Reviewer's recommended verification: take the move's reported
+    // target_span_after, write the spliced output to a tempfile, parse it
+    // with `md section <heading>`, and compare. They MUST agree — the after
+    // span describes the moved section's location in the output document, so
+    // it should equal what a fresh parse reports for that same section.
+    let tmp = tempfile_bytes(b"# Doc\n## A\na\n## B\nb");
+    let out = md()
+        .args([
+            "move-section",
+            "B",
+            &tmp,
+            "--before",
+            "A",
+            "--keep-level",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let move_json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let after = &move_json["invariant"]["target_span_after"];
+    assert!(!after.is_null(), "target_span_after must not be null");
+
+    let content = move_json["content"].as_str().unwrap();
+    let parsed_tmp = tempfile(content);
+    let section_out = md()
+        .args(["section", "B", &parsed_tmp, "--json"])
+        .output()
+        .unwrap();
+    assert!(section_out.status.success(), "fresh parse failed: {}",
+            String::from_utf8_lossy(&section_out.stderr));
+    let section_json: serde_json::Value = serde_json::from_slice(&section_out.stdout).unwrap();
+    let fresh_span = &section_json["section"]["span"];
+
+    assert_eq!(after["byte_start"], fresh_span["byte_start"], "byte_start mismatch");
+    assert_eq!(after["byte_end"], fresh_span["byte_end"], "byte_end mismatch");
+    assert_eq!(after["line_start"], fresh_span["line_start"], "line_start mismatch");
+    assert_eq!(after["line_end"], fresh_span["line_end"], "line_end mismatch");
+
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&parsed_tmp).unwrap();
+}
+
 // === Output modes (1) ===
 
 #[test]
