@@ -6,7 +6,27 @@ use crate::output;
 use crate::parser::{HeadingSourceKind, ParsedDocument};
 
 pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    if args.in_place && args.file.is_none() {
+        return Err(CommandError::new(
+            DiagnosticCode::InvalidSelector,
+            "--in-place requires a FILE argument",
+        ));
+    }
+
+    let source = match &args.file {
+        Some(path) => std::fs::read_to_string(path)?,
+        None => {
+            use std::io::Read;
+            let mut buf = String::new();
+            std::io::stdin().read_to_string(&mut buf)?;
+            buf
+        }
+    };
+    let file_label = args
+        .file
+        .as_ref()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "-".to_string());
     let doc = ParsedDocument::parse(source)?;
 
     // --- Resolve source + destination selectors ---
@@ -154,24 +174,53 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         moved = rewrite_atx_levels(moved, &source_section, &doc, src_byte_start, level_delta)?;
     }
 
-    // Trailing-edge fix-up: if the moved bytes don't end with a line break
-    // and they'll be followed by content, synthesize one so the following
-    // block doesn't get glued onto the moved heading text. Use the document's
-    // detected line-ending style so a CRLF doc stays CRLF.
-    let src_ends_with_newline =
-        src_byte_end > 0 && doc.source.as_bytes()[src_byte_end as usize - 1] == b'\n';
-    let dest_followed_by_content = (insert_byte_raw as usize) < doc.source.len();
-    if !src_ends_with_newline && dest_followed_by_content && !moved.ends_with('\n') {
+    // Compute separator-injection flags against the POST-removal layout, not
+    // the original document. With the source removed, what content (if any)
+    // sits immediately before and after the insert position determines
+    // whether we need to synthesize line breaks. This matters for the no-op
+    // case (insert_byte_raw == src_byte_start, source at EOF) where a naive
+    // check would treat the source itself as following content.
+    let bytes_view = doc.source.as_bytes();
+    let doc_len = doc.source.len();
+
+    // Will any content follow the moved bytes in the post-removal output?
+    let content_follows_insert = if insert_byte_raw <= src_byte_start {
+        // Forward splice: post-moved tail = doc[insert_byte_raw..src_byte_start] + doc[src_byte_end..]
+        insert_byte_raw < src_byte_start || (src_byte_end as usize) < doc_len
+    } else {
+        // Backward splice: post-moved tail = doc[insert_byte_raw..]
+        (insert_byte_raw as usize) < doc_len
+    };
+
+    // What byte (if any) immediately precedes the moved bytes in the post-
+    // removal output? In the backward case, if the insert sits right at the
+    // source's end, removing the source shifts the effective "preceding"
+    // byte back to whatever was before src_byte_start.
+    let preceding_byte: Option<u8> = if insert_byte_raw <= src_byte_start {
+        if insert_byte_raw == 0 {
+            None
+        } else {
+            Some(bytes_view[insert_byte_raw as usize - 1])
+        }
+    } else {
+        let effective = if insert_byte_raw == src_byte_end {
+            src_byte_start
+        } else {
+            insert_byte_raw
+        };
+        if effective == 0 {
+            None
+        } else {
+            Some(bytes_view[effective as usize - 1])
+        }
+    };
+
+    if content_follows_insert && !moved.ends_with('\n') {
         moved.push_str(separator);
     }
 
-    // Leading-edge fix-up: if we're inserting at EOF (or after a position
-    // whose preceding byte isn't `\n`), the moved bytes will glue onto the
-    // previous line — e.g. moving A `--after` a final no-newline section B
-    // would produce "...b## A...". Prepend a separator in that case.
-    let needs_leading_separator = insert_byte_raw > 0
-        && doc.source.as_bytes()[insert_byte_raw as usize - 1] != b'\n'
-        && !moved.starts_with('\n');
+    let needs_leading_separator =
+        preceding_byte.map_or(false, |b| b != b'\n') && !moved.starts_with('\n');
 
     let output_doc = if insert_byte_raw <= src_byte_start {
         // dest comes before src in the document
@@ -234,7 +283,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
 
     let make_result = |content: Option<String>| MutationResult {
         schema_version: SCHEMA_VERSION.to_string(),
-        file: args.file.to_string_lossy().to_string(),
+        file: file_label.clone(),
         command: MutationCommandKind::MoveSection,
         target: target.clone(),
         disposition,
@@ -245,8 +294,10 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     };
 
     if args.in_place {
+        // Already validated above that args.file is Some when --in-place.
+        let path = args.file.as_ref().expect("validated above");
         if changed {
-            std::fs::write(&args.file, &output_doc)?;
+            std::fs::write(path, &output_doc)?;
         }
         if json {
             output::write_json(&make_result(None))?;

@@ -504,6 +504,87 @@ fn r03_crlf_separator_preserves_line_endings() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn r04_noop_eof_move_does_not_inject_newline() {
+    // Source is already immediately after destination AND is the final
+    // section with no trailing newline. The "move" is a no-op, but the
+    // separator-injection check incorrectly fired because insert_byte_raw
+    // (== src_byte_start) was treated as a content-bearing position.
+    let original = b"# Doc\n## A\na\n## B\nb";
+    let tmp = tempfile_bytes(original);
+    let output = md()
+        .args(["move-section", "B", &tmp, "--after", "A", "--keep-level"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.stdout, original,
+        "no-op move corrupted bytes: {:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn r05_stdin_input_when_file_omitted() {
+    // Spec promises the FILE positional is optional; omitting it reads stdin
+    // and writes the spliced doc to stdout. Without this, users get a clap
+    // "missing FILE" error.
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_md"))
+        .args(["move-section", "A", "--after", "B", "--keep-level"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"# Doc\n\n## A\nbody a\n\n## B\nbody b\n")
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert!(
+        out.status.success(),
+        "stdin form should succeed; stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    let a = s.find("## A").expect("expected ## A in output");
+    let b = s.find("## B").expect("expected ## B in output");
+    assert!(a > b, "A should land after B; got:\n{}", s);
+}
+
+#[test]
+fn r06_in_place_without_file_errors() {
+    // -i has no meaning when reading from stdin — must reject cleanly.
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_md"))
+        .args(["move-section", "A", "--after", "B", "--keep-level", "-i"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"# Doc\n## A\na\n## B\nb\n")
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert!(!out.status.success(), "should reject -i without FILE");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("--in-place") || stderr.contains("-i") || stderr.contains("FILE"),
+        "expected -i/FILE error; got:\n{}",
+        stderr
+    );
+}
+
 // === Output modes (1) ===
 
 #[test]

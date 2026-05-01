@@ -229,7 +229,8 @@ pub struct MoveSectionArgs {
     #[arg(value_name = "SOURCE_HEADING")]
     pub source: String,
 
-    pub file: PathBuf,
+    /// Markdown file to mutate. Omit to read from stdin (writes spliced doc to stdout).
+    pub file: Option<PathBuf>,
 
     /// Insert as next sibling of the destination heading
     #[arg(long, value_name = "DEST_HEADING")]
