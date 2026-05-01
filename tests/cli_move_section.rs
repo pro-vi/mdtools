@@ -585,6 +585,81 @@ fn r06_in_place_without_file_errors() {
     );
 }
 
+#[test]
+fn r07_nochange_envelope_after_span_matches_before() {
+    // Reviewer repro: NoChange must report target_span_after == target_span_before,
+    // not null. Anything else lies to consumers about where the section now lives.
+    let tmp = tempfile_bytes(b"# Doc\n## A\na\n## B\nb");
+    let output = md()
+        .args([
+            "move-section",
+            "B",
+            &tmp,
+            "--after",
+            "A",
+            "--keep-level",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "NoChange");
+    assert_eq!(json["changed"], false);
+    let inv = &json["invariant"];
+    assert!(!inv["target_span_before"].is_null(), "before span missing");
+    assert!(
+        !inv["target_span_after"].is_null(),
+        "NoChange must carry an after span equal to the before span"
+    );
+    assert_eq!(
+        inv["target_span_before"], inv["target_span_after"],
+        "NoChange after span must equal before span"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn r08_replaced_envelope_after_span_locates_moved_bytes() {
+    // For a real Replaced move, target_span_after must point at where the
+    // moved bytes now live in the output document.
+    let tmp = tempfile_bytes(b"# Doc\n## A\na\n## B\nb");
+    let output = md()
+        .args([
+            "move-section",
+            "A",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "Replaced");
+    assert_eq!(json["changed"], true);
+    let after = &json["invariant"]["target_span_after"];
+    assert!(!after.is_null(), "Replaced must carry an after span");
+    let content = json["content"].as_str().unwrap();
+    let byte_start = after["byte_start"].as_u64().unwrap() as usize;
+    let byte_end = after["byte_end"].as_u64().unwrap() as usize;
+    // The bytes at the reported after-span must BE the moved section.
+    let landed = &content[byte_start..byte_end];
+    assert!(
+        landed.starts_with("## A"),
+        "after span byte_start should land on `## A`; got: {:?}",
+        landed
+    );
+    assert!(
+        landed.contains("\na"),
+        "after span must include the body 'a'; got: {:?}",
+        landed
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // === Output modes (1) ===
 
 #[test]

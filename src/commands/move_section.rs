@@ -222,17 +222,20 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     let needs_leading_separator =
         preceding_byte.map_or(false, |b| b != b'\n') && !moved.starts_with('\n');
 
-    let output_doc = if insert_byte_raw <= src_byte_start {
+    // Capture the moved section's byte_start in the OUTPUT document while
+    // building it — needed for the JSON envelope's target_span_after.
+    let (output_doc, moved_byte_start_in_output) = if insert_byte_raw <= src_byte_start {
         // dest comes before src in the document
         let mut out = String::with_capacity(doc.source.len() + moved.len() + separator.len());
         out.push_str(&doc.source[..insert_byte_raw as usize]);
         if needs_leading_separator {
             out.push_str(separator);
         }
+        let moved_start = out.len() as u32;
         out.push_str(&moved);
         out.push_str(&doc.source[insert_byte_raw as usize..src_byte_start as usize]);
         out.push_str(&doc.source[src_byte_end as usize..]);
-        out
+        (out, moved_start)
     } else {
         // dest comes after src in the document
         let mut out = String::with_capacity(doc.source.len() + moved.len() + separator.len());
@@ -241,9 +244,10 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         if needs_leading_separator {
             out.push_str(separator);
         }
+        let moved_start = out.len() as u32;
         out.push_str(&moved);
         out.push_str(&doc.source[insert_byte_raw as usize..]);
-        out
+        (out, moved_start)
     };
 
     let changed = output_doc != doc.source;
@@ -270,15 +274,43 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         level_shift_applied: level_delta,
     });
 
+    let span_before = SourceSpan {
+        line_start: src_span.line_start,
+        line_end: src_span.line_end,
+        byte_start: src_byte_start,
+        byte_end: src_byte_end,
+    };
+
+    // The post-move span describes where the moved section now lives in the
+    // OUTPUT doc. For NoChange this is identical to span_before; for Replaced
+    // we count newlines in the output up to moved_byte_start_in_output to
+    // derive the new line_start, then add the moved section's internal
+    // newline count for line_end (mirrors replace-section's convention).
+    let span_after = match disposition {
+        MutationDisposition::NoChange => Some(span_before),
+        MutationDisposition::Replaced => {
+            let output_bytes = output_doc.as_bytes();
+            let moved_byte_end_in_output = moved_byte_start_in_output + moved.len() as u32;
+            let line_start = (output_bytes[..moved_byte_start_in_output as usize]
+                .iter()
+                .filter(|&&b| b == b'\n')
+                .count()
+                + 1) as u32;
+            let line_count = moved.matches('\n').count() as u32;
+            Some(SourceSpan {
+                line_start,
+                line_end: line_start + line_count,
+                byte_start: moved_byte_start_in_output,
+                byte_end: moved_byte_end_in_output,
+            })
+        }
+        _ => Some(span_before),
+    };
+
     let invariant = SourcePreservationInvariant {
         preserves_non_target_bytes: false,
-        target_span_before: Some(SourceSpan {
-            line_start: src_span.line_start,
-            line_end: src_span.line_end,
-            byte_start: src_byte_start,
-            byte_end: src_byte_end,
-        }),
-        target_span_after: None,
+        target_span_before: Some(span_before),
+        target_span_after: span_after,
     };
 
     let make_result = |content: Option<String>| MutationResult {
