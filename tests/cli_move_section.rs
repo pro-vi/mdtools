@@ -705,6 +705,64 @@ fn r09_after_span_matches_fresh_parse_of_output() {
     std::fs::remove_file(&parsed_tmp).unwrap();
 }
 
+#[test]
+fn r10_setext_keep_level_after_paragraph_preserves_structure() {
+    // Reviewer repro: setext source moved after a paragraph-bearing section
+    // gets folded into that paragraph as setext text — the underline `------`
+    // becomes the underline of `body b A Title`, destroying the heading.
+    // The output must reparse with "A Title" still a top-level section.
+    let tmp = tempfile(
+        "# Doc\n\nA Title\n-------\nsetext body\n\n## B\nbody b\n",
+    );
+    let move_out = md()
+        .args([
+            "move-section",
+            "A Title",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        move_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&move_out.stderr)
+    );
+    let spliced = String::from_utf8_lossy(&move_out.stdout).to_string();
+
+    // Reparse with `md outline --json` and confirm "A Title" is still listed.
+    let out_path = tempfile(&spliced);
+    let outline_out = md()
+        .args(["outline", &out_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        outline_out.status.success(),
+        "outline failed; spliced doc:\n{}\nstderr: {}",
+        spliced,
+        String::from_utf8_lossy(&outline_out.stderr)
+    );
+    let outline_json: serde_json::Value =
+        serde_json::from_slice(&outline_out.stdout).unwrap();
+    let outline_text = outline_json.to_string();
+    assert!(
+        outline_text.contains("\"A Title\""),
+        "moved setext heading lost its identity in output:\n{}\noutline:\n{}",
+        spliced,
+        outline_text
+    );
+    // Also assert `body b` did NOT absorb "A Title" into a single h2.
+    assert!(
+        !outline_text.contains("body b A Title"),
+        "preceding paragraph absorbed the setext heading: {}",
+        outline_text
+    );
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&out_path).unwrap();
+}
+
 // === Output modes (1) ===
 
 #[test]

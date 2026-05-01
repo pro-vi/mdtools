@@ -174,63 +174,73 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         moved = rewrite_atx_levels(moved, &source_section, &doc, src_byte_start, level_delta)?;
     }
 
-    // Compute separator-injection flags against the POST-removal layout, not
-    // the original document. With the source removed, what content (if any)
-    // sits immediately before and after the insert position determines
-    // whether we need to synthesize line breaks. This matters for the no-op
-    // case (insert_byte_raw == src_byte_start, source at EOF) where a naive
-    // check would treat the source itself as following content.
+    // Compute separator-injection against the POST-removal layout, not the
+    // original document. Two distinct concerns at the leading boundary:
+    //   - ATX source needs at least 1 newline between preceding content and
+    //     the heading marker.
+    //   - Setext source needs a blank-line block boundary (≥2 newlines) — a
+    //     single newline lets CommonMark fold the setext text + underline
+    //     into the preceding paragraph as a multi-line setext heading.
     let bytes_view = doc.source.as_bytes();
     let doc_len = doc.source.len();
 
     // Will any content follow the moved bytes in the post-removal output?
     let content_follows_insert = if insert_byte_raw <= src_byte_start {
-        // Forward splice: post-moved tail = doc[insert_byte_raw..src_byte_start] + doc[src_byte_end..]
         insert_byte_raw < src_byte_start || (src_byte_end as usize) < doc_len
     } else {
-        // Backward splice: post-moved tail = doc[insert_byte_raw..]
         (insert_byte_raw as usize) < doc_len
-    };
-
-    // What byte (if any) immediately precedes the moved bytes in the post-
-    // removal output? In the backward case, if the insert sits right at the
-    // source's end, removing the source shifts the effective "preceding"
-    // byte back to whatever was before src_byte_start.
-    let preceding_byte: Option<u8> = if insert_byte_raw <= src_byte_start {
-        if insert_byte_raw == 0 {
-            None
-        } else {
-            Some(bytes_view[insert_byte_raw as usize - 1])
-        }
-    } else {
-        let effective = if insert_byte_raw == src_byte_end {
-            src_byte_start
-        } else {
-            insert_byte_raw
-        };
-        if effective == 0 {
-            None
-        } else {
-            Some(bytes_view[effective as usize - 1])
-        }
     };
 
     if content_follows_insert && !moved.ends_with('\n') {
         moved.push_str(separator);
     }
 
-    let needs_leading_separator =
-        preceding_byte.map_or(false, |b| b != b'\n') && !moved.starts_with('\n');
+    // Required `\n` count immediately before the moved bytes.
+    let source_starts_with_setext = doc
+        .blocks
+        .get(source_section.block_indices[0] as usize)
+        .and_then(|b| b.heading.as_ref())
+        .map_or(false, |h| h.kind == HeadingSourceKind::Setext);
+    let required_pre_newlines: usize = if source_starts_with_setext { 2 } else { 1 };
+
+    // Walk backward from the post-removal insert position counting
+    // consecutive `\n`s. In the backward-splice case where the insert sits
+    // past `src_byte_end`, the chunk doc[src_byte_start..src_byte_end] has
+    // been removed, so we clamp the walk at src_byte_end to avoid counting
+    // newlines from inside the removed source.
+    let (walk_start, walk_lower_bound) = if insert_byte_raw <= src_byte_start {
+        (insert_byte_raw as usize, 0usize)
+    } else if insert_byte_raw == src_byte_end {
+        (src_byte_start as usize, 0usize)
+    } else {
+        (insert_byte_raw as usize, src_byte_end as usize)
+    };
+    let mut preceding_trailing_nl: usize = 0;
+    {
+        let mut p = walk_start;
+        while p > walk_lower_bound && bytes_view[p - 1] == b'\n' {
+            preceding_trailing_nl += 1;
+            p -= 1;
+        }
+        // If we walked all the way to position 0, there is no preceding
+        // content — any blank-line requirement is vacuously satisfied.
+        if p == 0 {
+            preceding_trailing_nl = required_pre_newlines;
+        }
+    }
+    let moved_leading_nl = moved.bytes().take_while(|&b| b == b'\n').count();
+    let leading_separators_needed =
+        required_pre_newlines.saturating_sub(preceding_trailing_nl + moved_leading_nl);
 
     // Capture the moved section's byte_start in the OUTPUT document while
     // building it — needed for the JSON envelope's target_span_after.
+    let leading_pad: String = separator.repeat(leading_separators_needed);
+    let cap = doc.source.len() + moved.len() + leading_pad.len();
     let (output_doc, moved_byte_start_in_output) = if insert_byte_raw <= src_byte_start {
         // dest comes before src in the document
-        let mut out = String::with_capacity(doc.source.len() + moved.len() + separator.len());
+        let mut out = String::with_capacity(cap);
         out.push_str(&doc.source[..insert_byte_raw as usize]);
-        if needs_leading_separator {
-            out.push_str(separator);
-        }
+        out.push_str(&leading_pad);
         let moved_start = out.len() as u32;
         out.push_str(&moved);
         out.push_str(&doc.source[insert_byte_raw as usize..src_byte_start as usize]);
@@ -238,12 +248,10 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         (out, moved_start)
     } else {
         // dest comes after src in the document
-        let mut out = String::with_capacity(doc.source.len() + moved.len() + separator.len());
+        let mut out = String::with_capacity(cap);
         out.push_str(&doc.source[..src_byte_start as usize]);
         out.push_str(&doc.source[src_byte_end as usize..insert_byte_raw as usize]);
-        if needs_leading_separator {
-            out.push_str(separator);
-        }
+        out.push_str(&leading_pad);
         let moved_start = out.len() as u32;
         out.push_str(&moved);
         out.push_str(&doc.source[insert_byte_raw as usize..]);
