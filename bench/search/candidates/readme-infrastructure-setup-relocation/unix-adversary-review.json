@@ -6,7 +6,7 @@
   "accepted_as_ast_structural": true,
   "review_notes": [
     "The raw reviewer response labeled the unix failure AST-structural and accepted_as_ast_structural=true.",
-    "This normalized artifact keeps the gap label but sets accepted_as_ast_structural=false because the mdtools seed failed and T10 promotion requires at least one mdtools win in the family.",
+    "The family now has a passing mdtools rerun; the family is still not promotable because cross-seed hybrid outcomes are unstable.",
     "The raw reviewer response was wrapped in a JSON code fence and used a generic reviewer_model value; this artifact records the actual model and normalized JSON content."
   ]
 }
