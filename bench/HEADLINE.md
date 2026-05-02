@@ -80,6 +80,8 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T10-16 | 2026-04-29 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +42.1pp (19 tasks) | +3.2 current-corpus only | corpus-growth (promoted `server-setup-subsection-relocation` as C-T10-15 after realism=yes, unix-adversary=`AST-structural`, mdtools seed-1 PASS, hybrid 3/3 PASS, unix 0/3 PASS, and dual-scorer agreement on all promotion cells. Fixed-anchor denominator did not change and no cross-model trigger fires.) | bench/search/accepted/server-setup-subsection-relocation/ + bench/runs/t10-16-server-setup-subsection-relocation-{hybrid,unix}-N2-Qwen3.5-27B-4bit-2026-04-29/ |
 | T10-29 | 2026-04-29 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +2.9 current-corpus only | corpus-growth (promoted `error-logging-format-relocation` as C-T10-28 after realism=yes, unix-adversary=`AST-structural`, mdtools seed-1 PASS, hybrid 3/3 PASS, unix 0/3 PASS, and dual-scorer agreement on all promotion cells. Fixed-anchor denominator did not change and no cross-model trigger fires.) | bench/search/accepted/error-logging-format-relocation/ + bench/runs/t10-29-error-logging-format-relocation-{hybrid,unix}-N2-Qwen3.5-27B-4bit-2026-04-29/ |
 
+| T11-7 | 2026-05-02 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +0.0 | product (re-ran fixed-anchor `T6` after `md move-section` admission; all three modes failed with timeout/invalid-response behavior, so denominator stayed stable and no gap movement occurred.) | bench/runs/t11-retest-T6-fixed-anchor-Qwen3.5-27B-4bit-2026-05-02/ |
+
 ## T9 iter 4 (aborted)
 
 Iter 4 fired a cross-model run on `Qwen3.5-122B-A10B-4bit` for the
