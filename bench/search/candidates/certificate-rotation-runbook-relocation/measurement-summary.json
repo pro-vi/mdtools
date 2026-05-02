@@ -59,7 +59,7 @@
     "accepted_as_ast_structural_candidate": false,
     "current_corpus_member": false,
     "promotion_required": false,
-    "promotion_status": "rejected-mdtools-fail-promotion-blocked"
+    "promotion_status": "rejected-lock-blocked"
   },
   "notes": [
     "The candidate produced a raw +100pp hybrid-minus-unix result and the unix failure was labeled AST-structural.",

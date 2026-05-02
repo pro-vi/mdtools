@@ -1,7 +1,7 @@
 {
   "family_slug": "readme-infrastructure-setup-relocation",
   "family_name": "README infrastructure setup relocation",
-  "status": "rejected-mdtools-fail-promotion-blocked",
+  "status": "rejected-lock-blocked",
   "created_at": "2026-04-29",
   "source": {
     "generator_model": "gemma-4-e4b-it-8bit",
