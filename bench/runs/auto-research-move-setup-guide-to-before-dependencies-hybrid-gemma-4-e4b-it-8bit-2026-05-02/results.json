@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-034",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "gemma-4-e4b-it-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 4920,
+    "bytes_output": 771,
+    "bytes_observation": 2292,
+    "tool_calls": 3,
+    "turns": 4,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.4,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Phoenix API Documentation'), (2, 'Core Concepts'), (2, 'Quick Start Guide'), (2, 'System Dependencies'), (2, 'API Endpoints Reference'), (3, 'Authentication')] vs [(1, 'Project Phoenix API Documentation'), (2, 'Core Concepts'), (1, 'Project Phoenix API Documentation'), (2, 'Core Concepts'), (2, 'System Dependencies'), (2, 'API Endpoints Reference'), (3, 'Authentication'), (2, 'System Dependencies'), (2, 'API Endpoints Reference'), (3, 'Authentication')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 4: '## Quick Start Guide' vs '# Project Phoenix API Documentation'\nheading_tree [neutral]: MISMATCH [(1, 'Project Phoenix API Documentation'), (2, 'Core Concepts'), (2, 'Quick Start Guide'), (2, 'System Dependencies'), (2, 'API Endpoints Reference'), (3, 'Authentication')] vs [(1, 'Project Phoenix API Documentation'), (2, 'Core Concepts'), (1, 'Project Phoenix API Documentation'), (2, 'Core Concepts'), (2, 'System Dependencies'), (2, 'API Endpoints Reference'), (3, 'Authentication'), (2, 'System Dependencies'), (2, 'API Endpoints Reference'), (3, 'Authentication')]\nblock_text [neutral]: MISMATCH\n  block 4: '## Quick Start Guide' vs '# Project Phoenix API Documentation'\n  count: 15 vs 22",
+    "runner_error": null
+  }
+]
