@@ -322,6 +322,7 @@ def step_measure(
             "--tasks-path", str(candidate_dir / "tasks.json"),
             "--task-ids-path", str(task_ids_path),
             "--results-dir", str(bundle_dir),
+            "-N", str(runs_per_task),
         ]
 
         proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -419,9 +420,11 @@ def step_assemble_manifest(
     today: str,
 ) -> dict[str, Any]:
     print("[5/6] Assembling manifest...", flush=True)
-    hybrid_pass = measurement["results"].get("hybrid", {}).get("pass", False)
-    unix_pass = measurement["results"].get("unix", {}).get("pass", False)
-    gap_pp = measurement["gap"]["hybrid_minus_unix_pp"]
+    results = measurement.get("results", {})
+    gap = measurement.get("gap", {})
+    hybrid_pass = results.get("hybrid", {}).get("pass", False)
+    unix_pass = results.get("unix", {}).get("pass", False)
+    gap_pp = gap.get("hybrid_minus_unix_pp", 0.0)
     ast_structural = adversary.get("accepted_as_ast_structural", False)
     realism_ok = realism.get("verdict") == "yes"
 
@@ -438,7 +441,7 @@ def step_assemble_manifest(
     else:
         status = "pending-cross-seed"  # ready for promotion gate
 
-    task_ids = measurement["task_ids"]
+    task_ids = measurement.get("task_ids", [])
 
     manifest: dict[str, Any] = {
         "family_slug": slug,
