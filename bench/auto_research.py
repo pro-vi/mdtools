@@ -335,19 +335,16 @@ def step_measure(
         results_file = bundle_dir / "results.json"
         if results_file.exists():
             results_list = json.loads(results_file.read_text())
-            task_result = next(
-                (r for r in results_list if r.get("task_id") == task_ids[0]),
-                {}
-            )
+            task_runs = [r for r in results_list if r.get("task_id") == task_ids[0]]
             outcomes[mode] = {
-                "pass": task_result.get("correct", False),
-                "neutral_pass": task_result.get("correct_neutral", False),
-                "elapsed_seconds": task_result.get("elapsed_seconds", 0),
-                "tool_calls": task_result.get("tool_calls", 0),
-                "turns": task_result.get("turns", 0),
-                "mutations": task_result.get("mutations", 0),
-                "invalid_responses": task_result.get("invalid_responses", 0),
-            }
+                "pass": any(r.get("correct", False) for r in task_runs),
+                "neutral_pass": any(r.get("correct_neutral", False) for r in task_runs),
+                "elapsed_seconds": max((r.get("elapsed_seconds", 0) for r in task_runs), default=0),
+                "tool_calls": max((r.get("tool_calls", 0) for r in task_runs), default=0),
+                "turns": max((r.get("turns", 0) for r in task_runs), default=0),
+                "mutations": max((r.get("mutations", 0) for r in task_runs), default=0),
+                "invalid_responses": max((r.get("invalid_responses", 0) for r in task_runs), default=0),
+            } if task_runs else {"pass": False, "neutral_pass": False, "error": "no results for task"}
         else:
             outcomes[mode] = {"pass": False, "neutral_pass": False, "error": "no results.json"}
 
@@ -629,7 +626,7 @@ def main() -> None:
 
     if manifest["status"] == "pending-cross-seed":
         print("\nNext step: run cross-seed promotion gate (N=3):", flush=True)
-        print(f"  python bench/harness.py --run --mode hybrid --runs-per-task 3 \\")
+        print(f"  python bench/harness.py --run --mode hybrid -N 3 \\")
         print(f"    --md-binary {args.md_binary} --tasks-path {candidate_dir}/tasks.json \\")
         print(f"    --task-ids-path {candidate_dir}/task_ids.json")
 
