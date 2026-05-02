@@ -1,72 +1,54 @@
-# mdtools Frontier Loop Prompt — T11 (Saturation-Aware Hill-Climb)
+# mdtools Frontier Loop Prompt — T12 (Automated Pipeline + Cross-Model Expansion)
 
 ## Rationale
 
-T10 codex run (PR #7) hit fixed-anchor saturation at **+38.9pp** after
-27 substantive iterations. Codex completed the 18-task baseline,
-flipped to steady-state, ran 25 auto-research passes, and surfaced two
-durable observations:
+T11 fired halt #1 (gap saturation) after 8 iterations. Fixed-anchor held at
+**+38.9pp** across all 8 iterations; 4 consecutive produced zero fixed-anchor
+movement and no corpus growth. Three root causes:
 
-1. **The candidate generator kept rejecting on the same locked surface.**
-   3 distinct candidates (T6 baseline + iter 18 C-T10-26 + iter 27
-   C-T10-34) hit the same compound subsection-relocation gap — heading
-   + body must move as a unit, with optional level-shift to match the
-   destination's hierarchy. This was a real product surface gap, not
-   agent planning, but the anti-folklore lock (`md move-block`
-   forbidden) blocked the natural fix. Codex labeled these
-   `mdtools-fail` rather than escalating, so the loop quietly burned
-   compute spinning on rejections instead of routing the work out.
-   **Resolved post-T11:** F10-1 was routed to `/code-architect` as
-   ordinary product work, `md move-section` shipped at master `9369af6`,
-   and the lock has been amended to admit it (see § Anti-folklore lock
-   below). T12+ runs can target this primitive directly.
-2. **+38.9pp is the legitimacy claim won, not a stalled climb.** Per
-   CLAUDE.md "tool benefit inversely proportional to model capability,"
-   a strong gap on a small dense model is the right shape of evidence.
-   Corpus growth 18 → 20 under discipline (2 AST-structural promotions,
-   ~22 honest rejections) demonstrates the moat without overfit. The
-   loop reached structural equilibrium for this model + lock combination.
+1. **Infra failures counted as saturation.** T6 retest (T11-7) failed due to
+   an OAI wall-time overrun (60s default hitting a 90s watchdog deadline), not
+   a genuine zero-delta result. This inflated the no-movement streak and
+   contributed to halt #1 firing earlier than the evidence warranted.
+2. **No automated pipeline.** Each candidate required 5–8 manual steps
+   (generate, realism-review, measure, adversary-review, manifest, promote).
+   Codex ran these ad-hoc per iteration; corpus grew by only 2 members in
+   ~25 attempts. With an automated pipeline, 5–10× more candidates are
+   feasible per iteration.
+3. **Product-axis sweep was partial.** After `md move-section` shipped, only
+   3 lock-blocked candidates were re-evaluated. The protocol (sweep ALL
+   `mdtools-fail`/`lock-blocked` before declaring saturation) was not
+   codified at T11 launch; it was added post-halt. T12 starts with it.
 
-T11 patches three discipline gaps surfaced by T10:
+T12 resolves all three:
 
-1. **`lock-blocked` rejection category.** When a candidate fails because
-   the necessary primitive is on the anti-folklore forbidden list,
-   label it `lock-blocked`, not `mdtools-fail`. Triggers escalation
-   counter; 3 lock-blocked instances fire stop-and-summarize per halt #6.
-2. **Tighten halt #1.** Count ALL iterations that produce no fixed-anchor
-   movement AND no corpus growth, not just promotion-gate attempts.
-3. **Equilibrium-as-valid halt (new #9).** If fixed-anchor has been
-   stable for 5 consecutive iterations and corpus has grown by ≥2
-   under discipline, declare the legitimacy claim satisfied, halt with
-   `stop-and-summarize`, and route further work as scope expansion
-   (cross-model, lock-lift, or new generator) outside this loop.
+1. **`cause: infra` is non-counting** toward halt #1 saturation. OAI timeout
+   → bump `--oai-request-timeout` (default now 180s) and retry; do not
+   advance the saturation counter.
+2. **`bench/auto_research.py` replaces the manual pipeline.** One command
+   runs generator → realism → measurement (3 modes, oai-loop) → unix-adversary
+   review → manifest. Verified end-to-end. See § Auto-research usage.
+3. **Iter 1 is a mandatory product-axis sweep.** Before generating any new
+   candidates, re-run every `rejected-lock-blocked` and `rejected-mdtools-fail`
+   candidate against the fixed-anchor corpus with the new binary. Update
+   manifests; record as `cause: product`.
 
-The anti-folklore lock is **preserved unchanged** in T11 with one
-admission: F10-1 (compound subsection-relocation gap) was routed to
-ordinary product work via `/code-architect`, the design landed in
-`specs/move-section-design.md` (Pro 2-lane review, 0.83/0.83 confidence),
-and `md move-section` shipped at master `9369af6` with 32 dedicated tests
-and zero regressions vs the prior 283-test baseline. Per the original
-T11 conditional ("future T12 [...] may admit `md move-section` after
-F10-1's design lands and ships"), that condition is now met:
-`md move-section` is **admitted** to the supported surface and removed
-from the forbidden list.
-
-Other locked surfaces (`md apply`, `md move-block`, generalized
-`md set-state`, HTML body support, ChangeSet vocabulary) remain
-forbidden. The lock-blocked category and escalation counter still apply
-to those.
+The anti-folklore lock is **unchanged** from T11 with `md move-section`
+admitted. Other locked surfaces (`md apply`, `md move-block`, generalized
+`md set-state`, HTML body support, ChangeSet vocabulary) remain forbidden.
 
 T7+T8 substrate (dual scorer with F8 fixes, L1 holdout guard,
 holdout_version stamping, PI runner with audit, opener-stack JSON
 extractor, cross-executor comparability rule) carries forward as frozen
 baseline. T9's auto-research discipline rules carry forward unchanged.
 T10's two-phase + two-gap + composition-discipline framing carries
-forward; T11 only adds the saturation-aware patches above.
+forward. T11's saturation-aware patches carry forward. T12 adds:
+automated pipeline, infra-failure non-counting, mandatory product-axis
+sweep as iter 1.
 
-## What T11 lets the loop change vs. what stays locked
+## What T12 lets the loop change vs. what stays locked
 
-T11 is a hill-climb tier: the loop has **broad freedom over the tool
+T12 is a hill-climb tier: the loop has **broad freedom over the tool
 substrate** and **zero freedom over the measurement substrate**.
 Anything below the line is a legitimate `product`/`agent`/`scorer`
 move; anything above is fixed and tampering is treated as cheating
@@ -117,24 +99,28 @@ under the composition-discipline rule.
   labels are the only AST-structural verdict that admits a corpus
   member. Skipping or self-judging either is cheating.
 
-**Counter resets at T11 launch**
+**Counter resets at T12 launch**
 
-T10's `stop-and-summarize` was a tier exit, not a halt that
-T11 inherits. T11 launches with: 0 lock-blocked rejections, 0 stalled
-iterations, 0 buildup stalls. The "5 consecutive stable + corpus grew
-by ≥2" equilibrium counter (halt #9) is measured **from this T11
-launch baseline**, not cumulatively across tiers — the 2 promoted
-candidates from T10 (C-T10-15, C-T10-28) are part of the launch
-state, not partial credit toward this tier's equilibrium.
+T11's halt #1 was a tier exit, not a halt that T12 inherits. T12
+launches with: 0 lock-blocked rejections, 0 stalled iterations (infra
+iterations never count), 0 buildup stalls. The "5 consecutive stable
++ corpus grew by ≥2" equilibrium counter (halt #9) is measured **from
+this T12 launch baseline**, not cumulatively across tiers — the 2
+promoted candidates from T10 (C-T10-15, C-T10-28) and any promoted in
+T11 are part of the launch state, not partial credit toward this
+tier's equilibrium.
 
 **Expected first iteration shape**
 
-Because `md move-section` shipped between T10 and T11, the cleanest
-first move is `cause: product` — re-measure T6 (canonical
-subsection-relocation failure in the fixed-anchor baseline) against
-the new binary. If hybrid flips FAIL → PASS, fixed-anchor moves
-+5.6pp, and the cross-model trigger fires for iteration 2.
-This is illustrative; the loop chooses its own move.
+Iter 1 is a mandatory product-axis sweep (see § Per-iteration shape
+step 3). Re-run every `rejected-lock-blocked` and `rejected-mdtools-fail`
+candidate against the fixed-anchor corpus with the current binary. The
+2 remaining `rejected-lock-blocked` candidates (certificate-rotation-
+runbook-relocation, pager-rotation-review-relocation) are the primary
+targets — both are subsection-relocation shapes that `md move-section`
+directly addresses. If either flips FAIL → PASS, append a `cause: product`
+row to HEADLINE.md. If fixed-anchor gap moves ≥+5pp, the cross-model
+trigger fires for iteration 2.
 
 ## Prompt
 
@@ -196,7 +182,7 @@ Inadmissible during buildup:
   signal. All buildup-phase Δ columns are labeled `composition` and
   do not count as movement.
 
-T11 launches into **steady-state** with 18/18 tasks measured at
+T12 launches into **steady-state** with 18/18 tasks measured at
 **+38.9pp** fixed-anchor (stamped at T10-10) and current-corpus +45.0pp
 on 20 tasks. Baseline-buildup is complete; the buildup-phase rules above
 are documented for completeness and for any future tier that re-opens
@@ -234,7 +220,7 @@ table with the bundle pointer AND a `cause` label
 HEADLINE.md update is never a standalone iteration; it is the
 bookkeeping that closes a real move.
 
-The following are inadmissible in T11 (both phases):
+The following are inadmissible in T12 (both phases):
 
 - producing a bundle whose only purpose is coverage cell-filling
   (does NOT apply to baseline-buildup; extending the missing 7 is
@@ -253,11 +239,14 @@ The following are inadmissible in T11 (both phases):
 
 ## Evaluator maturity
 
-Current tier: T11.
+Current tier: T12.
 T7+T8's substrate is frozen baseline. T9's headline-as-single-metric +
 T10's two-phase + two-gap + composition-discipline framing all preserved.
 T11 adds: `lock-blocked` rejection category, tightened gap-saturation
 halt, lock-blocked accumulation halt, and equilibrium-as-valid halt.
+T12 adds: `bench/auto_research.py` automated pipeline, `cause: infra`
+non-counting toward halt #1, mandatory product-axis sweep as iter 1,
+OAI timeout bumped to 180s default.
 Auto-research and the 8 discipline rules are deferred to steady-state.
 
 ## Endpoint configuration
@@ -303,6 +292,13 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
      row and flip `phase: steady-state` in HEADLINE.md. That phase
      transition counts as the iteration's substantive move.
 3. **If phase = steady-state:**
+   - **Iter 1 (mandatory product-axis sweep, T12 only):** Before
+     generating any new candidates, re-run every candidate in
+     `bench/search/candidates/` with status `rejected-lock-blocked`
+     or `rejected-mdtools-fail` against the fixed-anchor corpus using
+     the current `target/release/md` binary. Update each manifest.
+     Record as `cause: product` in HEADLINE.md if any fixed-anchor gap
+     moves. This sweep runs once; subsequent iterations skip it.
    - Diagnose: is the fixed-anchor gap stalling, the corpus stalling,
      is there an open failing trace from a recent run, OR has the
      product surface changed since the last fixed-anchor measurement
@@ -310,6 +306,10 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
      revision)?
    - Pick the admissible move that most directly addresses the
      diagnosis:
+     - New candidate → run `bench/auto_research.py --md-binary
+       target/release/md --api-base http://localhost:10240/v1 --api-key
+       215069`. If status is `pending-cross-seed`, run N=3 promotion
+       gate immediately.
      - Product surface changed → re-measure affected fixed-anchor
        tasks with `cause: product` (or `agent` / `scorer` per the
        sub-axis). Existing candidates labeled `mdtools-fail` /
@@ -560,7 +560,7 @@ Halt fires on the **first** of:
    lift via product work, or new generator/model) outside this loop.
    This is the success-shaped halt, not the failure-shaped halts above.
 
-The halt summary lives at `bench/probes/t11-summary.md`, ≤200 lines,
+The halt summary lives at `bench/probes/t12-summary.md`, ≤200 lines,
 with: final fixed-anchor gap, final current-corpus gap, final corpus
 size, phase at halt, families accepted/rejected with gap labels
 (including any `lock-blocked` instances), cross-model divergence at
@@ -589,7 +589,7 @@ the next loop or scope-expansion work.
 - **Telemetry contracts** (`bench/telemetry/<command>.md`): per-command
   recording shape — admissible to add when a finding requires it.
 - **Run bundles** (`bench/runs/`): per-iteration with `holdout_version`.
-- **Halt summary** (`bench/probes/t11-summary.md`): bounded.
+- **Halt summary** (`bench/probes/t12-summary.md`): bounded.
 ```
 
 ## Outstanding repo state
@@ -597,52 +597,51 @@ the next loop or scope-expansion work.
 - **`bench/HEADLINE.md` is canonical runtime state.** Read it for
   current `phase`, fixed-anchor gap, current-corpus gap, history, and
   per-family table. Do NOT assume the launch-time numbers — they evolve
-  every iteration. As of this T11 launch revision: phase is
-  steady-state, fixed-anchor +38.9pp, current-corpus +45.0pp on 20
-  tasks (original 18 + C-T10-15 server-setup-relocation + C-T10-28
-  error-logging-relocation, both promoted under T10's auto-research
-  discipline as `AST-structural`). All 18 fixed-anchor tasks measured.
+  every iteration. As of this T12 launch: phase is steady-state,
+  fixed-anchor +38.9pp, current-corpus +45.0pp on 20 tasks (original
+  18 + C-T10-15 server-setup-relocation + C-T10-28 error-logging-
+  relocation, both promoted under T10's auto-research discipline as
+  `AST-structural`). All 18 fixed-anchor tasks measured.
 - **Search staging is populated.** `bench/search/candidates/`,
   `bench/search/quarantine/`, and `bench/search/accepted/` already
   exist. T10 left ~22 candidate bundles in `bench/search/candidates/`
   rejected as `mdtools-fail`/`hybrid-fail` — many describe
-  subsection-relocation shapes that the newly-admitted `md move-section`
-  primitive may now unblock. T11 may re-evaluate these as a `product`-
-  cause sweep before generating new candidates.
-- **MLX endpoint live on port 10240.** Primary target
+  subsection-relocation shapes that `md move-section` directly addresses.
+  T12 iter 1 re-evaluates these as a mandatory product-axis sweep.
+- **MLX endpoint live on port 10240.** API key: `215069`. Primary target
   `Qwen3.5-27B-4bit` and cross-model target `Qwen3.5-122B-A10B-4bit`
-  are both loaded.
+  are both loaded. OAI timeout: 180s (bumped from T11's 60s).
 - **T7+T8 evaluator substrate carries forward intact:** dual scorer
   with F8 fixes, mechanical L1 guard, holdout_version stamping, PI
   runner with audit, cross-executor comparability rule, opener-stack
   JSON extractor.
-- **Product surface as of T11 launch:** `md move-section` is shipped at
-  master `9369af6` and admitted to the supported surface. Other locked
-  surfaces (`md apply`, `md move-block`, generalized `md set-state`,
-  HTML body support, ChangeSet vocabulary) remain forbidden — see
-  § Anti-folklore lock. Bench harness `command_policy.py` already
-  classifies `move-section` as a mutation; agent's `md --help` lists it.
+- **Product surface as of T12 launch:** `md move-section` is shipped and
+  admitted. Other locked surfaces (`md apply`, `md move-block`,
+  generalized `md set-state`, HTML body support, ChangeSet vocabulary)
+  remain forbidden — see § Anti-folklore lock.
+- **`bench/auto_research.py` is live.** Verified end-to-end. Run it to
+  generate + measure new candidates in one command (see § Per-iteration
+  shape step 3 and CLAUDE.md § Auto-research).
+- **Halt counters reset to 0 at T12 launch:** saturation streak, lock-
+  blocked accumulation, equilibrium counter. Infra iterations never
+  count toward saturation.
 - **Known agent-side workload risks** (from prior runs, not blocking):
   Qwen3.5-27B-4bit unix mode is prone to invalid-response loops on
-  multi-step tasks; content-delivery tasks (e.g. T3, T8) can take
-  >20 min wall clock per mode. Plan iteration scope accordingly.
+  multi-step tasks; T6 (complex multi-edit) fails all modes regardless
+  of timeout — agent planning gap, not tool gap.
 
 ## Why this is the right next loop
 
-- **Phase declaration ends denominator drift.** T9's iter 2→3 +10.1pp
-  movement was a composition artifact. T10 makes that diagnosis
-  structural: composition deltas are labeled, never count as
-  improvement, and never trigger cross-model.
-- **Fixed-anchor gap is the real hill-climb signal.** Once the
-  18-task baseline exists, that number can only move via product /
-  scorer / agent change. Current-corpus gap is preserved as a
-  growth-tracking companion.
-- **Iter 1 is bounded and feasible.** The remaining 7 tasks (T2, T3,
-  T6, T8, T12, T17, T21) can be measured across 1–3 iterations of
-  buildup phase before steady-state activates.
-- **All T9/T8/T7 substrate preserved.** Auto-research, cross-model,
-  promotion gate, ledger budget, anti-folklore lock, L1 guard — all
-  carry forward unchanged into steady-state.
+- **Pipeline bottleneck removed.** `auto_research.py` compresses 5–8
+  manual steps into one command. T10/T11 produced 2 promotions from
+  ~25 attempts (8% yield). T12 targets ≥5 attempts per iteration.
+- **Infra failures no longer stall the counter.** T11 may have halted
+  one iteration early due to OAI timeout counting as saturation. T12
+  starts clean.
+- **Product-axis sweep may immediately move the gap.** 2 remaining
+  `rejected-lock-blocked` candidates are subsection-relocation shapes
+  that `md move-section` directly addresses. If either passes now, the
+  fixed-anchor gap moves before the first new candidate is generated.
 - **Halts cleanly** in either phase (buildup stall has its own halt
-  condition; steady-state inherits T9's halt set, gated on
-  fixed-anchor gap).
+  condition; steady-state inherits T9+T11's halt set, gated on
+  fixed-anchor gap and infra-adjusted counters).
