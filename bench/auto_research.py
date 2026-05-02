@@ -183,7 +183,16 @@ def _call_oai(
 
 
 def _extract_json(text: str) -> Any:
-    """Extract the first JSON object or array from a string."""
+    """Extract the first JSON object or array from a string.
+
+    Handles two common LLM failure modes:
+    - Markdown fences wrapping the JSON (skips to first { or [)
+    - Braces inside string values confusing simple depth-counting
+
+    Uses a proper string-aware scanner so awk/sed snippets with { } inside
+    JSON string values don't corrupt the depth counter.
+    """
+    # Find first structural character
     start = -1
     for i, ch in enumerate(text):
         if ch in "{[":
@@ -191,16 +200,44 @@ def _extract_json(text: str) -> Any:
             break
     if start == -1:
         raise ValueError(f"No JSON found in response:\n{text[:300]}")
+
+    i = start
     depth = 0
-    openers = "{["
-    closers = "}]"
-    for i in range(start, len(text)):
-        if text[i] in openers:
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == '"':
+            # Skip over the entire JSON string value
+            i += 1
+            while i < n:
+                c = text[i]
+                if c == '\\':
+                    i += 2  # skip escaped character
+                    continue
+                if c == '"':
+                    i += 1
+                    break
+                i += 1
+            continue
+        if ch in "{[":
             depth += 1
-        elif text[i] in closers:
+        elif ch in "}]":
             depth -= 1
             if depth == 0:
-                return json.loads(text[start : i + 1])
+                chunk = text[start : i + 1]
+                try:
+                    return json.loads(chunk)
+                except json.JSONDecodeError:
+                    # Try replacing bare control characters outside of string
+                    # parsing (e.g. raw \n in a value gemma forgot to escape)
+                    import re as _re
+                    cleaned = _re.sub(
+                        r'(?<!\\)([\x00-\x1f])',
+                        lambda m: repr(m.group(0))[1:-1],
+                        chunk,
+                    )
+                    return json.loads(cleaned)
+        i += 1
     raise ValueError(f"Unterminated JSON in response:\n{text[:300]}")
 
 
@@ -275,17 +312,17 @@ def step_measure(
         cmd = [
             sys.executable, str(HARNESS),
             "--run",
+            "--runner", "oai-loop",
             "--mode", mode,
             "--md-binary", md_binary,
             "--oai-api-base", api_base,
+            "--oai-api-key", api_key or "local",
             "--model", model,
             "--oai-request-timeout", str(oai_timeout),
             "--tasks-path", str(candidate_dir / "tasks.json"),
             "--task-ids-path", str(task_ids_path),
             "--results-dir", str(bundle_dir),
         ]
-        if api_key and api_key != "local":
-            cmd += ["--oai-api-key", api_key]
 
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
