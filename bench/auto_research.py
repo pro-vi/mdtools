@@ -475,14 +475,14 @@ def step_assemble_manifest(
             "executor": "guarded",
             "runs_per_task": 1,
             "holdout_version": 1,
-            "request_timeout_seconds": measurement["request_timeout_seconds"],
-            "bundles": measurement["bundles"],
+            "request_timeout_seconds": measurement.get("request_timeout_seconds"),
+            "bundles": measurement.get("bundles", []),
             "outcome": {
-                "mdtools": "pass" if measurement["results"].get("mdtools", {}).get("pass") else "fail",
+                "mdtools": "pass" if results.get("mdtools", {}).get("pass") else "fail",
                 "hybrid": "pass" if hybrid_pass else "fail",
                 "unix": "pass" if unix_pass else "fail",
                 "hybrid_minus_unix_pp": gap_pp,
-                "mdtools_minus_unix_pp": measurement["gap"]["mdtools_minus_unix_pp"],
+                "mdtools_minus_unix_pp": gap.get("mdtools_minus_unix_pp", 0.0),
             },
         },
         "unix_adversary_review": {
@@ -623,8 +623,8 @@ def main() -> None:
     print(f"\n[6/6] Done.", flush=True)
     print(f"  candidate: {candidate_dir}", flush=True)
     print(f"  status:    {manifest['status']}", flush=True)
-    gap = measurement["gap"]["hybrid_minus_unix_pp"]
-    print(f"  gap:       {gap:+.1f}pp (hybrid − unix)", flush=True)
+    gap_display = measurement.get("gap", {}).get("hybrid_minus_unix_pp", 0.0)
+    print(f"  gap:       {gap_display:+.1f}pp (hybrid − unix)", flush=True)
     print(f"  manifest:  {candidate_dir}/manifest.json", flush=True)
 
     if manifest["status"] == "pending-cross-seed":
