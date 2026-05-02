@@ -1,0 +1,50 @@
+{
+  "measured_at": "2026-05-02",
+  "model": "gemma-4-e4b-it-8bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 180,
+  "task_ids": [
+    "C-AR-034"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/auto-research-move-setup-guide-to-before-dependencies-mdtools-gemma-4-e4b-it-8bit-2026-05-02/",
+    "hybrid": "bench/runs/auto-research-move-setup-guide-to-before-dependencies-hybrid-gemma-4-e4b-it-8bit-2026-05-02/",
+    "unix": "bench/runs/auto-research-move-setup-guide-to-before-dependencies-unix-gemma-4-e4b-it-8bit-2026-05-02/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 5.71,
+      "tool_calls": 3,
+      "turns": 4,
+      "mutations": 2,
+      "invalid_responses": 0
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 5.4,
+      "tool_calls": 3,
+      "turns": 4,
+      "mutations": 2,
+      "invalid_responses": 0
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 269.69,
+      "tool_calls": 0,
+      "turns": 30,
+      "mutations": 0,
+      "invalid_responses": 30
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 0.0
+  }
+}

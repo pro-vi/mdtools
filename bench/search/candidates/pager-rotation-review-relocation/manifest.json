@@ -1,7 +1,7 @@
 {
   "family_slug": "pager-rotation-review-relocation",
   "family_name": "Pager rotation review relocation",
-  "status": "rejected-mdtools-fail-promotion-blocked",
+  "status": "rejected-lock-blocked",
   "created_at": "2026-04-30",
   "source": {
     "generator_model": "Hermes-4-70B-4bit",
@@ -41,7 +41,7 @@
     "holdout_version": 1,
     "request_timeout_seconds": 240,
     "bundles": {
-      "mdtools": "bench/runs/t10-34-pager-rotation-review-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-30/",
+      "mdtools": "bench/runs/t11-retest-pager-mdtools-Qwen3.5-27B-4bit-2026-05-02/",
       "hybrid": "bench/runs/t10-34-pager-rotation-review-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-30/",
       "unix": "bench/runs/t10-34-pager-rotation-review-relocation-unix-Qwen3.5-27B-4bit-2026-04-30/"
     },
@@ -59,5 +59,5 @@
     "gap_label": "AST-structural",
     "accepted_as_ast_structural": false
   },
-  "promotion_notes": "Rejected despite the raw AST-structural hybrid-minus-unix gap because mdtools mode failed the seed; the promotion gate requires at least one mdtools win in the family."
+  "promotion_notes": "Retested on 2026-05-02 after `md move-section` admission; mdtools mode still fails, so the AST-structural gap remains lock-blocked."
 }

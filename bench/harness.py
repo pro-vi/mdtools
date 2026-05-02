@@ -1797,7 +1797,7 @@ def main():
     parser.add_argument(
         "--oai-request-timeout",
         type=int,
-        default=60,
+        default=180,
         help="HTTP timeout in seconds for each OAI completion request",
     )
     parser.add_argument(

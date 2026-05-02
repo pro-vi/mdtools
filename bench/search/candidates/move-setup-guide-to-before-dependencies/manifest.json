@@ -1,13 +1,12 @@
 {
-  "family_slug": "certificate-rotation-runbook-relocation",
-  "family_name": "Certificate rotation runbook relocation",
-  "status": "rejected-lock-blocked",
-  "created_at": "2026-04-29",
+  "family_slug": "move-setup-guide-to-before-dependencies",
+  "family_name": "The 'Quick Start Guide' section needs to be moved to appear immediately before t",
+  "status": "rejected-hybrid-fail-no-gap",
+  "created_at": "2026-05-02",
   "source": {
-    "generator_model": "magnum-v4-123b-4bit",
+    "generator_model": "gemma-4-e4b-it-8bit",
     "generator_prompt": "generator-prompt.md",
-    "generator_output": "generator-output.json",
-    "normalization_notes": "candidate-normalization.md"
+    "generator_output": "generator-output.json"
   },
   "realism_review": {
     "reviewer_model": "gemma-4-e4b-it-8bit",
@@ -20,7 +19,7 @@
     "tasks_path": "tasks.json",
     "task_ids_path": "task_ids.json",
     "task_ids": [
-      "C-T10-26"
+      "C-AR-034"
     ],
     "input_docs": [
       "input.md"
@@ -34,22 +33,22 @@
   },
   "measurements": {
     "artifact": "measurement-summary.json",
-    "model": "Qwen3.5-27B-4bit",
+    "model": "gemma-4-e4b-it-8bit",
     "runner": "oai-loop",
     "executor": "guarded",
     "runs_per_task": 1,
     "holdout_version": 1,
-    "request_timeout_seconds": 240,
+    "request_timeout_seconds": 180,
     "bundles": {
-      "mdtools": "bench/runs/t11-retest-certificate-mdtools-Qwen3.5-27B-4bit-2026-05-02/",
-      "hybrid": "bench/runs/t10-26-certificate-rotation-runbook-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
-      "unix": "bench/runs/t10-26-certificate-rotation-runbook-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+      "mdtools": "bench/runs/auto-research-move-setup-guide-to-before-dependencies-mdtools-gemma-4-e4b-it-8bit-2026-05-02/",
+      "hybrid": "bench/runs/auto-research-move-setup-guide-to-before-dependencies-hybrid-gemma-4-e4b-it-8bit-2026-05-02/",
+      "unix": "bench/runs/auto-research-move-setup-guide-to-before-dependencies-unix-gemma-4-e4b-it-8bit-2026-05-02/"
     },
     "outcome": {
       "mdtools": "fail",
-      "hybrid": "pass",
+      "hybrid": "fail",
       "unix": "fail",
-      "hybrid_minus_unix_pp": 100.0,
+      "hybrid_minus_unix_pp": 0.0,
       "mdtools_minus_unix_pp": 0.0
     }
   },
@@ -57,7 +56,7 @@
     "artifact": "unix-adversary-review.json",
     "reviewer_model": "gemma-4-e4b-it-8bit",
     "gap_label": "AST-structural",
-    "accepted_as_ast_structural": false
+    "accepted_as_ast_structural": true
   },
-  "promotion_notes": "Retested on 2026-05-02 after `md move-section` admission; mdtools mode still fails, so the AST-structural gap remains lock-blocked."
+  "promotion_notes": "Auto-generated. Status: rejected-hybrid-fail-no-gap. Gap: +0.0pp. Realism: yes. Unix adversary: AST-structural."
 }

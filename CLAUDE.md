@@ -57,14 +57,15 @@ python bench/harness.py --md-binary target/release/md  # validate 20 benchmark s
 
 ```bash
 # Run single task
-python bench/harness.py --run --mode hybrid --md-binary target/release/md --task T10
+python bench/harness.py --run --runner oai-loop --mode hybrid \
+  --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
+  --oai-api-key 215069 --task T10
 
-# Run with different model
-python bench/harness.py --run --mode hybrid --md-binary target/release/md --model claude-haiku-4-5-20251001
-
-# Full matrix
+# Full matrix (oai-loop, primary model)
 for MODE in unix mdtools hybrid; do
-  python bench/harness.py --run --mode $MODE --md-binary target/release/md --model claude-haiku-4-5-20251001
+  python bench/harness.py --run --runner oai-loop --mode $MODE \
+    --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
+    --oai-api-key 215069 --model Qwen3.5-27B-4bit
 done
 
 # Analyze
@@ -73,6 +74,43 @@ python bench/report.py /tmp/bench_*.txt --markdown
 ```
 
 Headline: Haiku unix 50% → hybrid 87% (+37pp). Sonnet: +5pp correctness, 3-5x speed. Opus: efficiency only. Tool benefit inversely proportional to model capability.
+
+## Auto-research (candidate pipeline)
+
+`bench/auto_research.py` runs the full candidate pipeline in one command:
+generator (mdtools-blind) → realism review → harness measurement (3 modes) →
+unix-adversary review → manifest assembly.
+
+```bash
+# Generate + measure a new candidate (uses primary model by default)
+python bench/auto_research.py \
+  --md-binary target/release/md \
+  --api-base http://localhost:10240/v1 \
+  --api-key 215069
+
+# Dry-run (skip harness measurement — just generator + reviews)
+python bench/auto_research.py \
+  --md-binary target/release/md \
+  --api-base http://localhost:10240/v1 \
+  --api-key 215069 \
+  --skip-measure
+
+# Use a specific generator model (e.g. gemma for speed, Qwen for quality)
+python bench/auto_research.py \
+  --md-binary target/release/md \
+  --api-base http://localhost:10240/v1 \
+  --api-key 215069 \
+  --model gemma-4-e4b-it-8bit
+```
+
+Outputs land in `bench/search/candidates/<slug>/`. Status values:
+- `pending-cross-seed` — gap exists, AST-structural, ready for N=3 promotion gate
+- `rejected-hybrid-fail-no-gap` — both modes failed; generator made task too hard
+- `rejected-both-pass-no-gap` — no gap; unix solved it too
+- `rejected-planning` — realism review said no
+- `rejected-<gap-label>` — gap exists but unix adversary labeled it non-structural
+
+OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
 
 ## Task families
 
