@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-04-30",
+  "measured_at": "2026-05-02",
   "model": "Qwen3.5-27B-4bit",
   "runner": "oai-loop",
   "executor": "guarded",
@@ -10,7 +10,7 @@
     "C-T10-34"
   ],
   "bundles": {
-    "mdtools": "bench/runs/t10-34-pager-rotation-review-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-30/",
+    "mdtools": "bench/runs/t11-retest-pager-mdtools-Qwen3.5-27B-4bit-2026-05-02/",
     "hybrid": "bench/runs/t10-34-pager-rotation-review-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-30/",
     "unix": "bench/runs/t10-34-pager-rotation-review-relocation-unix-Qwen3.5-27B-4bit-2026-04-30/"
   },
@@ -18,14 +18,14 @@
     "mdtools": {
       "pass": false,
       "neutral_pass": false,
-      "elapsed_seconds": 206.0,
-      "tool_calls": 11,
-      "turns": 13,
-      "mutations": 2,
-      "invalid_responses": 1,
-      "unique_invalid_responses": 1,
+      "elapsed_seconds": 387.28,
+      "tool_calls": 18,
+      "turns": 19,
+      "mutations": 8,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
       "policy_violations": 0,
-      "failure_summary": "The mdtools run preserved the heading tree but inserted `### Pager Rotation Review` immediately after the `### Shift Closeout Checklist` heading and before that heading's owned paragraph, leaving block-order and block-text mismatches."
+      "failure_summary": "The mdtools retest still failed with block ordering mismatches and incorrect subsection placement under the destination parent under both scorers."
     },
     "hybrid": {
       "pass": true,
@@ -64,6 +64,6 @@
   },
   "notes": [
     "This candidate reproduced the hybrid-only rescue shape: hybrid completed the structural relocation in 127.12s with no invalid responses, while mdtools-only and unix both failed.",
-    "The unix failure class is structurally relevant, but without a mdtools seed pass the family is stored as rejected evidence and does not move HEADLINE."
+    "The family remains rejected after a 2026-05-02 mdtools retest because mdtools mode still failed, so it cannot satisfy the T10 promotion gate requiring at least one mdtools win."
   ]
 }

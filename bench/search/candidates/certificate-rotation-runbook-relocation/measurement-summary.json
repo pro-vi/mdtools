@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-04-29",
+  "measured_at": "2026-05-02",
   "model": "Qwen3.5-27B-4bit",
   "runner": "oai-loop",
   "executor": "guarded",
@@ -10,7 +10,7 @@
     "C-T10-26"
   ],
   "bundles": {
-    "mdtools": "bench/runs/t10-26-certificate-rotation-runbook-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
+    "mdtools": "bench/runs/t11-retest-certificate-mdtools-Qwen3.5-27B-4bit-2026-05-02/",
     "hybrid": "bench/runs/t10-26-certificate-rotation-runbook-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
     "unix": "bench/runs/t10-26-certificate-rotation-runbook-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
   },
@@ -18,14 +18,14 @@
     "mdtools": {
       "pass": false,
       "neutral_pass": false,
-      "elapsed_seconds": 958.53,
-      "tool_calls": 13,
-      "turns": 30,
-      "mutations": 6,
-      "invalid_responses": 17,
-      "unique_invalid_responses": 10,
+      "elapsed_seconds": 549.21,
+      "tool_calls": 23,
+      "turns": 26,
+      "mutations": 10,
+      "invalid_responses": 2,
+      "unique_invalid_responses": 2,
       "policy_violations": 0,
-      "failure_summary": "The mdtools-only run reached the turn cap and failed under both scorers. Its final document did not match the expected heading tree or block order for the subsection relocation."
+      "failure_summary": "The mdtools retest still failed with heading/body ordering and decoy-block mismatches under both scorers."
     },
     "hybrid": {
       "pass": true,
@@ -63,6 +63,6 @@
   },
   "notes": [
     "The candidate produced a raw +100pp hybrid-minus-unix result and the unix failure was labeled AST-structural.",
-    "The family is still rejected because mdtools mode failed the seed, so it cannot satisfy the T10 promotion gate requiring at least one mdtools win."
+    "The family remains rejected after a 2026-05-02 mdtools retest because mdtools mode still failed, so it cannot satisfy the T10 promotion gate requiring at least one mdtools win."
   ]
 }
