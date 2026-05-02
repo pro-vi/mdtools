@@ -473,7 +473,7 @@ def step_assemble_manifest(
             "model": model,
             "runner": "oai-loop",
             "executor": "guarded",
-            "runs_per_task": 1,
+            "runs_per_task": measurement.get("runs_per_task", 1),
             "holdout_version": 1,
             "request_timeout_seconds": measurement.get("request_timeout_seconds"),
             "bundles": measurement.get("bundles", []),
@@ -630,8 +630,8 @@ def main() -> None:
     if manifest["status"] == "pending-cross-seed":
         print("\nNext step: run cross-seed promotion gate (N=3):", flush=True)
         print(f"  python bench/harness.py --run --mode hybrid --runs-per-task 3 \\")
-        print(f"    --md-binary {args.md_binary} --tasks {candidate_dir}/tasks.json \\")
-        print(f"    --task-ids {candidate_dir}/task_ids.json")
+        print(f"    --md-binary {args.md_binary} --tasks-path {candidate_dir}/tasks.json \\")
+        print(f"    --task-ids-path {candidate_dir}/task_ids.json")
 
 
 if __name__ == "__main__":
