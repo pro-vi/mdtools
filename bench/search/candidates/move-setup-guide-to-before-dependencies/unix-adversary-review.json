@@ -1,0 +1,6 @@
+{
+  "best_unix_strategy": "awk '/^## Quick Start Guide/{start=1; next} /^## System Dependencies/{end=1; next} start && end {print \"\\n\"} start && !end {print} end && start {start=0; print \"\\n\"}' input.md > temp.md && awk '/^## Quick Start Guide/{print \"\\n\"} /^## System Dependencies/{print \"\\n\"}' temp.md > output.md",
+  "gap_label": "AST-structural",
+  "rationale": "Moving a section header and all its content while preserving internal structure requires understanding hierarchical boundaries (AST). Standard line-based tools like sed/awk struggle to define the exact end of a 'Quick Start Guide' block without knowing the subsequent section markers.",
+  "accepted_as_ast_structural": true
+}

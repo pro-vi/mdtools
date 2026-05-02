@@ -1,0 +1,8 @@
+{
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "Reordering sections in technical documentation to improve flow, such as placing a quick start guide before dependencies, is a common editorial task.",
+  "realistic_user": "Technical Writer or Documentation Editor",
+  "concerns": "",
+  "review_preceded_gap_measurement": true
+}

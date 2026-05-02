@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-AR-034",
+    "description": "The 'Quick Start Guide' section needs to be moved to appear immediately before the 'System Dependencies' section. Ensure that the heading structure and all associated content blocks are moved as a single unit without altering their internal formatting.",
+    "input_files": [
+      "bench/search/candidates/move-setup-guide-to-before-dependencies/input.md"
+    ],
+    "expected_output": "bench/search/candidates/move-setup-guide-to-before-dependencies/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]
