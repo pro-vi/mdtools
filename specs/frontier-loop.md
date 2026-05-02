@@ -325,6 +325,50 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
      HEADLINE.md with the bundle pointer AND cause label.
    - If **fixed-anchor** gap moved ≥+5pp since last cross-model
      check, run cross-model on the 18-task fixed-anchor corpus.
+   - If the iteration fails due to infrastructure (`cause: infra`):
+     log the failure, do NOT increment the halt #1 saturation counter,
+     bump `--oai-request-timeout` if the cause is an OAI wall-time
+     overrun, and retry the same iteration intent.
+
+### Product-axis protocol
+
+When a new admitted CLI primitive or scorer fix ships between tiers,
+the **first** steady-state move MUST be a product-axis re-measurement
+sweep (`cause: product`) over every fixed-anchor task that the prior
+tier labeled `mdtools-fail` or `lock-blocked` for a reason the new
+surface addresses. Only after that sweep is the loop free to generate
+new candidates or declare saturation. Skipping the sweep mis-attributes
+the halt reason (tool gap vs. search exhaustion) and wastes the next
+tier's planning.
+
+Concretely:
+1. Build the new binary.
+2. Filter `bench/search/candidates/*/manifest.json` for `status:
+   rejected-lock-blocked` and `status: rejected-mdtools-fail` entries.
+3. For each matching family, re-run `harness.py --run` in all three
+   modes against the fixed-anchor corpus.
+4. Update each candidate's manifest with the new verdict.
+5. Only then proceed to corpus-growth or halt-condition evaluation.
+
+### Agent-axis protocol
+
+When a runner prompt, system prompt, or tool-policy file changes
+between tiers, the loop must re-run at minimum the two lowest-pass-rate
+fixed-anchor tasks in `cause: agent` mode to verify the change did not
+regress existing passes. If those two re-runs both still pass, treat
+the agent change as neutral and continue. If either regresses, the
+agent change is the iteration's substantive content and the fixed-anchor
+gap movement (positive or negative) is the row's Δ.
+
+### Infra-failure recovery protocol
+
+1. Tag the failed measurement `cause: infra` in HEADLINE.md (or omit
+   the row entirely — infra rows are optional bookkeeping).
+2. Do NOT count the failed iteration toward halt #1's no-movement streak.
+3. Diagnose: OAI timeout → bump `--oai-request-timeout`; file vanished
+   from workdir → check harness kill-TERM side effects; harness crash
+   → check scorer error logs.
+4. Retry with corrected parameters before advancing the iteration counter.
 
 ## Auto-research discipline (load-bearing in steady-state only)
 
@@ -461,6 +505,14 @@ label. Allowed values:
   forbidden list. Label this honestly instead of `mdtools-fail` —
   the failure is a lock issue, not a tool/agent issue. Triggers the
   T11 escalation counter (see halt #6 below).
+- `infra` — infrastructure failure prevented a valid measurement: OAI
+  endpoint timeout, workdir file disappearance, harness crash, or
+  scorer error unrelated to the candidate. **Does NOT count toward
+  halt #1 saturation** (the no-movement streak must be composed of
+  genuine zero-delta iterations, not failed measurements). Log the
+  iteration as `cause: infra` with a one-line failure description,
+  retry with corrected parameters (e.g., bumped `--oai-request-timeout`),
+  and continue the iteration counter from the pre-failure state.
 
 Iterations that move only `current-corpus` gap via `composition` are
 admissible only as bookkeeping during buildup. In steady-state,
