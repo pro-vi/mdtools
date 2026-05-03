@@ -1,7 +1,7 @@
 {
   "family_slug": "certificate-rotation-runbook-relocation",
   "family_name": "Certificate rotation runbook relocation",
-  "status": "rejected-lock-blocked",
+  "status": "rejected-AST-structural",
   "created_at": "2026-04-29",
   "source": {
     "generator_model": "magnum-v4-123b-4bit",
@@ -39,18 +39,18 @@
     "executor": "guarded",
     "runs_per_task": 1,
     "holdout_version": 1,
-    "request_timeout_seconds": 240,
+    "request_timeout_seconds": 180,
     "bundles": {
-      "mdtools": "bench/runs/t11-retest-certificate-mdtools-Qwen3.5-27B-4bit-2026-05-02/",
-      "hybrid": "bench/runs/t10-26-certificate-rotation-runbook-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
-      "unix": "bench/runs/t10-26-certificate-rotation-runbook-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+      "mdtools": "bench/runs/t12-iter1q-certificate-rotation-runbook-relocation-mdtools-Qwen3.5-27B-4bit-2026-05-03/",
+      "hybrid": "bench/runs/t12-iter1q-certificate-rotation-runbook-relocation-hybrid-Qwen3.5-27B-4bit-2026-05-03/",
+      "unix": "bench/runs/t12-iter1q-certificate-rotation-runbook-relocation-unix-Qwen3.5-27B-4bit-2026-05-03/"
     },
     "outcome": {
-      "mdtools": "fail",
+      "mdtools": "pass",
       "hybrid": "pass",
       "unix": "fail",
-      "hybrid_minus_unix_pp": 100.0,
-      "mdtools_minus_unix_pp": 0.0
+      "hybrid_minus_unix_pp": 100,
+      "mdtools_minus_unix_pp": 100
     }
   },
   "unix_adversary_review": {
@@ -59,5 +59,5 @@
     "gap_label": "AST-structural",
     "accepted_as_ast_structural": false
   },
-  "promotion_notes": "Retested on 2026-05-02 after `md move-section` admission; mdtools mode still fails, so the AST-structural gap remains lock-blocked."
+  "promotion_notes": "T12 iter1 re-run against Qwen3.5 target: rejected-AST-structural with mdtools=pass, hybrid=pass, unix=fail."
 }

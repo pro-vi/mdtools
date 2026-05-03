@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-23",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Hermes-4-70B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 1224,
+    "bytes_output": 12748,
+    "bytes_observation": 330,
+    "tool_calls": 1,
+    "turns": 30,
+    "mutations": 1,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 523.97,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Installation'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes'), (3, 'Build Failures')] vs [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'Installation'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes'), (3, 'Build Failures')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'CodeFence', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'List'] vs ['Heading', 'Heading', 'CodeFence', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'List']\nblock_text [md]: MISMATCH\n  block 3: '### First Build' vs '### Installation'\nheading_tree [neutral]: MISMATCH [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Installation'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes'), (3, 'Build Failures')] vs [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'Installation'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes'), (3, 'Build Failures')]\nblock_text [neutral]: MISMATCH\n  block 3: '### First Build' vs '### Installation'",
+    "runner_error": null
+  }
+]

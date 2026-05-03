@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-23",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Hermes-4-70B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5050,
+    "bytes_output": 5655,
+    "bytes_observation": 29082,
+    "tool_calls": 30,
+    "turns": 30,
+    "mutations": 5,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 333.04,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Installation'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes'), (3, 'Build Failures')] vs [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'CodeFence', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'List'] vs ['Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'CodeFence', 'List']\nblock_text [md]: MISMATCH\n  block 2: '```text\\nHistorical outline from the 2024 setup guide:\\n### In' vs 'Install the local toolchain before the first build.'\nheading_tree [neutral]: MISMATCH [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Installation'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes'), (3, 'Build Failures')] vs [(1, 'Developer Onboarding Guide'), (2, 'Getting Started'), (3, 'First Build'), (2, 'Prerequisites'), (3, 'Runtime Versions'), (3, 'Access Tokens'), (2, 'Troubleshooting'), (3, 'Installation Notes')]\nblock_text [neutral]: MISMATCH\n  block 2: 'Historical outline from the 2024 setup guide:\\n### Installati' vs 'Install the local toolchain before the first build.'\n  count: 22 vs 19",
+    "runner_error": null
+  }
+]

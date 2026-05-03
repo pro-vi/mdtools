@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-T10-34",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Hermes-4-70B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4735,
+    "bytes_output": 12864,
+    "bytes_observation": 10398,
+    "tool_calls": 14,
+    "turns": 30,
+    "mutations": 5,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 16,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 525.39,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'On-call Runbook'), (2, 'Alert Triage'), (3, 'Pager Rotation Exceptions'), (3, 'Noise Suppression'), (2, 'Shift Handoff'), (3, 'Shift Closeout Checklist'), (3, 'Pager Rotation Review'), (3, 'Follow-up Queue'), (2, 'Reference')] vs [(1, 'On-call Runbook'), (2, 'Alert Triage'), (3, 'Pager Rotation Exceptions'), (3, 'Noise Suppression'), (2, 'Shift Handoff'), (3, 'Follow-up Queue'), (2, 'Reference')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Table', 'CodeFence', 'List', 'Heading', 'Paragraph', 'BlockQuote', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Heading', 'Paragraph', 'Paragraph', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'BlockQuote', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 4: '### Noise Suppression' vs 'Review active pager handoffs before acknowledging escalation'\nheading_tree [neutral]: MISMATCH [(1, 'On-call Runbook'), (2, 'Alert Triage'), (3, 'Pager Rotation Exceptions'), (3, 'Noise Suppression'), (2, 'Shift Handoff'), (3, 'Shift Closeout Checklist'), (3, 'Pager Rotation Review'), (3, 'Follow-up Queue'), (2, 'Reference')] vs [(1, 'On-call Runbook'), (2, 'Alert Triage'), (3, 'Pager Rotation Exceptions'), (3, 'Noise Suppression'), (2, 'Shift Handoff'), (3, 'Follow-up Queue'), (2, 'Reference')]\nblock_text [neutral]: MISMATCH\n  block 4: '### Noise Suppression' vs 'Review active pager handoffs before acknowledging escalation'\n  count: 19 vs 14",
+    "runner_error": null
+  }
+]

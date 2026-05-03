@@ -82,6 +82,7 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 
 | T11-7 | 2026-05-02 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +0.0 | product (re-ran fixed-anchor `T6` after `md move-section` admission; all three modes failed with timeout/invalid-response behavior, so denominator stayed stable and no gap movement occurred.) | bench/runs/t11-retest-T6-fixed-anchor-Qwen3.5-27B-4bit-2026-05-02/ |
 | T12-launch | 2026-05-03 | steady-state | fixed-anchor **+38.9pp** inherited; current-corpus **+45.0pp** (20 tasks) | — | T12 launch baseline. `auto_research.py` pipeline live. Iter 1 = mandatory product-axis sweep of 3 lock-blocked/mdtools-fail candidates (`certificate-rotation-runbook-relocation`, `pager-rotation-review-relocation`, `getting-started-installation-relocation`). Infra iterations now non-counting toward halt #1. | — |
+| T12-1 | 2026-05-03 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +0.0 fixed-anchor | product (mandatory T12 sweep reran 3 target candidates against the updated binary on `Qwen3.5-27B-4bit`; no fixed-anchor delta, current-corpus unchanged, and no new corpus members.) | bench/runs/t12-iter1q-certificate-rotation-runbook-relocation-{mdtools,hybrid,unix}-Qwen3.5-27B-4bit-2026-05-03/, bench/runs/t12-iter1q-pager-rotation-review-relocation-{mdtools,hybrid,unix}-Qwen3.5-27B-4bit-2026-05-03/, bench/runs/t12-iter1q-getting-started-installation-relocation-{mdtools,hybrid,unix}-Qwen3.5-27B-4bit-2026-05-03/ |
 
 ## T9 iter 4 (aborted)
 
