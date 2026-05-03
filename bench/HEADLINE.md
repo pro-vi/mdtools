@@ -81,6 +81,7 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T10-29 | 2026-04-29 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +2.9 current-corpus only | corpus-growth (promoted `error-logging-format-relocation` as C-T10-28 after realism=yes, unix-adversary=`AST-structural`, mdtools seed-1 PASS, hybrid 3/3 PASS, unix 0/3 PASS, and dual-scorer agreement on all promotion cells. Fixed-anchor denominator did not change and no cross-model trigger fires.) | bench/search/accepted/error-logging-format-relocation/ + bench/runs/t10-29-error-logging-format-relocation-{hybrid,unix}-N2-Qwen3.5-27B-4bit-2026-04-29/ |
 
 | T11-7 | 2026-05-02 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +0.0 | product (re-ran fixed-anchor `T6` after `md move-section` admission; all three modes failed with timeout/invalid-response behavior, so denominator stayed stable and no gap movement occurred.) | bench/runs/t11-retest-T6-fixed-anchor-Qwen3.5-27B-4bit-2026-05-02/ |
+| T12-launch | 2026-05-03 | steady-state | fixed-anchor **+38.9pp** inherited; current-corpus **+45.0pp** (20 tasks) | — | T12 launch baseline. `auto_research.py` pipeline live. Iter 1 = mandatory product-axis sweep of 3 lock-blocked/mdtools-fail candidates (`certificate-rotation-runbook-relocation`, `pager-rotation-review-relocation`, `getting-started-installation-relocation`). Infra iterations now non-counting toward halt #1. | — |
 
 ## T9 iter 4 (aborted)
 
@@ -140,32 +141,22 @@ Populated as baseline-buildup completes. Family definitions per
 
 ## Halt criteria
 
-Per T11 spec § Halt conditions (T10's set + 3 saturation-aware patches):
+Per T12 spec § Halt conditions (full set in `specs/frontier-loop.md`):
 
-1. **Gap saturation (steady-state only, T11 tightened):** 3 consecutive
-   iterations produce no fixed-anchor movement AND no surviving corpus
-   growth. Counts ALL iterations, not just promotion-gate attempts.
-2. **Cross-model divergence:** primary-vs-cross-model fixed-anchor
-   gap diverges >10pp.
+1. **Gap saturation:** 3 consecutive iterations with no fixed-anchor
+   movement AND no corpus growth. `infra` iterations do NOT count.
+   Product-axis sweep (iter 1) does not count unless it moves the gap.
+2. **Cross-model divergence:** >10pp between primary and cross-model
+   fixed-anchor gaps.
 3. **Endpoint failure:** MLX unreachable >5 consecutive iterations.
-4. **Cheap channel red** unrepairable in iteration.
-5. **Ledger budget breach** unrepairable.
-6. **CLI temptation / lock-blocked accumulation (T11 expanded):** any
-   new CLI primitive proposal halts; additionally, 3 cumulative
-   `lock-blocked` rejections fire stop-and-summarize even without a
-   direct primitive proposal — the compounding signal IS the proposal.
-7. **Spec incoherence:** rules contradict or block all moves.
-8. **Buildup stall:** 3 consecutive iterations fail to extend baseline.
-9. **Fixed-anchor equilibrium (new in T11):** fixed-anchor gap stable
-   for 5 consecutive iterations AND corpus has grown by ≥2 under
-   discipline since this tier's launch baseline. Success-shaped halt:
-   ship the result and route further hill-climb work as scope expansion
-   outside this loop. Counter measured from T11 launch state — the 2
-   T10-era promotions (C-T10-15, C-T10-28) are part of the launch
-   baseline, not partial credit toward T11's equilibrium.
+6. **Lock-blocked accumulation:** 3 cumulative `lock-blocked` rejections.
+9. **Fixed-anchor equilibrium:** gap stable for 5 consecutive non-infra
+   iterations AND corpus has grown by ≥2 under discipline since T12
+   launch. (T11's 2 promotions are inherited baseline, not partial
+   credit toward T12's equilibrium counter.)
 
-T11 launch counter resets: 0 lock-blocked, 0 stalled iters, 0 buildup
-stalls, 0 stable iters toward halt #9.
+T12 launch counter resets: 0 lock-blocked, 0 stalled iters (infra
+non-counting), 0 stable iters toward halt #9.
 
 ## What this file is NOT
 
