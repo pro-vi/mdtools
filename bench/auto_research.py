@@ -36,6 +36,7 @@ DEFAULT_API_BASE = "http://localhost:10240/v1"
 DEFAULT_API_KEY = "local"
 DEFAULT_MODEL = None  # resolved from /models endpoint
 DEFAULT_OAI_TIMEOUT = 180
+GENERATOR_FALLBACK_MODELS = ("Hermes-4-70B-4bit", "magnum-v4-123b-4bit")
 
 # ── prompt templates ──────────────────────────────────────────────────────────
 
@@ -182,6 +183,38 @@ def _call_oai(
     return data["choices"][0]["message"]["content"]
 
 
+def _call_json(
+    api_base: str,
+    api_key: str,
+    model: str,
+    system: str,
+    user: str,
+    timeout: int,
+    fallback_models: tuple[str, ...] = (),
+    step_name: str = "step",
+) -> tuple[Any, str]:
+    models = [model, *fallback_models]
+    last_error: Exception | None = None
+    for idx, candidate in enumerate(models):
+        try:
+            raw = _call_oai(
+                api_base=api_base,
+                api_key=api_key,
+                model=candidate,
+                system=system,
+                user=user,
+                timeout=timeout,
+            )
+            result = _extract_json(raw)
+            if idx > 0:
+                print(f"    {step_name}: fell back to model {candidate}", flush=True)
+            return result, candidate
+        except Exception as exc:  # broad on purpose: parser + transport
+            last_error = exc
+            continue
+    raise ValueError(f"{step_name}: failed to obtain JSON (models {models}); last_error={last_error}")
+
+
 def _extract_json(text: str) -> Any:
     """Extract the first JSON object or array from a string.
 
@@ -192,67 +225,90 @@ def _extract_json(text: str) -> Any:
     Uses a proper string-aware scanner so awk/sed snippets with { } inside
     JSON string values don't corrupt the depth counter.
     """
-    # Find first structural character
-    start = -1
-    for i, ch in enumerate(text):
-        if ch in "{[":
-            start = i
-            break
-    if start == -1:
-        raise ValueError(f"No JSON found in response:\n{text[:300]}")
+    def _strip_markdown_fence(raw: str) -> str:
+        import re as _re
+        for match in _re.finditer(r"```json\\s*(.*?)```", raw, flags=_re.IGNORECASE | _re.S):
+            candidate = match.group(1).strip()
+            if candidate:
+                return candidate
+        return raw
 
-    i = start
-    depth = 0
-    n = len(text)
-    while i < n:
-        ch = text[i]
-        if ch == '"':
-            # Skip over the entire JSON string value
-            i += 1
-            while i < n:
-                c = text[i]
-                if c == '\\':
-                    i += 2  # skip escaped character
-                    continue
-                if c == '"':
-                    i += 1
-                    break
+    def _json_from(i_start: int, raw: str) -> Any:
+        i = i_start
+        depth = 0
+        n = len(raw)
+        while i < n:
+            ch = raw[i]
+            if ch == '"':
+                # Skip over the entire JSON string value
                 i += 1
+                while i < n:
+                    c = raw[i]
+                    if c == "\\":
+                        i += 2  # skip escaped character
+                        continue
+                    if c == '"':
+                        i += 1
+                        break
+                    i += 1
+                continue
+            if ch in "{[":
+                depth += 1
+            elif ch in "}]":
+                depth -= 1
+                if depth == 0:
+                    chunk = raw[i_start : i + 1]
+                    try:
+                        return json.loads(chunk)
+                    except json.JSONDecodeError:
+                        import re as _re
+                        cleaned = _re.sub(
+                            r"(?<!\\)([\x00-\x1f])",
+                            lambda m: repr(m.group(0))[1:-1],
+                            chunk,
+                        )
+                        return json.loads(cleaned)
+            i += 1
+        raise ValueError(f"Unterminated JSON in response: {raw[i_start:i_start+300]}")
+
+    text = _strip_markdown_fence(text)
+    for i, ch in enumerate(text):
+        if ch not in "{[":
             continue
-        if ch in "{[":
-            depth += 1
-        elif ch in "}]":
-            depth -= 1
-            if depth == 0:
-                chunk = text[start : i + 1]
-                try:
-                    return json.loads(chunk)
-                except json.JSONDecodeError:
-                    # Try replacing bare control characters outside of string
-                    # parsing (e.g. raw \n in a value gemma forgot to escape)
-                    import re as _re
-                    cleaned = _re.sub(
-                        r'(?<!\\)([\x00-\x1f])',
-                        lambda m: repr(m.group(0))[1:-1],
-                        chunk,
-                    )
-                    return json.loads(cleaned)
-        i += 1
-    raise ValueError(f"Unterminated JSON in response:\n{text[:300]}")
+        try:
+            return _json_from(i, text)
+        except ValueError:
+            # Keep scanning for another potential JSON object later in the response
+            continue
+        except json.JSONDecodeError:
+            # Keep scanning for recoverable JSON later in the response
+            continue
+
+    raise ValueError(f"No JSON found in response:\n{text[:300]}")
 
 
 # ── pipeline steps ────────────────────────────────────────────────────────────
 
 def step_generate(api_base: str, api_key: str, model: str, timeout: int) -> dict[str, Any]:
     print("[1/6] Generating candidate...", flush=True)
-    raw = _call_oai(api_base, api_key, model, GENERATOR_SYSTEM, GENERATOR_USER, timeout)
-    result = _extract_json(raw)
+    result, used_model = _call_json(
+        api_base,
+        api_key,
+        model,
+        GENERATOR_SYSTEM,
+        GENERATOR_USER,
+        timeout,
+        fallback_models=GENERATOR_FALLBACK_MODELS,
+        step_name="generator",
+    )
     required = {"slug", "description", "input_markdown", "expected_markdown",
                 "scorer_policy", "realism_rationale"}
     missing = required - set(result.keys())
     if missing:
         raise ValueError(f"Generator output missing keys: {missing}")
+    print(f"    model: {used_model}", flush=True)
     print(f"    slug: {result['slug']}", flush=True)
+    result["_generator_model"] = used_model
     return result
 
 
@@ -277,8 +333,16 @@ def step_realism(
 
         Is this a task a real human would need to perform?
     """)
-    raw = _call_oai(api_base, api_key, model, REALISM_SYSTEM, user, timeout)
-    result = _extract_json(raw)
+    result, _ = _call_json(
+        api_base,
+        api_key,
+        model,
+        REALISM_SYSTEM,
+        user,
+        timeout,
+        fallback_models=GENERATOR_FALLBACK_MODELS,
+        step_name="realism",
+    )
     result.setdefault("review_preceded_gap_measurement", True)
     verdict = result.get("verdict", "no")
     confidence = result.get("confidence", 0.0)
@@ -398,8 +462,16 @@ def step_unix_adversary(
 
         Classify why unix failed and propose the best unix strategy.
     """)
-    raw = _call_oai(api_base, api_key, model, UNIX_ADVERSARY_SYSTEM, user, timeout)
-    result = _extract_json(raw)
+    result, _ = _call_json(
+        api_base,
+        api_key,
+        model,
+        UNIX_ADVERSARY_SYSTEM,
+        user,
+        timeout,
+        fallback_models=GENERATOR_FALLBACK_MODELS,
+        step_name="unix-adversary",
+    )
     result.setdefault("accepted_as_ast_structural",
                       result.get("gap_label") == "AST-structural")
     print(f"    gap_label: {result.get('gap_label')}", flush=True)
@@ -446,7 +518,7 @@ def step_assemble_manifest(
         "status": status,
         "created_at": today,
         "source": {
-            "generator_model": model,
+            "generator_model": generated.get("_generator_model", model),
             "generator_prompt": "generator-prompt.md",
             "generator_output": "generator-output.json",
         },
