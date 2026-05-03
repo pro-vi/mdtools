@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-05-03T11:55:29Z",
+  "finished_at": "2026-05-03T12:01:44Z",
+  "tasks_path": "/Users/provi/Development/_projs/mdtools/bench/search/candidates/relocate-configuration-sections/tasks.json",
+  "task_ids_path": "/Users/provi/Development/_projs/mdtools/bench/search/candidates/relocate-configuration-sections/task_ids.json",
+  "selected_task_ids": [
+    "C-AR-035"
+  ],
+  "modes": [
+    "mdtools"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Hermes-4-70B-4bit",
+  "thinking_level": null,
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "neutral_pass_count": 0,
+      "neutral_pass_rate": 0.0,
+      "avg_elapsed_seconds": 375.52,
+      "avg_tool_calls": 30.0,
+      "avg_bytes_output": 7551.0,
+      "avg_bytes_observation": 59486.0,
+      "avg_mutations": 28.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 0.0,
+      "avg_unique_invalid_responses": 0.0,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "mdtools": {
+        "runs": 1,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 375.52,
+        "avg_tool_calls": 30.0,
+        "avg_bytes_output": 7551.0,
+        "avg_bytes_observation": 59486.0,
+        "avg_mutations": 28.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Auto-research pipeline generator prompt (see auto_research.py GENERATOR_SYSTEM + GENERATOR_USER)

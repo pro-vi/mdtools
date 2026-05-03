@@ -1,0 +1,9 @@
+{
+  "slug": "reorder-changelog-sections-chronologically",
+  "description": "Reorder the sections in the changelog to be in chronological order, with the newest version on top. The 'Unreleased' section should remain at the very top.",
+  "input_markdown": "# Changelog\n\n## Unreleased\n\n- Added new feature X\n- Fixed bug in module Y\n\n## 1.0.0 (2023-05-15)\n\n- Initial public release\n- Includes features A, B, C\n\n## 1.1.0 (2023-06-01)\n\n- Added feature D\n- Improved performance of feature B\n\n## 1.0.1 (2023-05-20)\n\n- Fixed critical bug in feature C\n- Updated documentation\n\n```\nTODO: Add 1.1.1 patch release notes\n```",
+  "expected_markdown": "# Changelog\n\n## Unreleased\n\n- Added new feature X\n- Fixed bug in module Y\n\n## 1.1.0 (2023-06-01)\n\n- Added feature D\n- Improved performance of feature B\n\n## 1.0.1 (2023-05-20)\n\n- Fixed critical bug in feature C\n- Updated documentation\n\n## 1.0.0 (2023-05-15)\n\n- Initial public release\n- Includes features A, B, C\n\n```\nTODO: Add 1.1.1 patch release notes\n```",
+  "scorer_policy": "normalized_text: heading_tree + block_order + block_text",
+  "realism_rationale": "Changelog sections often get added out-of-order as new versions are released, requiring periodic reordering to keep them in a logical chronological sequence.",
+  "_generator_model": "magnum-v4-123b-4bit"
+}

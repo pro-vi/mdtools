@@ -1,0 +1,6 @@
+{
+  "best_unix_strategy": "Use an awk script that sets RS='' or uses stateful buffering to capture multi-line sections delimited by '##' headers. Extract version/date from headers into a sortable key. Store section contents in an array. In the END block, sort the keys (handling 'Unreleased' as a special case to print first), then output the sorted blocks. Alternatively, use perl -0777 with a regex substitution that captures sections and sorts them via a temporary array.",
+  "gap_label": "AST-structural",
+  "rationale": "This task requires identifying multi-line blocks bounded by section headers and reordering them based on metadata within those headers. Line-based tools like sed and basic awk cannot easily preserve content associations during sorting without complex state management, making the structural manipulation of document blocks the primary failure point.",
+  "accepted_as_ast_structural": true
+}

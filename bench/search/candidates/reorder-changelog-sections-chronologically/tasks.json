@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-AR-035",
+    "description": "Reorder the sections in the changelog to be in chronological order, with the newest version on top. The 'Unreleased' section should remain at the very top.",
+    "input_files": [
+      "bench/search/candidates/reorder-changelog-sections-chronologically/input.md"
+    ],
+    "expected_output": "bench/search/candidates/reorder-changelog-sections-chronologically/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

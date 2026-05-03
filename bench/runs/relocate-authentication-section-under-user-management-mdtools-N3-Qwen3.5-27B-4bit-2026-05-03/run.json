@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-05-03T14:01:21Z",
+  "finished_at": "2026-05-03T14:28:26Z",
+  "tasks_path": "bench/search/candidates/relocate-authentication-section-under-user-management/tasks.json",
+  "task_ids_path": "bench/search/candidates/relocate-authentication-section-under-user-management/task_ids.json",
+  "selected_task_ids": [
+    "C-AR-036"
+  ],
+  "modes": [
+    "mdtools"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-27B-4bit",
+  "thinking_level": null,
+  "runs_per_task": 3,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 2,
+      "pass_rate": 0.6666666666666666,
+      "neutral_pass_count": 2,
+      "neutral_pass_rate": 0.6666666666666666,
+      "avg_elapsed_seconds": 541.51,
+      "avg_tool_calls": 8.0,
+      "avg_bytes_output": 37392.0,
+      "avg_bytes_observation": 13246.333333333334,
+      "avg_mutations": 1.3333333333333333,
+      "avg_policy_violations": 1.3333333333333333,
+      "avg_invalid_responses": 10.0,
+      "avg_unique_invalid_responses": 5.0,
+      "requery_rate": 0.6666666666666666
+    },
+    "by_mode": {
+      "mdtools": {
+        "runs": 3,
+        "pass_count": 2,
+        "pass_rate": 0.6666666666666666,
+        "neutral_pass_count": 2,
+        "neutral_pass_rate": 0.6666666666666666,
+        "avg_elapsed_seconds": 541.51,
+        "avg_tool_calls": 8.0,
+        "avg_bytes_output": 37392.0,
+        "avg_bytes_observation": 13246.333333333334,
+        "avg_mutations": 1.3333333333333333,
+        "avg_policy_violations": 1.3333333333333333,
+        "avg_invalid_responses": 10.0,
+        "avg_unique_invalid_responses": 5.0,
+        "requery_rate": 0.6666666666666666
+      }
+    }
+  }
+}

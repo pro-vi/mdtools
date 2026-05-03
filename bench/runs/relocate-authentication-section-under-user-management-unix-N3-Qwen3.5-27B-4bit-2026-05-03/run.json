@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-05-03T14:40:32Z",
+  "finished_at": "2026-05-03T15:29:01Z",
+  "tasks_path": "bench/search/candidates/relocate-authentication-section-under-user-management/tasks.json",
+  "task_ids_path": "bench/search/candidates/relocate-authentication-section-under-user-management/task_ids.json",
+  "selected_task_ids": [
+    "C-AR-036"
+  ],
+  "modes": [
+    "unix"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.5-27B-4bit",
+  "thinking_level": null,
+  "runs_per_task": 3,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "neutral_pass_count": 0,
+      "neutral_pass_rate": 0.0,
+      "avg_elapsed_seconds": 969.6066666666667,
+      "avg_tool_calls": 10.333333333333334,
+      "avg_bytes_output": 67628.66666666667,
+      "avg_bytes_observation": 3828.3333333333335,
+      "avg_mutations": 6.666666666666667,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 19.666666666666668,
+      "avg_unique_invalid_responses": 8.333333333333334,
+      "requery_rate": 0.3333333333333333
+    },
+    "by_mode": {
+      "unix": {
+        "runs": 3,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 969.6066666666667,
+        "avg_tool_calls": 10.333333333333334,
+        "avg_bytes_output": 67628.66666666667,
+        "avg_bytes_observation": 3828.3333333333335,
+        "avg_mutations": 6.666666666666667,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 19.666666666666668,
+        "avg_unique_invalid_responses": 8.333333333333334,
+        "requery_rate": 0.3333333333333333
+      }
+    }
+  }
+}

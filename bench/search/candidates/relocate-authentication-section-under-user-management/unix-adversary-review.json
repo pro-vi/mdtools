@@ -1,0 +1,6 @@
+{
+  "best_unix_strategy": "awk -v RS='^#+' -v ORS='\n' '/^## Architecture$/{nextsec=\"\";linecount=0} /^### /{if (nextsec==\"\" && $0 ~ /^## User Management$/) {sub(\"^### \", \"  ### \", $0); print; nextsec=\"\"; linecount=0} else if (nextsec==\"\" && $0 ~ /^## User Management$/) {nextsec=\"\"; linecount=0} else {print}} /^## User Management$/{nextsec=\"\"; linecount=0; next} /^## /{print; linecount=0} {print} END{exit}' ORS RS input.md > output.md",
+  "gap_label": "AST-structural",
+  "rationale": "The task requires understanding heading hierarchy and inserting content at a nested position, which is not reliably solvable with line-oriented tools like awk that cannot track structural context across the document.",
+  "accepted_as_ast_structural": true
+}
