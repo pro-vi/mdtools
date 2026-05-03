@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-037",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4549,
+    "bytes_output": 6219,
+    "bytes_observation": 11119,
+    "tool_calls": 8,
+    "turns": 10,
+    "mutations": 3,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 184.05,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'System Design Document'), (2, 'Overview'), (2, 'Data Ingestion Pipeline'), (3, 'Data Sources'), (2, 'Reliability'), (3, 'Fault Tolerance'), (3, 'Key Metrics'), (2, 'Monitoring'), (3, 'Metrics Collection'), (2, 'Implementation Plan'), (3, 'Phase 1: Infrastructure Setup')] vs [(1, 'System Design Document'), (2, 'Overview'), (2, 'Data Ingestion Pipeline'), (3, 'Data Sources'), (2, 'Reliability'), (3, 'Key Metrics'), (3, 'Fault Tolerance'), (2, 'Monitoring'), (3, 'Metrics Collection'), (2, 'Implementation Plan'), (3, 'Phase 1: Infrastructure Setup')]\nblock_order [md]: OK\nblock_text [md]: MISMATCH\n  block 8: '### Fault Tolerance' vs '### Key Metrics'\nheading_tree [neutral]: MISMATCH [(1, 'System Design Document'), (2, 'Overview'), (2, 'Data Ingestion Pipeline'), (3, 'Data Sources'), (2, 'Reliability'), (3, 'Fault Tolerance'), (3, 'Key Metrics'), (2, 'Monitoring'), (3, 'Metrics Collection'), (2, 'Implementation Plan'), (3, 'Phase 1: Infrastructure Setup')] vs [(1, 'System Design Document'), (2, 'Overview'), (2, 'Data Ingestion Pipeline'), (3, 'Data Sources'), (2, 'Reliability'), (3, 'Key Metrics'), (3, 'Fault Tolerance'), (2, 'Monitoring'), (3, 'Metrics Collection'), (2, 'Implementation Plan'), (3, 'Phase 1: Infrastructure Setup')]\nblock_text [neutral]: MISMATCH\n  block 8: '### Fault Tolerance' vs '### Key Metrics'",
+    "runner_error": null
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "best_unix_strategy": "Use awk to track heading hierarchy by counting leading # symbols, buffer content when inside 'Overview' section and identify '### Key Metrics' subsection, then insert that buffered content after '### Fault Tolerance' in the '## Reliability' section. This requires stateful tracking of current section context and subsection nesting.",
+  "gap_label": "AST-structural",
+  "rationale": "This task requires understanding heading hierarchy (## vs ###) and section boundaries to distinguish the correct 'Key Metrics' subsection from the decoy 'Metrics' heading. Line-based tools like sed/awk cannot reliably track document structure and section nesting, making precise relocation of subsections extremely error-prone.",
+  "accepted_as_ast_structural": true
+}

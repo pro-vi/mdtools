@@ -1,0 +1,8 @@
+{
+  "verdict": "yes",
+  "confidence": 0.9,
+  "rationale": "Reorganizing content within technical design documents to improve logical flow is a standard activity during the iterative development process.",
+  "realistic_user": "Software Engineer or Technical Writer",
+  "concerns": "The explicit mention of a 'decoy' heading is a benchmark artifact, though distinguishing between similarly named sections is a genuine editing challenge.",
+  "review_preceded_gap_measurement": true
+}
