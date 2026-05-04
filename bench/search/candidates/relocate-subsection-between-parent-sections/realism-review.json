@@ -1,0 +1,9 @@
+{
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "Technical writers and developers routinely reorganize documentation structure to improve logical flow and maintainability as projects or API surfaces evolve.",
+  "realistic_user": "Technical writer or software developer maintaining project documentation",
+  "concerns": "",
+  "review_preceded_gap_measurement": true,
+  "reviewer_model": "Qwen3.6-35B-A3B-8bit"
+}

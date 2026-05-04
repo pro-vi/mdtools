@@ -1,0 +1,50 @@
+{
+  "measured_at": "2026-05-04",
+  "model": "Qwen3.6-35B-A3B-8bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 180,
+  "task_ids": [
+    "C-AR-041"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/auto-research-relocate-subsection-between-parent-sections-mdtools-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "hybrid": "bench/runs/auto-research-relocate-subsection-between-parent-sections-hybrid-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "unix": "bench/runs/auto-research-relocate-subsection-between-parent-sections-unix-Qwen3.6-35B-A3B-8bit-2026-05-04/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 194.97,
+      "tool_calls": 20,
+      "turns": 30,
+      "mutations": 4,
+      "invalid_responses": 10
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 184.76,
+      "tool_calls": 23,
+      "turns": 30,
+      "mutations": 9,
+      "invalid_responses": 7
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 400.07,
+      "tool_calls": 2,
+      "turns": 30,
+      "mutations": 0,
+      "invalid_responses": 28
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 0.0
+  }
+}

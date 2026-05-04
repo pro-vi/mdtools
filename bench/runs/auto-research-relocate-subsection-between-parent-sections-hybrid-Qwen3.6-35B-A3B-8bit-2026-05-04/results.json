@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-041",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 4870,
+    "bytes_output": 33078,
+    "bytes_observation": 26501,
+    "tool_calls": 23,
+    "turns": 30,
+    "mutations": 9,
+    "policy_violations": 2,
+    "requeried": true,
+    "invalid_responses": 7,
+    "unique_invalid_responses": 7,
+    "elapsed_seconds": 184.76,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (2, 'Deployment')] vs [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (2, 'Deployment')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 13: 'GET /health' vs '## Deployment'\nheading_tree [neutral]: MISMATCH [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (2, 'Deployment')] vs [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (2, 'Deployment')]\nblock_text [neutral]: MISMATCH\n  block 13: 'GET /health' vs '## Deployment'\n  count: 22 vs 15",
+    "runner_error": null
+  }
+]
