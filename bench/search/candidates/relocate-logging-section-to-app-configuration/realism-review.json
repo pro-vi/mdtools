@@ -1,0 +1,9 @@
+{
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "Reorganizing markdown documentation sections to improve logical grouping and navigability is a standard maintenance task performed by technical writers and developers.",
+  "realistic_user": "Technical writer or software developer maintaining project documentation.",
+  "concerns": "",
+  "review_preceded_gap_measurement": true,
+  "reviewer_model": "Qwen3.6-35B-A3B-8bit"
+}

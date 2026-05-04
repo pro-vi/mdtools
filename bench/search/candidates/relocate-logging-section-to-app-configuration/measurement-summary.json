@@ -1,0 +1,50 @@
+{
+  "measured_at": "2026-05-04",
+  "model": "Qwen3.6-35B-A3B-8bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "request_timeout_seconds": 180,
+  "task_ids": [
+    "C-AR-040"
+  ],
+  "bundles": {
+    "mdtools": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-mdtools-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "hybrid": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-hybrid-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "unix": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-unix-Qwen3.6-35B-A3B-8bit-2026-05-04/"
+  },
+  "results": {
+    "mdtools": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 239.1,
+      "tool_calls": 16,
+      "turns": 30,
+      "mutations": 0,
+      "invalid_responses": 14
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 54.09,
+      "tool_calls": 12,
+      "turns": 14,
+      "mutations": 2,
+      "invalid_responses": 1
+    },
+    "unix": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 97.53,
+      "tool_calls": 20,
+      "turns": 26,
+      "mutations": 9,
+      "invalid_responses": 5
+    }
+  },
+  "gap": {
+    "hybrid_minus_unix_pp": 0.0,
+    "mdtools_minus_unix_pp": 0.0
+  }
+}

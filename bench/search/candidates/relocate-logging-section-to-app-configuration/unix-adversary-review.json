@@ -1,0 +1,7 @@
+{
+  "best_unix_strategy": "Use an awk script to track heading hierarchy levels. When '### Logging' is found, store subsequent lines in a buffer until a heading with level <= 3 appears, marking the section end. Remove the stored block from its original location and insert it immediately after the '## Application Configuration' heading.",
+  "gap_label": "AST-structural",
+  "rationale": "The task requires identifying section boundaries based on heading hierarchy and nesting depth, which is a structural operation. Line-based tools like sed and awk lack native AST awareness and must rely on complex state tracking to detect where a section ends relative to sibling and parent headings, making this approach brittle and difficult to implement reliably.",
+  "accepted_as_ast_structural": true,
+  "reviewer_model": "Qwen3.6-35B-A3B-8bit"
+}
