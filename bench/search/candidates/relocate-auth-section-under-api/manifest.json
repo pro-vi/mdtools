@@ -1,0 +1,62 @@
+{
+  "family_slug": "relocate-auth-section-under-api",
+  "family_name": "Move the 'Authentication' section and its contents from under the 'Configuration",
+  "status": "rejected-cross-seed-instability",
+  "created_at": "2026-05-04",
+  "source": {
+    "generator_model": "Hermes-4-70B-4bit",
+    "generator_prompt": "generator-prompt.md",
+    "generator_output": "generator-output.json"
+  },
+  "realism_review": {
+    "reviewer_model": "Qwen3.6-35B-A3B-8bit",
+    "artifact": "realism-review.json",
+    "verdict": "yes",
+    "confidence": 0.95,
+    "review_preceded_gap_measurement": true
+  },
+  "task_definition": {
+    "tasks_path": "tasks.json",
+    "task_ids_path": "task_ids.json",
+    "task_ids": [
+      "C-AR-039"
+    ],
+    "input_docs": [
+      "input.md"
+    ],
+    "expected_outputs": [
+      "expected.md"
+    ],
+    "scorer_policies": [
+      "normalized_text: heading_tree + block_order + block_text"
+    ]
+  },
+  "measurements": {
+    "artifact": "measurement-summary.json",
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "runner": "oai-loop",
+    "executor": "guarded",
+    "runs_per_task": 1,
+    "holdout_version": 1,
+    "request_timeout_seconds": 180,
+    "bundles": {
+      "mdtools": "bench/runs/auto-research-relocate-auth-section-under-api-mdtools-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+      "hybrid": "bench/runs/auto-research-relocate-auth-section-under-api-hybrid-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+      "unix": "bench/runs/auto-research-relocate-auth-section-under-api-unix-Qwen3.6-35B-A3B-8bit-2026-05-04/"
+    },
+    "outcome": {
+      "mdtools": "fail",
+      "hybrid": "pass",
+      "unix": "fail",
+      "hybrid_minus_unix_pp": 100.0,
+      "mdtools_minus_unix_pp": 0.0
+    }
+  },
+  "unix_adversary_review": {
+    "artifact": "unix-adversary-review.json",
+    "reviewer_model": "Qwen3.6-35B-A3B-8bit",
+    "gap_label": "AST-structural",
+    "accepted_as_ast_structural": true
+  },
+  "promotion_notes": "Auto-generated. Status: rejected-cross-seed-instability. Seed-1: mdtools FAIL / hybrid PASS / unix FAIL with +100pp gap. Seed-2-3: mdtools 0/3, hybrid 2/3, unix 0/3 (cross-seed unstable), no promotion."
+}

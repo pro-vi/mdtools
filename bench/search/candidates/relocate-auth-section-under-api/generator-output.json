@@ -1,0 +1,9 @@
+{
+  "slug": "relocate-auth-section-under-api",
+  "description": "Move the 'Authentication' section and its contents from under the 'Configuration' section to be a top-level section. The document is a technical API usage guide.",
+  "input_markdown": "# Project API Guide\n\n## Configuration\n\n### Authentication\n\nAll API requests must include a valid bearer token in the `Authorization` header.\n\nExample:\n```http\nGET /api/v1/resource HTTP/1.1\nAuthorization: Bearer YOUR_TOKEN_HERE\n```\n\n### Rate Limiting\n\nThe API enforces rate limiting:\n- 100 requests per minute\n- 1000 requests per hour\n\n## Endpoints\n\n### User\n\n`GET /user`\n\nReturns basic user information.\n\n### Notifications\n\n`POST /notifications`\n\nSends a notification to the user.\n",
+  "expected_markdown": "# Project API Guide\n\n## Authentication\n\nAll API requests must include a valid bearer token in the `Authorization` header.\n\nExample:\n```http\nGET /api/v1/resource HTTP/1.1\nAuthorization: Bearer YOUR_TOKEN_HERE\n```\n\n## Configuration\n\n### Rate Limiting\n\nThe API enforces rate limiting:\n- 100 requests per minute\n- 1000 requests per hour\n\n## Endpoints\n\n### User\n\n`GET /user`\n\nReturns basic user information.\n\n### Notifications\n\n`POST /notifications`\n\nSends a notification to the user.\n",
+  "scorer_policy": "normalized_text: heading_tree + block_order + block_text",
+  "realism_rationale": "Reordering sections in technical documentation is common when refactoring content structure for better logical flow and discoverability.",
+  "_generator_model": "Hermes-4-70B-4bit"
+}

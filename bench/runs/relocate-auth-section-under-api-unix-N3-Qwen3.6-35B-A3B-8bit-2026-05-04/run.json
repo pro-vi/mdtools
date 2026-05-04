@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-05-04T11:52:11Z",
+  "finished_at": "2026-05-04T12:18:25Z",
+  "tasks_path": "bench/search/candidates/relocate-auth-section-under-api/tasks.json",
+  "task_ids_path": "bench/search/candidates/relocate-auth-section-under-api/task_ids.json",
+  "selected_task_ids": [
+    "C-AR-039"
+  ],
+  "modes": [
+    "unix"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.6-35B-A3B-8bit",
+  "thinking_level": null,
+  "runs_per_task": 3,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "neutral_pass_count": 0,
+      "neutral_pass_rate": 0.0,
+      "avg_elapsed_seconds": 524.4933333333333,
+      "avg_tool_calls": 1.3333333333333333,
+      "avg_bytes_output": 87923.33333333333,
+      "avg_bytes_observation": 725.0,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 26.666666666666668,
+      "avg_unique_invalid_responses": 13.666666666666666,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "unix": {
+        "runs": 3,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 524.4933333333333,
+        "avg_tool_calls": 1.3333333333333333,
+        "avg_bytes_output": 87923.33333333333,
+        "avg_bytes_observation": 725.0,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 26.666666666666668,
+        "avg_unique_invalid_responses": 13.666666666666666,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}
