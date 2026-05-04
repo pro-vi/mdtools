@@ -227,7 +227,7 @@ def _extract_json(text: str) -> Any:
     """
     def _strip_markdown_fence(raw: str) -> str:
         import re as _re
-        for match in _re.finditer(r"```json\\s*(.*?)```", raw, flags=_re.IGNORECASE | _re.S):
+        for match in _re.finditer(r"```json\s*(.*?)```", raw, flags=_re.IGNORECASE | _re.S):
             candidate = match.group(1).strip()
             if candidate:
                 return candidate
@@ -333,7 +333,7 @@ def step_realism(
 
         Is this a task a real human would need to perform?
     """)
-    result, _ = _call_json(
+    result, used_model = _call_json(
         api_base,
         api_key,
         model,
@@ -344,6 +344,7 @@ def step_realism(
         step_name="realism",
     )
     result.setdefault("review_preceded_gap_measurement", True)
+    result["reviewer_model"] = used_model
     verdict = result.get("verdict", "no")
     confidence = result.get("confidence", 0.0)
     print(f"    verdict: {verdict} (confidence {confidence})", flush=True)
@@ -462,7 +463,7 @@ def step_unix_adversary(
 
         Classify why unix failed and propose the best unix strategy.
     """)
-    result, _ = _call_json(
+    result, used_model = _call_json(
         api_base,
         api_key,
         model,
@@ -472,6 +473,7 @@ def step_unix_adversary(
         fallback_models=GENERATOR_FALLBACK_MODELS,
         step_name="unix-adversary",
     )
+    result["reviewer_model"] = used_model
     result.setdefault("accepted_as_ast_structural",
                       result.get("gap_label") == "AST-structural")
     print(f"    gap_label: {result.get('gap_label')}", flush=True)
