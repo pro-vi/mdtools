@@ -1,4 +1,4 @@
-# mdtools Frontier Loop Prompt — T12 (Automated Pipeline + Cross-Model Expansion)
+# mdtools Frontier Loop Prompt — T13 (Model Upgrade: Qwen3.6-35B-A3B-8bit)
 
 ## Rationale
 
@@ -46,9 +46,9 @@ forward. T11's saturation-aware patches carry forward. T12 adds:
 automated pipeline, infra-failure non-counting, mandatory product-axis
 sweep as iter 1.
 
-## What T12 lets the loop change vs. what stays locked
+## What T13 lets the loop change vs. what stays locked
 
-T12 is a hill-climb tier: the loop has **broad freedom over the tool
+T13 is a hill-climb tier: the loop has **broad freedom over the tool
 substrate** and **zero freedom over the measurement substrate**.
 Anything below the line is a legitimate `product`/`agent`/`scorer`
 move; anything above is fixed and tampering is treated as cheating
@@ -99,28 +99,21 @@ under the composition-discipline rule.
   labels are the only AST-structural verdict that admits a corpus
   member. Skipping or self-judging either is cheating.
 
-**Counter resets at T12 launch**
+**Counter resets at T13 launch**
 
-T11's halt #1 was a tier exit, not a halt that T12 inherits. T12
+T12's saturation halt #1 was a tier exit, not a halt that T13 inherits. T13
 launches with: 0 lock-blocked rejections, 0 stalled iterations (infra
 iterations never count), 0 buildup stalls. The "5 consecutive stable
 + corpus grew by ≥2" equilibrium counter (halt #9) is measured **from
-this T12 launch baseline**, not cumulatively across tiers — the 2
-promoted candidates from T10 (C-T10-15, C-T10-28) and any promoted in
-T11 are part of the launch state, not partial credit toward this
-tier's equilibrium.
+this T13 launch baseline**, not cumulatively across tiers.
 
 **Expected first iteration shape**
 
-Iter 1 is a mandatory product-axis sweep (see § Per-iteration shape
-step 3). Re-run every `rejected-lock-blocked` and `rejected-mdtools-fail`
-candidate against the fixed-anchor corpus with the current binary. The
-2 remaining `rejected-lock-blocked` candidates (certificate-rotation-
-runbook-relocation, pager-rotation-review-relocation) are the primary
-targets — both are subsection-relocation shapes that `md move-section`
-directly addresses. If either flips FAIL → PASS, append a `cause: product`
-row to HEADLINE.md. If fixed-anchor gap moves ≥+5pp, the cross-model
-trigger fires for iteration 2.
+No mandatory product-axis sweep for T13 iter 1 — the T12 sweep (certificate-
+rotation-runbook-relocation, pager-rotation-review-relocation) already ran and
+all lock-blocked candidates were re-evaluated. Go straight to corpus-growth
+diagnosis: generate a new candidate via `bench/auto_research.py` with the
+upgraded model and run the N=3 promotion gate.
 
 ## Prompt
 
@@ -182,7 +175,7 @@ Inadmissible during buildup:
   signal. All buildup-phase Δ columns are labeled `composition` and
   do not count as movement.
 
-T12 launches into **steady-state** with 18/18 tasks measured at
+T13 launches into **steady-state** with 18/18 tasks measured at
 **+38.9pp** fixed-anchor (stamped at T10-10) and current-corpus +45.0pp
 on 20 tasks. Baseline-buildup is complete; the buildup-phase rules above
 are documented for completeness and for any future tier that re-opens
@@ -220,7 +213,7 @@ table with the bundle pointer AND a `cause` label
 HEADLINE.md update is never a standalone iteration; it is the
 bookkeeping that closes a real move.
 
-The following are inadmissible in T12 (both phases):
+The following are inadmissible in T13 (both phases):
 
 - producing a bundle whose only purpose is coverage cell-filling
   (does NOT apply to baseline-buildup; extending the missing 7 is
@@ -239,7 +232,7 @@ The following are inadmissible in T12 (both phases):
 
 ## Evaluator maturity
 
-Current tier: T12.
+Current tier: T13.
 T7+T8's substrate is frozen baseline. T9's headline-as-single-metric +
 T10's two-phase + two-gap + composition-discipline framing all preserved.
 T11 adds: `lock-blocked` rejection category, tightened gap-saturation
@@ -247,6 +240,7 @@ halt, lock-blocked accumulation halt, and equilibrium-as-valid halt.
 T12 adds: `bench/auto_research.py` automated pipeline, `cause: infra`
 non-counting toward halt #1, mandatory product-axis sweep as iter 1,
 OAI timeout bumped to 180s default.
+T13 adds: model upgrade to `Qwen3.6-35B-A3B-8bit` (primary), no iter-1 sweep.
 Auto-research and the 8 discipline rules are deferred to steady-state.
 
 ## Endpoint configuration
@@ -254,7 +248,7 @@ Auto-research and the 8 discipline rules are deferred to steady-state.
 The MLX server on `http://localhost:10240/v1` (OAI-compatible) hosts the
 target models. Pass `--runner oai-loop --oai-api-base
 http://localhost:10240/v1 --oai-api-key 215069 --model
-Qwen3.5-27B-4bit` to `bench/harness.py --run`.
+Qwen3.6-35B-A3B-8bit` to `bench/harness.py --run`.
 
 ## Reward channels
 
@@ -292,13 +286,9 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
      row and flip `phase: steady-state` in HEADLINE.md. That phase
      transition counts as the iteration's substantive move.
 3. **If phase = steady-state:**
-   - **Iter 1 (mandatory product-axis sweep, T12 only):** Before
-     generating any new candidates, re-run every candidate in
-     `bench/search/candidates/` with status `rejected-lock-blocked`
-     or `rejected-mdtools-fail` against the fixed-anchor corpus using
-     the current `target/release/md` binary. Update each manifest.
-     Record as `cause: product` in HEADLINE.md if any fixed-anchor gap
-     moves. This sweep runs once; subsequent iterations skip it.
+   - **Iter 1 (T13):** No mandatory product-axis sweep — the T12 sweep
+     already re-evaluated all `rejected-lock-blocked` candidates.
+     Go directly to corpus-growth diagnosis.
    - Diagnose: is the fixed-anchor gap stalling, the corpus stalling,
      is there an open failing trace from a recent run, OR has the
      product surface changed since the last fixed-anchor measurement
@@ -308,8 +298,8 @@ Qwen3.5-27B-4bit` to `bench/harness.py --run`.
      diagnosis:
      - New candidate → run `bench/auto_research.py --md-binary
        target/release/md --api-base http://localhost:10240/v1 --api-key
-       215069`. If status is `pending-cross-seed`, run N=3 promotion
-       gate immediately.
+       215069 --model Qwen3.6-35B-A3B-8bit`. If status is
+       `pending-cross-seed`, run N=3 promotion gate immediately.
      - Product surface changed → re-measure affected fixed-anchor
        tasks with `cause: product` (or `agent` / `scorer` per the
        sub-axis). Existing candidates labeled `mdtools-fail` /
@@ -560,7 +550,7 @@ Halt fires on the **first** of:
    lift via product work, or new generator/model) outside this loop.
    This is the success-shaped halt, not the failure-shaped halts above.
 
-The halt summary lives at `bench/probes/t12-summary.md`, ≤200 lines,
+The halt summary lives at `bench/probes/t13-summary.md`, ≤200 lines,
 with: final fixed-anchor gap, final current-corpus gap, final corpus
 size, phase at halt, families accepted/rejected with gap labels
 (including any `lock-blocked` instances), cross-model divergence at
@@ -589,7 +579,7 @@ the next loop or scope-expansion work.
 - **Telemetry contracts** (`bench/telemetry/<command>.md`): per-command
   recording shape — admissible to add when a finding requires it.
 - **Run bundles** (`bench/runs/`): per-iteration with `holdout_version`.
-- **Halt summary** (`bench/probes/t12-summary.md`): bounded.
+- **Halt summary** (`bench/probes/t13-summary.md`): bounded.
 ```
 
 ## Outstanding repo state
@@ -597,51 +587,47 @@ the next loop or scope-expansion work.
 - **`bench/HEADLINE.md` is canonical runtime state.** Read it for
   current `phase`, fixed-anchor gap, current-corpus gap, history, and
   per-family table. Do NOT assume the launch-time numbers — they evolve
-  every iteration. As of this T12 launch: phase is steady-state,
+  every iteration. As of this T13 launch: phase is steady-state,
   fixed-anchor +38.9pp, current-corpus +45.0pp on 20 tasks (original
   18 + C-T10-15 server-setup-relocation + C-T10-28 error-logging-
-  relocation, both promoted under T10's auto-research discipline as
-  `AST-structural`). All 18 fixed-anchor tasks measured.
-- **Search staging is populated.** `bench/search/candidates/`,
-  `bench/search/quarantine/`, and `bench/search/accepted/` already
-  exist. T10 left ~22 candidate bundles in `bench/search/candidates/`
-  rejected as `mdtools-fail`/`hybrid-fail` — many describe
-  subsection-relocation shapes that `md move-section` directly addresses.
-  T12 iter 1 re-evaluates these as a mandatory product-axis sweep.
+  relocation). All 18 fixed-anchor tasks measured.
+- **Search staging is populated.** `bench/search/candidates/` has ~22
+  rejected candidate bundles from T10/T11/T12 — primarily subsection-
+  relocation shapes. T12's mandatory product-axis sweep already re-ran
+  all `rejected-lock-blocked` entries; no repeat sweep needed for T13.
 - **MLX endpoint live on port 10240.** API key: `215069`. Primary target
-  `Qwen3.5-27B-4bit` and cross-model target `Qwen3.5-122B-A10B-4bit`
-  are both loaded. OAI timeout: 180s (bumped from T11's 60s).
+  `Qwen3.6-35B-A3B-8bit` (upgraded from T12's `Qwen3.5-27B-4bit`).
+  Cross-model: `Qwen3.5-122B-A10B-4bit` (trigger: fixed-anchor ≥+5pp).
+  OAI timeout: 180s.
 - **T7+T8 evaluator substrate carries forward intact:** dual scorer
   with F8 fixes, mechanical L1 guard, holdout_version stamping, PI
   runner with audit, cross-executor comparability rule, opener-stack
   JSON extractor.
-- **Product surface as of T12 launch:** `md move-section` is shipped and
+- **Product surface as of T13 launch:** `md move-section` is shipped and
   admitted. Other locked surfaces (`md apply`, `md move-block`,
   generalized `md set-state`, HTML body support, ChangeSet vocabulary)
   remain forbidden — see § Anti-folklore lock.
-- **`bench/auto_research.py` is live.** Verified end-to-end. Run it to
-  generate + measure new candidates in one command (see § Per-iteration
-  shape step 3 and CLAUDE.md § Auto-research).
-- **Halt counters reset to 0 at T12 launch:** saturation streak, lock-
+- **`bench/auto_research.py` is live.** Verified end-to-end (P1/P2 bugs
+  fixed in T12). Run with `--model Qwen3.6-35B-A3B-8bit`.
+- **Halt counters reset to 0 at T13 launch:** saturation streak, lock-
   blocked accumulation, equilibrium counter. Infra iterations never
   count toward saturation.
 - **Known agent-side workload risks** (from prior runs, not blocking):
-  Qwen3.5-27B-4bit unix mode is prone to invalid-response loops on
-  multi-step tasks; T6 (complex multi-edit) fails all modes regardless
-  of timeout — agent planning gap, not tool gap.
+  T12's cross-seed instability was attributed to `Qwen3.5-27B-4bit`
+  model variance — the upgrade to `Qwen3.6-35B-A3B-8bit` is the
+  primary hypothesis under test. T6 fails all modes regardless — agent
+  planning gap, not tool gap.
 
 ## Why this is the right next loop
 
-- **Pipeline bottleneck removed.** `auto_research.py` compresses 5–8
-  manual steps into one command. T10/T11 produced 2 promotions from
-  ~25 attempts (8% yield). T12 targets ≥5 attempts per iteration.
-- **Infra failures no longer stall the counter.** T11 may have halted
-  one iteration early due to OAI timeout counting as saturation. T12
-  starts clean.
-- **Product-axis sweep may immediately move the gap.** 2 remaining
-  `rejected-lock-blocked` candidates are subsection-relocation shapes
-  that `md move-section` directly addresses. If either passes now, the
-  fixed-anchor gap moves before the first new candidate is generated.
-- **Halts cleanly** in either phase (buildup stall has its own halt
-  condition; steady-state inherits T9+T11's halt set, gated on
-  fixed-anchor gap and infra-adjusted counters).
+- **Model upgrade targets cross-seed instability.** T12's dominant
+  rejection mode was `Qwen3.5-27B-4bit` failing to reliably invoke
+  `md move-section` across seeds. `Qwen3.6-35B-A3B-8bit` is the
+  GPT-Pro-recommended single lever for T13 (confidence 0.74).
+- **Pipeline is hardened.** T12 fixed P1 (regex fence-stripping) and
+  P2 (reviewer model provenance) in `auto_research.py`. T13 inherits
+  the corrected pipeline.
+- **No sweep overhead.** T12 iter 1 cleared the lock-blocked backlog.
+  T13 starts directly on corpus-growth, maximizing attempts.
+- **Halts cleanly** under the same T9+T11 halt set; saturation counter
+  reset to 0 at T13 launch.
