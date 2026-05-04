@@ -1,6 +1,6 @@
 {
-  "best_unix_strategy": "Use awk with state tracking to: 1) Identify when entering ## Features and ## Security top-level sections, 2) Detect ### Authentication under Features and buffer all lines until next ## or ### heading, 3) Skip printing the buffered auth content in original location, 4) After printing ### TLS under Security, insert the buffered auth content, 5) Continue printing remaining lines normally",
+  "best_unix_strategy": "Two-pass awk: first pass collects the Authentication section lines while tracking heading depth, second pass inserts them after the Security heading and removes from original location.",
   "gap_label": "AST-structural",
-  "rationale": "This task requires understanding markdown heading hierarchy to determine section boundaries - knowing when a ### section ends (at the next ## or ### heading). Line-based sed/awk tools struggle with this because they process sequentially without inherent tree structure awareness, making it difficult to reliably track nested section boundaries and reconstruct the document with correct hierarchy.",
+  "rationale": "Section boundary detection requires tracking heading hierarchy depth. Sed/awk line-based approaches cannot reliably find where a subsection ends without understanding heading level context.",
   "accepted_as_ast_structural": true
 }
