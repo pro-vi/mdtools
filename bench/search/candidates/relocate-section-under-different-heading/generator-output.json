@@ -1,0 +1,9 @@
+{
+  "slug": "relocate-section-under-different-heading",
+  "description": "Move the 'Authentication' section and its contents from under the 'Features' heading to under the 'Security' heading. Keep all other sections and their contents intact.",
+  "input_markdown": "# API Documentation\n\n## Overview\nThis document describes the REST API endpoints for the Example API.\n\n## Features\n### Authentication\nAll endpoints require authentication via API key sent in the request header.\n- API keys can be generated in the dashboard\n- Keys are revoked after 90 days of inactivity\n\n### Data Format\nAll responses return JSON.\n\n## Security\n### TLS\nAll endpoints require TLS 1.2 or higher.\n\n## Usage\n### Making Requests\nEndpoints accept GET and POST.\n\n### Rate Limits\nSee rate limit documentation.\n\n## Error Codes\n400: Bad Request\n401: Unauthorized\n500: Internal Server Error\n",
+  "expected_markdown": "# API Documentation\n\n## Overview\nThis document describes the REST API endpoints for the Example API.\n\n## Features\n### Data Format\nAll responses return JSON.\n\n## Security\n### TLS\nAll endpoints require TLS 1.2 or higher.\n\n### Authentication\nAll endpoints require authentication via API key sent in the request header.\n- API keys can be generated in the dashboard\n- Keys are revoked after 90 days of inactivity\n\n## Usage\n### Making Requests\nEndpoints accept GET and POST.\n\n### Rate Limits\nSee rate limit documentation.\n\n## Error Codes\n400: Bad Request\n401: Unauthorized\n500: Internal Server Error\n",
+  "scorer_policy": "normalized_text: heading_tree + block_order + block_text",
+  "realism_rationale": "A technical writer would move the 'Authentication' section under 'Security' to group related security topics together for better information architecture.",
+  "_generator_model": "Hermes-4-70B-4bit"
+}

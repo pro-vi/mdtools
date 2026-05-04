@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-038",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4484,
+    "bytes_output": 5840,
+    "bytes_observation": 9068,
+    "tool_calls": 8,
+    "turns": 10,
+    "mutations": 2,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 147.21,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'API Documentation'), (2, 'Overview'), (2, 'Features'), (3, 'Data Format'), (2, 'Security'), (3, 'TLS'), (3, 'Authentication'), (2, 'Usage'), (3, 'Making Requests'), (3, 'Rate Limits'), (2, 'Error Codes')] vs [(1, 'API Documentation'), (2, 'Overview'), (2, 'Features'), (3, 'Data Format'), (2, 'Security'), (3, 'Authentication'), (3, 'TLS'), (2, 'Usage'), (3, 'Making Requests'), (3, 'Rate Limits'), (2, 'Error Codes')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 7: '### TLS' vs '### Authentication'\nheading_tree [neutral]: MISMATCH [(1, 'API Documentation'), (2, 'Overview'), (2, 'Features'), (3, 'Data Format'), (2, 'Security'), (3, 'TLS'), (3, 'Authentication'), (2, 'Usage'), (3, 'Making Requests'), (3, 'Rate Limits'), (2, 'Error Codes')] vs [(1, 'API Documentation'), (2, 'Overview'), (2, 'Features'), (3, 'Data Format'), (2, 'Security'), (3, 'Authentication'), (3, 'TLS'), (2, 'Usage'), (3, 'Making Requests'), (3, 'Rate Limits'), (2, 'Error Codes')]\nblock_text [neutral]: MISMATCH\n  block 7: '### TLS' vs '### Authentication'",
+    "runner_error": null
+  }
+]
