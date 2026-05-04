@@ -1,69 +1,71 @@
 {
-  "measured_at": "2026-05-02",
+  "measured_at": "2026-05-03",
   "model": "Qwen3.5-27B-4bit",
   "runner": "oai-loop",
   "executor": "guarded",
   "runs_per_task": 1,
   "holdout_version": 1,
-  "request_timeout_seconds": 240,
+  "request_timeout_seconds": 180,
   "task_ids": [
     "C-T10-34"
   ],
   "bundles": {
-    "mdtools": "bench/runs/t11-retest-pager-mdtools-Qwen3.5-27B-4bit-2026-05-02/",
-    "hybrid": "bench/runs/t10-34-pager-rotation-review-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-30/",
-    "unix": "bench/runs/t10-34-pager-rotation-review-relocation-unix-Qwen3.5-27B-4bit-2026-04-30/"
+    "mdtools": "bench/runs/t12-iter1q-pager-rotation-review-relocation-mdtools-Qwen3.5-27B-4bit-2026-05-03/",
+    "hybrid": "bench/runs/t12-iter1q-pager-rotation-review-relocation-hybrid-Qwen3.5-27B-4bit-2026-05-03/",
+    "unix": "bench/runs/t12-iter1q-pager-rotation-review-relocation-unix-Qwen3.5-27B-4bit-2026-05-03/"
   },
   "results": {
     "mdtools": {
-      "pass": false,
-      "neutral_pass": false,
-      "elapsed_seconds": 387.28,
-      "tool_calls": 18,
-      "turns": 19,
-      "mutations": 8,
-      "invalid_responses": 0,
-      "unique_invalid_responses": 0,
-      "policy_violations": 0,
-      "failure_summary": "The mdtools retest still failed with block ordering mismatches and incorrect subsection placement under the destination parent under both scorers."
-    },
-    "hybrid": {
       "pass": true,
       "neutral_pass": true,
-      "elapsed_seconds": 127.12,
-      "tool_calls": 9,
-      "turns": 10,
-      "mutations": 2,
+      "elapsed_seconds": 118.54,
+      "tool_calls": 8,
+      "turns": 9,
+      "mutations": 3,
       "invalid_responses": 0,
       "unique_invalid_responses": 0,
       "policy_violations": 0,
-      "failure_summary": null
+      "failure_summary": null,
+      "success_summary": "T12 iter1 re-run passed."
+    },
+    "hybrid": {
+      "pass": false,
+      "neutral_pass": false,
+      "elapsed_seconds": 466.96,
+      "tool_calls": 29,
+      "turns": 30,
+      "mutations": 14,
+      "invalid_responses": 1,
+      "unique_invalid_responses": 1,
+      "policy_violations": 0,
+      "failure_summary": "T12 iter1 re-run did not pass.",
+      "success_summary": null
     },
     "unix": {
       "pass": false,
       "neutral_pass": false,
-      "elapsed_seconds": 923.83,
-      "tool_calls": 11,
+      "elapsed_seconds": 458.04,
+      "tool_calls": 20,
       "turns": 30,
-      "mutations": 6,
-      "invalid_responses": 19,
-      "unique_invalid_responses": 15,
-      "policy_violations": 0,
-      "failure_summary": "The unix run reached the 30-turn cap with repeated invalid responses. Its final scored output misplaced the moved subsection before `### Shift Closeout Checklist` instead of after it, and the final trace also left the checklist lines under `### Pager Rotation Exceptions`."
+      "mutations": 9,
+      "invalid_responses": 10,
+      "unique_invalid_responses": 9,
+      "policy_violations": 1,
+      "failure_summary": "T12 iter1 re-run did not pass.",
+      "success_summary": null
     }
   },
   "gap": {
-    "hybrid_minus_unix_pp": 100.0,
-    "mdtools_minus_unix_pp": 0.0,
+    "hybrid_minus_unix_pp": 0,
+    "mdtools_minus_unix_pp": 100,
     "unix_gap_label": "AST-structural",
     "accepted_as_ast_structural_candidate": false,
     "current_corpus_member": false,
     "promotion_required": false,
-    "promotion_status": "rejected-lock-blocked",
+    "promotion_status": "rejected-hybrid-fail-no-gap",
     "rejection_reason": "Hybrid passed and unix failed with an AST-structural label, but the mdtools seed failed, so the family cannot satisfy the T10 promotion gate requiring at least one mdtools win."
   },
   "notes": [
-    "This candidate reproduced the hybrid-only rescue shape: hybrid completed the structural relocation in 127.12s with no invalid responses, while mdtools-only and unix both failed.",
-    "The family remains rejected after a 2026-05-02 mdtools retest because mdtools mode still failed, so it cannot satisfy the T10 promotion gate requiring at least one mdtools win."
+    "T12 iter1 re-run against target model retained updated outcome sequence."
   ]
 }

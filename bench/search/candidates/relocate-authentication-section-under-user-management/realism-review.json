@@ -1,0 +1,8 @@
+{
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "Reorganizing documentation sections to better reflect logical groupings or product changes is a standard maintenance activity for technical writers.",
+  "realistic_user": "Technical writer or API documentation maintainer",
+  "concerns": "",
+  "review_preceded_gap_measurement": true
+}

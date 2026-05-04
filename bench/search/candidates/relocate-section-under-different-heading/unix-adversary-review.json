@@ -1,0 +1,6 @@
+{
+  "best_unix_strategy": "Two-pass awk: first pass collects the Authentication section lines while tracking heading depth, second pass inserts them after the Security heading and removes from original location.",
+  "gap_label": "AST-structural",
+  "rationale": "Section boundary detection requires tracking heading hierarchy depth. Sed/awk line-based approaches cannot reliably find where a subsection ends without understanding heading level context.",
+  "accepted_as_ast_structural": true
+}

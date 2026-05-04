@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-AR-037",
+    "description": "Relocate a 'Key Metrics' subsection and its content from the 'Overview' section to the 'Reliability' section in a technical design document. The document contains a decoy 'Metrics' heading to test precise targeting.",
+    "input_files": [
+      "bench/search/candidates/relocate-metrics-section-into-reliability-heading/input.md"
+    ],
+    "expected_output": "bench/search/candidates/relocate-metrics-section-into-reliability-heading/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

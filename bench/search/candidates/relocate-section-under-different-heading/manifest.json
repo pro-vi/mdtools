@@ -1,0 +1,62 @@
+{
+  "family_slug": "relocate-section-under-different-heading",
+  "family_name": "Move the Authentication section and its contents from under the Features heading to under the S",
+  "status": "rejected-hybrid-fail-no-gap",
+  "created_at": "2026-05-03",
+  "source": {
+    "generator_model": "Qwen3.5-27B-4bit",
+    "generator_prompt": "generator-prompt.md",
+    "generator_output": "generator-output.json"
+  },
+  "realism_review": {
+    "reviewer_model": "Qwen3.5-27B-4bit",
+    "artifact": "realism-review.json",
+    "verdict": "yes",
+    "confidence": 0.95,
+    "review_preceded_gap_measurement": true
+  },
+  "task_definition": {
+    "tasks_path": "tasks.json",
+    "task_ids_path": "task_ids.json",
+    "task_ids": [
+      "C-AR-038"
+    ],
+    "input_docs": [
+      "input.md"
+    ],
+    "expected_outputs": [
+      "expected.md"
+    ],
+    "scorer_policies": [
+      "normalized_text: heading_tree + block_order + block_text"
+    ]
+  },
+  "measurements": {
+    "artifact": "measurement-summary.json",
+    "model": "Qwen3.5-27B-4bit",
+    "runner": "oai-loop",
+    "executor": "guarded",
+    "runs_per_task": 1,
+    "holdout_version": 1,
+    "request_timeout_seconds": 180,
+    "bundles": {
+      "mdtools": "bench/runs/auto-research-relocate-section-under-different-heading-mdtools-Qwen3.5-27B-4bit-2026-05-03/",
+      "hybrid": "bench/runs/auto-research-relocate-section-under-different-heading-hybrid-Qwen3.5-27B-4bit-2026-05-03/",
+      "unix": "bench/runs/auto-research-relocate-section-under-different-heading-unix-Qwen3.5-27B-4bit-2026-05-03/"
+    },
+    "outcome": {
+      "mdtools": "fail",
+      "hybrid": "fail",
+      "unix": "fail",
+      "hybrid_minus_unix_pp": 0.0,
+      "mdtools_minus_unix_pp": 0.0
+    }
+  },
+  "unix_adversary_review": {
+    "artifact": "unix-adversary-review.json",
+    "reviewer_model": "Qwen3.5-27B-4bit",
+    "gap_label": "AST-structural",
+    "accepted_as_ast_structural": true
+  },
+  "promotion_notes": "Auto-generated. Status: rejected-hybrid-fail-no-gap. Gap: +0.0pp. Realism: yes. Unix adversary: AST-structural."
+}

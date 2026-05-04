@@ -1,67 +1,69 @@
 {
-  "measured_at": "2026-04-29",
+  "measured_at": "2026-05-03",
   "model": "Qwen3.5-27B-4bit",
   "runner": "oai-loop",
   "executor": "guarded",
   "runs_per_task": 1,
   "holdout_version": 1,
-  "request_timeout_seconds": 240,
+  "request_timeout_seconds": 180,
   "task_ids": [
     "C-T10-23"
   ],
   "bundles": {
-    "mdtools": "bench/runs/t10-23-getting-started-installation-relocation-mdtools-Qwen3.5-27B-4bit-2026-04-29/",
-    "hybrid": "bench/runs/t10-23-getting-started-installation-relocation-hybrid-Qwen3.5-27B-4bit-2026-04-29/",
-    "unix": "bench/runs/t10-23-getting-started-installation-relocation-unix-Qwen3.5-27B-4bit-2026-04-29/"
+    "mdtools": "bench/runs/t12-iter1q-getting-started-installation-relocation-mdtools-Qwen3.5-27B-4bit-2026-05-03/",
+    "hybrid": "bench/runs/t12-iter1q-getting-started-installation-relocation-hybrid-Qwen3.5-27B-4bit-2026-05-03/",
+    "unix": "bench/runs/t12-iter1q-getting-started-installation-relocation-unix-Qwen3.5-27B-4bit-2026-05-03/"
   },
   "results": {
     "mdtools": {
-      "pass": false,
-      "neutral_pass": false,
-      "elapsed_seconds": 545.62,
-      "tool_calls": 25,
-      "turns": 30,
-      "mutations": 10,
-      "invalid_responses": 5,
-      "unique_invalid_responses": 5,
-      "policy_violations": 2,
-      "failure_summary": "The mdtools-only run reached the 30-turn cap and produced heading_tree, block_order, and block_text mismatches; the final structure omitted the expected Getting Started sibling relationship around First Build."
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 188.93,
+      "tool_calls": 13,
+      "turns": 14,
+      "mutations": 2,
+      "invalid_responses": 0,
+      "unique_invalid_responses": 0,
+      "policy_violations": 0,
+      "failure_summary": null,
+      "success_summary": "T12 iter1 re-run passed."
     },
     "hybrid": {
       "pass": true,
       "neutral_pass": true,
-      "elapsed_seconds": 145.42,
-      "tool_calls": 11,
-      "turns": 12,
-      "mutations": 3,
+      "elapsed_seconds": 152.85,
+      "tool_calls": 12,
+      "turns": 13,
+      "mutations": 2,
       "invalid_responses": 0,
       "unique_invalid_responses": 0,
       "policy_violations": 0,
-      "success_summary": "The hybrid run completed the subsection relocation with dual-scorer agreement."
+      "failure_summary": null,
+      "success_summary": "T12 iter1 re-run passed."
     },
     "unix": {
-      "pass": false,
-      "neutral_pass": false,
-      "elapsed_seconds": 494.24,
-      "tool_calls": 26,
+      "pass": true,
+      "neutral_pass": true,
+      "elapsed_seconds": 502.69,
+      "tool_calls": 25,
       "turns": 30,
-      "mutations": 19,
-      "invalid_responses": 4,
-      "unique_invalid_responses": 4,
-      "policy_violations": 0,
-      "failure_summary": "The unix run reached the 30-turn cap with the real Installation subsection still under Getting Started after First Build; both scorers reported heading_tree, block_order, and block_text mismatches."
+      "mutations": 13,
+      "invalid_responses": 5,
+      "unique_invalid_responses": 5,
+      "policy_violations": 1,
+      "failure_summary": null,
+      "success_summary": "T12 iter1 re-run passed."
     }
   },
   "gap": {
-    "hybrid_minus_unix_pp": 100.0,
-    "mdtools_minus_unix_pp": 0.0,
+    "hybrid_minus_unix_pp": 0,
+    "mdtools_minus_unix_pp": 0,
     "accepted_as_ast_structural_candidate": false,
     "current_corpus_member": false,
     "promotion_required": false,
-    "promotion_status": "rejected-planning-mdtools-fail"
+    "promotion_status": "rejected-both-pass-no-gap"
   },
   "notes": [
-    "The raw headline cell is positive because hybrid passed while unix failed, but the unix-adversary retry labeled the gap `planning`, not AST-structural.",
-    "The mdtools-only seed failed, so the family also lacks the mdtools PASS evidence required by the promotion gate."
+    "T12 iter1 re-run against target model retained updated outcome sequence."
   ]
 }

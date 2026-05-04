@@ -1,0 +1,8 @@
+{
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "Human maintainers of manually curated changelogs frequently need to reorder version sections to ensure correct chronological flow when entries are added out of sequence.",
+  "realistic_user": "Open-source maintainers or technical writers",
+  "concerns": "While automated changelog generators exist, many projects still maintain CHANGELOG.md manually, making this correction a genuine maintenance activity.",
+  "review_preceded_gap_measurement": true
+}

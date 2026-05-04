@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-035",
+    "mode": "mdtools",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Hermes-4-70B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 4527,
+    "bytes_output": 7551,
+    "bytes_observation": 59486,
+    "tool_calls": 30,
+    "turns": 30,
+    "mutations": 28,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 375.52,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Setup'), (2, 'Prerequisites'), (2, 'Initial Setup'), (2, 'Running the Application'), (2, 'Deployment'), (2, 'Contributing'), (2, 'Configuration')] vs [(1, 'Project Setup'), (2, 'Prerequisites'), (2, 'Initial Setup'), (2, 'Configuration'), (2, 'Running the Application'), (2, 'Deployment'), (2, 'Contributing')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'CodeFence', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'CodeFence'] vs ['Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Paragraph', 'CodeFence', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 6: '## Running the Application' vs '## Configuration'\nheading_tree [neutral]: MISMATCH [(1, 'Project Setup'), (2, 'Prerequisites'), (2, 'Initial Setup'), (2, 'Running the Application'), (2, 'Deployment'), (2, 'Contributing'), (2, 'Configuration')] vs [(1, 'Project Setup'), (2, 'Prerequisites'), (2, 'Initial Setup'), (2, 'Configuration'), (2, 'Running the Application'), (2, 'Deployment'), (2, 'Contributing')]\nblock_text [neutral]: MISMATCH\n  block 6: '## Running the Application' vs '## Configuration'",
+    "runner_error": null
+  }
+]
