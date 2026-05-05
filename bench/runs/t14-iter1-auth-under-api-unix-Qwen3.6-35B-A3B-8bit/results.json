@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-039",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 987,
+    "bytes_output": 61753,
+    "bytes_observation": 3812,
+    "tool_calls": 13,
+    "turns": 30,
+    "mutations": 6,
+    "policy_violations": 1,
+    "requeried": true,
+    "invalid_responses": 17,
+    "unique_invalid_responses": 15,
+    "elapsed_seconds": 314.41,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project API Guide'), (2, 'Authentication'), (2, 'Configuration'), (3, 'Rate Limiting'), (2, 'Endpoints'), (3, 'User'), (3, 'Notifications')] vs [(1, 'Project API Guide'), (2, 'Configuration'), (3, 'Authentication'), (3, 'Rate Limiting'), (2, 'Endpoints'), (3, 'User'), (3, 'Notifications')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Paragraph', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'Paragraph', 'Heading', 'Paragraph', 'Paragraph'] vs ['Heading', 'Heading', 'Heading', 'Paragraph', 'Paragraph', 'CodeFence', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'Paragraph', 'Heading', 'Paragraph', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 1: '## Authentication' vs '## Configuration'\nheading_tree [neutral]: MISMATCH [(1, 'Project API Guide'), (2, 'Authentication'), (2, 'Configuration'), (3, 'Rate Limiting'), (2, 'Endpoints'), (3, 'User'), (3, 'Notifications')] vs [(1, 'Project API Guide'), (2, 'Configuration'), (3, 'Authentication'), (3, 'Rate Limiting'), (2, 'Endpoints'), (3, 'User'), (3, 'Notifications')]\nblock_text [neutral]: MISMATCH\n  block 1: '## Authentication' vs '## Configuration'",
+    "runner_error": null
+  }
+]

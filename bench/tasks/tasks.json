@@ -473,5 +473,41 @@
       "compare_link_destinations": false,
       "compare_block_text": true
     }
+  },
+  {
+    "id": "C-AR-040",
+    "description": "Move the 'Logging' section from the 'Development Setup' section to be a direct child of the 'Application Configuration' heading. Ensure all subsections and content under 'Logging' remain intact and properly nested under the new parent.",
+    "input_files": ["bench/search/accepted/relocate-logging-section-to-app-configuration/input.md"],
+    "expected_output": "bench/search/accepted/relocate-logging-section-to-app-configuration/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  },
+  {
+    "id": "C-AR-041",
+    "description": "Move the 'Authentication' subsection from the 'User Management' section to the 'API Reference' section. Ensure all content under 'Authentication' is moved and the hierarchy levels are preserved.",
+    "input_files": ["bench/search/accepted/relocate-subsection-between-parent-sections/input.md"],
+    "expected_output": "bench/search/accepted/relocate-subsection-between-parent-sections/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
   }
 ]

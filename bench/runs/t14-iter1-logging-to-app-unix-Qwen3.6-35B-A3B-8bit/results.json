@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-040",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1089,
+    "bytes_output": 89667,
+    "bytes_observation": 3852,
+    "tool_calls": 3,
+    "turns": 30,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 27,
+    "unique_invalid_responses": 10,
+    "elapsed_seconds": 393.78,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')] vs [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 11: '### Debugging Tools' vs '### Logging'\nheading_tree [neutral]: MISMATCH [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')] vs [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')]\nblock_text [neutral]: MISMATCH\n  block 11: '### Debugging Tools' vs '### Logging'",
+    "runner_error": null
+  }
+]

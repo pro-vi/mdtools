@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-05-05T09:35:08Z",
+  "finished_at": "2026-05-05T09:42:31Z",
+  "tasks_path": "bench/search/candidates/relocate-subsection-between-parent-sections/tasks.json",
+  "task_ids_path": "bench/search/candidates/relocate-subsection-between-parent-sections/task_ids.json",
+  "selected_task_ids": [
+    "C-AR-041"
+  ],
+  "modes": [
+    "unix"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "model": "Qwen3.6-35B-A3B-8bit",
+  "thinking_level": null,
+  "runs_per_task": 1,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "neutral_pass_count": 0,
+      "neutral_pass_rate": 0.0,
+      "avg_elapsed_seconds": 442.68,
+      "avg_tool_calls": 1.0,
+      "avg_bytes_output": 117953.0,
+      "avg_bytes_observation": 883.0,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 29.0,
+      "avg_unique_invalid_responses": 12.0,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "unix": {
+        "runs": 1,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 442.68,
+        "avg_tool_calls": 1.0,
+        "avg_bytes_output": 117953.0,
+        "avg_bytes_observation": 883.0,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 29.0,
+        "avg_unique_invalid_responses": 12.0,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "promoted_at": "2026-05-05",
+  "model": "Qwen3.6-35B-A3B-8bit",
+  "runner": "oai-loop",
+  "executor": "guarded",
+  "holdout_version": 1,
+  "task_ids": [
+    "C-AR-040"
+  ],
+  "bundles": {
+    "seed_1_mdtools": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-mdtools-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "seed_1_hybrid": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-hybrid-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "seed_1_unix": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-unix-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+    "seeds_2_3_hybrid": "bench/runs/t14-iter1-logging-to-app-N3-hybrid-Qwen3.6-35B-A3B-8bit/",
+    "seeds_2_3_unix": "bench/runs/t14-iter1-logging-to-app-N3-unix-Qwen3.6-35B-A3B-8bit/"
+  },
+  "cross_seed_results": {
+    "hybrid": {
+      "passes": 3,
+      "runs": 3,
+      "dual_scorer_agreement": true
+    },
+    "unix": {
+      "passes": 0,
+      "runs": 3,
+      "dual_scorer_agreement": true
+    },
+    "gap_pp": 100.0
+  },
+  "promotion_verdict": "promoted-to-search",
+  "promotion_rationale": "The candidate passed realism review before measurement, kept an AST-structural unix-adversary label, produced hybrid PASS and unix FAIL across three target-model seeds with dual-scorer agreement, and had existing dual-scorer mdtools and hybrid wins."
+}

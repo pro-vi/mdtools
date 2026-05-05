@@ -1,7 +1,7 @@
 {
   "family_slug": "relocate-logging-section-to-app-configuration",
   "family_name": "Move the 'Logging' section from the 'Development Setup' section to be a direct c",
-  "status": "rejected-hybrid-fail-no-gap",
+  "status": "promoted-to-search",
   "created_at": "2026-05-04",
   "source": {
     "generator_model": "Hermes-4-70B-4bit",
@@ -45,11 +45,11 @@
       "unix": "bench/runs/auto-research-relocate-logging-section-to-app-configuration-unix-Qwen3.6-35B-A3B-8bit-2026-05-04/"
     },
     "outcome": {
-      "mdtools": "fail",
-      "hybrid": "fail",
+      "mdtools": "pass",
+      "hybrid": "pass",
       "unix": "fail",
-      "hybrid_minus_unix_pp": 0.0,
-      "mdtools_minus_unix_pp": 0.0
+      "hybrid_minus_unix_pp": 100.0,
+      "mdtools_minus_unix_pp": 100.0
     }
   },
   "unix_adversary_review": {
@@ -58,5 +58,5 @@
     "gap_label": "AST-structural",
     "accepted_as_ast_structural": true
   },
-  "promotion_notes": "Auto-generated. Status: rejected-hybrid-fail-no-gap. Gap: +0.0pp. Realism: yes. Unix adversary: AST-structural."
+  "promotion_notes": "Promoted to search proper on 2026-05-05 after three additional seed runs passed the cross-seed gate (3/3 hybrid PASS, 0/3 unix FAIL; seed-1 runs were pass/fail/fail). Accepted artifact: bench/search/accepted/relocate-logging-section-to-app-configuration/manifest.json."
 }

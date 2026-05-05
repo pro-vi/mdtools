@@ -1,0 +1,58 @@
+{
+  "family_slug": "relocate-subsection-between-parent-sections",
+  "family_name": "Authentication subsection relocation to API Reference",
+  "status": "promoted-to-search",
+  "promoted_at": "2026-05-05",
+  "search_task_ids": [
+    "C-AR-041"
+  ],
+  "source_candidate": "bench/search/candidates/relocate-subsection-between-parent-sections/",
+  "realism_review": {
+    "verdict": "yes",
+    "reviewer_model": "Qwen3.6-35B-A3B-8bit",
+    "artifact": "bench/search/candidates/relocate-subsection-between-parent-sections/realism-review.json",
+    "review_preceded_gap_measurement": true
+  },
+  "unix_adversary_review": {
+    "gap_label": "AST-structural",
+    "reviewer_model": "Qwen3.6-35B-A3B-8bit",
+    "artifact": "bench/search/candidates/relocate-subsection-between-parent-sections/unix-adversary-review.json"
+  },
+  "task_definition": {
+    "tasks_path": "tasks.json",
+    "task_ids_path": "task_ids.json",
+    "input_docs": [
+      "input.md"
+    ],
+    "expected_outputs": [
+      "expected.md"
+    ],
+    "scorer_policies": [
+      "normalized_text: heading_tree + block_order + block_text"
+    ]
+  },
+  "promotion_gates": {
+    "realism_review_yes": true,
+    "unix_adversary_label_ast_structural": true,
+    "cross_seed_stability": {
+      "seeds": 3,
+      "hybrid_passes": 3,
+      "unix_passes": 0,
+      "hybrid_minus_unix_pp": 100.0,
+      "bundle_pointers": {
+        "seed_1_mdtools": "bench/runs/auto-research-relocate-subsection-between-parent-sections-mdtools-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+        "seed_1_hybrid": "bench/runs/auto-research-relocate-subsection-between-parent-sections-hybrid-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+        "seed_1_unix": "bench/runs/auto-research-relocate-subsection-between-parent-sections-unix-Qwen3.6-35B-A3B-8bit-2026-05-04/",
+        "seeds_2_3_hybrid": "bench/runs/t14-iter1-subsection-between-parent-N3-hybrid-Qwen3.6-35B-A3B-8bit/",
+        "seeds_2_3_unix": "bench/runs/t14-iter1-subsection-between-parent-N3-unix-Qwen3.6-35B-A3B-8bit/"
+      }
+    },
+    "dual_scorer_mdtools_win": true
+  },
+  "current_corpus_effect": {
+    "fixed_anchor_gap_pp": 38.9,
+    "current_corpus_gap_pp_after_promotion": 50.0,
+    "current_corpus_hybrid": "15/22",
+    "current_corpus_unix": "4/22"
+  }
+}

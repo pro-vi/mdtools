@@ -54,11 +54,11 @@ All 18 fixed-anchor search-corpus tasks are measured. Baseline-buildup is comple
 | Metric | Value | As of | Bundle |
 |---|---:|---|---|
 | Fixed-anchor gap | **+38.9pp** (18/18 baseline stamped) | 2026-04-28 | T9-1+2+3 + T10-2+3+4+6+8+9+10 bundles |
-| Current-corpus gap (hybrid − unix) | **+45.0pp** | 2026-04-29 | T9-1+2+3 + T10-2+3+4+6+8+9+10 + T10-16+29 bundles |
-| Current-corpus hybrid | 65.0% (13/20) | 2026-04-29 | — |
-| Current-corpus unix | 20.0% (4/20) | 2026-04-29 | — |
-| Measured subset | T1, T2, T3, T5, T6, T7, T8, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21, C-T10-15, C-T10-28 | 2026-04-29 | — |
-| Search corpus size | 20 (26 total − 6 holdout) | — | — |
+| Current-corpus gap (hybrid − unix) | **+50.0pp** | 2026-05-05 | T14-1 bundles |
+| Current-corpus hybrid | 68.2% (15/22) | 2026-05-05 | — |
+| Current-corpus unix | 18.2% (4/22) | 2026-05-05 | — |
+| Measured subset | T1, T2, T3, T5, T6, T7, T8, T9, T10, T11, T12, T13, T15, T16, T17, T18, T19, T21, C-AR-040, C-AR-041, C-T10-15, C-T10-28 | 2026-05-05 | — |
+| Search corpus size | 22 (28 total − 6 holdout) | — | — |
 
 ## Hill-climb history
 
@@ -92,6 +92,7 @@ gap, or grows the corpus. Every row carries a `cause` label.)_
 | T13-2 | 2026-05-04 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +0.0 fixed-anchor | corpus-growth (auto-research on `relocate-logging-section-to-app-configuration` C-AR-040; all three modes FAIL +0.0pp; AST-structural but rejected as `rejected-hybrid-fail-no-gap`) | bench/search/candidates/relocate-logging-section-to-app-configuration/manifest.json; bench/runs/auto-research-relocate-logging-section-to-app-configuration-{mdtools,hybrid,unix}-Qwen3.6-35B-A3B-8bit-2026-05-04/ |
 | T13-3 | 2026-05-04 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +45.0pp (20 tasks) | +0.0 fixed-anchor | corpus-growth (auto-research on `relocate-subsection-between-parent-sections` C-AR-041; all three modes FAIL +0.0pp; AST-structural but rejected as `rejected-hybrid-fail-no-gap`) | bench/search/candidates/relocate-subsection-between-parent-sections/manifest.json; bench/runs/auto-research-relocate-subsection-between-parent-sections-{mdtools,hybrid,unix}-Qwen3.6-35B-A3B-8bit-2026-05-04/ |
 | T13-HALT | 2026-05-04 | **halted** | fixed-anchor **+38.9pp** final; current-corpus **+45.0pp** (20 tasks) | — | **Saturation halt #1**: 3 consecutive steady-state corpus-growth iterations (T13-1, T13-2, T13-3) with zero fixed-anchor movement and zero corpus growth. New candidates were rejected as `rejected-cross-seed-instability`/`rejected-hybrid-fail-no-gap`; no corpus-growth gate passed. | — |
+| T14-1 | 2026-05-05 | steady-state | fixed-anchor +38.9pp unchanged; current-corpus +50.0pp (22 tasks) | +5.0 current-corpus only | corpus-growth (reran T13 rejected candidates under fixed prompt; promoted `C-AR-040` and `C-AR-041` after 3/3 hybrid PASS + 0/3 unix FAIL with dual-scorer agreement; `C-AR-042` remained cross-seed unstable) | bench/search/accepted/relocate-logging-section-to-app-configuration/ + bench/search/accepted/relocate-subsection-between-parent-sections/ + bench/runs/t14-iter1-logging-to-app-N3-hybrid-Qwen3.6-35B-A3B-8bit/ + bench/runs/t14-iter1-logging-to-app-N3-unix-Qwen3.6-35B-A3B-8bit/ + bench/runs/t14-iter1-subsection-between-parent-N3-hybrid-Qwen3.6-35B-A3B-8bit/ + bench/runs/t14-iter1-subsection-between-parent-N3-unix-Qwen3.6-35B-A3B-8bit/ |
 
 ## T9 iter 4 (aborted)
 
@@ -129,7 +130,7 @@ Populated as baseline-buildup completes. Family definitions per
 | Content delivery | T2, T3, T8, T17 | 2/4 (T3, T17 pass; T2, T8 fail) | 2/4 (T3, T17 pass; T2, T8 fail) | 0.0pp |
 | Text manipulation | T6 (T4 holdout) | 0/1 | 0/1 | 0.0pp |
 | Other | T21 | 0/1 | 0/1 | 0.0pp |
-| Accepted subsection relocation | C-T10-15, C-T10-28 | 2/2 | 0/2 | +100.0pp |
+| Accepted subsection relocation | C-T10-15, C-T10-28, C-AR-040, C-AR-041 | 4/4 | 0/4 | +100.0pp |
 
 (Holdout-only families: T14 = safe-fail, T22/T23/T24 = misc.)
 
