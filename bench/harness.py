@@ -296,6 +296,15 @@ TOOL REFERENCE — md (markdown-aware CLI):
   md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
   md delete-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
                                        Delete an entire section (heading + content).
+  md move-section <SOURCE_HEADING> <FILE> [-i] [--json] [--ignore-case]
+      --after <DEST> | --before <DEST> | --into <DEST>
+      [--auto-level | --keep-level] [--source-occurrence N] [--dest-occurrence N]
+                                       Move a section (heading + all content) to a new
+                                       position. --after/--before = sibling of DEST;
+                                       --into = last child of DEST. --auto-level (default)
+                                       adjusts heading levels to match destination hierarchy.
+                                       Use for ANY task that relocates a section under a
+                                       different heading. Prefer over manual delete+insert.
   md links <FILE> [--json]             List all links with kind, destination, source block
   md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
   md stats <FILE> [--json]             Word/heading/block/link/section/line counts
@@ -319,7 +328,9 @@ EXAMPLES:
   md replace-block 3 doc.md -i --from new.md  # replace block 3 from file
   md replace-section "Old" doc.md -i --from new.md
   md insert-block --after 2 doc.md -i --from new.md
-  md delete-section "Notes" doc.md -i                 # delete entire section
+  md move-section "Auth" doc.md --into "API Reference" -i   # move section under a heading
+  md move-section "Setup" doc.md --after "Installation" -i  # move section as sibling
+  md delete-section "Notes" doc.md -i                       # delete entire section
   md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
   md table report.md --select Feature,Status         # project table columns as TSV
   md set release.channel doc.md stable -i            # set YAML/TOML frontmatter field
