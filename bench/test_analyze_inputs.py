@@ -412,5 +412,22 @@ SCORER ISSUES DETECTED.
         self.assertIn("mdtools x1 [T1]", completed.stdout)
 
 
+class PromptSyncTests(unittest.TestCase):
+    """Guard that every md command in command_policy.py appears in MDTOOLS_DOCS."""
+
+    def test_all_policy_commands_documented_in_mdtools_docs(self) -> None:
+        from bench.command_policy import MUTATION_MD_COMMANDS, QUERY_MD_COMMANDS
+        from bench.harness import MDTOOLS_DOCS
+
+        all_commands = MUTATION_MD_COMMANDS | QUERY_MD_COMMANDS
+        missing = [cmd for cmd in sorted(all_commands) if f"md {cmd}" not in MDTOOLS_DOCS]
+        self.assertEqual(
+            missing,
+            [],
+            f"Commands in command_policy.py but missing from MDTOOLS_DOCS: {missing}\n"
+            "Add them to MDTOOLS_DOCS in bench/harness.py so agents can discover them.",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
