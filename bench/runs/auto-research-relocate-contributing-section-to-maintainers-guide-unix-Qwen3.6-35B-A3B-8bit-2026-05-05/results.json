@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "C-AR-042",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1047,
+    "bytes_output": 92707,
+    "bytes_observation": 4663,
+    "tool_calls": 2,
+    "turns": 30,
+    "mutations": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 28,
+    "unique_invalid_responses": 15,
+    "elapsed_seconds": 471.49,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Umbra - Documentation'), (2, 'Overview'), (2, 'Contributing Guidelines'), (2, 'Features'), (2, 'Community'), (3, 'Reporting Issues'), (2, 'Getting Started'), (3, 'Installation'), (3, 'Quickstart'), (2, 'Architecture'), (3, 'Core Components'), (3, 'Data Flow'), (2, 'API Reference'), (3, 'Authentication'), (2, 'Contributing Guidelines'), (2, 'License')] vs [(1, 'Project Umbra - Documentation'), (2, 'Overview'), (2, 'Features'), (2, 'Community'), (3, 'Contributing Guidelines'), (3, 'Reporting Issues'), (2, 'Getting Started'), (3, 'Installation'), (3, 'Quickstart'), (2, 'Architecture'), (3, 'Core Components'), (3, 'Data Flow'), (2, 'API Reference'), (3, 'Authentication'), (2, 'Contributing Guidelines'), (2, 'License')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'Paragraph', 'List', 'Heading', 'Heading', 'Paragraph', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'CodeFence', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 3: '## Contributing Guidelines' vs '## Features'\nheading_tree [neutral]: MISMATCH [(1, 'Project Umbra - Documentation'), (2, 'Overview'), (2, 'Contributing Guidelines'), (2, 'Features'), (2, 'Community'), (3, 'Reporting Issues'), (2, 'Getting Started'), (3, 'Installation'), (3, 'Quickstart'), (2, 'Architecture'), (3, 'Core Components'), (3, 'Data Flow'), (2, 'API Reference'), (3, 'Authentication'), (2, 'Contributing Guidelines'), (2, 'License')] vs [(1, 'Project Umbra - Documentation'), (2, 'Overview'), (2, 'Features'), (2, 'Community'), (3, 'Contributing Guidelines'), (3, 'Reporting Issues'), (2, 'Getting Started'), (3, 'Installation'), (3, 'Quickstart'), (2, 'Architecture'), (3, 'Core Components'), (3, 'Data Flow'), (2, 'API Reference'), (3, 'Authentication'), (2, 'Contributing Guidelines'), (2, 'License')]\nblock_text [neutral]: MISMATCH\n  block 3: '## Contributing Guidelines' vs '## Features'",
+    "runner_error": null
+  }
+]

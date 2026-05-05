@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-AR-042",
+    "description": "Move the 'Contributing Guidelines' section from the 'Community' section to be a top-level section in the documentation hierarchy. This ensures clearer visibility for new contributors.",
+    "input_files": [
+      "bench/search/candidates/relocate-contributing-section-to-maintainers-guide/input.md"
+    ],
+    "expected_output": "bench/search/candidates/relocate-contributing-section-to-maintainers-guide/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

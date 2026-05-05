@@ -1,0 +1,7 @@
+{
+  "best_unix_strategy": "Use an awk script to parse the document into sections by tracking heading levels. Store each section in an array, extract the '### Contributing Guidelines' block, change its heading to '##', remove it from the '## Community' section, and reconstruct the output in the specified order: Overview, Contributing Guidelines, Features, Community, Getting Start.",
+  "gap_label": "AST-structural",
+  "rationale": "The task requires understanding hierarchical section boundaries and reordering blocks, which line-based tools like sed cannot reliably do. Parsing and manipulating markdown structure necessitates a state-tracking approach similar to an AST parser, making it fundamentally structural.",
+  "accepted_as_ast_structural": true,
+  "reviewer_model": "Qwen3.6-35B-A3B-8bit"
+}

@@ -1,0 +1,9 @@
+{
+  "verdict": "yes",
+  "confidence": 0.95,
+  "rationale": "Technical writers and open-source maintainers frequently restructure documentation to improve onboarding and navigation, making this a standard and realistic editing task.",
+  "realistic_user": "Open-source project maintainer or technical writer",
+  "concerns": "",
+  "review_preceded_gap_measurement": true,
+  "reviewer_model": "Qwen3.6-35B-A3B-8bit"
+}
