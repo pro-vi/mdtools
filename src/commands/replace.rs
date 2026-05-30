@@ -15,12 +15,33 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
 
     let block_span = block.span;
 
+    verify_etag(args.expect_etag.as_deref(), args.index, doc.slice(&block_span))?;
+
     let replacement = output::read_content(args.from.as_deref())?;
 
     let line_endings = doc.line_ending_style();
     let replacement = normalize_line_endings(&replacement, &line_endings);
 
     let original = doc.slice(&block_span);
+    // Bug B (editor-bench finding #5): `cat <<'EOF' > f`, editors, and `echo`
+    // all append a trailing newline the agent never intended as block content.
+    // Most block spans exclude their trailing newline, but some include a
+    // significant one (notably blank-line-terminated indented code via the
+    // parser fixup), so gate on the ACTUAL span content rather than block kind:
+    // strip one trailing line-ending only when the original slice does not
+    // already end in one. Removes the spurious blank line and makes content
+    // round-trips register as NoChange, without truncating a span whose
+    // trailing newline is real.
+    //
+    // Known limits (acceptable for the dominant `--from` case): content with
+    // >1 trailing newline still leaves an artifact, and you cannot use
+    // replace-block to *add* a final newline to a last block that lacks one.
+    let replacement = if original.ends_with('\n') {
+        replacement
+    } else {
+        strip_one_trailing_newline(replacement)
+    };
+
     let disposition = if replacement == original {
         MutationDisposition::NoChange
     } else if replacement.is_empty() {
@@ -61,6 +82,8 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
 
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
+
+    verify_insert_etag(args.expect_etag.as_deref(), &location, &doc)?;
 
     let content = output::read_content(args.from.as_deref())?;
 
@@ -143,6 +166,9 @@ pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), Comman
         .ok_or_else(|| CommandError::block_out_of_range(args.index, doc.blocks.len() as u32))?;
 
     let block_span = block.span;
+
+    verify_etag(args.expect_etag.as_deref(), args.index, doc.slice(&block_span))?;
+
     let line_endings = doc.line_ending_style();
 
     // Delete exactly the block's byte span
@@ -252,6 +278,59 @@ fn resolve_insert_location(
 
 fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
     crate::output::normalize_line_endings(content, style)
+}
+
+/// Verify the target block's current content fingerprint matches the agent's
+/// `--expect-etag`. Fails-closed (Conflict) on mismatch, so a stale index never
+/// silently mutates the wrong block. No-op when no etag was supplied.
+fn verify_etag(expect: Option<&str>, index: u32, current: &str) -> Result<(), CommandError> {
+    if let Some(expected) = expect {
+        let actual = output::content_etag(current.as_bytes());
+        if expected != actual {
+            return Err(CommandError::etag_mismatch(index, expected, &actual));
+        }
+    }
+    Ok(())
+}
+
+/// For insert-block, `--expect-etag` verifies the anchor block (--before/--after).
+/// --at-start/--at-end have no anchor block, so a supplied etag is a usage error
+/// rather than a silently-ignored guard.
+fn verify_insert_etag(
+    expect: Option<&str>,
+    location: &InsertLocation,
+    doc: &ParsedDocument,
+) -> Result<(), CommandError> {
+    let Some(expected) = expect else {
+        return Ok(());
+    };
+    let anchor = match location {
+        InsertLocation::Before(idx) | InsertLocation::After(idx) => *idx,
+        InsertLocation::Start | InsertLocation::End => {
+            return Err(CommandError::new(
+                DiagnosticCode::InvalidSelector,
+                "--expect-etag requires --before or --after (--at-start/--at-end have no anchor block)",
+            ));
+        }
+    };
+    let block = doc
+        .blocks
+        .get(anchor as usize)
+        .ok_or_else(|| CommandError::block_out_of_range(anchor, doc.blocks.len() as u32))?;
+    verify_etag(Some(expected), anchor, doc.slice(&block.span))
+}
+
+/// Strip at most one trailing line-ending from `--from`/stdin replacement
+/// content. Block spans exclude the trailing newline, so the trailing `\n` that
+/// `cat <<'EOF' > f`, editors, and `echo` universally append would otherwise
+/// inject a spurious blank line and defeat the no-op check on round-trips.
+fn strip_one_trailing_newline(mut s: String) -> String {
+    if s.ends_with("\r\n") {
+        s.truncate(s.len() - 2);
+    } else if s.ends_with('\n') {
+        s.truncate(s.len() - 1);
+    }
+    s
 }
 
 /// Compute target_span_after based on disposition and replacement content.

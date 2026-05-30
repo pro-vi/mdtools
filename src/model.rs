@@ -116,6 +116,9 @@ pub struct BlockEntry {
     pub index: u32,
     pub kind: BlockKind,
     pub span: SourceSpan,
+    /// Content fingerprint of the block's bytes. Pass back via `--expect-etag`
+    /// on a mutation to fail-closed if the index went stale between read/write.
+    pub etag: String,
     pub preview: String,
 }
 

@@ -103,6 +103,10 @@ pub struct ReplaceBlockArgs {
     /// Read content from file instead of stdin (use "-" for stdin)
     #[arg(long)]
     pub from: Option<PathBuf>,
+    /// Fail-closed if the target block's current etag (from `md blocks --json`)
+    /// differs — guards against a stale index after intervening edits.
+    #[arg(long = "expect-etag", value_name = "ETAG")]
+    pub expect_etag: Option<String>,
 }
 
 #[derive(Args)]
@@ -121,6 +125,10 @@ pub struct InsertBlockArgs {
     /// Read content from file instead of stdin (use "-" for stdin)
     #[arg(long)]
     pub from: Option<PathBuf>,
+    /// Fail-closed if the anchor block's current etag (from `md blocks --json`)
+    /// differs. Requires --before or --after (no anchor for --at-start/--at-end).
+    #[arg(long = "expect-etag", value_name = "ETAG")]
+    pub expect_etag: Option<String>,
 }
 
 #[derive(Args)]
@@ -129,6 +137,10 @@ pub struct DeleteBlockArgs {
     pub file: PathBuf,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    /// Fail-closed if the target block's current etag (from `md blocks --json`)
+    /// differs — guards against a stale index after intervening edits.
+    #[arg(long = "expect-etag", value_name = "ETAG")]
+    pub expect_etag: Option<String>,
 }
 
 #[derive(Args)]

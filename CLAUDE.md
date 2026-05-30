@@ -21,9 +21,9 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 ## Design rules
 
 - **Markdown primitives only.** If it's in the GFM spec or comrak AST, it's our domain. Task IDs (`0.1`), phase headings, metadata patterns — consumer's job via `jq`.
-- **No identity tracking in locs.** Loc is a structural dot-path (`9.0`, `14.4.0`). No versioning, no hashes. Identity-bearing refs are a cross-cutting concern for a future `--expect-etag` on all mutation commands.
+- **Loc carries no identity; etag does.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block` JSON carry a per-block `etag` (FNV-1a content fingerprint of the block's bytes), and `replace-block`/`delete-block`/`insert-block --before|--after` accept `--expect-etag <hash>` to fail-closed (exit 4, `EtagMismatch`) when the target block's current fingerprint differs — making the read→mutate→re-query loop safe. Section/task mutations don't carry etag yet (the remaining slice of the "etag on all mutation commands" cross-cutting concern).
 - **Re-query pattern is the moat.** Agents query `md tasks --json`, mutate, re-query for fresh locs. Design new commands to support this cycle. Locs must be cheap to re-derive.
-- **`--from` for all mutations.** `replace-section`, `replace-block`, `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs.
+- **`--from` for all mutations.** `replace-section`, `replace-block`, `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `replace-block` strips one trailing line-ending from the content (matching the newline-excluded block-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code).
 - **Hybrid > pure.** Agents perform best with both `md` and unix tools. Don't try to replace `sed` for simple edits.
 
 ## Comrak pin
@@ -46,7 +46,7 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 ```bash
 cargo build --release
-cargo test                           # 282 integration tests
+cargo test                           # 337 integration tests
 cargo test --test cli_tasks          # task-specific tests
 python bench/harness.py --md-binary target/release/md  # validate 20 benchmark scorers
 ```
