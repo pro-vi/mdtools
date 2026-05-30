@@ -1,8 +1,8 @@
-# STATE — hybrid-pareto-v1
+# STATE — hybrid-attribution-v3
 
 ```yaml
 goal_version: hybrid-attribution-v3
-goal_fingerprint: "bench-v2 @ feat/bench-v2-cost-axis 4119375; oracle=report.py COST SLICE + agg_util; tolerance=5%; N>=3"
+goal_fingerprint: "bench-v2 @ feat/bench-v2-cost-axis a4686a0; oracle=agg_util.attribution_verdict rendered by report.py COST SLICE; tolerance=5%; N>=3 (hash is a provenance marker, NOT a HEAD/drift assertion — the drift check keys ONLY on goal_version)"
 archetype: goal (terminal acceptance loop), frontier-style per-criterion work
 iteration: 0
 current_cell: AC-frontier-Targeted-mutation   # known seed failure

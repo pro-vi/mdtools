@@ -1,4 +1,4 @@
-# ACCEPTANCE — hybrid-attribution-v2
+# ACCEPTANCE — hybrid-attribution-v3
 
 Goal version: `hybrid-attribution-v3` (2026-05-29; bench-v2 @ `feat/bench-v2-cost-axis`; CLEAN-ablation gate per `bench/BENCH_V2_CLEAN_ABLATION.md`)
 

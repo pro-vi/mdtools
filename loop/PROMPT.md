@@ -65,7 +65,10 @@ heavily, prefer the local tier or a 1-task probe first, and log it.
    is wrong.
 4. **Anti-theater** — `FIXED ≠ CLOSED`. A cell's own run passing is
    `PASS_PENDING_FINAL`. `PASS` requires the **final-verify** to prove the whole
-   inventory in one repo state at N≥3. **No n=1 claims, ever.**
+   inventory in one repo state at N≥3. **No n=1 claims, ever.** A 1-task or
+   single-replicate **probe is diagnosis only** — it can never set or advance a
+   cell's status; status changes require the full category × 3-gate-mode ×
+   tier-runner × N≥3 verifier.
 
 ## Terminal contract
 
@@ -79,7 +82,10 @@ for a single green run.
 `loop/ACCEPTANCE.md` is the live anchor. The verifier for a cell = run that
 (tier × category)'s tasks × **{unix, hybrid, hybrid-no-md}** × the tier's runner
 at **N≥3**, then `python3 bench/report.py <outputs>` and read the cell's
-**md-attribution verdict**. **Valid pass evidence:** verdict == `CLOSES` at N≥3
+**md-attribution verdict**. The source of truth is
+`agg_util.attribution_verdict`'s **return value** — `report.py` only *renders*
+it; never treat report.py's printed text as authoritative if you've touched the
+renderer. **Valid pass evidence:** verdict == `CLOSES` at N≥3
 (structural ⇒ hybrid beat unix AND beat hybrid-no-md AND the baseline didn't
 flail; tie-acceptable ⇒ hybrid ≥ unix). **Invalid:** "looks better", n=1, a cost
 win from hybrid *failing* an expensive task, a relaxed scorer, a narrowed task
@@ -153,19 +159,39 @@ attribution baseline** — push md in `HYBRID_DOCS` so `hybrid-no-md` FAILS task
 or repeatedly hits the md stub (the verdict catches this as
 `SUSPECT:baseline-flails(correctness|probes|cost)`; the baseline must stay a
 clean unix fallback, so the win must come from hybrid being BETTER, not the
-baseline being worse); refresh an expected fixture to current wrong output; or
-claim a front at n=1. Any change to the
-**measurement** (not the thing measured) requires an inline Oracle Change Note
-in `loop/STATE.md` proving new-strictness ≥ old (red/green or sentinel). If you
-can't prove it, restore the old verifier or emit `oracle-drift` and stop.
+baseline being worse); refresh an expected fixture to current wrong output;
+**edit `report.py`'s rendering to alter the printed verdict**; **hand-write,
+edit, copy, or synthesize any run-record JSON** under `loop/runs/**` (every
+record `report.py` consumes must be the verbatim stdout of a harness run you
+executed *this* session — "report.py printed CLOSES over files I own" is not a
+real pass); or claim a front at n=1. Any change to the **measurement** (not the
+thing measured) requires an inline Oracle Change Note in `loop/STATE.md`, and is
+admissible ONLY if it passes a mechanical strictness check the agent cannot fake:
+**(a)** every existing `bench/test_agg_util.py` test still passes **unmodified**
+(editing that file to accommodate the change is itself `oracle-drift`); **(b)**
+you add a sentinel that is RED both before and after on the current gap; **(c)**
+the previously-recorded failing evidence still yields a non-`CLOSES` verdict
+under the new code. If you can't prove all three, restore the old verifier or
+emit `oracle-drift` and stop.
 
 ## Rules / scope
 
-- **Allowed to change:** `src/**` (the `md` tool), `bench/harness.py`
-  `HYBRID_DOCS`/`MDTOOLS_DOCS` (the hybrid prompting), and `md`'s own docs.
-- **Forbidden to change:** `bench/tasks/**`, the scorers, `bench/agg_util.py`
-  cost/intersection logic, `loop/ACCEPTANCE.md` criteria/thresholds. These are
-  the oracle.
+- **Allowed to change (the ONLY two lever surfaces):** `src/**` (the `md` tool)
+  and, inside `bench/harness.py`, **only the `MDTOOLS_DOCS` and `HYBRID_DOCS`
+  string literals** (the hybrid prompting) — plus `md`'s own `--help`/docs.
+  Nothing else in `harness.py`. Inner-channel check: `git diff bench/harness.py`
+  must show changes confined to those two literals; a diff anywhere else =
+  `oracle-drift`, revert.
+- **The immutable oracle (canonical list — Forbidden to change):**
+  `bench/tasks/**`; **all of `bench/harness.py` except the two doc literals**
+  (the scorers `StructuralDiffPolicy` / `score_task` / `score_json_canonical` /
+  `score_structural_json` / the independent scorer all live here — they are
+  oracle, not lever); `bench/agg_util.py` (intersection/cost/**attribution**
+  logic + thresholds); `bench/report.py` (it only *renders* the verdict —
+  editing it to change what verdict prints is drift); `bench/command_policy.py`
+  (the mode guard + soft-stub + policy-sync check); `loop/ACCEPTANCE.md`
+  criteria/thresholds; and **every run-record under `loop/runs/**`** (evidence,
+  never a lever — see oracle-drift guard).
 - `md` stays **general-purpose markdown tooling** (CLAUDE.md: "markdown
   primitives only"). No task-specific hacks. Honor "hybrid > pure / don't
   replace sed" and "re-query is the moat".
@@ -220,8 +246,51 @@ Halt = `stop-and-summarize` (+`criteria-met` first on terminal success). Label:
   never compared across bases) AND the `md-attribution verdicts` section (each
   cell's `CLOSES` / `OPEN:*` / `SUSPECT` — the loop's work list).
 - **First iteration:** instantiate the full `AC-{tier}-{cat}` inventory from a
-  first 4-mode full-suite run (one row per cell, with its verdict), then start
-  closing from `AC-frontier-Targeted-mutation` (the seed: claude burns +70k
-  tokens with `md` on T7 → currently `OPEN:loses-unix`; diagnose the verbosity).
+  first full-suite run (3 gate modes × tier runner; one row per cell, with its
+  verdict), then start closing from `AC-frontier-Targeted-mutation`. The seed
+  delta to target is the **gated** one: on T7, **hybrid** costs ~+6500 tok over
+  unix (82367) — just over the 5% tolerance (~4118) — so the cell reads
+  `OPEN:loses-unix`. (The often-quoted +70427 is **mdtools** mode, which is
+  diagnosis-only and NOT in the gate — don't chase it; tuning mdtools output
+  won't move the verdict.) Diagnose why hybrid's `md` usage adds ~6.5k tokens
+  (md `--json` payload size, or an extra re-query) from the `--log-dir`
+  per-call breakdown, then make it leaner.
 - **Consult (tier-2):** for a genuinely stuck diagnosis (why is md a trap on a
   cell?), you may fire one `/agentify` GPT-Pro consult; log it.
+
+## First-iteration bootstrap (exact)
+
+Run these in order. All Python is **`python3`** (this machine has no `python` on
+PATH). Follow the artifact convention verbatim: stdout redirected to one `.txt`
+per mode, with `--log-dir` traces in a sibling `logs/` subdir the report glob
+ignores — `report.py` raises an uncaught `FileNotFoundError` on any dir lacking
+`results.json`, so never point it at a results parent with a bare `*`; glob
+`*.txt`.
+
+1. **Clean baseline.** `git status` — the only expected modification is
+   `tests/cli_contracts.rs` (pre-existing rustfmt whitespace; harmless). Confirm
+   `cargo test` is GREEN now, so a later RED is attributable to your own edit.
+2. **omlx up** (else `BLOCKED_EXTERNAL`; do not start it yourself):
+   `curl -s -m4 -H "Authorization: Bearer 215069" http://127.0.0.1:10240/v1/models`
+3. **Build md:** `cargo build --release` (binary `target/release/md`).
+4. **Smoke the local runner reaches omlx** before the full sweep (pi resolves its
+   endpoint from pi's own config, NOT the curl'd URL):
+   `python3 bench/harness.py --run --runner pi-json --model Qwen3.6-35B-A3B-8bit --mode hybrid --task T1 -N 1 --json --log-dir loop/runs/smoke/logs/ > loop/runs/smoke/probe.txt`
+   — confirm the record's `model` is the Qwen id. If pi does NOT route to omlx,
+   fall back to `--runner oai-loop --oai-api-base http://127.0.0.1:10240/v1
+   --oai-api-key 215069 --model Qwen3.5-27B-4bit` (verified-working; oai-loop
+   drops `tool_mix`, so run adoption diagnosis on a pi-json run).
+5. **Instantiate the inventory** — full suite, **3 gate modes × tier runner**,
+   N≥3 (NOT `mdtools` mode — diagnosis-only, the gate never reads it; on the paid
+   frontier tier it burns budget for nothing). LOCAL first (cheap; tool_calls):
+   `for MODE in unix hybrid hybrid-no-md; do python3 bench/harness.py --run --runner pi-json --model Qwen3.6-35B-A3B-8bit --mode $MODE --md-binary target/release/md -N 3 --json --log-dir loop/runs/init-local/logs/ > loop/runs/init-local/$MODE.txt; done`
+   FRONTIER (claude-cli — real $; tokens; keep tight):
+   `for MODE in unix hybrid hybrid-no-md; do python3 bench/harness.py --run --runner claude-cli --mode $MODE --md-binary target/release/md -N 3 --json --log-dir loop/runs/init-frontier/logs/ > loop/runs/init-frontier/$MODE.txt; done`
+6. **Render + sanity-check:**
+   `python3 bench/report.py loop/runs/init-local/*.txt loop/runs/init-frontier/*.txt`
+   Confirm the claude rows land under a `frontier` tier (not `unspecified`); if
+   not, the model stamp failed — pass an explicit `--model claude-...` on the
+   claude-cli loop so the tier is deterministic, and re-render.
+7. **Attack the seed cell** `AC-frontier-Targeted-mutation` per the gated-delta
+   note in the overlay above. Heavy-spend guard — probe one task first:
+   `python3 bench/harness.py --run --runner claude-cli --mode hybrid --md-binary target/release/md --task T7 -N 3 --json --log-dir loop/runs/diag/logs/ > loop/runs/diag/T7_hybrid.txt`
