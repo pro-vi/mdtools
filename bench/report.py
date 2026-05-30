@@ -13,17 +13,20 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-TASK_FAMILIES = {
-    "Extraction":       ["T1", "T5", "T9", "T11", "T16", "T19"],
-    "Targeted mutation": ["T7", "T10", "T13", "T20"],
-    "Batch mutation":   ["T12"],
-    "Multi-step":       ["T15", "T18"],
-    "Content delivery": ["T2", "T3", "T8", "T17"],
-    "Safe-fail":        ["T14"],
-    "Text manipulation": ["T4", "T6"],
-    "Metadata":         ["T21", "T22", "T24"],
-    "Table projection": ["T23"],
-}
+try:  # bench-v2: single-source TASK_FAMILIES + the shared cost-slice helpers
+    from bench.agg_util import (
+        TASK_FAMILIES,
+        category_for,
+        extract_model_tier,
+        intersection_cost,
+    )
+except ImportError:  # run as `python3 bench/report.py` (bench/ on sys.path)
+    from agg_util import (
+        TASK_FAMILIES,
+        category_for,
+        extract_model_tier,
+        intersection_cost,
+    )
 
 
 def parse_json_results(filepath):
@@ -519,6 +522,63 @@ def render_cross_group_summary(all_results, groups, modes, markdown):
                 )
 
 
+def render_cost_slice(all_results, modes, markdown=False):
+    """bench-v2: median cost on the both-passed intersection, sliced by
+    (tier x category) for each mode vs the unix baseline, plus hybrid tool-mix
+    adoption. Cost = tokens when present, else tool_calls (basis shown). The
+    intersection logic lives in agg_util so report and analyze can't drift.
+    """
+    base = "unix" if "unix" in modes else (modes[0] if modes else None)
+    others = [m for m in modes if m != base]
+    out = ["## Cost slice (bench-v2)" if markdown else "\n=== COST SLICE (bench-v2) ==="]
+    if not base or not others:
+        out.append("(need a baseline mode + >=1 other mode)")
+        return "\n".join(out)
+
+    groups = defaultdict(list)
+    for r in all_results:
+        tier = extract_model_tier(r.get("model"))
+        cat = category_for(r.get("task_id") or r.get("task"))
+        groups[(tier, cat)].append(r)
+
+    if markdown:
+        out.append(f"Cost = median over tasks BOTH modes passed; basis tokens (else tool_calls). delta = other - {base} (negative = other cheaper).")
+        out.append("")
+        out.append(f"| tier | category | pair | n | basis | {base} | other | delta |")
+        out.append("|---|---|---|---|---|---|---|---|")
+    else:
+        out.append(f"  cost = median over tasks BOTH modes passed; delta = other - {base} (negative = other cheaper)")
+        out.append(f"  tier | category | pair | n | basis | {base} | other | delta")
+    for tier, cat in sorted(groups):
+        for other in others:
+            ic = intersection_cost(groups[(tier, cat)], base, other)
+            if ic["n"] == 0:
+                cells = f"{tier} | {cat} | {base} vs {other} | 0 | - | - | - | -"
+            else:
+                cells = (
+                    f"{tier} | {cat} | {base} vs {other} | {ic['n']} | {ic['basis']} | "
+                    f"{ic['median_a']:.0f} | {ic['median_b']:.0f} | {-ic['delta']:+.0f}"
+                )
+            out.append(f"| {cells} |" if markdown else f"  {cells}")
+
+    if "hybrid" in modes:
+        agg_mix = defaultdict(int)
+        for r in all_results:
+            if r.get("mode") == "hybrid":
+                for verb, count in (r.get("tool_mix") or {}).items():
+                    agg_mix[verb] += int(count)
+        total = sum(agg_mix.values())
+        out.append("")
+        if total:
+            md_calls = sum(c for v, c in agg_mix.items() if v.startswith("md"))
+            out.append(f"hybrid free-choice adoption: md = {100 * md_calls / total:.0f}% of {total} tool-calls")
+            for verb, count in sorted(agg_mix.items(), key=lambda kv: -kv[1])[:8]:
+                out.append(f"    {verb:<18} {count}")
+        else:
+            out.append("hybrid free-choice adoption: (no tool-mix recorded)")
+    return "\n".join(out)
+
+
 def main():
     files = [f for f in sys.argv[1:] if not f.startswith("--")]
     markdown = "--markdown" in sys.argv
@@ -566,6 +626,8 @@ def main():
 
     if multi_group:
         render_cross_group_summary(all_results, groups, modes, markdown)
+
+    print(render_cost_slice(all_results, modes, markdown))
 
 
 if __name__ == "__main__":

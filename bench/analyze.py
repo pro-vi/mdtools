@@ -64,6 +64,9 @@ def normalize_result(result, default_model, default_runner="unspecified", defaul
             )
         ),
         "rq": bool(result.get("requeried", result.get("rq", False))),
+        "tokens_in": int(result.get("tokens_in", 0) or 0),
+        "tokens_out": int(result.get("tokens_out", 0) or 0),
+        "tool_mix": result.get("tool_mix") or {},
         "runner_error": result.get("runner_error"),
     }
 

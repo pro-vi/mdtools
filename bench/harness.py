@@ -225,7 +225,10 @@ class BenchResult:
     bytes_observation: int = 0   # total tool-result content agent had to read
     tool_calls: int = 0
     turns: int = 0
+    tokens_in: int = 0           # prompt tokens from runner usage (0 if runner gives none)
+    tokens_out: int = 0          # completion tokens from runner usage (0 if runner gives none)
     mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
+    tool_mix: dict[str, int] = field(default_factory=dict)  # per-verb tool-choice counts, e.g. {"md outline": 2, "sed": 1}
     policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
     invalid_responses: int = 0   # oai-loop parse_action_text failures (action-format adherence)
@@ -243,6 +246,8 @@ class ParsedAgentOutput:
     tool_calls: int = 0
     turns: int = 0
     bytes_observation: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
     tool_outputs: list[str] = field(default_factory=list)
     text_outputs: list[str] = field(default_factory=list)
     runner_error: str | None = None
@@ -1117,12 +1122,15 @@ def _build_agent_cmd(
         cmd = [parts[0], "-p"]
         if model:
             cmd += ["--model", model]
-        cmd += ["--bare"]
         cmd += ["--tools", "Bash"]
         cmd += ["--allowedTools", "Bash"]
         cmd += ["--dangerously-skip-permissions"]
         cmd += ["--max-turns", str(max_turns)]
         cmd += ["--no-session-persistence"]
+        # bench-v2: --settings "" replaces --bare — keeps cells clean of global
+        # hooks/settings/plugins AND strips global prompt overhead, while (unlike
+        # --bare) preserving real token usage in the json `result.usage`.
+        cmd += ["--settings", ""]
         cmd += ["--output-format", "json"]
         return cmd
     return parts
@@ -1175,6 +1183,13 @@ def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
             parsed.model = _normalize_runner_model(msg.get("model"))
         elif msg_type == "result":
             parsed.turns = msg.get("num_turns", 0)
+            usage = msg.get("usage") or {}
+            parsed.tokens_in = (
+                int(usage.get("input_tokens") or 0)
+                + int(usage.get("cache_creation_input_tokens") or 0)
+                + int(usage.get("cache_read_input_tokens") or 0)
+            )
+            parsed.tokens_out = int(usage.get("output_tokens") or 0)
             result_text = msg.get("result", "")
             if isinstance(result_text, str):
                 parsed.text_outputs.append(result_text)
@@ -1294,6 +1309,8 @@ def run_agent(
     tool_calls = 0
     num_turns = 0
     bytes_observation = 0
+    tokens_in = 0
+    tokens_out = 0
     mutations = 0
     policy_violations = 0
     requeried = False
@@ -1305,6 +1322,7 @@ def run_agent(
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
+    tool_mix: dict[str, int] = {}  # per-verb tool-choice counts (free-choice/hybrid adoption signal)
 
     pi_audit_log_path: Path | None = None
 
@@ -1350,6 +1368,8 @@ def run_agent(
             bytes_observation = trace.bytes_observation
             invalid_responses = trace.invalid_responses
             unique_invalid_responses = trace.unique_invalid_responses
+            tokens_in = trace.tokens_in
+            tokens_out = trace.tokens_out
             all_tool_outputs = trace.tool_outputs
             all_text_outputs = trace.text_outputs
             stdout = "\n".join(all_tool_outputs + all_text_outputs)
@@ -1424,6 +1444,8 @@ def run_agent(
         tool_calls = parsed_output.tool_calls
         num_turns = parsed_output.turns
         bytes_observation = parsed_output.bytes_observation
+        tokens_in = parsed_output.tokens_in
+        tokens_out = parsed_output.tokens_out
         all_tool_outputs = parsed_output.tool_outputs
         all_text_outputs = parsed_output.text_outputs
         runner_error = parsed_output.runner_error
@@ -1435,6 +1457,9 @@ def run_agent(
         if event.decision != "allow":
             policy_violations += 1
             continue
+        verb = event.verb
+        if verb:
+            tool_mix[verb] = tool_mix.get(verb, 0) + 1
         kind = event.kind
         if kind == "mutation":
             mutations += 1
@@ -1542,7 +1567,10 @@ def run_agent(
         bytes_observation=bytes_observation,
         tool_calls=tool_calls,
         turns=num_turns,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
         mutations=mutations,
+        tool_mix=tool_mix,
         policy_violations=policy_violations,
         requeried=requeried,
         invalid_responses=invalid_responses,

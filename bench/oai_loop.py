@@ -43,6 +43,8 @@ class LoopTrace:
     turns: int
     invalid_responses: int = 0
     unique_invalid_responses: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
 
 
 @dataclass
@@ -145,6 +147,8 @@ def run_oai_loop(
     invalid_responses = 0
     invalid_response_seen: set[str] = set()
     turn = 0
+    tokens_in = 0
+    tokens_out = 0
 
     def _snapshot() -> LoopTrace:
         return LoopTrace(
@@ -157,6 +161,8 @@ def run_oai_loop(
             turns=turn,
             invalid_responses=invalid_responses,
             unique_invalid_responses=len(invalid_response_seen),
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
         )
 
     try:
@@ -176,6 +182,9 @@ def run_oai_loop(
             )
             assistant_text = _extract_assistant_text(response)
             bytes_output += len(assistant_text.encode())
+            usage = response.get("usage") or {}
+            tokens_in += int(usage.get("prompt_tokens") or 0)
+            tokens_out += int(usage.get("completion_tokens") or 0)
             transcript.append({"turn": turn, "assistant": assistant_text})
 
             try:

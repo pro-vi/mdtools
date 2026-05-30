@@ -55,6 +55,10 @@ class GuardEvent:
     def kind(self) -> str | None:
         return classify_command_kind(self.raw_command, self.base_command)
 
+    @property
+    def verb(self) -> str | None:
+        return classify_command_verb(self.raw_command, self.base_command)
+
 
 def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
     if mode == "unix":
@@ -154,6 +158,27 @@ def classify_command_kind(raw_command: str, base_command: str | None = None) -> 
         return "mutation"
 
     return None
+
+
+def classify_command_verb(raw_command: str, base_command: str | None = None) -> str | None:
+    """Per-call tool/verb label for tool-mix accounting.
+
+    Finer than classify_command_kind (query/mutation), coarser than the raw
+    command: returns e.g. "md outline", "md replace-block" for mdtools verbs
+    and the normalized base ("sed", "grep", "jq") for unix tools. Returns None
+    when no base command can be extracted. Guard `allow` events are always an
+    allowed tool, so this labels which one the agent actually chose.
+    """
+    if not base_command:
+        base_command = extract_base_command(raw_command)
+    if not base_command:
+        return None
+
+    normalized = normalize_command(base_command)
+    if normalized == "md":
+        subcommand = _extract_md_subcommand(safe_tokenize_shell(raw_command))
+        return f"md {subcommand}" if subcommand else "md"
+    return normalized
 
 
 def extract_base_command(raw_command: str) -> str | None:
