@@ -44,6 +44,21 @@ not memory. Emit `stop-and-summarize` when no useful iteration remains; emit
 with no budget cap, secrets, public publish). External ceilings (tokens, time)
 are runner concerns — preserve the tree and summarize for the next run.
 
+**You run UNATTENDED — no human is watching this iteration.** Therefore you must
+**NEVER call `AskUserQuestion` (or any interactive / blocking / approval-prompt
+tool), for ANY reason** — not cost, not "which cell?", not an ambiguous oracle,
+not a risky edit. An interactive prompt to an absent human is a guaranteed
+overnight deadlock. Every decision routes one of two ways instead: **(1)
+reversible** → take the smallest reversible default consistent with the strongest
+source, log an Alignment Review, and continue; **(2) genuinely needs a human /
+irreversible** → do NOT prompt — finish any free work, then `stop-and-summarize`
+with the right halt label (`derivation-gap` for a missing spec/decision,
+`genuine-escalate` for an irreversible/budget block, `partial-deadlock` for a
+non-$ block) and put the question + options in the summary. **The halt-summary is
+the ONLY channel to the human — async, never interactive.** (This is *why* the
+loop blocked tonight: it hit a cost decision and reached for `AskUserQuestion`;
+the Budget policy fixes the cost path, and this rule closes the tool globally.)
+
 ## Judgment default
 
 On a taste/inferred call: take the smallest reversible action consistent with
