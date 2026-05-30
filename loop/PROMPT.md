@@ -116,9 +116,14 @@ fronts; do them only if they sharpen measurement.
 ## Iteration protocol
 
 1. Read `loop/ACCEPTANCE.md`, `loop/STATE.md`, the latest `loop/runs/` outputs.
-   Confirm goal version matches. **Check omlx is up** (`curl -s -m4 -H
-   "Authorization: Bearer 215069" http://127.0.0.1:10240/v1/models`); if down →
-   `BLOCKED_EXTERNAL`.
+   Confirm the `goal_version:` field matches. **Check omlx is up** (`curl -s -m4
+   -H "Authorization: Bearer 215069" http://127.0.0.1:10240/v1/models`); if down
+   → `BLOCKED_EXTERNAL`. **Inventory gate (where am I?):** if the AC inventory is
+   not yet instantiated — STATE.md `iteration: 0`, or no `loop/runs/init-*` slice
+   exists — run the **Bootstrap** (§ below) to instantiate it, write the
+   `AC-{tier}-{cat}` rows + bump `iteration` in STATE.md, and END this iteration
+   there (do not also pick a cell). Otherwise skip the Bootstrap entirely and
+   continue to step 2 — the Bootstrap is iteration-0-only and must NOT re-run.
 2. **Oracle integrity check** before editing: bench tasks/scorers unchanged,
    `agg_util` cost logic + thresholds unchanged, no task removed from a cell, no
    tolerance loosened. Any such change = `oracle-drift` (see guard).
@@ -245,23 +250,23 @@ Halt = `stop-and-summarize` (+`criteria-met` first on terminal success). Label:
   `=== COST SLICE (bench-v2) ===` (per-cell cost basis `tokens` vs `tool_calls`,
   never compared across bases) AND the `md-attribution verdicts` section (each
   cell's `CLOSES` / `OPEN:*` / `SUSPECT` — the loop's work list).
-- **First iteration:** instantiate the full `AC-{tier}-{cat}` inventory from a
-  first full-suite run (3 gate modes × tier runner; one row per cell, with its
-  verdict), then start closing from `AC-frontier-Targeted-mutation`. The seed
-  delta to target is the **gated** one: on T7, **hybrid** costs ~+6500 tok over
-  unix (82367) — just over the 5% tolerance (~4118) — so the cell reads
-  `OPEN:loses-unix`. (The often-quoted +70427 is **mdtools** mode, which is
-  diagnosis-only and NOT in the gate — don't chase it; tuning mdtools output
-  won't move the verdict.) Diagnose why hybrid's `md` usage adds ~6.5k tokens
-  (md `--json` payload size, or an extra re-query) from the `--log-dir`
-  per-call breakdown, then make it leaner.
+- **Seed cell `AC-frontier-Targeted-mutation` (the gated delta):** once the
+  inventory is instantiated, start closing here. The delta to target is the
+  **gated** one: on T7, **hybrid** costs ~+6500 tok over unix (82367) — just over
+  the 5% tolerance (~4118) — so the cell reads `OPEN:loses-unix`. (The
+  often-quoted +70427 is **mdtools** mode, which is diagnosis-only and NOT in the
+  gate — don't chase it; tuning mdtools output won't move the verdict.) Diagnose
+  why hybrid's `md` usage adds ~6.5k tokens (md `--json` payload size, or an extra
+  re-query) from the `--log-dir` per-call breakdown, then make it leaner.
 - **Consult (tier-2):** for a genuinely stuck diagnosis (why is md a trap on a
   cell?), you may fire one `/agentify` GPT-Pro consult; log it.
 
-## First-iteration bootstrap (exact)
+## Bootstrap (iteration-0 only — gated by the inventory gate in step 1)
 
-Run these in order. All Python is **`python3`** (this machine has no `python` on
-PATH). Follow the artifact convention verbatim: stdout redirected to one `.txt`
+Run this block ONLY on the instantiation iteration (STATE.md `iteration: 0` / no
+`loop/runs/init-*` slice). Every later iteration skips it and goes straight to
+the cell cycle (protocol steps 2→10). All Python is **`python3`** (this machine
+has no `python` on PATH). Follow the artifact convention verbatim: stdout redirected to one `.txt`
 per mode, with `--log-dir` traces in a sibling `logs/` subdir the report glob
 ignores — `report.py` raises an uncaught `FileNotFoundError` on any dir lacking
 `results.json`, so never point it at a results parent with a bare `*`; glob
