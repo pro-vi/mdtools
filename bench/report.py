@@ -16,6 +16,7 @@ from pathlib import Path
 try:  # bench-v2: single-source TASK_FAMILIES + the shared cost-slice helpers
     from bench.agg_util import (
         TASK_FAMILIES,
+        attribution_verdict,
         category_for,
         extract_model_tier,
         intersection_cost,
@@ -23,6 +24,7 @@ try:  # bench-v2: single-source TASK_FAMILIES + the shared cost-slice helpers
 except ImportError:  # run as `python3 bench/report.py` (bench/ on sys.path)
     from agg_util import (
         TASK_FAMILIES,
+        attribution_verdict,
         category_for,
         extract_model_tier,
         intersection_cost,
@@ -576,6 +578,28 @@ def render_cost_slice(all_results, modes, markdown=False):
                 out.append(f"    {verb:<18} {count}")
         else:
             out.append("hybrid free-choice adoption: (no tool-mix recorded)")
+
+    # bench-v2 attribution gate: per (tier × category) verdict. Structural cells
+    # CLOSE only when md is causally responsible (hybrid beats unix AND beats the
+    # hybrid-no-md baseline). See BENCH_V2_ATTRIBUTION.md.
+    out.append("")
+    out.append("## md-attribution verdicts" if markdown
+               else "md-attribution verdicts (structural cells gate on md-lift over hybrid-no-md):")
+    if markdown:
+        out.append("")
+        out.append("| tier | category | verdict | pareto (unix→hybrid) | lift (no-md→hybrid) | md-probe |")
+        out.append("|---|---|---|---|---|---|")
+    for tier, cat in sorted(groups):
+        v = attribution_verdict(all_results, tier, cat)
+        p, lift = v["pareto"], v["lift"]
+        pcells = "n=0" if p["n"] == 0 else f"n={p['n']} {p['unix']:.0f}→{p['hybrid']:.0f}"
+        lcells = "n=0" if lift["n"] == 0 else f"n={lift['n']} {lift['hybrid_no_md']:.0f}→{lift['hybrid']:.0f}"
+        struct = "" if v["structural"] else " (tie-ok)"
+        probe = f"{v.get('nomd_probe', 0):.0f}"
+        if markdown:
+            out.append(f"| {tier} | {cat}{struct} | {v['verdict']} | {pcells} | {lcells} | {probe} |")
+        else:
+            out.append(f"  {tier} | {cat}{struct} | {v['verdict']} | pareto {pcells} | lift {lcells} | md-probe={probe}")
     return "\n".join(out)
 
 

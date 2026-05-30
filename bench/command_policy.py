@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 
-BenchMode = Literal["unix", "mdtools", "hybrid"]
+BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
 
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp"]
 MDTOOLS_TOOLS = ["md", "cat", "jq"]
@@ -65,6 +65,12 @@ def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
         return UNIX_TOOLS.copy()
     if mode == "mdtools":
         return MDTOOLS_TOOLS.copy()
+    if mode == "hybrid-no-md":
+        # clean-ablation baseline: md is on the PATH but a SOFT STUB (counts the
+        # probe, says "use unix", exits 1) — md is "allowed" so the guard doesn't
+        # hard-kill; the agent falls back to unix like a competent user. Isolates
+        # md's causal value (hybrid vs hybrid-no-md = md-lift). See BENCH_V2_CLEAN_ABLATION.md.
+        return UNIX_TOOLS + ["md"]
     return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
 
 
@@ -77,6 +83,17 @@ def create_restricted_shell_env(
     bin_dir.mkdir(exist_ok=True)
 
     for command in allowed_commands_for_mode(mode):
+        target = bin_dir / command
+        if target.exists() or target.is_symlink():
+            target.unlink()
+
+        if command == "md" and mode == "hybrid-no-md":
+            # clean-ablation soft stub: count the probe, tell the agent md is
+            # unavailable here, exit non-zero so it falls back to unix. No hard-kill.
+            target.write_text(_md_ablation_stub())
+            target.chmod(0o755)
+            continue
+
         if command == "md":
             source = md_binary_path
         else:
@@ -84,10 +101,6 @@ def create_restricted_shell_env(
             if not found:
                 raise FileNotFoundError(f"required benchmark command not found: {command}")
             source = Path(found)
-
-        target = bin_dir / command
-        if target.exists() or target.is_symlink():
-            target.unlink()
         target.symlink_to(source)
 
     guard_log_path = workdir / ".bench-guard.log"
@@ -100,6 +113,7 @@ def create_restricted_shell_env(
     env["BENCH_GUARD_LOG"] = str(guard_log_path)
     env["BENCH_MODE"] = mode
     env["BENCH_RESTRICTED_PATH"] = str(bin_dir)
+    env["BENCH_MD_PROBE_LOG"] = str(workdir / ".md-probe.log")
 
     return RestrictedShellEnv(
         env=env,
@@ -241,6 +255,22 @@ def _extract_md_subcommand(tokens: list[str]) -> str | None:
             continue
         return token
     return None
+
+
+def _md_ablation_stub() -> str:
+    # Soft canonical md ablation (hybrid-no-md): count the probe, tell the agent
+    # md is unavailable here, exit non-zero so it falls back to unix tools.
+    # NOTE: the message must NOT name "ablation"/"benchmark" — a loop-editable
+    # prompt could branch on that string and behave differently in the
+    # counterfactual. Keep it indistinguishable from a plain "command not found"
+    # recovery hint. See BENCH_V2_CLEAN_ABLATION.md (round-3 /second-opinion).
+    return (
+        "#!/bin/sh\n"
+        'printf "probe\\n" >> "${BENCH_MD_PROBE_LOG:-/dev/null}"\n'
+        'echo "md: unavailable here; use standard unix tools '
+        '(grep/sed/awk/cat/head/tail/...) instead." >&2\n'
+        "exit 1\n"
+    )
 
 
 def _guard_script() -> str:

@@ -181,7 +181,7 @@ def neutral_block_texts(content: str) -> list[str]:
 
 # ── Types ─────────────────────────────────────────────────────
 
-BenchMode = Literal["unix", "mdtools", "hybrid"]
+BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
 ScorerKind = Literal["structural", "normalized_text", "raw_bytes"]
 
 
@@ -229,6 +229,7 @@ class BenchResult:
     tokens_out: int = 0          # completion tokens from runner usage (0 if runner gives none)
     mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
     tool_mix: dict[str, int] = field(default_factory=dict)  # per-verb tool-choice counts, e.g. {"md outline": 2, "sed": 1}
+    md_probe_count: int = 0      # hybrid-no-md: times the agent invoked the soft md stub (clean-ablation gate)
     policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
     invalid_responses: int = 0   # oai-loop parse_action_text failures (action-format adherence)
@@ -373,7 +374,9 @@ Do NOT use: python, perl, ruby, node, or any other scripting language.
 def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
     if mode == "mdtools":
         tool_docs = MDTOOLS_DOCS
-    elif mode == "hybrid":
+    elif mode in ("hybrid", "hybrid-no-md"):
+        # hybrid-no-md gets the SAME prompt as hybrid (md advertised); md is just
+        # absent from its toolset, so the only difference is md availability.
         tool_docs = HYBRID_DOCS
     else:
         tool_docs = UNIX_DOCS
@@ -1467,6 +1470,9 @@ def run_agent(
         elif kind == "query":
             call_sequence.append("query")
 
+    md_probe_log = workdir_path / ".md-probe.log"
+    md_probe_count = len(md_probe_log.read_text().splitlines()) if md_probe_log.exists() else 0
+
     if pi_audit_log_path is not None:
         audit_counters = summarize_pi_audit_events(
             load_pi_audit_events(pi_audit_log_path),
@@ -1571,6 +1577,7 @@ def run_agent(
         tokens_out=tokens_out,
         mutations=mutations,
         tool_mix=tool_mix,
+        md_probe_count=md_probe_count,
         policy_violations=policy_violations,
         requeried=requeried,
         invalid_responses=invalid_responses,
@@ -1785,7 +1792,7 @@ def extract_final_text(
 def main():
     parser = argparse.ArgumentParser(description="mdtools benchmark harness")
     parser.add_argument("--run", action="store_true", help="Run agent track")
-    parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid"])
+    parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid", "hybrid-no-md"])
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument(

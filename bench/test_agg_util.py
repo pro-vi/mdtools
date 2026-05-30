@@ -6,7 +6,13 @@ Runnable via pytest OR standalone (pytest is not always installed):
 """
 from __future__ import annotations
 
-from bench.agg_util import category_for, extract_model_tier, intersection_cost
+from bench.agg_util import (
+    STRUCTURAL_CATEGORIES,
+    attribution_verdict,
+    category_for,
+    extract_model_tier,
+    intersection_cost,
+)
 
 
 def _rec(task, mode, model, passed, tin=0, tout=0, calls=0, thinking=None):
@@ -93,6 +99,163 @@ def test_accepts_normalized_shape():
     out = intersection_cost(recs, "unix", "mdtools")
     assert out["n"] == 1 and out["basis"] == "tool_calls"
     assert out["median_a"] == 5 and out["median_b"] == 2
+
+
+# --- U2: md-attribution gate (BENCH_V2_ATTRIBUTION.md) ---
+
+def _ar(task, mode, model, passed, cost, n=1):
+    """n replicates of one (task, mode, model) cell; cost carried via tokens_in."""
+    return [_rec(task, mode, model, passed, tin=cost) for _ in range(n)]
+
+
+def test_structural_categories():
+    assert "Targeted mutation" in STRUCTURAL_CATEGORIES
+    assert "Extraction" in STRUCTURAL_CATEGORIES
+    assert "Text manipulation" not in STRUCTURAL_CATEGORIES  # tie-acceptable
+
+
+def test_attribution_neutering_stays_open():
+    # THE load-bearing test: structural cell where hybrid ≈ hybrid-no-md ≈ unix
+    # (the loop neutered the prompt → md unused → removing md changes nothing).
+    recs = (_ar("T7", "unix", "claude", True, 80000)
+            + _ar("T7", "hybrid", "claude", True, 80000)
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "OPEN:no-lift", v
+
+
+def test_attribution_genuine_value_closes():
+    # md makes hybrid cheaper than hybrid-no-md AND hybrid ≤ unix → md earns it.
+    recs = (_ar("T7", "unix", "claude", True, 80000)
+            + _ar("T7", "hybrid", "claude", True, 50000)
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "CLOSES", v
+
+
+def test_attribution_loses_unix():
+    recs = (_ar("T7", "unix", "claude", True, 80000)
+            + _ar("T7", "hybrid", "claude", True, 100000)  # > unix +5%
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "OPEN:loses-unix", v
+
+
+def test_attribution_counter_game_suspect():
+    # baseline flails far above unix (prompt pushed md so no-md can't cope) → suspect lift
+    recs = (_ar("T7", "unix", "claude", True, 80000)
+            + _ar("T7", "hybrid", "claude", True, 50000)
+            + _ar("T7", "hybrid-no-md", "claude", True, 200000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "SUSPECT:baseline-flails(cost)", v
+
+
+def test_attribution_tie_acceptable_closes():
+    # Text manipulation: hybrid ≥ unix is enough; no lift required, no hybrid-no-md needed.
+    recs = (_ar("T4", "unix", "claude", True, 80000)
+            + _ar("T4", "hybrid", "claude", True, 80000))
+    v = attribution_verdict(recs, "frontier", "Text manipulation")
+    assert v["verdict"] == "CLOSES", v
+
+
+def test_attribution_insufficient_evidence():
+    # structural cell with NO hybrid-no-md records → can't attribute → not closed
+    recs = (_ar("T7", "unix", "claude", True, 80000)
+            + _ar("T7", "hybrid", "claude", True, 50000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "OPEN:insufficient-evidence", v
+
+
+def test_attribution_n3_aggregation():
+    # N=3 replicates per (task,mode) must survive intersection keying (majority pass, median cost)
+    recs = (_ar("T7", "unix", "claude", True, 80000, n=3)
+            + _ar("T7", "hybrid", "claude", True, 50000, n=3)
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000, n=3))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "CLOSES", v
+
+
+# --- clean-ablation validity gate (BENCH_V2_CLEAN_ABLATION.md) ---
+
+def _rpb(task, mode, model, passed, cost, probe=0, n=1):
+    """n replicates of (task,mode) with a per-run md_probe_count."""
+    out = []
+    for _ in range(n):
+        r = _rec(task, mode, model, passed, tin=cost)
+        r["md_probe_count"] = probe
+        out.append(r)
+    return out
+
+
+def test_attribution_correctness_poisoning_suspect():
+    # The worst exploit: hybrid-no-md FAILS a task unix passes (sabotaged baseline)
+    # but cost is fine. Must be SUSPECT(correctness), NOT CLOSES.
+    recs = (_rpb("T7", "unix", "claude", True, 100) + _rpb("T10", "unix", "claude", True, 100)
+            + _rpb("T7", "hybrid", "claude", True, 100) + _rpb("T10", "hybrid", "claude", True, 100)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 105, probe=1)
+            + _rpb("T10", "hybrid-no-md", "claude", False, 105, probe=1))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "SUSPECT:baseline-flails(correctness)", v
+
+
+def test_attribution_multi_probe_suspect():
+    # clean cost+correctness but the agent hit the md stub >1× (prompt over-pushes md) → suspect.
+    recs = (_rpb("T7", "unix", "claude", True, 100) + _rpb("T10", "unix", "claude", True, 100)
+            + _rpb("T7", "hybrid", "claude", True, 80) + _rpb("T10", "hybrid", "claude", True, 80)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 100, probe=3)
+            + _rpb("T10", "hybrid-no-md", "claude", True, 100, probe=3))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "SUSPECT:baseline-flails(probes)", v
+
+
+def test_attribution_clean_baseline_closes():
+    # clean ablation: hybrid-no-md ≈ unix on pass+cost, ≤1 probe; hybrid genuinely cheaper → CLOSES.
+    recs = (_rpb("T7", "unix", "claude", True, 100) + _rpb("T10", "unix", "claude", True, 100)
+            + _rpb("T7", "hybrid", "claude", True, 50) + _rpb("T10", "hybrid", "claude", True, 50)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 100, probe=1)
+            + _rpb("T10", "hybrid-no-md", "claude", True, 100, probe=1))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "CLOSES", v
+
+
+def test_attribution_neutering_clean_probe_still_open():
+    # neutered prompt → agent never tries md (probe 0) → hybrid≈hybrid-no-md → no lift.
+    recs = (_rpb("T7", "unix", "claude", True, 100) + _rpb("T10", "unix", "claude", True, 100)
+            + _rpb("T7", "hybrid", "claude", True, 100) + _rpb("T10", "hybrid", "claude", True, 100)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 100, probe=0)
+            + _rpb("T10", "hybrid-no-md", "claude", True, 100, probe=0))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "OPEN:no-lift", v
+
+
+# --- round-3 tightening: lift vs the BETTER baseline (no tolerance arbitrage) ---
+
+def test_attribution_cost_tolerance_arbitrage_open():
+    # The round-3 hole: hybrid TIES unix on cost (100 == 100) but "beats" a
+    # hybrid-no-md degraded WITHIN baseline tol (106, ≤20%, ≤1 probe). Old rule
+    # fired cost_lift (100 < 106·0.95) → CLOSES; but md added NO win over unix —
+    # the "lift" was the degraded ablation. Must be OPEN:no-lift (lift vs the
+    # better of unix and no-md, not the weaker one).
+    recs = (_rpb("T7", "unix", "claude", True, 100) + _rpb("T10", "unix", "claude", True, 100)
+            + _rpb("T7", "hybrid", "claude", True, 100) + _rpb("T10", "hybrid", "claude", True, 100)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 106, probe=1)
+            + _rpb("T10", "hybrid-no-md", "claude", True, 106, probe=1))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "OPEN:no-lift", v
+
+
+def test_attribution_probe_tail_suspect():
+    # round-3: a probe TAIL ([1,1,5] across runs of one task) must trip
+    # SUSPECT(probes) — a median-≤1 gate would let it pass (median([1,1,5])==1).
+    # Probe validity is max-across-runs, not median: one stuck run is a dirty cell.
+    recs = (_rpb("T7", "unix", "claude", True, 100) + _rpb("T10", "unix", "claude", True, 100)
+            + _rpb("T7", "hybrid", "claude", True, 80) + _rpb("T10", "hybrid", "claude", True, 80)
+            # T7/no-md runs probe [1, 1, 5]: median 1 (would pass), max 5 (dirty)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 100, probe=1, n=2)
+            + _rpb("T7", "hybrid-no-md", "claude", True, 100, probe=5)
+            + _rpb("T10", "hybrid-no-md", "claude", True, 100, probe=1))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "SUSPECT:baseline-flails(probes)", v
 
 
 if __name__ == "__main__":
