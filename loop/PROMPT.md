@@ -49,9 +49,230 @@ are runner concerns — preserve the tree and summarize for the next run.
 On a taste/inferred call: take the smallest reversible action consistent with
 the strongest source, log an Alignment Review (problem · options · chosen ·
 alignment cost · rollback trigger · review question), and continue. Escalate
-only for irreversible/external/authority-needed actions. **Running claude-cli
-cells costs real API $** — keep iterations small; if an iteration would spend
-heavily, prefer the local tier or a 1-task probe first, and log it.
+only for irreversible/external/authority-needed actions. Frontier (claude-cli)
+spend is governed by the **Budget policy** below (token-denominated cap in
+`frontier_token_cap`, write-ahead ledger, per-task atoms, defer-don't-block) —
+never `AskUserQuestion` on cost; defer over-cap frontier work and keep making
+free local progress per that section.
+
+## Budget policy (unattended-safe)
+
+This loop runs **unattended overnight**. Cardinal rule: it must NEVER fire an
+interactive question (`AskUserQuestion`) and NEVER idle waiting for a human.
+Money is the only resource that can force a stop, so spend is governed by an
+**autonomous cap the loop may consume without asking**; frontier work beyond it
+is **deferred (logged + resumable)**, not blocked. Free local work always
+continues. This *refines* (never relaxes) the Judgment-default and the halt
+classifier — it replaces the old "paid-API without budget cap → AskUserQuestion"
+escalation with a logged, resumable handoff.
+
+### Tokens are the unit (USD is uncomputable here)
+
+The harness (`bench/harness.py:1189-1195`) records ONLY `tokens_in` (input +
+cache-create + cache-read) and `tokens_out` from `result.usage`. There is **no
+token→USD price table anywhere in `bench/` or `loop/`** — so a USD cap is a
+number the loop cannot observe. **The cap is therefore TOKEN-denominated.** All
+gating, all cumulative accounting, all recalibration use **frontier tokens**
+(`tokens_in + tokens_out`, summed from real run records), never dollars.
+
+- USD figures (the `$50` seed family, `$1.40/cell`) are **operator-facing
+  context only** — NEVER an operative gate input. If a human wants a $ readout,
+  pin an explicit price table in this PROMPT (`in_$/Mtok`, `out_$/Mtok`,
+  cache-read rate) and the loop MAY *render* `usd = (in·in_$ + out·out_$)/1e6`
+  for the handoff summary — derived, advisory, post-hoc, never the gate.
+
+### Two cost bases (never traded against each other)
+
+- **LOCAL tier** (`pi-json` / `oai-loop` via omlx) — **free**, tool_calls basis.
+  **No spend gate. Never deferred, never counted against the cap.** Local-tier
+  unavailability (omlx down) is `BLOCKED_EXTERNAL`, not a budget event. **Local
+  cell-CLOSING work** (`md`/src edits + `HYBRID_DOCS` tuning re-validated on the
+  local verifier and the cheap inner channel `cargo test` + `bench.test_agg_util`)
+  is **ALWAYS-AVAILABLE free progress**, distinct from one-time local inventory
+  instantiation — while ANY local move exists the loop keeps iterating.
+- **FRONTIER tier** (`claude-cli`) — real $, **token basis** — governed by the
+  cap below. Its tokens are never compared to local tool_calls.
+
+### The cap lives in PROMPT.md, not STATE.md (no lost-update race)
+
+The loop **rewrites STATE.md every iteration**, so a human-edited field there can
+be clobbered by the loop's end-of-iteration full-file write (re-read-at-start +
+full-rewrite-at-end = lost update). Therefore:
+
+- **`frontier_token_cap`** (the human-authored authorization) lives **in THIS
+  file (PROMPT.md), which the loop only READS** — set it on the line below.
+  A supervisor edits it here; the loop adopts it next iteration (re-entrant).
+  `frontier_token_cap: 0`  ← **EXPLICIT operator choice (2026-05-30): local-only night — ALL frontier deferred for supervised morning review. This is a deliberate "local-only night", NOT an unset default; do NOT treat as `derivation-gap`. Raise it in THIS file to authorize unattended frontier spend.**
+- STATE.md holds ONLY the loop's OWN bookkeeping:
+  `frontier_tokens_cumulative`, `per_task_tok_est`, `frontier_ledger`,
+  `deferred-frontier`, `probed_cells`. The loop never writes the cap.
+
+**No safe universal default.** `frontier_token_cap` is a **required kickoff
+input**, not a silent `0`. If genuinely unset/absent, treat iteration 0 as
+`derivation-gap` ("cap not provided") in the halt summary — do NOT silently pick
+`0` and burn the overnight window on a guaranteed no-op. `0` is a deliberate
+**"local-only night"** the operator chooses explicitly (full local progress, ALL
+frontier deferred, clean handoff) — never the fallback.
+
+**Restart / lifetime semantics.** `frontier_tokens_cumulative` is reset ONLY by
+the supervisor (zero it explicitly to open a fresh budget window). The loop NEVER
+resets it itself. A cap RAISE = new ceiling for the SAME cumulative — last
+night's spend still counts until the supervisor zeroes the cumulative. This
+prevents both permanent-lockout and silent restart double-spend.
+
+### Conservative token estimate (gate on worst-case, recalibrate down only)
+
+Estimate a frontier batch's tokens **before** running it:
+
+```
+est_batch_tok = n_tasks × n_modes × N × per_task_tok_est
+```
+
+- `n_modes` = **count the `--mode` invocations in THIS batch's ready-cmd** (the
+  gate runs `unix, hybrid, hybrid-no-md` ⇒ 3) — NEVER a hard-coded constant; if
+  the gate definition ever changes, the formula tracks the actual launch.
+  `mdtools` mode is diagnosis-only, never in a frontier batch.
+- `N` = replicate count (gate = **3**; a diagnosis probe is also **N=3** —
+  Anti-theater forbids n=1 claims, so the smallest *valid* probe is `1×1×3`).
+- `per_task_tok_est` = **conservative UPPER bound, not a blended mean.** Seed:
+  **`153000` tok** per (task×mode×replicate) — the documented *max* of T7's
+  82k–153k spread, applied to ALL of T7/T10/T13/T20 (only T7 is measured, n=1;
+  T10/T13/T20 are unmeasured ⇒ priced at T7's max until each earns its own n≥3
+  actual). **Recalibration may only LOWER `per_task_tok_est`** when sustained
+  n≥3 actuals justify it; it may NEVER silently raise headroom. All current
+  numbers are n=1 (per STATE.md `known_baseline`) — not a basis for a tight cap.
+- **Headroom factor.** A single `harness.py --run -N3` invocation commits a whole
+  tasks×modes×N batch in ONE process and the loop does NOT hard-kill mid-flight
+  (that wastes paid spend). So per-batch overrun is bounded structurally, not by
+  abort: **issue frontier work ONE TASK (one `--task`) at a time** so the cap is
+  re-checked between the smallest atomic harness invocations, and only launch an
+  atom if `remaining_cap ≥ per_task_tok_est × n_modes × N × 1.5` (the 1.5×
+  absorbs the documented ~1.9× single-task variance). `remaining_cap =
+  frontier_token_cap − frontier_tokens_cumulative`, per-run cumulative.
+
+### Write-ahead spend ledger (a crash fails CLOSED, never re-spends)
+
+The spend record lives in loop-rewritten STATE.md, so an unattended mid-iteration
+crash must not lose it. WAL discipline:
+
+1. **Before** launching any frontier atom: write a `frontier_ledger` entry
+   `{ atom, status: launched, debit_tok: per_task_tok_est×n_modes×N }` and
+   **pre-debit** that worst-case to `frontier_tokens_cumulative`, then flush
+   STATE.md.
+2. Run the atom. **After** it returns: **reconcile** `frontier_tokens_cumulative`
+   to the atom's REAL `tokens_in+tokens_out` summed from the run record (replace
+   the pre-debit with measured), set the ledger entry `status: reconciled`,
+   recalibrate `per_task_tok_est` (lower-only) from the actual, flush STATE.md.
+3. **On iteration start:** any `frontier_ledger` entry left `launched` (no
+   `reconciled`) means a prior atom spent but didn't record — **assume the
+   worst-case debit stuck and do NOT re-run it** (resume only un-launched atoms).
+   The cumulative is summed from **run-record tokens, never from the estimate.**
+4. **Errored / timed-out atoms still spent** (claude was billed for tokens
+   generated before timeout): debit their worst-case estimate and **never
+   re-launch a partially-completed batch** — per-task atoms make "resume only the
+   unrun tasks" natural. A timed-out cell is a paid cell.
+5. **Bootstrap STATE.md** with all five loop-owned fields at iteration 0 so the
+   gate is live from the very first frontier reach.
+
+### Per-iteration spend protocol (never block, never idle)
+
+1. **Always do the free local work first** — any LOCAL-tier verifier, diagnosis,
+   `md`/`HYBRID_DOCS` cell-closing edit, inner channel — independent of cap state.
+2. For the chosen frontier atom compute `est_batch_tok` (formula above).
+3. **Run iff `per_task_tok_est > 0 AND est_batch_tok ≤ remaining_cap AND
+   remaining_cap > 0 AND remaining_cap ≥ est_batch_tok × 1.5`.** Then WAL-write,
+   run, reconcile (above), and continue. (A zero estimate is a bug, not a free
+   pass — assert `per_task_tok_est > 0` always.)
+4. **If it does not fit (or `frontier_token_cap == 0`):** do NOT ask, do NOT
+   shrink the gate to fit (running N<3 or dropping a mode to squeeze under the
+   cap is **oracle-drift** — forbidden). Instead:
+   - **DEFER the batch** into STATE.md `deferred-frontier:` keyed on a
+     **COMPOSITE `(cell, batch-kind)`** where `batch-kind ∈ {instantiation, gate,
+     probe}` — so an instantiation deferral and a gate deferral for the SAME cell
+     **coexist** (cell-only keying silently loses one). Idempotency updates the
+     matching `(cell, batch-kind)` entry only; never duplicates. Each entry
+     carries `{ cell, batch-kind, tasks, modes, N, est_tok, est_usd?(advisory),
+     reason, ready-cmd(verbatim) }`.
+   - **Probe sub-budget (strict).** A probe is the smallest *valid* frontier
+     reach (`1 task × 1 mode × N=3 ≈ 459k tok`, NOT the often-misquoted `1×1×1`).
+     A probe is worth firing ONLY IF **`frontier_token_cap > 0`** AND it fits
+     `remaining_cap × 1.5` AND **after the probe `remaining_cap` could still fund
+     at least one FULL gate batch for some cell** (else the probe is pure burn —
+     diagnosis-only work can never advance a cell per Anti-theater, so spending
+     the last money on a probe that closes nothing is forbidden — defer instead).
+     **At most ONE probe per cell per run** (record in STATE.md `probed_cells:`;
+     an already-probed cell is never re-probed unless a `md`/`HYBRID_DOCS` edit
+     invalidated its diagnosis), capped at **≤10% of `frontier_token_cap`** total.
+     Probe spend counts in `frontier_tokens_cumulative` like any frontier spend.
+   - **Continue the iteration** on remaining free local / no-cost work. The loop
+     never stops on a single deferred batch.
+5. **Global-md staleness.** Any `md`/`HYBRID_DOCS`/`MDTOOLS_DOCS` edit touches
+   every cell (dependency topology), so it marks **ALL `deferred-frontier`
+   `est_tok` STALE** — re-estimate them from the current `per_task_tok_est` next
+   iteration. The verbatim `ready-cmd` stays valid; only the budget figure refreshes.
+
+### Bootstrap clause (iteration-0, the live deadlock fix)
+
+The frontier `AC-frontier-*` and `AC-MASTER` rows are CREATED by a paid
+full-suite frontier sweep (Bootstrap step 5 `init-frontier`): **24 tasks × 3
+modes × N3 ≈ 33M tok** at the seed estimate — roughly **6× the seed-family
+batch**, and the FIRST frontier dollars spent, before any per-cell gate. So:
+
+- **Instantiate the LOCAL inventory FULLY** (free, always) — write every
+  `AC-local-*` row from the local sweep.
+- Treat the **frontier inventory-instantiation sweep as the FIRST
+  `deferred-frontier` entry** with `batch-kind: instantiation` and its verbatim
+  `init-frontier` ready-cmd + `est_tok ≈ 33M`. Immediately write the
+  `AC-frontier-*` and `AC-MASTER` rows as **placeholder status
+  `BLOCKED_EXTERNAL(no-budget)` / DEFERRED** so the inventory gate, halt
+  classifier, and final-verify all SEE them (the deferral machinery now has a
+  `cell` to key on — no "defer the act of creating a cell" gap).
+- A **partial bootstrap (local instantiated, frontier deferred) is the CORRECT
+  iteration-0 outcome at any cap below ~33M** — NOT an escalation, NOT a failure.
+  It still ENDs iteration 0 having made full local progress.
+- **Cap-sizing truth for the supervisor** (surface in the handoff): a cap sized
+  for the seed family alone (~5.5M tok) funds NOTHING — it can't pay
+  instantiation, so no `AC-frontier-*` row exists for the seed gate to attach to.
+  **`frontier_token_cap` must cover instantiation (~33M) + at least one gate
+  batch (~5.5M) to make ANY frontier progress.** State `full_frontier_cost_tok`
+  (instantiation + every gate, ~the whole suite) in STATE.md so the supervisor
+  knows the cap for **terminal completion**, not just the next batch.
+
+### Final-verify is all-or-nothing across tiers (terminal needs full cap)
+
+Terminal `criteria-met` needs the full-suite 4-mode × **both tiers** final-verify
+in one repo state — always a frontier run requiring EVERY cell. A cap below
+`full_frontier_cost_tok` means final-verify **cannot run**; the run reaches at
+most `PASS_PENDING_FINAL` on funded cells. **A partial frontier cap yields a
+checkpoint, not terminal credit** — say so in the handoff so an operator who
+funds a partial cap expects a checkpoint, not partial completion.
+
+### Clean halt — only when ONLY paid work remains AND no in-cap reach exists
+
+The loop halts (never idles, never asks) ONLY when **every** remaining unpassed
+cell needs frontier tokens AND **no local move of any kind remains** (no local
+cell to close, no `md`/`HYBRID_DOCS` edit that the local verifier could advance)
+AND `remaining_cap < the cheapest fitting frontier reach` (can't afford even an
+admissible probe: halt iff `remaining_cap < min_probe_tok` — a probe is still
+allowed at exactly equal). AC-MASTER/`AC-frontier-*` being deferred is NOT by
+itself a halt trigger while any local move exists. Then emit `stop-and-summarize`:
+
+- **`genuine-escalate`** — cap **EXHAUSTED after real frontier spend** (matches
+  PROMPT.md "claude budget exhausted"). Summary MUST carry the full
+  `deferred-frontier` list (per-batch `est_tok`, optional advisory `$`),
+  `frontier_tokens_cumulative`, `frontier_token_cap`, `full_frontier_cost_tok`,
+  and verbatim `ready-cmd`s — supervisor approves/raises the cap with zero
+  re-derivation. This replaces the old interactive question.
+- **`derivation-gap`** — cap **UNAUTHORIZED / missing-from-the-start with ~0
+  spent** (the `frontier_token_cap` unset / `0`-by-default case). This is a
+  missing *authorization*, not an *exhausted* resource — do NOT mislabel it
+  `genuine-escalate`. Name the missing cap grant so the next pass supplies it.
+- **`partial-deadlock`** — remaining cells blocked for non-$ reasons (omlx down,
+  STUCK tie-targets) rather than cap exhaustion.
+
+Reaching the cap is **expected and clean**: full local progress plus a logged,
+costed, resumable frontier backlog is the unattended-safe outcome. The loop only
+ever stops with a fully-prepared approval handoff — never mid-question, never idle.
 
 ## Oracle principles (honest by construction)
 
@@ -289,7 +510,11 @@ ignores — `report.py` raises an uncaught `FileNotFoundError` on any dir lackin
    N≥3 (NOT `mdtools` mode — diagnosis-only, the gate never reads it; on the paid
    frontier tier it burns budget for nothing). LOCAL first (cheap; tool_calls):
    `for MODE in unix hybrid hybrid-no-md; do python3 bench/harness.py --run --runner pi-json --model Qwen3.6-35B-A3B-8bit --mode $MODE --md-binary target/release/md -N 3 --json --log-dir loop/runs/init-local/logs/ > loop/runs/init-local/$MODE.txt; done`
-   FRONTIER (claude-cli — real $; tokens; keep tight):
+   FRONTIER (claude-cli) — **governed by the Budget policy's Bootstrap
+   clause**: this `init-frontier` sweep (~33M tok) is the FIRST frontier spend
+   and CREATES the frontier cells. With `frontier_token_cap: 0` it is DEFERRED —
+   write `AC-frontier-*` + `AC-MASTER` as placeholder `BLOCKED_EXTERNAL(no-budget)`
+   / DEFERRED and do NOT run the command. Run it only if the cap funds ~33M tok:
    `for MODE in unix hybrid hybrid-no-md; do python3 bench/harness.py --run --runner claude-cli --mode $MODE --md-binary target/release/md -N 3 --json --log-dir loop/runs/init-frontier/logs/ > loop/runs/init-frontier/$MODE.txt; done`
 6. **Render + sanity-check:**
    `python3 bench/report.py loop/runs/init-local/*.txt loop/runs/init-frontier/*.txt`
