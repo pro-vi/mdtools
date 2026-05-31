@@ -1,0 +1,2101 @@
+
+=== MODE: hybrid (N=3, model=claude-sonnet-4-6) ===
+
+  T1 run 1/3: Extract the document outline as a JSON heading tree...
+    md=PASS neutral=PASS | 11.6s | ~17704B out | obs:2231B | ~1 calls | 0 mut | deny:1  
+  T1 run 2/3: Extract the document outline as a JSON heading tree...
+    md=PASS neutral=PASS | 34.54s | ~27065B out | obs:2530B | ~2 calls | 0 mut | deny:1  
+  T1 run 3/3: Extract the document outline as a JSON heading tree...
+    md=PASS neutral=PASS | 13.78s | ~17712B out | obs:2231B | ~1 calls | 0 mut | deny:1  
+  T2 run 1/3: Insert a new section after the third top-level block (block index 2). The new section content is exactly:
+## v2.5
+
+Hotfix release for auth regression.
+...
+    md=PASS neutral=PASS | 13.52s | ~13161B out | obs:649B | ~3 calls | 0 mut | deny:1  
+  T2 run 2/3: Insert a new section after the third top-level block (block index 2). The new section content is exactly:
+## v2.5
+
+Hotfix release for auth regression.
+...
+    md=PASS neutral=PASS | 16.5s | ~13730B out | obs:649B | ~3 calls | 0 mut | deny:1  
+  T2 run 3/3: Insert a new section after the third top-level block (block index 2). The new section content is exactly:
+## v2.5
+
+Hotfix release for auth regression.
+...
+    md=PASS neutral=PASS | 12.78s | ~14027B out | obs:649B | ~3 calls | 0 mut | deny:1  
+  T3 run 1/3: Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog....
+    md=PASS neutral=PASS | 53.36s | ~42638B out | obs:3308B | ~11 calls | 0 mut | deny:1  
+  T3 run 2/3: Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog....
+    md=PASS neutral=PASS | 81.46s | ~57852B out | obs:2712B | ~12 calls | 0 mut | deny:1  
+  T3 run 3/3: Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog....
+    md=PASS neutral=PASS | 25.3s | ~24489B out | obs:1742B | ~5 calls | 0 mut | deny:1  
+  T4 run 1/3: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=PASS neutral=PASS | 32.85s | ~29299B out | obs:2917B | ~3 calls | 0 mut | deny:1  
+  T4 run 2/3: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=PASS neutral=PASS | 39.62s | ~36851B out | obs:2621B | ~11 calls | 0 mut | deny:1  
+  T4 run 3/3: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=PASS neutral=PASS | 30.52s | ~25356B out | obs:1457B | ~3 calls | 0 mut | deny:1  
+  T5 run 1/3: Extract the outline of a 287-line progress document with 10 headings as JSON...
+    md=PASS neutral=PASS | 31.89s | ~19243B out | obs:2522B | ~1 calls | 0 mut | deny:1  
+  T5 run 2/3: Extract the outline of a 287-line progress document with 10 headings as JSON...
+    md=PASS neutral=PASS | 14.42s | ~19257B out | obs:2522B | ~1 calls | 0 mut | deny:1  
+  T5 run 3/3: Extract the outline of a 287-line progress document with 10 headings as JSON...
+    md=PASS neutral=PASS | 18.38s | ~21694B out | obs:3071B | ~2 calls | 0 mut | deny:1  
+  T6 run 1/3: In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section....
+    md=PASS neutral=PASS | 74.56s | ~60339B out | obs:8924B | ~12 calls | 0 mut | deny:1  
+  T6 run 2/3: In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section....
+    md=PASS neutral=PASS | 70.67s | ~79383B out | obs:19368B | ~9 calls | 0 mut | deny:1  
+  T6 run 3/3: In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section....
+    md=PASS neutral=PASS | 35.07s | ~39043B out | obs:4334B | ~9 calls | 0 mut | deny:1  
+  T7 run 1/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 17.28s | ~25243B out | obs:4176B | ~4 calls | 0 mut | deny:1  
+  T7 run 2/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 18.8s | ~24043B out | obs:4176B | ~4 calls | 0 mut | deny:1  
+  T7 run 3/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 17.02s | ~21399B out | obs:4176B | ~4 calls | 0 mut | deny:1  
+  T8 run 1/3: Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:
+
+---
+
+## Phase 7: Distribution (PROJ-107)
+
+**Goal:** Publish app to distribution channels.
+**Oracle:** ORACLE_BASE
+**Iteration limit:** 10
+
+- [ ] 7.1 App store submission
+  - Prepare metadata and screenshots
+  - Submit for review
+
+- [ ] 7.2 Auto-update mechanism
+  - Check for updates on launch
+  - Download and apply updates
+
+**Checkpoint:** App available in distribution channel.
+**Gate:** /gate + /code-review
+...
+    md=FAIL neutral=FAIL | 33.15s | ~18463B out | obs:1213B | ~4 calls | 0 mut | deny:1  
+  T8 run 2/3: Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:
+
+---
+
+## Phase 7: Distribution (PROJ-107)
+
+**Goal:** Publish app to distribution channels.
+**Oracle:** ORACLE_BASE
+**Iteration limit:** 10
+
+- [ ] 7.1 App store submission
+  - Prepare metadata and screenshots
+  - Submit for review
+
+- [ ] 7.2 Auto-update mechanism
+  - Check for updates on launch
+  - Download and apply updates
+
+**Checkpoint:** App available in distribution channel.
+**Gate:** /gate + /code-review
+...
+    md=FAIL neutral=FAIL | 21.03s | ~18247B out | obs:1213B | ~4 calls | 0 mut | deny:1  
+  T8 run 3/3: Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:
+
+---
+
+## Phase 7: Distribution (PROJ-107)
+
+**Goal:** Publish app to distribution channels.
+**Oracle:** ORACLE_BASE
+**Iteration limit:** 10
+
+- [ ] 7.1 App store submission
+  - Prepare metadata and screenshots
+  - Submit for review
+
+- [ ] 7.2 Auto-update mechanism
+  - Check for updates on launch
+  - Download and apply updates
+
+**Checkpoint:** App available in distribution channel.
+**Gate:** /gate + /code-review
+...
+    md=FAIL neutral=FAIL | 20.08s | ~18300B out | obs:1213B | ~4 calls | 0 mut | deny:1  
+  T9 run 1/3: Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose...
+    md=PASS neutral=PASS | 24.63s | ~39546B out | obs:8541B | ~2 calls | 0 mut | deny:1  
+  T9 run 2/3: Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose...
+    md=PASS neutral=PASS | 17.98s | ~36455B out | obs:8541B | ~2 calls | 0 mut | deny:1  
+  T9 run 3/3: Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose...
+    md=PASS neutral=PASS | 21.61s | ~36491B out | obs:8541B | ~2 calls | 0 mut | deny:1  
+  T10 run 1/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 16.85s | ~17635B out | obs:1872B | ~4 calls | 0 mut | deny:1  
+  T10 run 2/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 19.48s | ~43021B out | obs:12350B | ~4 calls | 0 mut | deny:1  
+  T10 run 3/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 17.35s | ~17678B out | obs:1872B | ~4 calls | 0 mut | deny:1  
+  T11 run 1/3: Count done/pending GFM task items per Phase heading. Output JSON: {"phases": [{"phase": "Phase N — Name", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=PASS neutral=PASS | 30.69s | ~38012B out | obs:8300B | ~3 calls | 0 mut | deny:1  
+  T11 run 2/3: Count done/pending GFM task items per Phase heading. Output JSON: {"phases": [{"phase": "Phase N — Name", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=PASS neutral=PASS | 27.3s | ~34739B out | obs:7136B | ~3 calls | 0 mut | deny:1  
+  T11 run 3/3: Count done/pending GFM task items per Phase heading. Output JSON: {"phases": [{"phase": "Phase N — Name", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=PASS neutral=PASS | 24.62s | ~33179B out | obs:7136B | ~3 calls | 0 mut | deny:1  
+  T12 run 1/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 20.59s | ~24448B out | obs:2621B | ~4 calls | 0 mut | deny:1  
+  T12 run 2/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 28.83s | ~25285B out | obs:2652B | ~5 calls | 0 mut | deny:1  
+  T12 run 3/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 29.53s | ~35504B out | obs:7640B | ~3 calls | 0 mut | deny:1  
+  T13 run 1/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 17.48s | ~18898B out | obs:1132B | ~3 calls | 0 mut | deny:1  
+  T13 run 2/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 29.62s | ~20758B out | obs:1132B | ~3 calls | 0 mut | deny:1  
+  T13 run 3/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 17.17s | ~17428B out | obs:1132B | ~3 calls | 0 mut | deny:1  
+  T14 run 1/3: Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS...
+    md=PASS neutral=PASS | 15.43s | ~21243B out | obs:4414B | ~2 calls | 0 mut | deny:1  
+  T14 run 2/3: Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS...
+    md=PASS neutral=PASS | 8.57s | ~15850B out | obs:2342B | ~1 calls | 0 mut | deny:1  
+  T14 run 3/3: Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS...
+    md=PASS neutral=PASS | 11.88s | ~16794B out | obs:2420B | ~2 calls | 0 mut | deny:1  
+  T15 run 1/3: Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first....
+    md=PASS neutral=PASS | 19.42s | ~20614B out | obs:1036B | ~4 calls | 0 mut | deny:1  
+  T15 run 2/3: Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first....
+    md=PASS neutral=PASS | 19.91s | ~19455B out | obs:1571B | ~5 calls | 0 mut | deny:1  
+  T15 run 3/3: Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first....
+    md=PASS neutral=PASS | 24.15s | ~19416B out | obs:1458B | ~5 calls | 0 mut | deny:1  
+  T16 run 1/3: Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {"total_pending": N, "files": [{"file": "name.md", "pending": N}]} sorted by filename....
+    md=PASS neutral=PASS | 31.14s | ~32989B out | obs:4434B | ~6 calls | 0 mut | deny:1  
+  T16 run 2/3: Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {"total_pending": N, "files": [{"file": "name.md", "pending": N}]} sorted by filename....
+    md=PASS neutral=PASS | 18.48s | ~24218B out | obs:4053B | ~3 calls | 0 mut | deny:1  
+  T16 run 3/3: Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {"total_pending": N, "files": [{"file": "name.md", "pending": N}]} sorted by filename....
+    md=PASS neutral=PASS | 19.76s | ~25829B out | obs:4236B | ~3 calls | 0 mut | deny:1  
+  T17 run 1/3: Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section "Environment Variables" FILE -i --from t17_replacement.md...
+    md=PASS neutral=PASS | 10.42s | ~11441B out | obs:513B | ~2 calls | 0 mut | deny:1  
+  T17 run 2/3: Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section "Environment Variables" FILE -i --from t17_replacement.md...
+    md=PASS neutral=PASS | 10.48s | ~10734B out | obs:513B | ~2 calls | 0 mut | deny:1  
+  T17 run 3/3: Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section "Environment Variables" FILE -i --from t17_replacement.md...
+    md=PASS neutral=PASS | 13.63s | ~11452B out | obs:513B | ~2 calls | 0 mut | deny:1  
+  T18 run 1/3: Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted....
+    md=PASS neutral=PASS | 19.03s | ~18421B out | obs:1491B | ~5 calls | 0 mut | deny:1  
+  T18 run 2/3: Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted....
+    md=PASS neutral=PASS | 21.74s | ~18187B out | obs:1491B | ~5 calls | 0 mut | deny:1  
+  T18 run 3/3: Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted....
+    md=PASS neutral=PASS | 15.57s | ~13697B out | obs:691B | ~3 calls | 0 mut | deny:1  
+  T19 run 1/3: Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {"phases": [{"phase": "Phase N: Name (TICKET)", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=PASS neutral=PASS | 39.92s | ~104881B out | obs:34886B | ~4 calls | 0 mut | deny:1  
+  T19 run 2/3: Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {"phases": [{"phase": "Phase N: Name (TICKET)", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=PASS neutral=PASS | 60.55s | ~109981B out | obs:34886B | ~4 calls | 0 mut | deny:1  
+  T19 run 3/3: Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {"phases": [{"phase": "Phase N: Name (TICKET)", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=PASS neutral=PASS | 55.82s | ~97652B out | obs:31451B | ~3 calls | 0 mut | deny:1  
+  T20 run 1/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 15.39s | ~15889B out | obs:1102B | ~4 calls | 0 mut | deny:1  
+  T20 run 2/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 14.89s | ~15863B out | obs:1102B | ~4 calls | 0 mut | deny:1  
+  T20 run 3/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 21.36s | ~15952B out | obs:1102B | ~4 calls | 0 mut | deny:1  
+  T21 run 1/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 11.43s | ~8914B out | obs:480B | ~1 calls | 0 mut | deny:1  
+  T21 run 2/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 6.99s | ~9062B out | obs:530B | ~1 calls | 0 mut | deny:1  
+  T21 run 3/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 8.06s | ~10645B out | obs:728B | ~2 calls | 0 mut | deny:1  
+  T22 run 1/3: List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations....
+    md=PASS neutral=PASS | 9.34s | ~12425B out | obs:638B | ~2 calls | 0 mut | deny:1  
+  T22 run 2/3: List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations....
+    md=PASS neutral=PASS | 12.46s | ~12826B out | obs:588B | ~2 calls | 0 mut | deny:1  
+  T22 run 3/3: List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations....
+    md=PASS neutral=PASS | 9.68s | ~12763B out | obs:588B | ~2 calls | 0 mut | deny:1  
+  T23 run 1/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=PASS neutral=PASS | 6.39s | ~7799B out | obs:54B | ~1 calls | 0 mut | deny:1  
+  T23 run 2/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=PASS neutral=PASS | 5.81s | ~7777B out | obs:54B | ~1 calls | 0 mut | deny:1  
+  T23 run 3/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=PASS neutral=PASS | 5.49s | ~7382B out | obs:54B | ~1 calls | 0 mut | deny:1  
+  T24 run 1/3: In the TOML frontmatter, set release.channel to stable in place without changing the markdown body....
+    md=PASS neutral=PASS | 11.12s | ~10866B out | obs:408B | ~2 calls | 0 mut | deny:1  
+  T24 run 2/3: In the TOML frontmatter, set release.channel to stable in place without changing the markdown body....
+    md=PASS neutral=PASS | 11.23s | ~11156B out | obs:458B | ~2 calls | 0 mut | deny:1  
+  T24 run 3/3: In the TOML frontmatter, set release.channel to stable in place without changing the markdown body....
+    md=PASS neutral=PASS | 10.56s | ~10795B out | obs:408B | ~2 calls | 0 mut | deny:1  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T1     hybrid     ✓         12s     1   2.2K    0     1    
+T1     hybrid     ✓         35s     2   2.5K    0     1    
+T1     hybrid     ✓         14s     1   2.2K    0     1    
+T2     hybrid     ✓         14s     3   0.6K    0     1    
+T2     hybrid     ✓         16s     3   0.6K    0     1    
+T2     hybrid     ✓         13s     3   0.6K    0     1    
+T3     hybrid     ✓         53s    11   3.2K    0     1    
+T3     hybrid     ✓         81s    12   2.6K    0     1    
+T3     hybrid     ✓         25s     5   1.7K    0     1    
+T4     hybrid     ✓         33s     3   2.8K    0     1    
+T4     hybrid     ✓         40s    11   2.6K    0     1    
+T4     hybrid     ✓         31s     3   1.4K    0     1    
+T5     hybrid     ✓         32s     1   2.5K    0     1    
+T5     hybrid     ✓         14s     1   2.5K    0     1    
+T5     hybrid     ✓         18s     2   3.0K    0     1    
+T6     hybrid     ✓         75s    12   8.7K    0     1    
+T6     hybrid     ✓         71s     9  18.9K    0     1    
+T6     hybrid     ✓         35s     9   4.2K    0     1    
+T7     hybrid     ✓         17s     4   4.1K    0     1    
+T7     hybrid     ✓         19s     4   4.1K    0     1    
+T7     hybrid     ✓         17s     4   4.1K    0     1    
+T8     hybrid     ✗         33s     4   1.2K    0     1    
+T8     hybrid     ✗         21s     4   1.2K    0     1    
+T8     hybrid     ✗         20s     4   1.2K    0     1    
+T9     hybrid     ✓         25s     2   8.3K    0     1    
+T9     hybrid     ✓         18s     2   8.3K    0     1    
+T9     hybrid     ✓         22s     2   8.3K    0     1    
+T10    hybrid     ✓         17s     4   1.8K    0     1    
+T10    hybrid     ✓         19s     4  12.1K    0     1    
+T10    hybrid     ✓         17s     4   1.8K    0     1    
+T11    hybrid     ✓         31s     3   8.1K    0     1    
+T11    hybrid     ✓         27s     3   7.0K    0     1    
+T11    hybrid     ✓         25s     3   7.0K    0     1    
+T12    hybrid     ✓         21s     4   2.6K    0     1    
+T12    hybrid     ✓         29s     5   2.6K    0     1    
+T12    hybrid     ✓         30s     3   7.5K    0     1    
+T13    hybrid     ✓         17s     3   1.1K    0     1    
+T13    hybrid     ✓         30s     3   1.1K    0     1    
+T13    hybrid     ✓         17s     3   1.1K    0     1    
+T14    hybrid     ✓         15s     2   4.3K    0     1    
+T14    hybrid     ✓          9s     1   2.3K    0     1    
+T14    hybrid     ✓         12s     2   2.4K    0     1    
+T15    hybrid     ✓         19s     4   1.0K    0     1    
+T15    hybrid     ✓         20s     5   1.5K    0     1    
+T15    hybrid     ✓         24s     5   1.4K    0     1    
+T16    hybrid     ✓         31s     6   4.3K    0     1    
+T16    hybrid     ✓         18s     3   4.0K    0     1    
+T16    hybrid     ✓         20s     3   4.1K    0     1    
+T17    hybrid     ✓         10s     2   0.5K    0     1    
+T17    hybrid     ✓         10s     2   0.5K    0     1    
+T17    hybrid     ✓         14s     2   0.5K    0     1    
+T18    hybrid     ✓         19s     5   1.5K    0     1    
+T18    hybrid     ✓         22s     5   1.5K    0     1    
+T18    hybrid     ✓         16s     3   0.7K    0     1    
+T19    hybrid     ✓         40s     4  34.1K    0     1    
+T19    hybrid     ✓         61s     4  34.1K    0     1    
+T19    hybrid     ✓         56s     3  30.7K    0     1    
+T20    hybrid     ✓         15s     4   1.1K    0     1    
+T20    hybrid     ✓         15s     4   1.1K    0     1    
+T20    hybrid     ✓         21s     4   1.1K    0     1    
+T21    hybrid     ✓         11s     1   0.5K    0     1    
+T21    hybrid     ✓          7s     1   0.5K    0     1    
+T21    hybrid     ✓          8s     2   0.7K    0     1    
+T22    hybrid     ✓          9s     2   0.6K    0     1    
+T22    hybrid     ✓         12s     2   0.6K    0     1    
+T22    hybrid     ✓         10s     2   0.6K    0     1    
+T23    hybrid     ✓          6s     1   0.1K    0     1    
+T23    hybrid     ✓          6s     1   0.1K    0     1    
+T23    hybrid     ✓          5s     1   0.1K    0     1    
+T24    hybrid     ✓         11s     2   0.4K    0     1    
+T24    hybrid     ✓         11s     2   0.4K    0     1    
+T24    hybrid     ✓         11s     2   0.4K    0     1    
+
+  hybrid: 96% pass | 23s | 3.6 calls | 4KB obs | 0.0 mut | 1.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T1",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2180,
+    "bytes_output": 17704,
+    "bytes_observation": 2231,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 26172,
+    "tokens_out": 971,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.6,
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T1",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2180,
+    "bytes_output": 27065,
+    "bytes_observation": 2530,
+    "tool_calls": 2,
+    "turns": 5,
+    "tokens_in": 82541,
+    "tokens_out": 1843,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 34.54,
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T1",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2180,
+    "bytes_output": 17712,
+    "bytes_observation": 2231,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 26190,
+    "tokens_out": 975,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.78,
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T2",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2351,
+    "bytes_output": 13161,
+    "bytes_observation": 649,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 61233,
+    "tokens_out": 528,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.52,
+    "diff_report": "block_order [md]: OK\nblock_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T2",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2351,
+    "bytes_output": 13730,
+    "bytes_observation": 649,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 61232,
+    "tokens_out": 510,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 16.5,
+    "diff_report": "block_order [md]: OK\nblock_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T2",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2351,
+    "bytes_output": 14027,
+    "bytes_observation": 649,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 61191,
+    "tokens_out": 515,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 12.78,
+    "diff_report": "block_order [md]: OK\nblock_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T3",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2599,
+    "bytes_output": 42638,
+    "bytes_observation": 3308,
+    "tool_calls": 11,
+    "turns": 12,
+    "tokens_in": 217511,
+    "tokens_out": 2157,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 53.36,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T3",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2599,
+    "bytes_output": 57852,
+    "bytes_observation": 2712,
+    "tool_calls": 12,
+    "turns": 13,
+    "tokens_in": 242616,
+    "tokens_out": 4580,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 81.46,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T3",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2599,
+    "bytes_output": 24489,
+    "bytes_observation": 1742,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 99674,
+    "tokens_out": 1212,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 25.3,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T4",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2289,
+    "bytes_output": 29299,
+    "bytes_observation": 2917,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 64485,
+    "tokens_out": 1652,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 32.85,
+    "diff_report": "block_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T4",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2289,
+    "bytes_output": 36851,
+    "bytes_observation": 2621,
+    "tool_calls": 11,
+    "turns": 12,
+    "tokens_in": 161075,
+    "tokens_out": 2151,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 39.62,
+    "diff_report": "block_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T4",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2289,
+    "bytes_output": 25356,
+    "bytes_observation": 1457,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 63206,
+    "tokens_out": 1546,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 30.52,
+    "diff_report": "block_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T5",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2199,
+    "bytes_output": 19243,
+    "bytes_observation": 2522,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 26285,
+    "tokens_out": 1134,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 31.89,
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T5",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2199,
+    "bytes_output": 19257,
+    "bytes_observation": 2522,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 26289,
+    "tokens_out": 1137,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 14.42,
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T5",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2199,
+    "bytes_output": 21694,
+    "bytes_observation": 3071,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 44123,
+    "tokens_out": 1239,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 18.38,
+    "diff_report": "heading_tree [md]: OK\nheading_tree [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T6",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2440,
+    "bytes_output": 60339,
+    "bytes_observation": 8924,
+    "tool_calls": 12,
+    "turns": 13,
+    "tokens_in": 259908,
+    "tokens_out": 3161,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 74.56,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T6",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2440,
+    "bytes_output": 79383,
+    "bytes_observation": 19368,
+    "tool_calls": 9,
+    "turns": 10,
+    "tokens_in": 202320,
+    "tokens_out": 2721,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 70.67,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T6",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2440,
+    "bytes_output": 39043,
+    "bytes_observation": 4334,
+    "tool_calls": 9,
+    "turns": 10,
+    "tokens_in": 179515,
+    "tokens_out": 1705,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 35.07,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 25243,
+    "bytes_observation": 4176,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 83288,
+    "tokens_out": 675,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.28,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 24043,
+    "bytes_observation": 4176,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 83207,
+    "tokens_out": 653,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 18.8,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 21399,
+    "bytes_observation": 4176,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 83069,
+    "tokens_out": 589,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.02,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T8",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2704,
+    "bytes_output": 18463,
+    "bytes_observation": 1213,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 80632,
+    "tokens_out": 789,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 33.15,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '---'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '---'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T8",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2704,
+    "bytes_output": 18247,
+    "bytes_observation": 1213,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 80408,
+    "tokens_out": 716,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 21.03,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '---'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '---'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T8",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2704,
+    "bytes_output": 18300,
+    "bytes_observation": 1213,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 80586,
+    "tokens_out": 767,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 20.08,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '---'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '---'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T9",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2276,
+    "bytes_output": 39546,
+    "bytes_observation": 8541,
+    "tool_calls": 2,
+    "turns": 5,
+    "tokens_in": 91268,
+    "tokens_out": 1406,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 24.63,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T9",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2276,
+    "bytes_output": 36455,
+    "bytes_observation": 8541,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 48250,
+    "tokens_out": 1231,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.98,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T9",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2276,
+    "bytes_output": 36491,
+    "bytes_observation": 8541,
+    "tool_calls": 2,
+    "turns": 4,
+    "tokens_in": 69584,
+    "tokens_out": 1256,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 21.61,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2348,
+    "bytes_output": 17635,
+    "bytes_observation": 1872,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 80579,
+    "tokens_out": 628,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 16.85,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2348,
+    "bytes_output": 43021,
+    "bytes_observation": 12350,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 90527,
+    "tokens_out": 841,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.48,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2348,
+    "bytes_output": 17678,
+    "bytes_observation": 1872,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 80624,
+    "tokens_out": 651,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.35,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T11",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2325,
+    "bytes_output": 38012,
+    "bytes_observation": 8300,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 68105,
+    "tokens_out": 1917,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 30.69,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T11",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2325,
+    "bytes_output": 34739,
+    "bytes_observation": 7136,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 66684,
+    "tokens_out": 1780,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 27.3,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T11",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2325,
+    "bytes_output": 33179,
+    "bytes_observation": 7136,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 66350,
+    "tokens_out": 1371,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 24.62,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2369,
+    "bytes_output": 24448,
+    "bytes_observation": 2621,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 65011,
+    "tokens_out": 1290,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 20.59,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2369,
+    "bytes_output": 25285,
+    "bytes_observation": 2652,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 84198,
+    "tokens_out": 1418,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 28.83,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2369,
+    "bytes_output": 35504,
+    "bytes_observation": 7640,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 69349,
+    "tokens_out": 1238,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 29.53,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2370,
+    "bytes_output": 18898,
+    "bytes_observation": 1132,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 62413,
+    "tokens_out": 924,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.48,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2370,
+    "bytes_output": 20758,
+    "bytes_observation": 1132,
+    "tool_calls": 3,
+    "turns": 5,
+    "tokens_in": 80577,
+    "tokens_out": 960,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 29.62,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2370,
+    "bytes_output": 17428,
+    "bytes_observation": 1132,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 62060,
+    "tokens_out": 746,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.17,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T14",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2483,
+    "bytes_output": 21243,
+    "bytes_observation": 4414,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 44596,
+    "tokens_out": 471,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.43,
+    "diff_report": "stdout: OK\n",
+    "runner_error": null
+  },
+  {
+    "task_id": "T14",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2483,
+    "bytes_output": 15850,
+    "bytes_observation": 2342,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 26384,
+    "tokens_out": 367,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 8.57,
+    "diff_report": "stdout: OK\n",
+    "runner_error": null
+  },
+  {
+    "task_id": "T14",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2483,
+    "bytes_output": 16794,
+    "bytes_observation": 2420,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43970,
+    "tokens_out": 446,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.88,
+    "diff_report": "stdout: OK\n",
+    "runner_error": null
+  },
+  {
+    "task_id": "T15",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2427,
+    "bytes_output": 20614,
+    "bytes_observation": 1036,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 80399,
+    "tokens_out": 844,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.42,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T15",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2427,
+    "bytes_output": 19455,
+    "bytes_observation": 1571,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 98718,
+    "tokens_out": 839,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.91,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T15",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2427,
+    "bytes_output": 19416,
+    "bytes_observation": 1458,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 98008,
+    "tokens_out": 660,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 24.15,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T16",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2351,
+    "bytes_output": 32989,
+    "bytes_observation": 4434,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 123722,
+    "tokens_out": 1612,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 31.14,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T16",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2351,
+    "bytes_output": 24218,
+    "bytes_observation": 4053,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 63833,
+    "tokens_out": 892,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 18.48,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T16",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2351,
+    "bytes_output": 25829,
+    "bytes_observation": 4236,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 63997,
+    "tokens_out": 1048,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.76,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T17",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2536,
+    "bytes_output": 11441,
+    "bytes_observation": 513,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43323,
+    "tokens_out": 365,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 10.42,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T17",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2536,
+    "bytes_output": 10734,
+    "bytes_observation": 513,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43288,
+    "tokens_out": 354,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 10.48,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T17",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2536,
+    "bytes_output": 11452,
+    "bytes_observation": 513,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43351,
+    "tokens_out": 377,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.63,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2469,
+    "bytes_output": 18421,
+    "bytes_observation": 1491,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 97482,
+    "tokens_out": 598,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.03,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2469,
+    "bytes_output": 18187,
+    "bytes_observation": 1491,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 98043,
+    "tokens_out": 735,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 21.74,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2469,
+    "bytes_output": 13697,
+    "bytes_observation": 691,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 61440,
+    "tokens_out": 518,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.57,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T19",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2487,
+    "bytes_output": 104881,
+    "bytes_observation": 34886,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 101400,
+    "tokens_out": 3102,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 39.92,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T19",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2487,
+    "bytes_output": 109981,
+    "bytes_observation": 34886,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 104411,
+    "tokens_out": 4669,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 60.55,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T19",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2487,
+    "bytes_output": 97652,
+    "bytes_observation": 31451,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 98307,
+    "tokens_out": 3632,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 55.82,
+    "diff_report": "json_canonical: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 15889,
+    "bytes_observation": 1102,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 79706,
+    "tokens_out": 636,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.39,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 15863,
+    "bytes_observation": 1102,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 79666,
+    "tokens_out": 636,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 14.89,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 15952,
+    "bytes_observation": 1102,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 79735,
+    "tokens_out": 650,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 21.36,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2246,
+    "bytes_output": 8914,
+    "bytes_observation": 480,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25549,
+    "tokens_out": 205,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.43,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2246,
+    "bytes_output": 9062,
+    "bytes_observation": 530,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25595,
+    "tokens_out": 202,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 6.99,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2246,
+    "bytes_output": 10645,
+    "bytes_observation": 728,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43284,
+    "tokens_out": 347,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 8.06,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T22",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2270,
+    "bytes_output": 12425,
+    "bytes_observation": 638,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43334,
+    "tokens_out": 421,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 9.34,
+    "diff_report": "link_destinations: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T22",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2270,
+    "bytes_output": 12826,
+    "bytes_observation": 588,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43204,
+    "tokens_out": 402,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 12.46,
+    "diff_report": "link_destinations: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T22",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2270,
+    "bytes_output": 12763,
+    "bytes_observation": 588,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43195,
+    "tokens_out": 400,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 9.68,
+    "diff_report": "link_destinations: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2235,
+    "bytes_output": 7799,
+    "bytes_observation": 54,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25384,
+    "tokens_out": 178,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 6.39,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2235,
+    "bytes_output": 7777,
+    "bytes_observation": 54,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25374,
+    "tokens_out": 177,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.81,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2235,
+    "bytes_output": 7382,
+    "bytes_observation": 54,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25398,
+    "tokens_out": 160,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.49,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T24",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2283,
+    "bytes_output": 10866,
+    "bytes_observation": 408,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43138,
+    "tokens_out": 339,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.12,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T24",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2283,
+    "bytes_output": 11156,
+    "bytes_observation": 458,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43149,
+    "tokens_out": 376,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.23,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T24",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2283,
+    "bytes_output": 10795,
+    "bytes_observation": 408,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43093,
+    "tokens_out": 322,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 10.56,
+    "diff_report": "",
+    "runner_error": null
+  }
+]

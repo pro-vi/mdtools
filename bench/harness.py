@@ -359,15 +359,36 @@ ALLOWED TOOLS (standard POSIX):
 Do NOT use: python, perl, ruby, node, or any other scripting language.
 """
 
-HYBRID_DOCS = MDTOOLS_DOCS.rstrip() + """
+# HYBRID_DOCS is a LEAN standalone literal (not MDTOOLS_DOCS) because the hybrid
+# agent also has unix tools and re-reads this prompt every turn — a verbose md
+# reference is O(turns) in token cost (cache_read/creation) without changing
+# behavior. Keep every md subcommand discoverable but terse; keep md the obvious
+# choice for STRUCTURAL ops (so md adds attributable lift, not neutered).
+HYBRID_DOCS = """\
+TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
 
-STANDARD POSIX TOOLS (also available):
-  cat, grep, sed, awk, head, tail, wc, tee, mv, cp
-  Shell: pipes (|), redirection (>, >>), temp files (mktemp)
+`md` subcommands (most take --json; pipe into jq for filtering):
+  md outline F                     heading tree with line spans
+  md blocks F  /  md block N F      list top-level blocks  /  read block N (0-based)
+  md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
+  md search Q F [--kind paragraph|heading|list|code-fence]
+  md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md set-task LOC F -i --status done|pending      toggle a checkbox by loc
+  md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
+  md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
+  md replace-block N F -i --from PATH              replace block N
+  md replace-section "H" F -i --from PATH          replace a section's body
+  md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH
+  md delete-block N F -i  /  md delete-section "H" F -i
+  md move-section --into|--after|--before "DEST" "SRC" F -i   atomic heading+body relocate
 
-Choose the best tool for each step. Use md commands for structural
-markdown operations and unix tools for simple text manipulation.
+POSIX (also available): cat, grep, sed, awk, head, tail, wc, tee, mv, cp; pipes |, redirection >, >>; mktemp; jq.
 Do NOT use: python, perl, ruby, node, or any other scripting language.
+
+Choose the best tool for each step: `md` handles structural markdown operations
+(sections, blocks, GFM tasks, tables, frontmatter, section moves) and POSIX tools
+handle plain line/text work. If `md` is unavailable, the POSIX tools cover the
+same tasks — fall back to them cleanly rather than retrying `md`.
 """
 
 
