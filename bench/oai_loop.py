@@ -177,6 +177,15 @@ def run_oai_loop(
                     "temperature": 0,
                     "max_tokens": 1024,
                     "response_format": {"type": "json_object"},
+                    # Disable the Qwen3 chat-template "Thinking Process:" reasoning
+                    # preamble. These omlx Qwen builds (3.5-27B, 3.6-35B) emit a long
+                    # reasoning prefix by default — pi's --thinking off does NOT reach
+                    # this (it's a chat_template kwarg, not a provider thinking-budget),
+                    # so it must be sent on the request. Verified via omlx curl:
+                    # enable_thinking=false -> direct action JSON, no preamble. Applied
+                    # equally to all modes (unix/hybrid/hybrid-no-md) so the comparison
+                    # stays fair; measurement-infra only (scorer/gate untouched).
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
                 request_timeout_seconds,
             )
