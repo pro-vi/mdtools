@@ -202,9 +202,12 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   reopen_condition: any md/HYBRID_DOCS change
   last_verification: "2026-05-30 frontier N3: OPEN:loses-unix — hybrid 218294 vs unix 84636 (+158%!). md-heavy prompt steers Sonnet to over-explore structural approaches on text tasks (8-15 turns vs unix 4-5). Closing = HYBRID_DOCS must steer unix for plain text."
 
-# ===== LOCAL tier (oai-loop / Qwen3.5-27B) — PENDING sweep bgqm9t2kg =====
-# 9 cells, same families. Verdicts instantiated when the local sweep completes
-# (~22h; weak model flails to max-turns in unix/no-md modes — that IS the md-signal).
+# ===== LOCAL tier (oai-loop / Qwen3.6-35B-A3B-8bit, thinking-off) — MEASURED N3 2026-05-31 =====
+# Runner switched 27B->35B + thinking disabled (bench/oai_loop.py enable_thinking=false fix);
+# ~10-15x faster. loop/runs/init-local/. HEADLINE: md lifts the WEAK model hard — unix ~0% on
+# structural families, hybrid(md) 50-100%. 6 CLOSES (5 genuine corr-lift + Text degenerate-both-fail),
+# 2 SUSPECT:probes (no-md hit md stub 2x), Safe-fail loses-unix. Authoritative numbers: STATE.md
+# local_verifier_result. (verifier lines below say 27B — model is now 35B/thinking-off.)
 - id: AC-local-Extraction
   statement: "STRUCTURAL. Extraction × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -214,7 +217,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Targeted-mutation
   statement: "STRUCTURAL. Targeted mutation × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -224,7 +227,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running. (historical pi probe: md HELPED local on calls T7 unix10/hybrid4)"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify. (historical pi probe: md HELPED local on calls T7 unix10/hybrid4)"
 - id: AC-local-Batch-mutation
   statement: "STRUCTURAL (1-task: T12) × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -234,7 +237,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Multi-step
   statement: "STRUCTURAL. Multi-step (T15,T18) × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -244,7 +247,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Content-delivery
   statement: "STRUCTURAL. Content delivery (T2,T3,T8,T17) × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -254,7 +257,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Safe-fail
   statement: "STRUCTURAL (1-task: T14) × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -264,7 +267,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Metadata
   statement: "STRUCTURAL. Metadata (T21,T22,T24) × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -274,7 +277,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Table-projection
   statement: "STRUCTURAL (1-task: T23) × oai-loop/Qwen3.5-27B N≥3."
   authority: attribution_verdict
@@ -284,7 +287,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 - id: AC-local-Text-manipulation
   statement: "TIE-ACCEPTABLE (T4,T6) × oai-loop/Qwen3.5-27B N≥3. hybrid ≥ unix; no lift required."
   authority: attribution_verdict
@@ -294,7 +297,7 @@ no admissible md/prompt change yields lift — document as a tie-target) ·
   status: OPEN
   depends_on: []
   reopen_condition: any md/HYBRID_DOCS change
-  last_verification: "pending — local sweep bgqm9t2kg running"
+  last_verification: "MEASURED 2026-05-31 (oai-loop/35B/thinking-off, N3) — verdicts in the LOCAL header note + STATE.md local_verifier_result; final status set by final-verify"
 
 - id: AC-INSTR-pi-tokens
   statement: local tier captures real token cost (so it gates in tokens, not tool_calls)

@@ -12,7 +12,18 @@ budget:   # RE-GROUNDED on PROMPT.md Budget policy (commits ff1835a + b13382b la
   frontier_tokens_cumulative: 43085141   # ~43M Sonnet tok spent this session (init-frontier 4-mode + iter1 + iter1b verifies + frontier probes). MOSTLY cache_read (0.1x bill). USD advisory/uncomputable (no price table).
   caveat: "This 43M was spent BEFORE I saw the cap — on the stale pre-policy PROMPT + via the now-BANNED interactive AskUserQuestion authorization ('full sweep cheaper model'), with the operator PRESENT/supervising. It is over the cap (0) in token terms. NOT a clean unattended overspend (operator was directing in real-time), but it's exactly what cap:0 exists to prevent unattended."
   going_forward: "cap=0 -> DEFER all frontier (claude-cli). Do LOCAL-ONLY free work (the oai-loop/35b sweep + local cell-closing md/HYBRID_DOCS re-validated on the LOCAL verifier + cheap inner channel). NEVER AskUserQuestion. Frontier re-verifies (e.g. confirming a future md-src lift edit on Sonnet) are DEFERRED + logged below for morning review; surface in halt summary. Operator raises frontier_token_cap in PROMPT.md to re-open frontier."
-  deferred-frontier: ["frontier re-verify of any md-src/HYBRID_DOCS lift edit (Sonnet 3-mode N3) — deferred until cap raised; local verifier substitutes meanwhile"]
+  deferred-frontier: ["frontier re-verify under the no-retry HYBRID_DOCS edit (Sonnet 3-mode N3) — deferred until cap raised; could also help frontier no-md cleanliness", "frontier md-src lift exploration on the no-lift cells (if operator authorizes)"]
+
+local_verifier_result:   # loop/runs/init-local — oai-loop/Qwen3.6-35B/thinking-off, N3, neutral docs. FREE (cap-exempt).
+  headline: "md DRAMATICALLY lifts the weak local model — the 'tool benefit ∝ 1/capability' thesis, confirmed in hard numbers. unix passes ~0% on structural families (the weak model CANNOT hand-roll structural unix); hybrid (md) passes 50-100%."
+  verdicts: "Batch/Targeted/Metadata/Table = CLOSES (unix 0% -> hybrid 100%, md-probe=1, correctness-lift). Content = CLOSES (0/50/25). Extraction = SUSPECT:baseline-flails(probes) (0/50/17, no-md probe=2). Multi-step = SUSPECT:probes (0/100/0, probe=2). Safe-fail = OPEN:loses-unix (all 100%, md costs +17% on trivial T14). Text(tie-ok) = CLOSES but DEGENERATE (all 0% -> hybrid>=unix trivially; not a real win — flag honestly)."
+  closes_count: "6 CLOSES (5 genuine correctness-lift + 1 degenerate Text), 2 SUSPECT(probes), 1 loses-unix."
+  suspect_cause: "no-md agent retried `md outline` 2x because the stub says 'denied command in hybrid-no-md mode' (reads transient -> retry), not 'command not found'. command_policy.py stub is ORACLE (can't edit). Fix via HYBRID_DOCS no-retry hint (reduces probe -> clean baseline; anti-gaming, gate WANTS <=1 probe)."
+
+STRATEGIC_POSITION:   # the load-bearing finding for the operator's morning review
+  finding: "Two-tier result is the CLEAN scientific story: LOCAL (weak Qwen) md lifts 6-8/9 cells (unix can't, md can); FRONTIER (strong Sonnet) md lifts only 1/9 (Batch) — a competent unix Sonnet ~ md elsewhere. This IS 'tool benefit inversely proportional to model capability', measured."
+  ac_master_blocker: "AC-MASTER (ALL 18 cells CLOSES, both tiers) is BLOCKED ON THE FRONTIER WALL: 8 frontier cells are honest no-lift/loses-unix on a strong model. No prompt lever closes them (prompt contract spent; pushing md = baseline-gaming). They need EITHER (a) md SRC made genuinely fewer-calls than a unix-capable Sonnet on those families (hard; deferred-frontier $), OR (b) operator accepts them as tie-targets ('strong model doesn't need md here' — but they're STRUCTURAL cells the gate won't close without lift, so this needs an explicit operator/criteria decision — the loop must NOT weaken the bench unilaterally)."
+  operator_decisions_needed: "(1) raise frontier_token_cap to authorize frontier md-src lift exploration? (2) accept frontier no-lift cells as out-of-scope/tie-targets (a criteria decision, operator-only)? (3) is the local-tier md-value story (6-8/9) sufficient as the deliverable? Surfaced async per the no-AskUserQuestion policy; awaiting morning review."
 fix_35b_thinking:   # 2026-05-30 ~20:40, user-requested infra fix (NOT a loop gate-lever; user-authorized)
   problem: "omlx Qwen builds (3.5-27B, 3.6-35B) emit a literal 'Thinking Process:' reasoning preamble by default. pi-json can't parse an action out of it -> 0 calls / 180s timeout. pi's --thinking off does NOT fix it (pi has no chat_template_kwargs; its thinking abstraction != Qwen's enable_thinking)."
   root_cause_proof: "omlx curl: baseline -> 'Here's a thinking process...'; chat_template_kwargs:{enable_thinking:false} -> clean 'DONE\\n{\"a\":1}'. /no_think suffix ignored by this build."
@@ -44,7 +55,30 @@ last_action: >
   hybrid cost preserved (T7 +3%, T20 80350). FULL iter1b N3 verifier RUNNING (b1c9zhx3u:
   hybrid+no-md x24 neutral docs, reuse unix) -> real per-cell verdicts. Expect SUSPECT cleared;
   cells that close depend on md-lift (Table T23 corr-lift likely; Extraction/Content if md-lift).
-next_action: >
+iter2_result_REVERTED:   # no-retry HYBRID_DOCS hint — FAILED HYPOTHESIS, reverted (git checkout, back to committed neutral docs)
+  hypothesis: "no-retry hint ('treat md denial as unavailable, use POSIX, don't re-issue') would drop no-md md-probe to <=1 -> close the 2 SUSPECT cells."
+  result: "FAILED. iter2-local had MORE SUSPECT (Batch+Content flipped CLOSES->SUSPECT), not fewer. Per-run probe distributions prove WHY: the probe-count gate (max-across-N3 <=1) is NOISE-DOMINATED for the weak model — same task hits the stub 1x or 2x across runs (T12 no-md: init [1,1,1] -> iter2 [2,1,2]; T2 [1,1,1]->[1,2,1]; T16 [1,1,1]->[1,0,2]). max-across-N3 catches any stray 2 -> SUSPECT flickers randomly run-to-run. EXCEPTION: T11 reliably probes 2x EVERY run ([2,2,2] both sweeps) — agent issues 2 DIFFERENT md commands (not a retry), so the no-retry hint can't fix it."
+  finding: "The LOCAL probe-cleanliness gate is a NOISE-SENSITIVE measurement for the weak model. ROBUST signal = md correctness-lift (hybrid passes structural tasks unix+no-md fail). FLICKERING = which cells land probe<=1 (CLOSES) vs a stray 2 (SUSPECT). Honest local result is a RANGE: ~4-6 CLOSES depending on the run; re-running to chase a lucky low-probe set = NOISE-MINING (forbidden, anti-theater). Reverted; neutral docs stand."
+
+halt_assessment:   # partial-deadlock — surfaced async per no-AskUserQuestion policy
+  classification: partial-deadlock
+  achieved: "Instantiated full bench-v2 attribution inventory (both tiers, N3). Diagnosed+fixed the dominant frontier cost tax (lean HYBRID_DOCS). FIXED the 35b thinking issue (oai_loop.py enable_thinking=false; ~10-15x faster local tier). Frontier: Batch CLOSES. Local: md lifts the weak model HARD (unix ~0% -> hybrid 50-100%; ~5-6 cells CLOSE on correctness-lift). CLEAN SCIENTIFIC FINDING: md value ∝ 1/model-capability, measured (local strong, frontier minimal)."
+  blockers: "AC-MASTER (all 18 cells) blocked on TWO things neither prompt-lever nor free-local can close: (1) FRONTIER WALL — 8 cells honest no-lift/loses on a strong model (a competent unix Sonnet ~ md); needs operator decision (raise frontier_token_cap for md-SRC lift exploration, or accept tie-targets — a criteria call the loop must NOT make unilaterally). (2) LOCAL probe-noise — some local CLOSES flicker SUSPECT on the max-across-N3 probe gate (weak-model variance); not prompt-fixable; re-running = noise-mining."
+  why_not_more_iterating: "Remaining moves are: (a) more frontier work = DEFERRED (cap:0); (b) more local prompt hypotheses for T11/probe-noise = reopens banked frontier + marginal (doesn't unblock terminal, which is frontier-wall-blocked) + risks noise-mining. No free local move cleanly advances the terminal goal. Honest stop point."
+  operator_decisions: "(1) raise frontier_token_cap to authorize frontier md-SRC lift exploration on the 8 no-lift cells? (2) accept frontier no-lift cells as tie-targets / narrow AC-MASTER scope (criteria decision)? (3) is the local-tier md-value story sufficient as the deliverable? (4) accept the local probe-noise as a known measurement caveat, or invest in stabilizing it (higher N / gate tuning — but agg_util is oracle)?"
+next_action_iter2: >
+  iter2-local RUNNING (b3ck5pfyh, oai-loop/35B/thinking-off, no-retry HYBRID_DOCS edit,
+  3 modes N3, ~2-3h, FREE). Tests whether the no-retry hint drops no-md md-probe to <=1 ->
+  closes the 2 SUSPECT cells (Extraction, Multi-step). When done: report.py over
+  loop/runs/iter2-local/*.txt; if probe<=1 + lift holds -> those cells CLOSES (local 8/9).
+  Compare to init-local (preserved) to confirm the 6 CLOSES didn't regress (impact guard).
+  The no-retry HYBRID_DOCS edit also REOPENS frontier (shared prompt) -> frontier re-verify
+  DEFERRED (cap:0, logged in budget.deferred-frontier; may also help frontier no-md). Do NOT
+  commit the no-retry edit until iter2-local verifies it (currently unverified in working tree).
+  AFTER iter2-local: AC-MASTER still blocked on the FRONTIER WALL (STRATEGIC_POSITION) — no
+  free local move closes the 8 frontier no-lift/loses cells; that needs operator decision
+  (raise frontier_token_cap for md-src lift exploration, or accept tie-targets). Surface async.
+next_action_OLD: >
   LOCAL SWEEP RUNNING (b2et9dufu, oai-loop/Qwen3.5-27B, 3 modes N3 T1-24, NEUTRAL docs,
   ~22h, free). When done: report.py over loop/runs/init-local/*.txt -> instantiate the 9
   AC-local-* cell verdicts. HYPOTHESIS: md lifts MORE on the weak local model (the weak

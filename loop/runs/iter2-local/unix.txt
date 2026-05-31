@@ -1,0 +1,2328 @@
+
+=== MODE: unix (N=3, model=Qwen3.6-35B-A3B-8bit) ===
+
+  T1 run 1/3: Extract the document outline as a JSON heading tree...
+    md=FAIL neutral=FAIL | 32.19s | ~3495B out | obs:672B | ~1 calls | 0 mut | deny:0  
+  T1 run 2/3: Extract the document outline as a JSON heading tree...
+    md=FAIL neutral=FAIL | 32.31s | ~3495B out | obs:672B | ~1 calls | 0 mut | deny:0  
+  T1 run 3/3: Extract the document outline as a JSON heading tree...
+    md=FAIL neutral=FAIL | 37.03s | ~3495B out | obs:672B | ~1 calls | 0 mut | deny:0  
+  T2 run 1/3: Insert a new section after the third top-level block (block index 2). The new section content is exactly:
+## v2.5
+
+Hotfix release for auth regression.
+...
+    md=FAIL neutral=FAIL | 67.78s | ~6967B out | obs:1697B | ~6 calls | 3 mut | deny:0 ↻
+  T2 run 2/3: Insert a new section after the third top-level block (block index 2). The new section content is exactly:
+## v2.5
+
+Hotfix release for auth regression.
+...
+    md=FAIL neutral=FAIL | 45.9s | ~3640B out | obs:5494B | ~27 calls | 11 mut | deny:8 ↻
+  T2 run 3/3: Insert a new section after the third top-level block (block index 2). The new section content is exactly:
+## v2.5
+
+Hotfix release for auth regression.
+...
+    md=FAIL neutral=FAIL | 77.46s | ~8339B out | obs:1190B | ~4 calls | 0 mut | deny:0  
+  T3 run 1/3: Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog....
+    md=FAIL neutral=FAIL | 217.74s | ~29905B out | obs:536B | ~1 calls | 0 mut | deny:0  
+  T3 run 2/3: Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog....
+    md=FAIL neutral=FAIL | 90.69s | ~10375B out | obs:9060B | ~27 calls | 25 mut | deny:0  
+  T3 run 3/3: Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog....
+    md=FAIL neutral=FAIL | 69.86s | ~8271B out | obs:9188B | ~29 calls | 28 mut | deny:0  
+  T4 run 1/3: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=FAIL neutral=FAIL | 114.82s | ~15091B out | obs:820B | ~1 calls | 0 mut | deny:0  
+  T4 run 2/3: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=FAIL neutral=FAIL | 102.73s | ~13431B out | obs:820B | ~1 calls | 0 mut | deny:0  
+  T4 run 3/3: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=FAIL neutral=FAIL | 101.54s | ~13299B out | obs:820B | ~1 calls | 0 mut | deny:0  
+  T5 run 1/3: Extract the outline of a 287-line progress document with 10 headings as JSON...
+    md=FAIL neutral=FAIL | 88.54s | ~9935B out | obs:9662B | ~2 calls | 0 mut | deny:0  
+  T5 run 2/3: Extract the outline of a 287-line progress document with 10 headings as JSON...
+    md=FAIL neutral=FAIL | 84.4s | ~9029B out | obs:9735B | ~2 calls | 0 mut | deny:0  
+  T5 run 3/3: Extract the outline of a 287-line progress document with 10 headings as JSON...
+    md=FAIL neutral=FAIL | 58.94s | ~5586B out | obs:10292B | ~3 calls | 0 mut | deny:0  
+  T6 run 1/3: In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section....
+    md=FAIL neutral=FAIL | 55.58s | ~4504B out | obs:16152B | ~30 calls | 29 mut | deny:0  
+  T6 run 2/3: In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section....
+    md=FAIL neutral=FAIL | 95.34s | ~9942B out | obs:10225B | ~6 calls | 5 mut | deny:0  
+  T6 run 3/3: In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section....
+    md=FAIL neutral=FAIL | 47.06s | ~3833B out | obs:15136B | ~29 calls | 28 mut | deny:0  
+  T7 run 1/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=FAIL neutral=FAIL | 47.35s | ~3777B out | obs:15387B | ~30 calls | 28 mut | deny:0 ↻
+  T7 run 2/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 19.68s | ~1847B out | obs:10467B | ~7 calls | 5 mut | deny:0 ↻
+  T7 run 3/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=FAIL neutral=FAIL | 46.74s | ~3786B out | obs:14944B | ~28 calls | 26 mut | deny:0 ↻
+  T8 run 1/3: Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:
+
+---
+
+## Phase 7: Distribution (PROJ-107)
+
+**Goal:** Publish app to distribution channels.
+**Oracle:** ORACLE_BASE
+**Iteration limit:** 10
+
+- [ ] 7.1 App store submission
+  - Prepare metadata and screenshots
+  - Submit for review
+
+- [ ] 7.2 Auto-update mechanism
+  - Check for updates on launch
+  - Download and apply updates
+
+**Checkpoint:** App available in distribution channel.
+**Gate:** /gate + /code-review
+...
+    md=FAIL neutral=FAIL | 182.99s | ~28264B out | obs:10450B | ~3 calls | 2 mut | deny:0 ↻
+  T8 run 2/3: Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:
+
+---
+
+## Phase 7: Distribution (PROJ-107)
+
+**Goal:** Publish app to distribution channels.
+**Oracle:** ORACLE_BASE
+**Iteration limit:** 10
+
+- [ ] 7.1 App store submission
+  - Prepare metadata and screenshots
+  - Submit for review
+
+- [ ] 7.2 Auto-update mechanism
+  - Check for updates on launch
+  - Download and apply updates
+
+**Checkpoint:** App available in distribution channel.
+**Gate:** /gate + /code-review
+...
+    md=FAIL neutral=FAIL | 59.78s | ~6824B out | obs:5752B | ~25 calls | 8 mut | deny:3 ↻
+  T8 run 3/3: Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:
+
+---
+
+## Phase 7: Distribution (PROJ-107)
+
+**Goal:** Publish app to distribution channels.
+**Oracle:** ORACLE_BASE
+**Iteration limit:** 10
+
+- [ ] 7.1 App store submission
+  - Prepare metadata and screenshots
+  - Submit for review
+
+- [ ] 7.2 Auto-update mechanism
+  - Check for updates on launch
+  - Download and apply updates
+
+**Checkpoint:** App available in distribution channel.
+**Gate:** /gate + /code-review
+...
+    md=FAIL neutral=FAIL | 95.35s | ~14964B out | obs:2483B | ~5 calls | 1 mut | deny:1 ↻
+  T9 run 1/3: Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose...
+    md=FAIL neutral=FAIL | 87.42s | ~9841B out | obs:9755B | ~21 calls | 0 mut | deny:3  
+  T9 run 2/3: Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose...
+    md=FAIL neutral=FAIL | 166.44s | ~19902B out | obs:1577B | ~1 calls | 0 mut | deny:0  
+  T9 run 3/3: Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose...
+    md=FAIL neutral=FAIL | 7.59s | ~596B out | obs:2301B | ~6 calls | 0 mut | deny:4   | err:oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xcf in position 0: invalid continuation byte
+  T10 run 1/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=FAIL neutral=FAIL | 46.03s | ~3683B out | obs:7844B | ~30 calls | 28 mut | deny:0 ↻
+  T10 run 2/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=FAIL neutral=FAIL | 44.97s | ~3885B out | obs:7388B | ~28 calls | 22 mut | deny:2 ↻
+  T10 run 3/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=FAIL neutral=FAIL | 46.46s | ~3881B out | obs:7487B | ~28 calls | 26 mut | deny:0 ↻
+  T11 run 1/3: Count done/pending GFM task items per Phase heading. Output JSON: {"phases": [{"phase": "Phase N — Name", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=FAIL neutral=FAIL | 240.13s | ~28319B out | obs:1579B | ~1 calls | 0 mut | deny:0  
+  T11 run 2/3: Count done/pending GFM task items per Phase heading. Output JSON: {"phases": [{"phase": "Phase N — Name", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=FAIL neutral=FAIL | 181.06s | ~25345B out | obs:1579B | ~1 calls | 0 mut | deny:0  
+  T11 run 3/3: Count done/pending GFM task items per Phase heading. Output JSON: {"phases": [{"phase": "Phase N — Name", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=FAIL neutral=FAIL | 208.79s | ~24690B out | obs:1579B | ~1 calls | 0 mut | deny:0  
+  T12 run 1/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=FAIL neutral=FAIL | 47.67s | ~3725B out | obs:9636B | ~30 calls | 28 mut | deny:0  
+  T12 run 2/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=FAIL neutral=FAIL | 45.71s | ~3725B out | obs:9636B | ~30 calls | 28 mut | deny:0  
+  T12 run 3/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=FAIL neutral=FAIL | 46.58s | ~3725B out | obs:9636B | ~30 calls | 28 mut | deny:0  
+  T13 run 1/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=FAIL neutral=FAIL | 50.35s | ~4723B out | obs:4444B | ~19 calls | 16 mut | deny:0 ↻
+  T13 run 2/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=FAIL neutral=FAIL | 51.6s | ~5414B out | obs:2976B | ~11 calls | 8 mut | deny:0 ↻
+  T13 run 3/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=FAIL neutral=FAIL | 5.11s | ~540B out | obs:906B | ~4 calls | 1 mut | deny:0 ↻ | err:oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2 in position 75: invalid continuation byte
+  T14 run 1/3: Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS...
+    md=FAIL neutral=FAIL | 37.93s | ~3440B out | obs:412B | ~1 calls | 0 mut | deny:0  
+  T14 run 2/3: Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS...
+    md=PASS neutral=PASS | 4.77s | ~422B out | obs:847B | ~3 calls | 0 mut | deny:0  
+  T14 run 3/3: Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS...
+    md=PASS neutral=PASS | 3.58s | ~288B out | obs:698B | ~2 calls | 0 mut | deny:0  
+  T15 run 1/3: Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first....
+    md=FAIL neutral=FAIL | 6.16s | ~576B out | obs:1396B | ~5 calls | 1 mut | deny:0 ↻ | err:oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2 in position 31: invalid continuation byte
+  T15 run 2/3: Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first....
+    md=FAIL neutral=FAIL | 56.42s | ~5447B out | obs:3579B | ~8 calls | 4 mut | deny:0 ↻
+  T15 run 3/3: Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first....
+    md=FAIL neutral=FAIL | 57.0s | ~5627B out | obs:2635B | ~6 calls | 3 mut | deny:0 ↻
+  T16 run 1/3: Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {"total_pending": N, "files": [{"file": "name.md", "pending": N}]} sorted by filename....
+    md=FAIL neutral=FAIL | 41.13s | ~3843B out | obs:0B | ~0 calls | 0 mut | deny:0  
+  T16 run 2/3: Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {"total_pending": N, "files": [{"file": "name.md", "pending": N}]} sorted by filename....
+    md=FAIL neutral=FAIL | 56.3s | ~5003B out | obs:19953B | ~29 calls | 0 mut | deny:3  
+  T16 run 3/3: Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {"total_pending": N, "files": [{"file": "name.md", "pending": N}]} sorted by filename....
+    md=FAIL neutral=FAIL | 53.18s | ~5113B out | obs:3510B | ~9 calls | 0 mut | deny:3  
+  T17 run 1/3: Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section "Environment Variables" FILE -i --from t17_replacement.md...
+    md=FAIL neutral=FAIL | 41.49s | ~4950B out | obs:0B | ~0 calls | 0 mut | deny:0  
+  T17 run 2/3: Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section "Environment Variables" FILE -i --from t17_replacement.md...
+    md=FAIL neutral=FAIL | 38.34s | ~4950B out | obs:0B | ~0 calls | 0 mut | deny:0  
+  T17 run 3/3: Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section "Environment Variables" FILE -i --from t17_replacement.md...
+    md=FAIL neutral=FAIL | 40.0s | ~5368B out | obs:0B | ~0 calls | 0 mut | deny:0  
+  T18 run 1/3: Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted....
+    md=FAIL neutral=FAIL | 48.58s | ~5242B out | obs:1247B | ~2 calls | 0 mut | deny:1  
+  T18 run 2/3: Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted....
+    md=FAIL neutral=FAIL | 45.19s | ~5047B out | obs:2205B | ~3 calls | 0 mut | deny:1  
+  T18 run 3/3: Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted....
+    md=FAIL neutral=FAIL | 60.11s | ~7524B out | obs:2428B | ~4 calls | 1 mut | deny:1 ↻
+  T19 run 1/3: Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {"phases": [{"phase": "Phase N: Name (TICKET)", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=FAIL neutral=FAIL | 155.77s | ~25522B out | obs:10284B | ~6 calls | 0 mut | deny:0  
+  T19 run 2/3: Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {"phases": [{"phase": "Phase N: Name (TICKET)", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=FAIL neutral=FAIL | 185.67s | ~31914B out | obs:10284B | ~6 calls | 0 mut | deny:0  
+  T19 run 3/3: Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {"phases": [{"phase": "Phase N: Name (TICKET)", "done": N, "pending": N}], "totals": {"done": N, "pending": N}}. Use exactly these key names....
+    md=FAIL neutral=FAIL | 165.27s | ~23749B out | obs:10284B | ~6 calls | 0 mut | deny:0  
+  T20 run 1/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=FAIL neutral=FAIL | 45.91s | ~3514B out | obs:9261B | ~30 calls | 26 mut | deny:0  
+  T20 run 2/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=FAIL neutral=FAIL | 45.5s | ~3633B out | obs:7237B | ~30 calls | 27 mut | deny:0  
+  T20 run 3/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=FAIL neutral=FAIL | 46.69s | ~3728B out | obs:7589B | ~30 calls | 27 mut | deny:0  
+  T21 run 1/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=FAIL neutral=FAIL | 39.06s | ~3581B out | obs:297B | ~1 calls | 0 mut | deny:0  
+  T21 run 2/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=FAIL neutral=FAIL | 39.24s | ~3813B out | obs:297B | ~1 calls | 0 mut | deny:0  
+  T21 run 3/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=FAIL neutral=FAIL | 39.18s | ~3813B out | obs:297B | ~1 calls | 0 mut | deny:0  
+  T22 run 1/3: List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations....
+    md=FAIL neutral=FAIL | 449.19s | ~55076B out | obs:1038B | ~3 calls | 0 mut | deny:0  
+  T22 run 2/3: List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations....
+    md=FAIL neutral=FAIL | 66.74s | ~9153B out | obs:1651B | ~6 calls | 0 mut | deny:1  
+  T22 run 3/3: List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations....
+    md=FAIL neutral=FAIL | 82.65s | ~10842B out | obs:1038B | ~3 calls | 0 mut | deny:0  
+  T23 run 1/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=FAIL neutral=FAIL | 48.69s | ~5176B out | obs:256B | ~1 calls | 0 mut | deny:0  
+  T23 run 2/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=FAIL neutral=FAIL | 50.92s | ~5558B out | obs:256B | ~1 calls | 0 mut | deny:0  
+  T23 run 3/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=FAIL neutral=FAIL | 48.6s | ~5230B out | obs:256B | ~1 calls | 0 mut | deny:0  
+  T24 run 1/3: In the TOML frontmatter, set release.channel to stable in place without changing the markdown body....
+    md=FAIL neutral=FAIL | 16.15s | ~1684B out | obs:1688B | ~8 calls | 6 mut | deny:0 ↻
+  T24 run 2/3: In the TOML frontmatter, set release.channel to stable in place without changing the markdown body....
+    md=FAIL neutral=FAIL | 39.68s | ~4182B out | obs:6873B | ~30 calls | 29 mut | deny:0  
+  T24 run 3/3: In the TOML frontmatter, set release.channel to stable in place without changing the markdown body....
+    md=FAIL neutral=FAIL | 17.14s | ~1823B out | obs:1688B | ~8 calls | 6 mut | deny:0 ↻
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T1     unix       ✗         32s     1   0.7K    0     0    
+T1     unix       ✗         32s     1   0.7K    0     0    
+T1     unix       ✗         37s     1   0.7K    0     0    
+T2     unix       ✗         68s     6   1.7K    3     0   ↻
+T2     unix       ✗         46s    27   5.4K   11     8   ↻
+T2     unix       ✗         77s     4   1.2K    0     0    
+T3     unix       ✗        218s     1   0.5K    0     0    
+T3     unix       ✗         91s    27   8.8K   25     0    
+T3     unix       ✗         70s    29   9.0K   28     0    
+T4     unix       ✗        115s     1   0.8K    0     0    
+T4     unix       ✗        103s     1   0.8K    0     0    
+T4     unix       ✗        102s     1   0.8K    0     0    
+T5     unix       ✗         89s     2   9.4K    0     0    
+T5     unix       ✗         84s     2   9.5K    0     0    
+T5     unix       ✗         59s     3  10.1K    0     0    
+T6     unix       ✗         56s    30  15.8K   29     0    
+T6     unix       ✗         95s     6  10.0K    5     0    
+T6     unix       ✗         47s    29  14.8K   28     0    
+T7     unix       ✗         47s    30  15.0K   28     0   ↻
+T7     unix       ✓         20s     7  10.2K    5     0   ↻
+T7     unix       ✗         47s    28  14.6K   26     0   ↻
+T8     unix       ✗        183s     3  10.2K    2     0   ↻
+T8     unix       ✗         60s    25   5.6K    8     3   ↻
+T8     unix       ✗         95s     5   2.4K    1     1   ↻
+T9     unix       ✗         87s    21   9.5K    0     3    
+T9     unix       ✗        166s     1   1.5K    0     0    
+T9     unix       ✗          8s     6   2.2K    0     4    
+T10    unix       ✗         46s    30   7.7K   28     0   ↻
+T10    unix       ✗         45s    28   7.2K   22     2   ↻
+T10    unix       ✗         46s    28   7.3K   26     0   ↻
+T11    unix       ✗        240s     1   1.5K    0     0    
+T11    unix       ✗        181s     1   1.5K    0     0    
+T11    unix       ✗        209s     1   1.5K    0     0    
+T12    unix       ✗         48s    30   9.4K   28     0    
+T12    unix       ✗         46s    30   9.4K   28     0    
+T12    unix       ✗         47s    30   9.4K   28     0    
+T13    unix       ✗         50s    19   4.3K   16     0   ↻
+T13    unix       ✗         52s    11   2.9K    8     0   ↻
+T13    unix       ✗          5s     4   0.9K    1     0   ↻
+T14    unix       ✗         38s     1   0.4K    0     0    
+T14    unix       ✓          5s     3   0.8K    0     0    
+T14    unix       ✓          4s     2   0.7K    0     0    
+T15    unix       ✗          6s     5   1.4K    1     0   ↻
+T15    unix       ✗         56s     8   3.5K    4     0   ↻
+T15    unix       ✗         57s     6   2.6K    3     0   ↻
+T16    unix       ✗         41s     0   0.0K    0     0    
+T16    unix       ✗         56s    29  19.5K    0     3    
+T16    unix       ✗         53s     9   3.4K    0     3    
+T17    unix       ✗         41s     0   0.0K    0     0    
+T17    unix       ✗         38s     0   0.0K    0     0    
+T17    unix       ✗         40s     0   0.0K    0     0    
+T18    unix       ✗         49s     2   1.2K    0     1    
+T18    unix       ✗         45s     3   2.2K    0     1    
+T18    unix       ✗         60s     4   2.4K    1     1   ↻
+T19    unix       ✗        156s     6  10.0K    0     0    
+T19    unix       ✗        186s     6  10.0K    0     0    
+T19    unix       ✗        165s     6  10.0K    0     0    
+T20    unix       ✗         46s    30   9.0K   26     0    
+T20    unix       ✗         46s    30   7.1K   27     0    
+T20    unix       ✗         47s    30   7.4K   27     0    
+T21    unix       ✗         39s     1   0.3K    0     0    
+T21    unix       ✗         39s     1   0.3K    0     0    
+T21    unix       ✗         39s     1   0.3K    0     0    
+T22    unix       ✗        449s     3   1.0K    0     0    
+T22    unix       ✗         67s     6   1.6K    0     1    
+T22    unix       ✗         83s     3   1.0K    0     0    
+T23    unix       ✗         49s     1   0.2K    0     0    
+T23    unix       ✗         51s     1   0.2K    0     0    
+T23    unix       ✗         49s     1   0.2K    0     0    
+T24    unix       ✗         16s     8   1.6K    6     0   ↻
+T24    unix       ✗         40s    30   6.7K   29     0    
+T24    unix       ✗         17s     8   1.6K    6     0   ↻
+
+  unix: 4% pass | 74s | 10.5 calls | 5KB obs | 7.1 mut | 0.4 deny | 28% requery
+
+[
+  {
+    "task_id": "T1",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 688,
+    "bytes_output": 3495,
+    "bytes_observation": 672,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 52647,
+    "tokens_out": 1322,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 32.19,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T1",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 688,
+    "bytes_output": 3495,
+    "bytes_observation": 672,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 52153,
+    "tokens_out": 1302,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 32.31,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T1",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 688,
+    "bytes_output": 3495,
+    "bytes_observation": 672,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 53141,
+    "tokens_out": 1363,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 37.03,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T2",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 857,
+    "bytes_output": 6967,
+    "bytes_observation": 1697,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 89121,
+    "tokens_out": 2767,
+    "mutations": 3,
+    "tool_mix": {
+      "cat": 3,
+      "mv": 2,
+      "sed": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 6,
+    "elapsed_seconds": 67.78,
+    "diff_report": "block_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\nblock_text [neutral]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\n  count: 9 vs 7",
+    "runner_error": null
+  },
+  {
+    "task_id": "T2",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 857,
+    "bytes_output": 3640,
+    "bytes_observation": 5494,
+    "tool_calls": 27,
+    "turns": 30,
+    "tokens_in": 74993,
+    "tokens_out": 1501,
+    "mutations": 11,
+    "tool_mix": {
+      "cat": 6,
+      "head": 2,
+      "tail": 1,
+      "wc": 1,
+      "grep": 2,
+      "sed": 11
+    },
+    "md_probe_count": 0,
+    "policy_violations": 8,
+    "requeried": true,
+    "invalid_responses": 3,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 45.9,
+    "diff_report": "block_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\nblock_text [neutral]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\n  count: 9 vs 7",
+    "runner_error": null
+  },
+  {
+    "task_id": "T2",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 857,
+    "bytes_output": 8339,
+    "bytes_observation": 1190,
+    "tool_calls": 4,
+    "turns": 30,
+    "tokens_in": 83014,
+    "tokens_out": 3173,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 4,
+      "head": 1,
+      "tail": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 26,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 77.46,
+    "diff_report": "block_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\nblock_text [neutral]: MISMATCH\n  block 3: '## v2.5' vs '## v2.0'\n  count: 9 vs 7",
+    "runner_error": null
+  },
+  {
+    "task_id": "T3",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1105,
+    "bytes_output": 29905,
+    "bytes_observation": 536,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 199504,
+    "tokens_out": 10282,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 6,
+    "elapsed_seconds": 217.74,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: MISMATCH\n  block 10: 'Updates an existing item. Now supports partial updates via P' vs 'Updates an existing item.'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 10: 'Updates an existing item. Now supports partial updates via P' vs 'Updates an existing item.'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T3",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1105,
+    "bytes_output": 10375,
+    "bytes_observation": 9060,
+    "tool_calls": 27,
+    "turns": 30,
+    "tokens_in": 146819,
+    "tokens_out": 3939,
+    "mutations": 25,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 25
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 3,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 90.69,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: MISMATCH\n  block 10: 'Updates an existing item. Now supports partial updates via P' vs 'Updates an existing item.'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 10: 'Updates an existing item. Now supports partial updates via P' vs 'Updates an existing item.'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T3",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1105,
+    "bytes_output": 8271,
+    "bytes_observation": 9188,
+    "tool_calls": 29,
+    "turns": 30,
+    "tokens_in": 116320,
+    "tokens_out": 2852,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 69.86,
+    "diff_report": "heading_tree [md]: OK\nblock_text [md]: MISMATCH\n  block 10: 'Updates an existing item. Now supports partial updates via P' vs 'Updates an existing item.'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 10: 'Updates an existing item. Now supports partial updates via P' vs 'Updates an existing item.'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T4",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 795,
+    "bytes_output": 15091,
+    "bytes_observation": 820,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 113826,
+    "tokens_out": 5422,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 114.82,
+    "diff_report": "block_text [md]: MISMATCH\n  block 2: 'This approach is the recommended approach for new users. The' vs 'This method is the recommended approach for new users. The m'\nblock_text [neutral]: MISMATCH\n  block 2: 'This approach is the recommended approach for new users. The' vs 'This method is the recommended approach for new users. The m'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T4",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 795,
+    "bytes_output": 13431,
+    "bytes_observation": 820,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 107007,
+    "tokens_out": 5008,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 102.73,
+    "diff_report": "block_text [md]: MISMATCH\n  block 2: 'This approach is the recommended approach for new users. The' vs 'This method is the recommended approach for new users. The m'\nblock_text [neutral]: MISMATCH\n  block 2: 'This approach is the recommended approach for new users. The' vs 'This method is the recommended approach for new users. The m'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T4",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 795,
+    "bytes_output": 13299,
+    "bytes_observation": 820,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 105086,
+    "tokens_out": 4823,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 101.54,
+    "diff_report": "block_text [md]: MISMATCH\n  block 2: 'This approach is the recommended approach for new users. The' vs 'This method is the recommended approach for new users. The m'\nblock_text [neutral]: MISMATCH\n  block 2: 'This approach is the recommended approach for new users. The' vs 'This method is the recommended approach for new users. The m'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T5",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 707,
+    "bytes_output": 9935,
+    "bytes_observation": 9662,
+    "tool_calls": 2,
+    "turns": 30,
+    "tokens_in": 160708,
+    "tokens_out": 3943,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1,
+      "grep": 1,
+      "sed": 3
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 28,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 88.54,
+    "diff_report": "json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T5",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 707,
+    "bytes_output": 9029,
+    "bytes_observation": 9735,
+    "tool_calls": 2,
+    "turns": 30,
+    "tokens_in": 159711,
+    "tokens_out": 3779,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 2,
+      "grep": 1,
+      "awk": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 28,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 84.4,
+    "diff_report": "json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T5",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 707,
+    "bytes_output": 5586,
+    "bytes_observation": 10292,
+    "tool_calls": 3,
+    "turns": 30,
+    "tokens_in": 143858,
+    "tokens_out": 2278,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 3,
+      "grep": 2,
+      "awk": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 27,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 58.94,
+    "diff_report": "json_envelope: MISMATCH expected top-level JSON object (actual=list, expected=dict)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T6",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 946,
+    "bytes_output": 4504,
+    "bytes_observation": 16152,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 160546,
+    "tokens_out": 1940,
+    "mutations": 29,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 29
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 55.58,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\n  count: 43 vs 44",
+    "runner_error": null
+  },
+  {
+    "task_id": "T6",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 946,
+    "bytes_output": 9942,
+    "bytes_observation": 10225,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 163713,
+    "tokens_out": 4172,
+    "mutations": 5,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 4,
+      "cp": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 95.34,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\n  count: 43 vs 44",
+    "runner_error": null
+  },
+  {
+    "task_id": "T6",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 946,
+    "bytes_output": 3833,
+    "bytes_observation": 15136,
+    "tool_calls": 29,
+    "turns": 30,
+    "tokens_in": 151443,
+    "tokens_out": 1643,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 47.06,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 23: '**Goal:** Users provide their own keys. Multiple providers s' vs '**Goal:** Users provide their own keys. Multiple providers s'\n  count: 43 vs 44",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 3777,
+    "bytes_observation": 15387,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 152932,
+    "tokens_out": 1674,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 28,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 47.35,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: MISMATCH\n  block 9: '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit' vs '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 9: '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit' vs '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 1847,
+    "bytes_observation": 10467,
+    "tool_calls": 7,
+    "turns": 11,
+    "tokens_in": 37306,
+    "tokens_out": 689,
+    "mutations": 5,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 4,
+      "mv": 1,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 3,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 19.68,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 3786,
+    "bytes_observation": 14944,
+    "tool_calls": 28,
+    "turns": 30,
+    "tokens_in": 147620,
+    "tokens_out": 1618,
+    "mutations": 26,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 26,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 2,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 46.74,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: MISMATCH\n  block 9: '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit' vs '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 9: '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit' vs '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit'",
+    "runner_error": null
+  },
+  {
+    "task_id": "T8",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1210,
+    "bytes_output": 28264,
+    "bytes_observation": 10450,
+    "tool_calls": 3,
+    "turns": 30,
+    "tokens_in": 229617,
+    "tokens_out": 9079,
+    "mutations": 2,
+    "tool_mix": {
+      "sed": 2,
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 27,
+    "unique_invalid_responses": 4,
+    "elapsed_seconds": 182.99,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\nheading_tree [neutral]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\n  count: 49 vs 44",
+    "runner_error": null
+  },
+  {
+    "task_id": "T8",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1210,
+    "bytes_output": 6824,
+    "bytes_observation": 5752,
+    "tool_calls": 25,
+    "turns": 30,
+    "tokens_in": 103729,
+    "tokens_out": 2426,
+    "mutations": 8,
+    "tool_mix": {
+      "sed": 9,
+      "cat": 8,
+      "head": 2,
+      "grep": 2,
+      "mv": 2,
+      "wc": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 3,
+    "requeried": true,
+    "invalid_responses": 5,
+    "unique_invalid_responses": 5,
+    "elapsed_seconds": 59.78,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\nheading_tree [neutral]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\n  count: 49 vs 44",
+    "runner_error": null
+  },
+  {
+    "task_id": "T8",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1210,
+    "bytes_output": 14964,
+    "bytes_observation": 2483,
+    "tool_calls": 5,
+    "turns": 30,
+    "tokens_in": 114296,
+    "tokens_out": 4434,
+    "mutations": 1,
+    "tool_mix": {
+      "sed": 1,
+      "cat": 1,
+      "head": 2,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": true,
+    "invalid_responses": 25,
+    "unique_invalid_responses": 5,
+    "elapsed_seconds": 95.35,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_order [md]: MISMATCH ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence'] vs ['Heading', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'Paragraph', 'List', 'Paragraph', 'ThematicBreak', 'Heading', 'CodeFence']\nblock_text [md]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\nheading_tree [neutral]: MISMATCH [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Phase 7: Distribution (PROJ-107)'), (2, 'Checkpoint Notes Template')] vs [(1, 'Project Migration Progress'), (2, 'Composite Oracle (every iteration)'), (2, 'Phase 0: Schema Compatibility (PROJ-100)'), (2, 'Phase 1: DB Driver Abstraction (PROJ-101)'), (2, 'Phase 2: Service Layer Extraction (PROJ-102)'), (2, 'Phase 3: Provider Abstraction (PROJ-103)'), (2, 'Phase 4: Auth Abstraction (PROJ-104)'), (2, 'Phase 5: Desktop Shell (PROJ-105)'), (2, 'Phase 6: Local Model Support (PROJ-106)'), (2, 'Checkpoint Notes Template')]\nblock_text [neutral]: MISMATCH\n  block 42: '## Phase 7: Distribution (PROJ-107)' vs '## Checkpoint Notes Template'\n  count: 49 vs 44",
+    "runner_error": null
+  },
+  {
+    "task_id": "T9",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 784,
+    "bytes_output": 9841,
+    "bytes_observation": 9755,
+    "tool_calls": 21,
+    "turns": 30,
+    "tokens_in": 112515,
+    "tokens_out": 3908,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 19,
+      "grep": 16
+    },
+    "md_probe_count": 0,
+    "policy_violations": 3,
+    "requeried": false,
+    "invalid_responses": 9,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 87.42,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: [\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T9",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 784,
+    "bytes_output": 19902,
+    "bytes_observation": 1577,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 162326,
+    "tokens_out": 8230,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 166.44,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: [\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T9",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 784,
+    "bytes_output": 596,
+    "bytes_observation": 2301,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 7632,
+    "tokens_out": 226,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 2
+    },
+    "md_probe_count": 0,
+    "policy_violations": 4,
+    "requeried": false,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 7.59,
+    "diff_report": "runner_error: oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xcf in position 0: invalid continuation byte\njson_canonical: MISMATCH at line 1\n  expected: [\n  actual:   []",
+    "runner_error": "oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xcf in position 0: invalid continuation byte"
+  },
+  {
+    "task_id": "T10",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 854,
+    "bytes_output": 3683,
+    "bytes_observation": 7844,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 94066,
+    "tokens_out": 1705,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 28,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 46.03,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 854,
+    "bytes_output": 3885,
+    "bytes_observation": 7388,
+    "tool_calls": 28,
+    "turns": 30,
+    "tokens_in": 88913,
+    "tokens_out": 1667,
+    "mutations": 22,
+    "tool_mix": {
+      "cat": 3,
+      "sed": 22,
+      "grep": 1,
+      "head": 4,
+      "tail": 4
+    },
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": true,
+    "invalid_responses": 2,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 44.97,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 854,
+    "bytes_output": 3881,
+    "bytes_observation": 7487,
+    "tool_calls": 28,
+    "turns": 30,
+    "tokens_in": 91180,
+    "tokens_out": 1712,
+    "mutations": 26,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 26,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 2,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 46.46,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T11",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 833,
+    "bytes_output": 28319,
+    "bytes_observation": 1579,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 221800,
+    "tokens_out": 12230,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 4,
+    "elapsed_seconds": 240.13,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T11",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 833,
+    "bytes_output": 25345,
+    "bytes_observation": 1579,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 167039,
+    "tokens_out": 8676,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 181.06,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T11",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 833,
+    "bytes_output": 24690,
+    "bytes_observation": 1579,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 193149,
+    "tokens_out": 10199,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 208.79,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 875,
+    "bytes_output": 3725,
+    "bytes_observation": 9636,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 112727,
+    "tokens_out": 1727,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 47.67,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 875,
+    "bytes_output": 3725,
+    "bytes_observation": 9636,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 110867,
+    "tokens_out": 1665,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 45.71,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 875,
+    "bytes_output": 3725,
+    "bytes_observation": 9636,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 111797,
+    "tokens_out": 1693,
+    "mutations": 28,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 46.58,
+    "diff_report": "raw_bytes: MISMATCH (1452b expected, 1452b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 876,
+    "bytes_output": 4723,
+    "bytes_observation": 4444,
+    "tool_calls": 19,
+    "turns": 30,
+    "tokens_in": 75171,
+    "tokens_out": 1943,
+    "mutations": 16,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 17,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 11,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 50.35,
+    "diff_report": "raw_bytes: MISMATCH (291b expected, 291b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 876,
+    "bytes_output": 5414,
+    "bytes_observation": 2976,
+    "tool_calls": 11,
+    "turns": 30,
+    "tokens_in": 71130,
+    "tokens_out": 2088,
+    "mutations": 8,
+    "tool_mix": {
+      "cat": 3,
+      "sed": 8,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 19,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 51.6,
+    "diff_report": "raw_bytes: MISMATCH (291b expected, 291b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 876,
+    "bytes_output": 540,
+    "bytes_observation": 906,
+    "tool_calls": 4,
+    "turns": 4,
+    "tokens_in": 2888,
+    "tokens_out": 207,
+    "mutations": 1,
+    "tool_mix": {
+      "cat": 3,
+      "sed": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.11,
+    "diff_report": "runner_error: oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2 in position 75: invalid continuation byte\nraw_bytes: MISMATCH (291b expected, 291b actual)",
+    "runner_error": "oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2 in position 75: invalid continuation byte"
+  },
+  {
+    "task_id": "T14",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 989,
+    "bytes_output": 3440,
+    "bytes_observation": 412,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 54229,
+    "tokens_out": 1347,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 37.93,
+    "diff_report": "stdout: MISMATCH\n  expected last line: 'AMBIGUOUS'\n  actual last line:   'MAX_TURNS_EXCEEDED'\n",
+    "runner_error": null
+  },
+  {
+    "task_id": "T14",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 989,
+    "bytes_output": 422,
+    "bytes_observation": 847,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 2960,
+    "tokens_out": 190,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1,
+      "grep": 2
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 4.77,
+    "diff_report": "stdout: OK\n",
+    "runner_error": null
+  },
+  {
+    "task_id": "T14",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 989,
+    "bytes_output": 288,
+    "bytes_observation": 698,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 1979,
+    "tokens_out": 142,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 2,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 3.58,
+    "diff_report": "stdout: OK\n",
+    "runner_error": null
+  },
+  {
+    "task_id": "T15",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 933,
+    "bytes_output": 576,
+    "bytes_observation": 1396,
+    "tool_calls": 5,
+    "turns": 5,
+    "tokens_in": 4193,
+    "tokens_out": 234,
+    "mutations": 1,
+    "tool_mix": {
+      "cat": 3,
+      "sed": 2,
+      "head": 2
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 6.16,
+    "diff_report": "runner_error: oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2 in position 31: invalid continuation byte\nraw_bytes: MISMATCH (275b expected, 720b actual)",
+    "runner_error": "oai_loop_error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2 in position 31: invalid continuation byte"
+  },
+  {
+    "task_id": "T15",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 933,
+    "bytes_output": 5447,
+    "bytes_observation": 3579,
+    "tool_calls": 8,
+    "turns": 30,
+    "tokens_in": 85303,
+    "tokens_out": 2385,
+    "mutations": 4,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 4,
+      "grep": 1,
+      "cp": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 22,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 56.42,
+    "diff_report": "raw_bytes: MISMATCH (275b expected, 720b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T15",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 933,
+    "bytes_output": 5627,
+    "bytes_observation": 2635,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 82127,
+    "tokens_out": 2412,
+    "mutations": 3,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 3,
+      "cp": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 57.0,
+    "diff_report": "raw_bytes: MISMATCH (275b expected, 720b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T16",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 859,
+    "bytes_output": 3843,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 30,
+    "tokens_in": 53625,
+    "tokens_out": 1554,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 30,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 41.13,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T16",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 859,
+    "bytes_output": 5003,
+    "bytes_observation": 19953,
+    "tool_calls": 29,
+    "turns": 30,
+    "tokens_in": 133399,
+    "tokens_out": 2130,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 26,
+      "head": 21,
+      "grep": 11,
+      "awk": 20
+    },
+    "md_probe_count": 0,
+    "policy_violations": 3,
+    "requeried": false,
+    "invalid_responses": 1,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 56.3,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T16",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 859,
+    "bytes_output": 5113,
+    "bytes_observation": 3510,
+    "tool_calls": 9,
+    "turns": 30,
+    "tokens_in": 84340,
+    "tokens_out": 2179,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 6,
+      "head": 1,
+      "grep": 7
+    },
+    "md_probe_count": 0,
+    "policy_violations": 3,
+    "requeried": false,
+    "invalid_responses": 21,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 53.18,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T17",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1042,
+    "bytes_output": 4950,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 30,
+    "tokens_in": 56340,
+    "tokens_out": 1675,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 30,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 41.49,
+    "diff_report": "raw_bytes: MISMATCH (667b expected, 368b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T17",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1042,
+    "bytes_output": 4950,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 30,
+    "tokens_in": 56340,
+    "tokens_out": 1670,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 30,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 38.34,
+    "diff_report": "raw_bytes: MISMATCH (667b expected, 368b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T17",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 1042,
+    "bytes_output": 5368,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 30,
+    "tokens_in": 57960,
+    "tokens_out": 1797,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 30,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 40.0,
+    "diff_report": "raw_bytes: MISMATCH (667b expected, 368b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 975,
+    "bytes_output": 5242,
+    "bytes_observation": 1247,
+    "tool_calls": 2,
+    "turns": 30,
+    "tokens_in": 71062,
+    "tokens_out": 2200,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 28,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 48.58,
+    "diff_report": "raw_bytes: MISMATCH (364b expected, 836b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 975,
+    "bytes_output": 5047,
+    "bytes_observation": 2205,
+    "tool_calls": 3,
+    "turns": 30,
+    "tokens_in": 74123,
+    "tokens_out": 2038,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 2
+    },
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 27,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 45.19,
+    "diff_report": "raw_bytes: MISMATCH (364b expected, 836b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T18",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 975,
+    "bytes_output": 7524,
+    "bytes_observation": 2428,
+    "tool_calls": 4,
+    "turns": 30,
+    "tokens_in": 88039,
+    "tokens_out": 3171,
+    "mutations": 1,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": true,
+    "invalid_responses": 26,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 60.11,
+    "diff_report": "raw_bytes: MISMATCH (364b expected, 836b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T19",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 995,
+    "bytes_output": 25522,
+    "bytes_observation": 10284,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 224691,
+    "tokens_out": 9161,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 6,
+      "head": 1,
+      "wc": 1,
+      "sed": 4
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 155.77,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T19",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 995,
+    "bytes_output": 31914,
+    "bytes_observation": 10284,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 249945,
+    "tokens_out": 11182,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 6,
+      "head": 1,
+      "wc": 1,
+      "sed": 4
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 7,
+    "elapsed_seconds": 185.67,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T19",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 995,
+    "bytes_output": 23749,
+    "bytes_observation": 10284,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 228204,
+    "tokens_out": 9347,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 6,
+      "head": 1,
+      "wc": 1,
+      "sed": 4
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 165.27,
+    "diff_report": "json_canonical: MISMATCH at line 1\n  expected: {\n  actual:   []",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 937,
+    "bytes_output": 3514,
+    "bytes_observation": 9261,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 108306,
+    "tokens_out": 1671,
+    "mutations": 26,
+    "tool_mix": {
+      "cat": 1,
+      "head": 1,
+      "grep": 2,
+      "sed": 27
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 45.91,
+    "diff_report": "raw_bytes: MISMATCH (9444b expected, 9444b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 937,
+    "bytes_output": 3633,
+    "bytes_observation": 7237,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 90834,
+    "tokens_out": 1666,
+    "mutations": 27,
+    "tool_mix": {
+      "grep": 2,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 45.5,
+    "diff_report": "raw_bytes: MISMATCH (9444b expected, 9444b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 937,
+    "bytes_output": 3728,
+    "bytes_observation": 7589,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 96031,
+    "tokens_out": 1722,
+    "mutations": 27,
+    "tool_mix": {
+      "grep": 2,
+      "sed": 28
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 46.69,
+    "diff_report": "raw_bytes: MISMATCH (9444b expected, 9444b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 754,
+    "bytes_output": 3581,
+    "bytes_observation": 297,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 52257,
+    "tokens_out": 1402,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 39.06,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 754,
+    "bytes_output": 3813,
+    "bytes_observation": 297,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 52081,
+    "tokens_out": 1400,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 39.24,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 754,
+    "bytes_output": 3813,
+    "bytes_observation": 297,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 52081,
+    "tokens_out": 1400,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 39.18,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T22",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 55076,
+    "bytes_observation": 1038,
+    "tool_calls": 3,
+    "turns": 30,
+    "tokens_in": 350312,
+    "tokens_out": 24795,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1,
+      "grep": 2
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 27,
+    "unique_invalid_responses": 9,
+    "elapsed_seconds": 449.19,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T22",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 9153,
+    "bytes_observation": 1651,
+    "tool_calls": 6,
+    "turns": 30,
+    "tokens_in": 92908,
+    "tokens_out": 3672,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 2,
+      "grep": 3
+    },
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 24,
+    "unique_invalid_responses": 5,
+    "elapsed_seconds": 66.74,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T22",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 10842,
+    "bytes_observation": 1038,
+    "tool_calls": 3,
+    "turns": 30,
+    "tokens_in": 102008,
+    "tokens_out": 4765,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1,
+      "grep": 2
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 27,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 82.65,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 743,
+    "bytes_output": 5176,
+    "bytes_observation": 256,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 65967,
+    "tokens_out": 2414,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 48.69,
+    "diff_report": "raw_bytes: MISMATCH (54b expected, 18b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 743,
+    "bytes_output": 5558,
+    "bytes_observation": 256,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 68132,
+    "tokens_out": 2577,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 50.92,
+    "diff_report": "raw_bytes: MISMATCH (54b expected, 18b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 743,
+    "bytes_output": 5230,
+    "bytes_observation": 256,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 65824,
+    "tokens_out": 2411,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 2,
+    "elapsed_seconds": 48.6,
+    "diff_report": "raw_bytes: MISMATCH (54b expected, 18b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T24",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 789,
+    "bytes_output": 1684,
+    "bytes_observation": 1688,
+    "tool_calls": 8,
+    "turns": 12,
+    "tokens_in": 15000,
+    "tokens_out": 704,
+    "mutations": 6,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 5,
+      "mv": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 3,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 16.15,
+    "diff_report": "raw_bytes: MISMATCH (124b expected, 124b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T24",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 789,
+    "bytes_output": 4182,
+    "bytes_observation": 6873,
+    "tool_calls": 30,
+    "turns": 30,
+    "tokens_in": 83953,
+    "tokens_out": 1751,
+    "mutations": 29,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 29
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 39.68,
+    "diff_report": "raw_bytes: MISMATCH (124b expected, 122b actual)",
+    "runner_error": null
+  },
+  {
+    "task_id": "T24",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 789,
+    "bytes_output": 1823,
+    "bytes_observation": 1688,
+    "tool_calls": 8,
+    "turns": 13,
+    "tokens_in": 16237,
+    "tokens_out": 716,
+    "mutations": 6,
+    "tool_mix": {
+      "cat": 2,
+      "sed": 5,
+      "mv": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 4,
+    "unique_invalid_responses": 3,
+    "elapsed_seconds": 17.14,
+    "diff_report": "raw_bytes: MISMATCH (124b expected, 124b actual)",
+    "runner_error": null
+  }
+]
