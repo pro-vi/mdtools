@@ -1151,10 +1151,19 @@ def _build_agent_cmd(
         cmd += ["--dangerously-skip-permissions"]
         cmd += ["--max-turns", str(max_turns)]
         cmd += ["--no-session-persistence"]
-        # bench-v2: --settings "" replaces --bare — keeps cells clean of global
-        # hooks/settings/plugins AND strips global prompt overhead, while (unlike
-        # --bare) preserving real token usage in the json `result.usage`.
-        cmd += ["--settings", ""]
+        # bench-v2 ISOLATION (PR#10 Codex P1). The previous `--settings ""` did NOT
+        # isolate: it discovered ~94 slash-commands/skills, 5 agents, 6 MCP servers +
+        # CLAUDE.md (~32k input tokens) into EVERY cell, and the mdtools CLAUDE.md
+        # (which documents `md`) leaked into the unix/hybrid-no-md baselines — a
+        # mode-isolation breach. These flags isolate WITHOUT zeroing usage (unlike
+        # `--bare`, which kills the token cost axis): no slash-commands/skills, strict
+        # (empty) MCP, no user/project/local settings or hooks, no custom agents.
+        # Combined with the clean temp cwd (cwd=workdir, no CLAUDE.md ancestor) a
+        # trivial prompt drops ~32k -> ~3.5k input tokens, usage intact, md-tool docs
+        # NOT in context. The remaining 5 agents are built-ins (no contamination).
+        cmd += ["--disable-slash-commands", "--strict-mcp-config"]
+        cmd += ["--setting-sources", ""]
+        cmd += ["--agents", "{}"]
         cmd += ["--output-format", "json"]
         return cmd
     return parts
