@@ -428,6 +428,58 @@ class PromptSyncTests(unittest.TestCase):
             "Add them to MDTOOLS_DOCS in bench/harness.py so agents can discover them.",
         )
 
+    def test_analyze_includes_hybrid_no_md_mode(self) -> None:
+        # PR#10 Codex P2: analyze must not hardcode modes to [unix, mdtools, hybrid] —
+        # the clean-ablation hybrid-no-md baseline must show up in the summary, not be
+        # silently dropped (it's the baseline needed to read md attribution).
+        repo_root = Path(__file__).resolve().parent.parent
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="hybrid-no-md",
+                correct=True,
+                correct_neutral=True,
+                model="claude-haiku-test",
+                tool_calls=3,
+                elapsed_seconds=1.0,
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path="bench/search/task_ids.json",
+            selected_task_ids=["T1"],
+            modes=["hybrid-no-md"],
+            md_binary="target/debug/md",
+            runner="claude-cli",
+            executor="guarded",
+            model=None,
+            runs_per_task=1,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_analyze_nomd_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/analyze.py", tmpdir],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("hybrid-no-md", completed.stdout)
+        self.assertIn("T1", completed.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

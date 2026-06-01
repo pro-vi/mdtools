@@ -111,6 +111,18 @@ def test_accepts_normalized_shape():
     assert out["median_a"] == 5 and out["median_b"] == 2
 
 
+def test_intersection_keeps_runners_separate():
+    # PR#10 Codex P2: the same model under two runners (claude-cli vs oai-loop) is NOT
+    # the same execution stack; records must not be paired/medianed across runners.
+    def r(mode, runner, cost):
+        return {"task_id": "T1", "mode": mode, "model": "claude-x", "thinking_level": None,
+                "runner": runner, "correct": True, "tokens_in": cost, "tokens_out": 0, "tool_calls": 0}
+    recs = [r("unix", "claude-cli", 100), r("hybrid", "claude-cli", 60),
+            r("unix", "oai-loop", 500), r("hybrid", "oai-loop", 480)]
+    out = intersection_cost(recs, "unix", "hybrid")
+    assert out["n"] == 2, out  # one pair per runner, NOT 1 merged across stacks
+
+
 # --- U2: md-attribution gate (BENCH_V2_ATTRIBUTION.md) ---
 
 def _ar(task, mode, model, passed, cost, n=1):

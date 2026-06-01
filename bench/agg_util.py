@@ -89,7 +89,11 @@ def intersection_cost(records: list[dict[str, Any]], mode_a: str, mode_b: str) -
     """
     by_key: dict[tuple, dict[Any, dict]] = {}
     for r in records:
-        key = (_task_id(r), r.get("model"), r.get("thinking_level"))
+        # runner is part of the cell identity: the same model under two runners
+        # (e.g. claude-cli vs oai-loop) is NOT the same execution stack and must not
+        # be paired/medianed together. `runner` is None on records that don't carry
+        # it (text logs), which preserves prior behavior. (PR#10 Codex P2.)
+        key = (_task_id(r), r.get("model"), r.get("thinking_level"), r.get("runner"))
         by_key.setdefault(key, {})[r.get("mode")] = r
 
     a_recs: list[dict] = []
@@ -134,19 +138,22 @@ STRUCTURAL_CATEGORIES = {
 
 
 def _aggregate_replicates(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse N runs of the same (task, model, thinking, mode) into one record:
-    pass = majority of runs passed; tokens/calls = median across runs. Lets N>=3
-    metrics survive intersection_cost's (task, model, thinking) keying — which
-    otherwise keeps only the last replicate per mode."""
+    """Collapse N runs of the same (task, model, thinking, mode, runner) into one
+    record: pass = majority of runs passed; tokens/calls = median across runs. Lets
+    N>=3 metrics survive intersection_cost's keying — which otherwise keeps only the
+    last replicate per mode. `runner` is part of the key so two runners on the same
+    model aren't merged as replicates (PR#10 Codex P2); it's preserved on the output
+    so the downstream intersection re-keys consistently."""
     groups: dict[tuple, list[dict]] = {}
     for r in records:
-        key = (_task_id(r), r.get("model"), r.get("thinking_level"), r.get("mode"))
+        key = (_task_id(r), r.get("model"), r.get("thinking_level"), r.get("mode"), r.get("runner"))
         groups.setdefault(key, []).append(r)
     out: list[dict] = []
-    for (task, model, thinking, mode), runs in groups.items():
+    for (task, model, thinking, mode, runner), runs in groups.items():
         passed = sum(1 for r in runs if _passed(r)) * 2 >= len(runs)  # majority
         out.append({
             "task_id": task, "model": model, "thinking_level": thinking, "mode": mode,
+            "runner": runner,
             "correct": passed,
             "tokens_in": statistics.median([int(r.get("tokens_in", 0) or 0) for r in runs]),
             "tokens_out": statistics.median([int(r.get("tokens_out", 0) or 0) for r in runs]),
