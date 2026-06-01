@@ -323,3 +323,162 @@ fn insert_block_at_end_with_expect_etag_is_usage_error() {
     );
     cleanup(&tmp);
 }
+
+// ---------------------------------------------------------------------------
+// Bug A — coverage gaps surfaced by the PR#10 review (etag edge surface)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn expect_etag_does_not_disambiguate_duplicate_content_blocks() {
+    // KNOWN LIMITATION (PR#10 Codex P2). `--expect-etag` is content-addressed, not
+    // identity-addressed: two blocks with identical content share an etag, so an etag
+    // computed for ONE duplicate-content block authorizes a mutation on ANOTHER. With
+    // a stale index this silently hits the wrong target — exactly what the guard is
+    // meant to prevent. This characterizes the CURRENT behavior; a future
+    // identity-binding fix (positional anchor, or fail-closed on hash ambiguity) must
+    // flip the final assert to expect exit 4. See CLAUDE.md "Known limitations".
+    let tmp = tempfile("# T\n\nDup line.\n\nMiddle.\n\nDup line.\n");
+    // blocks: 0=heading, 1="Dup line.", 2="Middle.", 3="Dup line."
+    let e1 = block_etag(&tmp, 1);
+    let e3 = block_etag(&tmp, 3);
+    assert_eq!(
+        e1, e3,
+        "identical-content blocks share an etag (content-addressed root cause)"
+    );
+    // Authorize a delete on block 3 using block 1's etag — succeeds TODAY because the
+    // content (hence etag) matches, even though the etag "belonged to" a different block.
+    let out = md()
+        .args(["delete-block", "3", &tmp, "-i", "--expect-etag", &e1])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "TODO(identity-binding): content-only etag lets block-1's etag authorize a \
+         mutation on block-3; an identity-bound guard would fail-close (exit 4) here"
+    );
+    cleanup(&tmp);
+}
+
+#[test]
+fn insert_block_before_expect_etag_match_succeeds() {
+    // Parity with the --after tests: --expect-etag is documented on --before|--after.
+    let tmp = tempfile("# Title\n\nFirst para.\n\nSecond para.\n");
+    let etag = block_etag(&tmp, 1);
+    let out = md_with_stdin(
+        &[
+            "insert-block",
+            "--before",
+            "1",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "Inserted.",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let result = std::fs::read_to_string(&tmp).unwrap();
+    assert!(result.contains("Inserted."));
+    cleanup(&tmp);
+}
+
+#[test]
+fn insert_block_before_expect_etag_mismatch_fails_closed() {
+    let tmp = tempfile("# Title\n\nFirst para.\n\nSecond para.\n");
+    let before = std::fs::read_to_string(&tmp).unwrap();
+    let out = md_with_stdin(
+        &[
+            "insert-block",
+            "--before",
+            "1",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            "deadbeefdeadbeef",
+        ],
+        "Inserted.",
+    );
+    assert_eq!(out.status.code(), Some(4));
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(before, after, "file must be untouched on etag mismatch");
+    cleanup(&tmp);
+}
+
+#[test]
+fn expect_etag_roundtrip_crlf_content() {
+    // etag is FNV-1a over the block's source bytes; a CRLF document must round-trip
+    // through read → etag → guarded mutate. (comrak-pin-sensitive fixture per CLAUDE.md.)
+    let tmp = tempfile("# Title\r\n\r\nFirst para.\r\n\r\nSecond para.\r\n");
+    let etag = block_etag(&tmp, 1);
+    let out = md_with_stdin(
+        &["replace-block", "1", &tmp, "-i", "--expect-etag", &etag],
+        "Rewritten.",
+    );
+    assert!(
+        out.status.success(),
+        "freshly-read etag on CRLF content must match; stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    cleanup(&tmp);
+}
+
+#[test]
+fn expect_etag_roundtrip_multibyte_content() {
+    // etag over multibyte UTF-8 block bytes must be consistent. (comrak-pin fixture.)
+    let tmp = tempfile("# Café\n\nNaïve façade — 日本語 résumé.\n\nNext.\n");
+    let etag = block_etag(&tmp, 1);
+    let out = md_with_stdin(
+        &["replace-block", "1", &tmp, "-i", "--expect-etag", &etag],
+        "Replaced.",
+    );
+    assert!(
+        out.status.success(),
+        "freshly-read etag on multibyte content must match; stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    cleanup(&tmp);
+}
+
+#[test]
+fn expect_etag_roundtrip_with_frontmatter() {
+    // A doc with YAML frontmatter: block indexing + etag must stay consistent so
+    // --expect-etag still guards the intended block. (comrak-pin fixture.)
+    let tmp = tempfile("---\ntitle: Doc\n---\n\n# Title\n\nFirst para.\n\nSecond para.\n");
+    let etag = block_etag(&tmp, 1); // block 1 = first paragraph (frontmatter is not a block)
+    let out = md_with_stdin(
+        &["replace-block", "1", &tmp, "-i", "--expect-etag", &etag],
+        "Replaced.",
+    );
+    assert!(
+        out.status.success(),
+        "freshly-read etag on a frontmatter doc must match; stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    cleanup(&tmp);
+}
+
+#[test]
+fn expect_etag_match_on_indented_code_block() {
+    // The indented-code block's span INCLUDES its trailing newline (parser fixup),
+    // unlike other kinds. Its etag must still round-trip through --expect-etag
+    // (interaction with the Bug-B trailing-newline strip).
+    let tmp = tempfile("# Title\n\n    indented code\n\nNext.\n");
+    let read = md().args(["block", "1", &tmp, "--json"]).output().unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&read.stdout).unwrap();
+    assert_eq!(json["block"]["kind"], "IndentedCode");
+    let etag = block_etag(&tmp, 1);
+    let out = md_with_stdin(
+        &["replace-block", "1", &tmp, "-i", "--expect-etag", &etag],
+        "    new code\n",
+    );
+    assert!(
+        out.status.success(),
+        "indented-code block etag must match; stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    cleanup(&tmp);
+}
