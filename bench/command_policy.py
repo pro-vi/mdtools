@@ -266,7 +266,7 @@ def _md_ablation_stub() -> str:
     # NOTE: the message must NOT name "ablation"/"benchmark" — a loop-editable
     # prompt could branch on that string and behave differently in the
     # counterfactual. Keep it indistinguishable from a plain "command not found"
-    # recovery hint. See BENCH_V2_CLEAN_ABLATION.md (round-3 /second-opinion).
+    # recovery hint. See BENCH_V2_CLEAN_ABLATION.md.
     return (
         "#!/bin/sh\n"
         'printf "probe\\n" >> "${BENCH_MD_PROBE_LOG:-/dev/null}"\n'

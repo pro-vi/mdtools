@@ -855,11 +855,11 @@ Example fixture pair:
 
 ## Ordered Steps [id:sec-steps]
 
-1. Define the final Phase 1 interface contracts in [specs/mdtools.md](/Users/provi/Development/_projs/mdtools/specs/mdtools.md). [id:step-1]
+1. Define the final Phase 1 interface contracts in [specs/mdtools.md](specs/mdtools.md). [id:step-1]
 Verify: the artifact contains the Files table, Decisions table, stable anchors, Rust contracts, mutation and search envelopes, benchmark dataclasses, and JSON examples. [id:verify-1]
 
 2. Add the Rust crate surface in `Cargo.toml`, `src/main.rs`, `src/cli.rs`, `src/model.rs`, and `src/errors.rs`. [id:step-2]
-Verify: the crate builds a binary named `md`, and each subcommand, selector flag, and insert-location flag parses according to the contracts in [specs/mdtools.md](/Users/provi/Development/_projs/mdtools/specs/mdtools.md). [id:verify-2]
+Verify: the crate builds a binary named `md`, and each subcommand, selector flag, and insert-location flag parses according to the contracts in [specs/mdtools.md](specs/mdtools.md). [id:verify-2]
 
 3. Implement the parse boundary and semantic projection in `src/parser.rs` and `src/model.rs`. [id:step-3]
 Verify: source spans, block kinds, frontmatter extraction, and section selectors can be produced for every Phase 1 fixture. [id:verify-3]
@@ -868,13 +868,13 @@ Verify: source spans, block kinds, frontmatter extraction, and section selectors
 Verify: text mode and `--json` mode both match the output contracts for all read commands, including block-kind filtered content search. [id:verify-4]
 
 5. Implement `replace-block`, `replace-section`, `insert-block`, and `delete-block` in `src/commands/replace.rs` and `src/commands/section.rs`. [id:step-5]
-Verify: every mutation command returns `MutationResult`, preserves non-target bytes, and satisfies the edge cases in [specs/mdtools.md](/Users/provi/Development/_projs/mdtools/specs/mdtools.md). [id:verify-5]
+Verify: every mutation command returns `MutationResult`, preserves non-target bytes, and satisfies the edge cases in [specs/mdtools.md](specs/mdtools.md). [id:verify-5]
 
 6. Add fixture-driven integration coverage in `tests/cli_read.rs`, `tests/cli_write.rs`, `tests/cli_search.rs`, and `tests/fixtures/`. [id:step-6]
 Verify: fixtures cover duplicate headings, preamble selection, setext headings, fenced code, CRLF, frontmatter-only documents, content search filters, insert-after-frontmatter, and last-block deletion. [id:verify-6]
 
 7. Define benchmark tasks and run configuration in `bench/tasks/` and `bench/harness.py`. [id:step-7]
-Verify: each task declares a `StructuralDiffPolicy`, each mode inventory matches the contracts in [specs/mdtools.md](/Users/provi/Development/_projs/mdtools/specs/mdtools.md), and tasks `T1` through `T4` remain expressible without stronger-than-specified primitives. [id:verify-7]
+Verify: each task declares a `StructuralDiffPolicy`, each mode inventory matches the contracts in [specs/mdtools.md](specs/mdtools.md), and tasks `T1` through `T4` remain expressible without stronger-than-specified primitives. [id:verify-7]
 
 8. Validate the benchmark before Phase 2 claims are published. [id:step-8]
 Verify: one dry run produces per-mode conversation logs, structural diff reports, token counts, and elapsed time under a shared `BenchRunConfig`. [id:verify-8]

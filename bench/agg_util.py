@@ -241,7 +241,7 @@ def attribution_verdict(records, tier, category,
     # while hybrid only ties unix — tolerance arbitrage. Requiring hybrid to beat
     # max(unix,no-md) on correctness OR min(unix,no-md) on cost makes md-lift mean
     # md produced a real, attributable win over a unix-only agent. See
-    # BENCH_V2_CLEAN_ABLATION.md (round-3 /second-opinion).
+    # BENCH_V2_CLEAN_ABLATION.md.
     lf = intersection_cost(sub, "hybrid-no-md", "hybrid")  # a=no-md, b=hybrid
     pass_baselines = [p for p in (unix_pass, nomd_pass) if p is not None]
     corr_lift = bool(hybrid_pass is not None and pass_baselines

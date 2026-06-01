@@ -3,7 +3,7 @@ title: clean-ablation validity gate — soft md-stub baseline + correctness-pari
 type: fix
 status: active
 date: 2026-05-29
-origin: follow-up /second-opinion (GPT-Pro) on the md-attribution gate — "partial nod, still broken"
+origin: follow-up a design review on the md-attribution gate — "partial nod, still broken"
 ---
 
 # Clean-ablation validity gate — make `hybrid-no-md` a CLEAN counterfactual

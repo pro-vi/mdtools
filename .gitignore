@@ -10,10 +10,14 @@ __pycache__/
 bench/results/
 bench/runs/**/logs/
 
-# Loop run-record traces (bulky per-run agent output / audit logs).
-# Keep the .txt sweep summaries (report.py evidence) + state; drop the logs.
-loop/runs/**/logs/
-loop/runs/**/*.err
+# Private loop / research process — NOT public (split out 2026-06-01)
+.loop/
+
+# Never commit raw agent/session dumps anywhere
+**/agent_output.txt
+**/guard.log
+**/*.pi-audit.jsonl
+**/.md-probe.log
 
 # OS
 .DS_Store

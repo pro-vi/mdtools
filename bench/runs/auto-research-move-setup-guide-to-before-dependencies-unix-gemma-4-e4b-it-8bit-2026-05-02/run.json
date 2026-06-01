@@ -3,8 +3,8 @@
   "kind": "agent-track",
   "started_at": "2026-05-02T21:34:58Z",
   "finished_at": "2026-05-02T21:39:28Z",
-  "tasks_path": "/Users/provi/Development/_projs/mdtools/bench/search/candidates/move-setup-guide-to-before-dependencies/tasks.json",
-  "task_ids_path": "/Users/provi/Development/_projs/mdtools/bench/search/candidates/move-setup-guide-to-before-dependencies/task_ids.json",
+  "tasks_path": "bench/search/candidates/move-setup-guide-to-before-dependencies/tasks.json",
+  "task_ids_path": "bench/search/candidates/move-setup-guide-to-before-dependencies/task_ids.json",
   "selected_task_ids": [
     "C-AR-034"
   ],

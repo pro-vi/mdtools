@@ -67,13 +67,13 @@ python bench/harness.py --md-binary target/release/md  # validate 20 benchmark s
 # Run single task
 python bench/harness.py --run --runner oai-loop --mode hybrid \
   --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
-  --oai-api-key 215069 --task T10
+  --oai-api-key $OMLX_API_KEY --task T10
 
 # Full matrix (oai-loop, primary model)
 for MODE in unix mdtools hybrid; do
   python bench/harness.py --run --runner oai-loop --mode $MODE \
     --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
-    --oai-api-key 215069 --model Qwen3.5-27B-4bit
+    --oai-api-key $OMLX_API_KEY --model Qwen3.5-27B-4bit
 done
 
 # Analyze
@@ -94,20 +94,20 @@ unix-adversary review → manifest assembly.
 python bench/auto_research.py \
   --md-binary target/release/md \
   --api-base http://localhost:10240/v1 \
-  --api-key 215069
+  --api-key $OMLX_API_KEY
 
 # Dry-run (skip harness measurement — just generator + reviews)
 python bench/auto_research.py \
   --md-binary target/release/md \
   --api-base http://localhost:10240/v1 \
-  --api-key 215069 \
+  --api-key $OMLX_API_KEY \
   --skip-measure
 
 # Use a specific generator model (e.g. gemma for speed, Qwen for quality)
 python bench/auto_research.py \
   --md-binary target/release/md \
   --api-base http://localhost:10240/v1 \
-  --api-key 215069 \
+  --api-key $OMLX_API_KEY \
   --model gemma-4-e4b-it-8bit
 ```
 
@@ -134,7 +134,7 @@ OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
 
 ## Next steps (from improvement plan)
 
-1. Ship to fract-ai oracle loop (original consumer)
+1. Ship to the original consumer (oracle-loop integration)
 2. Instrument real deployment (track tool choice, re-query rate)
 3. T6 is the roadmap signal — transactional multi-edit gap, not a bug to fix
 4. `md batch` is NOT on the roadmap (Pro review: prove planning vs execution gap first)

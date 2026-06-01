@@ -3,14 +3,14 @@ title: bench-v2 attribution gate — hybrid-no-md baseline + md-causal-value gat
 type: feat
 status: active
 date: 2026-05-29
-origin: /second-opinion (GPT-Pro) on the hybrid-pareto loop design; /architect
+origin: a design review on the optimization loop design
 ---
 
 # Attribution gate — make the loop test "does `md` add value", not "can hybrid avoid losing"
 
 ## Why
 
-A `/second-opinion` found the loop goal ("hybrid Pareto-dominates unix") is
+A design review found the loop goal ("hybrid Pareto-dominates unix") is
 gameable: the loop can edit the hybrid prompt to steer the agent AWAY from `md`
 (adoption is observed but NOT gated) → hybrid ≈ unix → every cell "wins" while
 `md` is never improved. **Prompt-neutering is the dominant strategy** because the
@@ -111,7 +111,7 @@ unit-testable, including the load-bearing neutering-detection test.
 - Tier classification + bench-v2 cost basis unchanged.
 
 ### Deferred to Follow-Up Work
-- **Tail-aware per-task paired cost** (second-opinion H5): failures shown as *dominated* not dropped; surface `max` beside median so a +70k tail isn't hidden. Separate methodology PR. *Cheap interim done in U3:* print `n` per median.
+- **Tail-aware per-task paired cost** (tail-aware cost analysis): failures shown as *dominated* not dropped; surface `max` beside median so a +70k tail isn't hidden. Separate methodology PR. *Cheap interim done in U3:* print `n` per median.
 
 ## System-Wide Impact
 - **Interaction graph:** new mode flows through the same `run_agent → BenchResult → report`; only `agg_util` gains the lattice. No existing field changes meaning.
