@@ -30,13 +30,13 @@ from pathlib import Path
 from typing import Literal
 
 try:
-    from bench.command_policy import create_restricted_shell_env, load_guard_events
+    from bench.command_policy import _md_ablation_stub, create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from bench.command_policy import create_restricted_shell_env, load_guard_events
+    from bench.command_policy import _md_ablation_stub, create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
@@ -1309,15 +1309,24 @@ def run_agent(
         else:
             shutil.copy2(inp, workdir)
 
-    # Copy md binary into workdir so it's accessible by relative path
-    if md_binary != "md":
-        md_dest = os.path.join(workdir, "md")
+    # Copy md binary into workdir so it's accessible by relative path (the prompt
+    # advertises "md is available at ./md"). CRITICAL (PR#10 Codex P1): in hybrid-no-md
+    # the ./md copy MUST be the soft stub, NOT the real binary — otherwise an agent
+    # that uses ./md (exactly as the prompt says) bypasses the PATH-level ablation, the
+    # no-md baseline silently runs real md, and the md-lift/attribution gate measures
+    # nothing. (Observed: no-md agents used `./md set-task`/`./md tasks`, md-probe=0.)
+    md_dest = os.path.join(workdir, "md")
+    if mode == "hybrid-no-md":
+        with open(md_dest, "w") as f:
+            f.write(_md_ablation_stub())
+        os.chmod(md_dest, 0o755)
+        local_md = "./md"
+    elif md_binary != "md":
         shutil.copy2(md_binary, md_dest)
         local_md = "./md"
     else:
-        local_md = "md"
-        md_dest = os.path.join(workdir, "md")
         shutil.copy2(shutil.which("md") or md_binary, md_dest)
+        local_md = "md"
 
     restricted_env = None
     child_env = os.environ.copy()
