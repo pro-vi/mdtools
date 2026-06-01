@@ -253,12 +253,11 @@ The v2 harness adds two things that make the headline claim trustworthy rather t
 
 Measured under that gate across a local model (Qwen) and a frontier model (Sonnet), the result is **`md`'s value is inversely proportional to the agent's capability** — and that is the honest envelope, not a limitation to paper over:
 
-- **Weak / local models — `md` is essential.** Unix-only fails most structural families (heading-tree, section, multi-step); `md` flips them fail→pass.
-- **Batch-structural ops — `md` wins outright.** `md set-task` in a loop genuinely beats `sed`, even for a strong model.
+- **Weak / local models — `md` is essential.** Unix-only fails most structural families (heading-tree, section, multi-step, *and* batch checkbox ops); `md` flips them fail→pass. This is where `md set-task`-in-a-loop beats `sed`: the weak agent can't reliably hand-roll the structural edit.
 - **The read / inspection surface — adopted for free.** `md outline` / `blocks` / `tasks` replace multi-pass `grep` regardless of model strength.
-- **Strong-model single edits — `md` is ~neutral.** A capable agent hand-rolls the `grep`/`sed` equivalent in comparable calls; the attribution gate confirms this holds even on `md`'s strongest task type (section relocation / `move-section`).
+- **Strong models — `md` earns no *clean* win on any structural cell measured.** Under the attribution gate (isolated runs, N≥3), **no frontier cell `CLOSES`**: targeted mutation / section relocation come out `loses-unix` on Sonnet (md adds ~+23% cost) softening to `no-lift` (neutral) on the stronger Opus, and even **batch** — md's clearest structural edge on weak models — does *not* close on the frontier (`SUSPECT:baseline-flails` on Sonnet, `loses-unix` on Opus). A capable agent hand-rolls the `grep`/`sed`/`awk` equivalent in comparable-or-better cost.
 
-In short: `md` earns its place where the agent is structurally weak or the operation is structurally hard, and gets out of the way where a capable agent doesn't need it. That is the design intent — *"hybrid > pure; don't replace `sed`"* — now measured rather than asserted.
+In short: `md` earns its place where the *agent* is structurally weak; a capable agent doesn't need it even for structural ops, and the stronger the model the less `md` helps. That is the design intent — *"hybrid > pure; don't replace `sed`"* — now measured rather than asserted.
 
 ### Published Snapshot Categories
 
