@@ -210,7 +210,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 ## Benchmark
 
-`bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both).
+`bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both) — plus a fourth `hybrid-no-md` ablation mode used by the v2 attribution gate (see [Value envelope](#value-envelope-bench-v2)).
 
 The current default corpus is 24 tasks in `bench/tasks/tasks.json`. To reduce visible-corpus overfitting, that corpus is now partitioned into an 18-task search split in `bench/search/task_ids.json` and a 6-task holdout split in `bench/holdout/task_ids.json`.
 
@@ -246,6 +246,19 @@ Key findings from the published 20-task snapshot:
 - **3-5x faster on Sonnet.** Slight correctness lift (+5pp) plus structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
 - **Hybrid is not a universal win.** On the committed local search pilots, Qwen-family models match `mdtools` in hybrid, Hermes regresses in hybrid on extraction and mutation but ties on multistep, and magnum stays mixed by family.
 - The current default corpus adds T21-T24 to cover `frontmatter`, `links`, `table`, and `set`. The aggregate tables below have not yet been rerun on that expanded set.
+
+### Value envelope (bench-v2)
+
+The v2 harness adds two things that make the headline claim trustworthy rather than flattering. A **cost-to-success axis** measures not just pass/fail but the cost of a win — tokens for frontier models, tool-calls for local — compared on the tasks *both* modes passed. And an **md-attribution gate** adds the fourth `hybrid-no-md` mode (the hybrid prompt with `md` ablated to a stub), so a cell "closes" only when `md` is *causally* responsible for the win, not when the prompt merely steered the agent toward it. The gate refuses the usual ways a benchmark flatters a tool: prompt-pushing scores `OPEN:no-lift` and baseline-gaming scores `SUSPECT:baseline-flails`, by construction.
+
+Measured under that gate across a local model (Qwen) and a frontier model (Sonnet), the result is **`md`'s value is inversely proportional to the agent's capability** — and that is the honest envelope, not a limitation to paper over:
+
+- **Weak / local models — `md` is essential.** Unix-only fails most structural families (heading-tree, section, multi-step); `md` flips them fail→pass.
+- **Batch-structural ops — `md` wins outright.** `md set-task` in a loop genuinely beats `sed`, even for a strong model.
+- **The read / inspection surface — adopted for free.** `md outline` / `blocks` / `tasks` replace multi-pass `grep` regardless of model strength.
+- **Strong-model single edits — `md` is ~neutral.** A capable agent hand-rolls the `grep`/`sed` equivalent in comparable calls; the attribution gate confirms this holds even on `md`'s strongest task type (section relocation / `move-section`).
+
+In short: `md` earns its place where the agent is structurally weak or the operation is structurally hard, and gets out of the way where a capable agent doesn't need it. That is the design intent — *"hybrid > pure; don't replace `sed`"* — now measured rather than asserted.
 
 ### Published Snapshot Categories
 
