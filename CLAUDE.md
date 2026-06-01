@@ -37,6 +37,14 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 - `search --ignore-case` spans break on Unicode case expansion (Turkish dotted I)
 - `section --ignore-case` is ASCII-only (`eq_ignore_ascii_case`)
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
+- `--expect-etag` is **content-addressed, not identity-addressed**: it verifies the
+  block at the given index still has the expected content fingerprint. In a doc with
+  **duplicate-content blocks**, an intervening edit can shift indices so the old index
+  lands on a *different* same-content block whose fingerprint also matches — the guard
+  passes against the wrong target. Mitigation today: **re-query immediately before
+  mutating** (the moat) to shrink the window. A proper fix (binding the expectation to
+  positional identity / span, or failing closed on hash ambiguity) is a design decision
+  that trades against "loc carries no identity" — deferred as follow-up.
 
 ## Task loc format
 

@@ -6,6 +6,16 @@ Runnable via pytest OR standalone (pytest is not always installed):
 """
 from __future__ import annotations
 
+import pathlib as _pathlib
+import sys as _sys
+
+# Support the documented standalone invocation `python3 bench/test_agg_util.py`:
+# run from the repo root, Python puts `bench/` (the script's dir) on sys.path, not
+# the repo root, so the `bench.agg_util` package import below can't resolve without
+# putting the repo root on the path first. (`python3 -m bench.test_agg_util` works
+# without this; this makes the docstring's command work too.)
+_sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+
 from bench.agg_util import (
     STRUCTURAL_CATEGORIES,
     attribution_verdict,
