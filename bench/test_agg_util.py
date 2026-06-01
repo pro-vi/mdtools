@@ -123,6 +123,20 @@ def test_intersection_keeps_runners_separate():
     assert out["n"] == 2, out  # one pair per runner, NOT 1 merged across stacks
 
 
+def test_aggregate_uses_median_total_not_sum_of_component_medians():
+    # PR#10 Codex P2: median(in)+median(out) != median(in+out). The replicate aggregate
+    # must carry the median of per-run TOTAL tokens, else a cost no replicate had can
+    # flip CLOSES/OPEN. Runs (in,out)=(0,100),(100,0),(100,100): comp-median-sum=200,
+    # but the true median total=100.
+    from bench.agg_util import _aggregate_replicates, _tokens
+    runs = [{"task_id": "T1", "model": "claude-x", "thinking_level": None, "mode": "hybrid",
+             "runner": "r", "correct": True, "tokens_in": i, "tokens_out": o, "tool_calls": 0}
+            for i, o in [(0, 100), (100, 0), (100, 100)]]
+    agg = _aggregate_replicates(runs)
+    assert len(agg) == 1, agg
+    assert _tokens(agg[0]) == 100, f"median total should be 100, got {_tokens(agg[0])}"
+
+
 # --- U2: md-attribution gate (BENCH_V2_ATTRIBUTION.md) ---
 
 def _ar(task, mode, model, passed, cost, n=1):

@@ -63,6 +63,11 @@ def _passed(rec: dict[str, Any]) -> bool:
 
 
 def _tokens(rec: dict[str, Any]) -> int:
+    # An aggregated record carries `_total_tokens` = median of per-run (in+out)
+    # totals; prefer it. median(in)+median(out) != median(in+out), and cost is the
+    # total — summing component medians can invent a cost no replicate had. (Codex P2.)
+    if rec.get("_total_tokens") is not None:
+        return int(rec["_total_tokens"])
     return int(rec.get("tokens_in", 0) or 0) + int(rec.get("tokens_out", 0) or 0)
 
 
@@ -157,6 +162,10 @@ def _aggregate_replicates(records: list[dict[str, Any]]) -> list[dict[str, Any]]
             "correct": passed,
             "tokens_in": statistics.median([int(r.get("tokens_in", 0) or 0) for r in runs]),
             "tokens_out": statistics.median([int(r.get("tokens_out", 0) or 0) for r in runs]),
+            # Cost is the per-run TOTAL: median(in+out), NOT median(in)+median(out)
+            # (those differ and can invent a cost no replicate had, flipping CLOSES/
+            # OPEN). _tokens() reads this; the component medians above are display-only.
+            "_total_tokens": statistics.median([_tokens(r) for r in runs]),
             "tool_calls": statistics.median([_calls(r) for r in runs]),
             # probe count is MAX-across-runs, not median: one stuck run (e.g. [1,1,5])
             # is a dirty cell even if the median is ≤1. See BENCH_V2_CLEAN_ABLATION.md.
