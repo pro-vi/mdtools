@@ -117,7 +117,7 @@ full-rewrite-at-end = lost update). Therefore:
 - **`frontier_token_cap`** (the human-authored authorization) lives **in THIS
   file (PROMPT.md), which the loop only READS** — set it on the line below.
   A supervisor edits it here; the loop adopts it next iteration (re-entrant).
-  `frontier_token_cap: 0`  ← **EXPLICIT operator choice (2026-05-30): local-only night — ALL frontier deferred for supervised morning review. This is a deliberate "local-only night", NOT an unset default; do NOT treat as `derivation-gap`. Raise it in THIS file to authorize unattended frontier spend.**
+  `frontier_token_cap: 5_000_000`  ← **OPERATOR-RAISED 2026-05-31 ("raise it and go"): authorizes the relocation frontier-verify (~3-5M tok, ~$2-3) — the decisive test of whether md's move-section call-edge closes a frontier cell on a strong model. Was 0 (local-only night). Loop spends up to this, defers beyond, writes the ledger to STATE.md (frontier_tokens_cumulative). Loop reads this line; never writes it.**
 - STATE.md holds ONLY the loop's OWN bookkeeping:
   `frontier_tokens_cumulative`, `per_task_tok_est`, `frontier_ledger`,
   `deferred-frontier`, `probed_cells`. The loop never writes the cap.

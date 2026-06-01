@@ -1,0 +1,349 @@
+
+=== MODE: hybrid-no-md (N=3, model=claude-sonnet-4-6) ===
+
+  C-T10-28 run 1/3: In the operations handbook, move the complete `Error Logging Format` subsection from under `Data Processing` to under `Reporting`, placing it immediately before `Report Generation Schedule`. Preserve the moved subsection exactly, including its table, checklist, and fenced log example. Leave the `Error Logging Exceptions` decoy heading and the quoted archive mention of `### Error Logging Format` untouched....
+    md=PASS neutral=PASS | 65.4s | ~44184B out | obs:3472B | ~7 calls | 0 mut | deny:2  
+  C-T10-28 run 2/3: In the operations handbook, move the complete `Error Logging Format` subsection from under `Data Processing` to under `Reporting`, placing it immediately before `Report Generation Schedule`. Preserve the moved subsection exactly, including its table, checklist, and fenced log example. Leave the `Error Logging Exceptions` decoy heading and the quoted archive mention of `### Error Logging Format` untouched....
+    md=PASS neutral=PASS | 52.75s | ~41857B out | obs:3210B | ~6 calls | 0 mut | deny:2  
+  C-T10-28 run 3/3: In the operations handbook, move the complete `Error Logging Format` subsection from under `Data Processing` to under `Reporting`, placing it immediately before `Report Generation Schedule`. Preserve the moved subsection exactly, including its table, checklist, and fenced log example. Leave the `Error Logging Exceptions` decoy heading and the quoted archive mention of `### Error Logging Format` untouched....
+    md=PASS neutral=PASS | 45.77s | ~34957B out | obs:2893B | ~6 calls | 0 mut | deny:2  
+  C-T10-15 run 1/3: In the provided Markdown operations document, move the complete subsection titled 'Database Configuration' from under the top-level 'System Configuration' section to under the top-level 'Server Setup' section, placing it immediately after the 'Network Configuration' subsection and before 'Service Status'. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the similarly named 'Database Backups' subsection and the mention of 'Database Configuration' inside the fenced code block untouched....
+    md=PASS neutral=PASS | 74.92s | ~41705B out | obs:1980B | ~5 calls | 0 mut | deny:2  
+  C-T10-15 run 2/3: In the provided Markdown operations document, move the complete subsection titled 'Database Configuration' from under the top-level 'System Configuration' section to under the top-level 'Server Setup' section, placing it immediately after the 'Network Configuration' subsection and before 'Service Status'. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the similarly named 'Database Backups' subsection and the mention of 'Database Configuration' inside the fenced code block untouched....
+    md=PASS neutral=PASS | 51.47s | ~37611B out | obs:2490B | ~7 calls | 0 mut | deny:2  
+  C-T10-15 run 3/3: In the provided Markdown operations document, move the complete subsection titled 'Database Configuration' from under the top-level 'System Configuration' section to under the top-level 'Server Setup' section, placing it immediately after the 'Network Configuration' subsection and before 'Service Status'. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the similarly named 'Database Backups' subsection and the mention of 'Database Configuration' inside the fenced code block untouched....
+    md=PASS neutral=PASS | 63.87s | ~39044B out | obs:1953B | ~5 calls | 0 mut | deny:2  
+  C-AR-040 run 1/3: Move the 'Logging' section from the 'Development Setup' section to be a direct child of the 'Application Configuration' heading. Ensure all subsections and content under 'Logging' remain intact and properly nested under the new parent....
+    md=PASS neutral=PASS | 46.33s | ~34686B out | obs:2666B | ~5 calls | 0 mut | deny:2  
+  C-AR-040 run 2/3: Move the 'Logging' section from the 'Development Setup' section to be a direct child of the 'Application Configuration' heading. Ensure all subsections and content under 'Logging' remain intact and properly nested under the new parent....
+    md=FAIL neutral=FAIL | 55.43s | ~39497B out | obs:2715B | ~5 calls | 0 mut | deny:2  
+  C-AR-040 run 3/3: Move the 'Logging' section from the 'Development Setup' section to be a direct child of the 'Application Configuration' heading. Ensure all subsections and content under 'Logging' remain intact and properly nested under the new parent....
+    md=PASS neutral=PASS | 53.27s | ~44279B out | obs:4724B | ~6 calls | 0 mut | deny:2  
+  C-AR-041 run 1/3: Move the 'Authentication' subsection from the 'User Management' section to the 'API Reference' section. Ensure all content under 'Authentication' is moved and the hierarchy levels are preserved....
+    md=PASS neutral=PASS | 44.02s | ~38613B out | obs:3027B | ~6 calls | 0 mut | deny:2  
+  C-AR-041 run 2/3: Move the 'Authentication' subsection from the 'User Management' section to the 'API Reference' section. Ensure all content under 'Authentication' is moved and the hierarchy levels are preserved....
+    md=FAIL neutral=FAIL | 50.4s | ~37437B out | obs:2337B | ~6 calls | 0 mut | deny:2  
+  C-AR-041 run 3/3: Move the 'Authentication' subsection from the 'User Management' section to the 'API Reference' section. Ensure all content under 'Authentication' is moved and the hierarchy levels are preserved....
+    md=FAIL neutral=FAIL | 180.02s | ~0B out | obs:0B | ~0 calls | 0 mut | deny:2  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+C-T10-28 hybrid-no-md ✓         65s     7   3.4K    0     2    
+C-T10-28 hybrid-no-md ✓         53s     6   3.1K    0     2    
+C-T10-28 hybrid-no-md ✓         46s     6   2.8K    0     2    
+C-T10-15 hybrid-no-md ✓         75s     5   1.9K    0     2    
+C-T10-15 hybrid-no-md ✓         51s     7   2.4K    0     2    
+C-T10-15 hybrid-no-md ✓         64s     5   1.9K    0     2    
+C-AR-040 hybrid-no-md ✓         46s     5   2.6K    0     2    
+C-AR-040 hybrid-no-md ✗         55s     5   2.7K    0     2    
+C-AR-040 hybrid-no-md ✓         53s     6   4.6K    0     2    
+C-AR-041 hybrid-no-md ✓         44s     6   3.0K    0     2    
+C-AR-041 hybrid-no-md ✗         50s     6   2.3K    0     2    
+C-AR-041 hybrid-no-md ✗        180s     0   0.0K    0     2    
+
+  hybrid-no-md: 75% pass | 65s | 5.3 calls | 3KB obs | 0.0 mut | 2.0 deny | 0% requery
+
+[
+  {
+    "task_id": "C-T10-28",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2674,
+    "bytes_output": 44184,
+    "bytes_observation": 3472,
+    "tool_calls": 7,
+    "turns": 8,
+    "tokens_in": 146959,
+    "tokens_out": 4150,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 65.4,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-T10-28",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2674,
+    "bytes_output": 41857,
+    "bytes_observation": 3210,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 124873,
+    "tokens_out": 3572,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 52.75,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-T10-28",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2674,
+    "bytes_output": 34957,
+    "bytes_observation": 2893,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 121988,
+    "tokens_out": 2749,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 45.77,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-T10-15",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2805,
+    "bytes_output": 41705,
+    "bytes_observation": 1980,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 107312,
+    "tokens_out": 4570,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 74.92,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-T10-15",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2805,
+    "bytes_output": 37611,
+    "bytes_observation": 2490,
+    "tool_calls": 7,
+    "turns": 8,
+    "tokens_in": 141912,
+    "tokens_out": 2854,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 51.47,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-T10-15",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2805,
+    "bytes_output": 39044,
+    "bytes_observation": 1953,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 105911,
+    "tokens_out": 3917,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 63.87,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-AR-040",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2529,
+    "bytes_output": 34686,
+    "bytes_observation": 2666,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 103851,
+    "tokens_out": 2615,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 46.33,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-AR-040",
+    "mode": "hybrid-no-md",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2529,
+    "bytes_output": 39497,
+    "bytes_observation": 2715,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 106290,
+    "tokens_out": 3543,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 55.43,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')] vs [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')]\nblock_order [md]: MISMATCH ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph'] vs ['Heading', 'Heading', 'Paragraph', 'Heading', 'Heading', 'List', 'Heading', 'CodeFence', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'List', 'Heading', 'List', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Heading', 'Paragraph', 'Heading', 'Paragraph', 'Heading', 'Paragraph']\nblock_text [md]: MISMATCH\n  block 14: '### Core Settings' vs '### Logging'\nheading_tree [neutral]: MISMATCH [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')] vs [(1, 'Project Phoenix v2.0.0'), (2, 'Overview'), (2, 'Installation'), (3, 'Prerequisites'), (3, 'Quick Start'), (2, 'Development Setup'), (3, 'IDE Configuration'), (3, 'Debugging Tools'), (2, 'Application Configuration'), (3, 'Logging'), (4, 'Log Levels'), (4, 'Log Destinations'), (3, 'Core Settings'), (3, 'Database Connection'), (3, 'Feature Flags'), (2, 'Runtime Management'), (3, 'Process Monitoring'), (3, 'Scaling'), (2, 'Contributing')]\nblock_text [neutral]: MISMATCH\n  block 14: '### Core Settings' vs '### Logging'",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-AR-040",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2529,
+    "bytes_output": 44279,
+    "bytes_observation": 4724,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 127322,
+    "tokens_out": 3271,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 53.27,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-AR-041",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2484,
+    "bytes_output": 38613,
+    "bytes_observation": 3027,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 121295,
+    "tokens_out": 2536,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 44.02,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-AR-041",
+    "mode": "hybrid-no-md",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2484,
+    "bytes_output": 37437,
+    "bytes_observation": 2337,
+    "tool_calls": 6,
+    "turns": 7,
+    "tokens_in": 122239,
+    "tokens_out": 2697,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 50.4,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (2, 'Deployment')] vs [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (3, 'User Endpoints'), (3, 'System Endpoints'), (2, 'Deployment')]\nblock_order [md]: OK\nblock_text [md]: MISMATCH\n  block 10: '### User Endpoints' vs '### Authentication'\nheading_tree [neutral]: MISMATCH [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (2, 'Deployment')] vs [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (3, 'User Endpoints'), (3, 'System Endpoints'), (2, 'Deployment')]\nblock_text [neutral]: MISMATCH\n  block 10: '### User Endpoints' vs '### Authentication'",
+    "runner_error": null
+  },
+  {
+    "task_id": "C-AR-041",
+    "mode": "hybrid-no-md",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2484,
+    "bytes_output": 0,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 2,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 180.02,
+    "diff_report": "heading_tree [md]: MISMATCH [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (2, 'Deployment')] vs [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (3, 'User Endpoints'), (3, 'System Endpoints'), (2, 'Deployment')]\nblock_order [md]: OK\nblock_text [md]: MISMATCH\n  block 10: '### User Endpoints' vs '### Authentication'\nheading_tree [neutral]: MISMATCH [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'User Endpoints'), (3, 'System Endpoints'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (2, 'Deployment')] vs [(1, 'Project Oak README'), (2, 'Overview'), (2, 'User Management'), (3, 'Account Creation'), (3, 'Password Reset Flow'), (2, 'API Reference'), (3, 'Authentication'), (4, 'Token Generation'), (4, 'Token Usage'), (3, 'User Endpoints'), (3, 'System Endpoints'), (2, 'Deployment')]\nblock_text [neutral]: MISMATCH\n  block 10: '### User Endpoints' vs '### Authentication'",
+    "runner_error": null
+  }
+]
