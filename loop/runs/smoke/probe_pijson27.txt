@@ -1,0 +1,41 @@
+
+=== MODE: hybrid (N=1, model=Qwen3.5-27B-4bit) ===
+
+  T1: Extract the document outline as a JSON heading tree...
+    md=FAIL neutral=FAIL | 0.52s | ~0B out | obs:0B | ~0 calls | 0 mut | deny:0   | err:pi_json_error: exit 1: Error: Model "Qwen3.5-27B-4bit" not found. Use --list-models to see available models.
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T1     hybrid     ✗          1s     0   0.0K    0     0    
+
+  hybrid: 0% pass | 1s | 0.0 calls | 0KB obs | 0.0 mut | 0.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T1",
+    "mode": "hybrid",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.5-27B-4bit",
+    "thinking_level": null,
+    "bytes_prompt": 5976,
+    "bytes_output": 0,
+    "bytes_observation": 0,
+    "tool_calls": 0,
+    "turns": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 0.52,
+    "diff_report": "runner_error: pi_json_error: exit 1: Error: Model \"Qwen3.5-27B-4bit\" not found. Use --list-models to see available models.\nJSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": "pi_json_error: exit 1: Error: Model \"Qwen3.5-27B-4bit\" not found. Use --list-models to see available models."
+  }
+]

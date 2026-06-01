@@ -1,0 +1,97 @@
+
+=== MODE: hybrid (N=3, model=claude-sonnet-4-6) ===
+
+  T20 run 1/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 15.84s | ~15890B out | obs:1102B | ~4 calls | 0 mut | deny:1  
+  T20 run 2/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 15.21s | ~15946B out | obs:1102B | ~4 calls | 0 mut | deny:1  
+  T20 run 3/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 14.78s | ~15892B out | obs:1102B | ~4 calls | 0 mut | deny:1  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T20    hybrid     ✓         16s     4   1.1K    0     1    
+T20    hybrid     ✓         15s     4   1.1K    0     1    
+T20    hybrid     ✓         15s     4   1.1K    0     1    
+
+  hybrid: 100% pass | 15s | 4.0 calls | 1KB obs | 0.0 mut | 1.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 15890,
+    "bytes_observation": 1102,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 79704,
+    "tokens_out": 643,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.84,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 15946,
+    "bytes_observation": 1102,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 79699,
+    "tokens_out": 651,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.21,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 15892,
+    "bytes_observation": 1102,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 79714,
+    "tokens_out": 648,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 14.78,
+    "diff_report": "",
+    "runner_error": null
+  }
+]

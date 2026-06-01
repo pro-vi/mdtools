@@ -1,0 +1,41 @@
+
+=== MODE: hybrid (N=1, model=claude-sonnet-4-6) ===
+
+  T4: Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables...
+    md=PASS neutral=PASS | 28.74s | ~29395B out | obs:3951B | ~3 calls | 0 mut | deny:1  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T4     hybrid     ✓         29s     3   3.9K    0     1    
+
+  hybrid: 100% pass | 29s | 3.0 calls | 4KB obs | 0.0 mut | 1.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T4",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2288,
+    "bytes_output": 29395,
+    "bytes_observation": 3951,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 64812,
+    "tokens_out": 1333,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 28.74,
+    "diff_report": "block_text [md]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  }
+]

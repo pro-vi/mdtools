@@ -1,0 +1,43 @@
+
+=== MODE: unix (N=1, model=Qwen3.6-35B-A3B-8bit) ===
+
+  T1: Extract the document outline as a JSON heading tree...
+    md=FAIL neutral=FAIL | 34.96s | ~3495B out | obs:672B | ~1 calls | 0 mut | deny:0  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T1     unix       ✗         35s     1   0.7K    0     0    
+
+  unix: 0% pass | 35s | 1.0 calls | 1KB obs | 0.0 mut | 0.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T1",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 688,
+    "bytes_output": 3495,
+    "bytes_observation": 672,
+    "tool_calls": 1,
+    "turns": 30,
+    "tokens_in": 53141,
+    "tokens_out": 1359,
+    "mutations": 0,
+    "tool_mix": {
+      "cat": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 29,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 34.96,
+    "diff_report": "JSON parse error: Expecting value: line 1 column 1 (char 0)",
+    "runner_error": null
+  }
+]

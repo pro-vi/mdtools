@@ -1,0 +1,45 @@
+
+=== MODE: unix (N=1, model=Qwen3.6-35B-A3B-8bit) ===
+
+  T7: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=FAIL neutral=FAIL | 42.72s | ~3794B out | obs:14951B | ~28 calls | 26 mut | deny:0 ↻
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T7     unix       ✗         43s    28  14.6K   26     0   ↻
+
+  unix: 0% pass | 43s | 28.0 calls | 15KB obs | 26.0 mut | 0.0 deny | 100% requery
+
+[
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": false,
+    "correct_neutral": false,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 3794,
+    "bytes_observation": 14951,
+    "tool_calls": 28,
+    "turns": 30,
+    "tokens_in": 149676,
+    "tokens_out": 1684,
+    "mutations": 26,
+    "tool_mix": {
+      "cat": 1,
+      "sed": 26,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 2,
+    "unique_invalid_responses": 1,
+    "elapsed_seconds": 42.72,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: MISMATCH\n  block 9: '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit' vs '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit'\nheading_tree [neutral]: OK\nblock_text [neutral]: MISMATCH\n  block 9: '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit' vs '- [x] 0.1 App-side ID generation\\n  - Find all insert callsit'",
+    "runner_error": null
+  }
+]

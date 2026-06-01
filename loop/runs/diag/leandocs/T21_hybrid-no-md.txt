@@ -1,0 +1,41 @@
+
+=== MODE: hybrid-no-md (N=1, model=claude-sonnet-4-6) ===
+
+  T21: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 5.51s | ~8914B out | obs:480B | ~1 calls | 0 mut | deny:1  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T21    hybrid-no-md ✓          6s     1   0.5K    0     1    
+
+  hybrid-no-md: 100% pass | 6s | 1.0 calls | 0KB obs | 0.0 mut | 1.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T21",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2251,
+    "bytes_output": 8914,
+    "bytes_observation": 480,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25568,
+    "tokens_out": 207,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.51,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  }
+]

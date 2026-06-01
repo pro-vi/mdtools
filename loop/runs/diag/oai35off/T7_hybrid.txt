@@ -1,0 +1,45 @@
+
+=== MODE: hybrid (N=1, model=Qwen3.6-35B-A3B-8bit) ===
+
+  T7: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 5.46s | ~468B out | obs:4534B | ~3 calls | 1 mut | deny:0 ↻
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T7     hybrid     ✓          5s     3   4.4K    1     0   ↻
+
+  hybrid: 100% pass | 5s | 3.0 calls | 4KB obs | 1.0 mut | 0.0 deny | 100% requery
+
+[
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "Qwen3.6-35B-A3B-8bit",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 468,
+    "bytes_observation": 4534,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 9207,
+    "tokens_out": 186,
+    "mutations": 1,
+    "tool_mix": {
+      "md tasks": 2,
+      "md set-task": 1,
+      "grep": 1
+    },
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": true,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.46,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  }
+]

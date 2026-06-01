@@ -1,0 +1,97 @@
+
+=== MODE: hybrid-no-md (N=3, model=claude-sonnet-4-6) ===
+
+  T23 run 1/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=PASS neutral=PASS | 6.56s | ~7818B out | obs:54B | ~1 calls | 0 mut | deny:1  
+  T23 run 2/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=PASS neutral=PASS | 5.6s | ~7783B out | obs:54B | ~1 calls | 0 mut | deny:1  
+  T23 run 3/3: Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order....
+    md=PASS neutral=PASS | 6.12s | ~7789B out | obs:54B | ~1 calls | 0 mut | deny:1  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T23    hybrid-no-md ✓          7s     1   0.1K    0     1    
+T23    hybrid-no-md ✓          6s     1   0.1K    0     1    
+T23    hybrid-no-md ✓          6s     1   0.1K    0     1    
+
+  hybrid-no-md: 100% pass | 6s | 1.0 calls | 0KB obs | 0.0 mut | 1.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T23",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2241,
+    "bytes_output": 7818,
+    "bytes_observation": 54,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25438,
+    "tokens_out": 176,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 6.56,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2241,
+    "bytes_output": 7783,
+    "bytes_observation": 54,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25408,
+    "tokens_out": 183,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 5.6,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T23",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2241,
+    "bytes_output": 7789,
+    "bytes_observation": 54,
+    "tool_calls": 1,
+    "turns": 2,
+    "tokens_in": 25403,
+    "tokens_out": 183,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 6.12,
+    "diff_report": "",
+    "runner_error": null
+  }
+]

@@ -1,0 +1,97 @@
+
+=== MODE: hybrid-no-md (N=3, model=claude-sonnet-4-6) ===
+
+  T21 run 1/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 12.32s | ~11112B out | obs:734B | ~2 calls | 0 mut | deny:1  
+  T21 run 2/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 9.69s | ~11090B out | obs:734B | ~2 calls | 0 mut | deny:1  
+  T21 run 3/3: Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body....
+    md=PASS neutral=PASS | 9.6s | ~10697B out | obs:734B | ~2 calls | 0 mut | deny:1  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T21    hybrid-no-md ✓         12s     2   0.7K    0     1    
+T21    hybrid-no-md ✓         10s     2   0.7K    0     1    
+T21    hybrid-no-md ✓         10s     2   0.7K    0     1    
+
+  hybrid-no-md: 100% pass | 11s | 2.0 calls | 1KB obs | 0.0 mut | 1.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T21",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2252,
+    "bytes_output": 11112,
+    "bytes_observation": 734,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43357,
+    "tokens_out": 370,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 12.32,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2252,
+    "bytes_output": 11090,
+    "bytes_observation": 734,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43388,
+    "tokens_out": 374,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 9.69,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T21",
+    "mode": "hybrid-no-md",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2252,
+    "bytes_output": 10697,
+    "bytes_observation": 734,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 43368,
+    "tokens_out": 363,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 1,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 9.6,
+    "diff_report": "frontmatter_json: OK",
+    "runner_error": null
+  }
+]
