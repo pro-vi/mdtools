@@ -253,7 +253,7 @@ def parse_text_results(filepath):
                 pending_task = None
                 in_dry_run = True
                 continue
-            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: ([\w-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
