@@ -16,6 +16,7 @@ from pathlib import Path
 try:  # bench-v2: single-source TASK_FAMILIES + the shared cost-slice helpers
     from bench.agg_util import (
         TASK_FAMILIES,
+        _aggregate_replicates,
         attribution_verdict,
         category_for,
         extract_model_tier,
@@ -24,6 +25,7 @@ try:  # bench-v2: single-source TASK_FAMILIES + the shared cost-slice helpers
 except ImportError:  # run as `python3 bench/report.py` (bench/ on sys.path)
     from agg_util import (
         TASK_FAMILIES,
+        _aggregate_replicates,
         attribution_verdict,
         category_for,
         extract_model_tier,
@@ -552,8 +554,13 @@ def render_cost_slice(all_results, modes, markdown=False):
         out.append(f"  cost = median over tasks BOTH modes passed; delta = other - {base} (negative = other cheaper)")
         out.append(f"  tier | category | pair | n | basis | {base} | other | delta")
     for tier, cat in sorted(groups):
+        # Aggregate -N>1 replicates to one median record per (task,mode) BEFORE the
+        # intersection — mirrors attribution_verdict. Raw records keep only the LAST
+        # replicate per (task,mode), which makes this table order-dependent for N>1
+        # and inconsistent with the gating verdict. (PR#10 Codex P2.)
+        cell = _aggregate_replicates(groups[(tier, cat)])
         for other in others:
-            ic = intersection_cost(groups[(tier, cat)], base, other)
+            ic = intersection_cost(cell, base, other)
             if ic["n"] == 0:
                 cells = f"{tier} | {cat} | {base} vs {other} | 0 | - | - | - | -"
             else:

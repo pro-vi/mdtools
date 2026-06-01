@@ -348,6 +348,40 @@ SCORER ISSUES DETECTED.
         self.assertIn("hybrid-no-md", completed.stdout)
         self.assertIn("T1", completed.stdout)
 
+    def test_cost_slice_aggregates_replicates_not_last(self) -> None:
+        # Regression (PR#10 Codex P2): render_cost_slice must aggregate -N>1 replicates
+        # (median per task/mode) BEFORE the both-passed intersection, mirroring
+        # attribution_verdict. The old direct intersection_cost kept only the LAST
+        # replicate per (task,mode), making the headline cost table order-dependent and
+        # inconsistent with the gating verdict for N>=3 runs.
+        from bench.report import render_cost_slice
+
+        def rec(mode: str, cost: int) -> dict:
+            return {
+                "task_id": "T1",
+                "mode": mode,
+                "model": "claude-sonnet-test",
+                "thinking_level": None,
+                "correct": True,
+                "tokens_in": cost,
+                "tokens_out": 0,
+                "tool_calls": 0,
+            }
+
+        # hybrid replicates [100, 100, 999]: median 100, last 999.
+        records = [rec("unix", 200) for _ in range(3)] + [
+            rec("hybrid", c) for c in (100, 100, 999)
+        ]
+        out = render_cost_slice(records, ["unix", "hybrid"])
+        cost_line = next(line for line in out.splitlines() if "Extraction" in line)
+        self.assertIn(
+            " 100 ", cost_line,
+            f"hybrid cost should be the replicate median (100), got: {cost_line}",
+        )
+        self.assertNotIn(
+            "999", cost_line, "must not report the last replicate (999)"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
