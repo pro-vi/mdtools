@@ -70,7 +70,10 @@ def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
         # probe, says "use unix", exits 1) — md is "allowed" so the guard doesn't
         # hard-kill; the agent falls back to unix like a competent user. Isolates
         # md's causal value (hybrid vs hybrid-no-md = md-lift). See BENCH_V2_CLEAN_ABLATION.md.
-        return UNIX_TOOLS + ["md"]
+        # jq is retained (it lives in MDTOOLS_TOOLS, advertised by the shared hybrid
+        # prompt) so the ONLY difference from hybrid is md-the-tool — otherwise the
+        # ablation would remove md AND jq and the lift wouldn't isolate md.
+        return UNIX_TOOLS + ["md", "jq"]
     return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
 
 
