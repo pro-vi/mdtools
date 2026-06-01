@@ -2,6 +2,14 @@
 
 Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 
+> ⚠️ **PUBLIC REPOSITORY** (`github.com/pro-vi/mdtools`). Never commit: secrets / API
+> keys, **other projects' internals** (tickets, architecture, IP — e.g. fract-ai),
+> agent/session transcripts or dumps (`agent_output.txt`, `*.pi-audit.jsonl`,
+> `guard.log`), or personal usage telemetry. The private research/benchmarking loop
+> lives in gitignored **`.loop/`**; machine-specific workflow goes in gitignored
+> **`CLAUDE.local.md`**. When unsure if something is public-safe, keep it out — a leak
+> in git history needs a force-push rewrite to undo.
+
 ## Architecture
 
 **Parser boundary:** All comrak interaction is in `src/parser.rs`. The rest of the codebase sees only model types (`src/model.rs`), never comrak types. This is the core invariant.

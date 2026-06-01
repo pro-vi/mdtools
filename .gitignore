@@ -13,6 +13,9 @@ bench/runs/**/logs/
 # Private loop / research process — NOT public (split out 2026-06-01)
 .loop/
 
+# Machine-specific / private agent instructions (the public CLAUDE.md is shipped)
+CLAUDE.local.md
+
 # Never commit raw agent/session dumps anywhere
 **/agent_output.txt
 **/guard.log
