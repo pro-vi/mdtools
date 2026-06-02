@@ -1,5 +1,13 @@
 # Frontier clean-measurement re-run — 2026-06-01
 
+> ⚠️ **Its `hybrid-no-md` md-LIFT / attribution verdicts are INVALID** and are
+> superseded by `../frontier-ablated-2026-06-01/`. This run was isolated correctly
+> but its `hybrid-no-md` baseline was bypassed by the `./md` workdir copy
+> (Codex P1, fixed in `611c2c3`) — the no-md agent ran the real `md`, so md-lift
+> measured nothing. The `unix` and `hybrid` bundles here are valid (their code path
+> is unaffected) and are **reused** by the ablated re-run. The Pareto headline
+> (`md ∝ 1/model-capability`, hybrid-vs-unix) never used `hybrid-no-md` and stands.
+
 Validation after the claude-cli **isolation fix** (`4e20adf`, PR #10 / Codex P1).
 
 ## Why
