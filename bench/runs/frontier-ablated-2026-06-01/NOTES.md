@@ -1,81 +1,113 @@
-# Frontier ablated-baseline re-run — 2026-06-01
+# Frontier ablated-baseline re-run + cache-regime analysis — 2026-06-01
 
-The **first valid md-attribution measurement.** Re-run after the `./md` ablation
-fix (`611c2c3`, PR #10 / Codex P1), on top of the isolation fix (`4e20adf`).
+The first valid md-attribution measurement (after the `./md` ablation fix
+`611c2c3` on top of the isolation fix `4e20adf`), **plus** the cache-regime
+analysis that followed once we noticed the cost metric was 84% cache-read.
 
-## Why this run exists
+> **TL;DR.** Under the gate, **no targeted-edit cell ever closes** (any model,
+> any cache regime). The one frontier `CLOSES` is **Sonnet · Batch**, and it is
+> **cache-regime-conditional**: it closes under realistic warm/cached pricing
+> (Anthropic read ≈ 0.1×, robust until the read price hits ~0.42× fresh) and is
+> `SUSPECT` only in a cold / one-off / cache-disabled world. The stronger Opus
+> does not close Batch even warm. **`md ∝ 1/capability` holds as a gradient;**
+> the one win is repeated-use-only and **n=1-provisional**.
 
-The clean re-run (`frontier-clean-2026-06-01`) was isolated correctly but its
-`hybrid-no-md` baseline was **bypassed**: the harness copies `md` to `./md` in the
-workdir for every mode and the prompt advertises `./md`, so a no-md agent that ran
-`./md` (exactly as told) hit the **real** binary, not the stub. The no-md baseline
-silently had `md`, so every **md-lift / attribution verdict** in that run measured
-nothing (no-md ≈ hybrid because both had md). `611c2c3` makes the `./md` copy the
-soft stub in `hybrid-no-md` too. Verified end-to-end: a no-md agent now runs
-`./md tasks` → `md: unavailable here; use standard unix tools…` → falls back to
-`grep`/`sed`, with `md_probe_count=1`.
+## 1. Why this run exists
 
-The **Pareto headline** (`md ∝ 1/model-capability`) never used `hybrid-no-md` — it
-is hybrid-vs-**unix** — so it stood through both methodology bugs. This run produces
-the first *attribution* verdicts that are actually valid.
+The earlier clean re-run (`../frontier-clean-2026-06-01`) was isolated correctly
+but its `hybrid-no-md` baseline was **bypassed**: the harness copies `md` to
+`./md` in the workdir and the prompt advertises `./md`, so a no-md agent that ran
+`./md` (as told) hit the **real** binary. `611c2c3` makes the `./md` copy the
+soft stub in `hybrid-no-md` too. Verified: a no-md agent now runs `./md tasks` →
+`md: unavailable here…` → falls back to grep/sed, `md_probe_count == 1`.
 
-## Setup (minimal, reuse-where-sound)
+## 2. Setup (minimal, reuse-where-sound)
 
-`611c2c3` changes **only** the `hybrid-no-md` branch of the md-copy block; the
-`unix` and `hybrid` code paths are byte-identical. So:
+`611c2c3` changes **only** the `hybrid-no-md` branch; `unix`/`hybrid` code paths
+are byte-identical, so those bundles are **reused** from the clean run and only
+`hybrid-no-md` was re-measured: `T7,T10,T13,T20` (Targeted, n=4) + `T12` (Batch,
+n=1) × N=3, two models. 30 runs, **0 errors, all 3/3 correct, every
+`md_probe_count == 1`**. Render is per-model (both models are tier `frontier`).
 
-- **`unix` + `hybrid`: reused** from `frontier-clean-2026-06-01` (already isolated,
-  unaffected by the `./md` fix — re-running them would only add nondeterminism, not
-  remove a bug).
-- **`hybrid-no-md`: re-measured here** with the fixed ablation — `T7,T10,T13,T20`
-  (Targeted, n=4) + `T12` (Batch, n=1) × N=3, two models (`claude-sonnet-4-6`,
-  `claude-opus-4-8[1m]`). 30 runs, **0 runner errors, all 30 cells 3/3 correct,
-  every `md_probe_count == 1`** (each run tried `./md` once, hit the stub, fell back
-  → `probe_ok` holds, the baseline is a competent unix fallback by the probe gate).
+## 3. The cache-accounting discovery (what reframed everything)
 
-Render: `report.py` is run **per model** (both models are tier `frontier`, so one
-combined call would mix them). Bundles: prior-clean `unix.txt`+`hybrid.txt` ⊕ this
-run's merged `hybrid-no-md.txt`. See `render_verdicts.py`. (The raw 5-array harness
-output is preserved as `*.raw5.txt`; the `.txt` was merged to one JSON array so
-`report.py`'s loader reads all 15 records, not just the last.)
+The cost basis is `tokens_in = input + cache_creation + cache_read`, all weight
+1.0. But **84% of those tokens are cache_READS** (the static md-docs prompt
+prefix re-read every turn), and reads bill at ~0.1×. So raw-tokens over-weights
+the prompt-heavy modes (`hybrid`, `hybrid-no-md`) ~3–4× vs what you actually pay.
 
-## Result — first VALID attribution verdicts (median tokens on both-passed intersection)
+Key fact: **prompt caching is output-invariant** — the model can't see cache
+state, so token counts and pass/fail are identical across regimes; only the
+*price* of the prefix moves. So "which cost basis" **is** "which cache regime",
+and every regime is reconstructable by re-pricing the logged per-run usage
+(`usage_breakdown.json`, all 90 runs) — no re-run needed:
 
-| cell | pareto unix→hybrid | lift no-md→hybrid | no-md vs unix | **verdict (valid)** | prior (invalid) |
-|---|---|---|---|---|---|
-| Sonnet · Targeted | n=4  48154→59350 (+23%) | n=4  66536→59350 (−11%) | **+38%** | `OPEN:loses-unix` | `loses-unix` |
-| Sonnet · Batch    | n=1  55109→53124 (−4%)  | n=1  74969→53124 (−29%) | **+36%** | `SUSPECT:baseline-flails(cost)` | `SUSPECT` |
-| Opus · Targeted   | n=4  16058→15314 (−5%)  | n=4  25810→15314 (−41%) | **+61%** | `SUSPECT:baseline-flails(cost)` | `no-lift` |
-| Opus · Batch      | n=1  19745→25060 (+27%) | n=1  24719→25060 (+1%)  | **+25%** | `OPEN:loses-unix` | `loses-unix` |
+`cost(r) = input + cache_creation + r·cache_read + output`
+- `r = 1.0` → cold / cache-disabled = raw tokens = a **one-off** invocation
+- `r = 0.1` → Anthropic warm read price = **repeated / cached** production use
 
-All four cells: `md-probe=1`, `baseline_ok=False (reason=cost)`. **No structural cell
-`CLOSES` on either frontier model.**
+Reproduce: `python3 regime_sensitivity.py`.
 
-## Findings
+## 4. Result — verdict vs cache regime (the main finding)
 
-1. **`md ∝ 1/model-capability` holds — now under a *valid* attribution gate.** No
-   frontier structural cell `CLOSES`. The bottom line is unchanged from the
-   Pareto-only finding; the valid re-run **confirms** it rather than overturning it.
+| cell | COLD / one-off (r=1, raw tokens) | WARM / repeated (r=0.1) | breakpoint r* | regime-robust? |
+|---|---|---|---|---|
+| Sonnet · Targeted | `OPEN:loses-unix` | `OPEN:loses-unix` | — | ✅ never closes |
+| **Sonnet · Batch** | `SUSPECT:baseline-flails(cost)` | **`CLOSES`** | **≈0.42** | ⚠️ **regime-dependent** |
+| Opus · Targeted | `SUSPECT:baseline-flails(cost)` | `SUSPECT:baseline-flails(cost)` | — | ✅ un-attributable |
+| Opus · Batch | `OPEN:loses-unix` | `OPEN:no-lift` | (n=1 `CLOSES` sliver ~r∈[0.10,0.24] fine sweep; coarse 0.05-grid shows 0.15–0.20 — starts just above the real warm r≈0.1, where it's no-lift) | ✅ no clean win at the real operating point |
 
-2. **One verdict label flipped: Opus Targeted `no-lift` → `SUSPECT:baseline-flails`.**
-   The invalid run had no-md ≈ hybrid (both ran real md) → apparent lift ≈ 0 →
-   `no-lift`. Valid, the no-md baseline is a true unix fallback costing **+61% over
-   pure unix**, so even though `md` *appears* to lift −41% over it, the gate refuses
-   to credit a win measured against a flailing baseline → `SUSPECT`. The two
-   `loses-unix` cells (Sonnet/Opus, pareto-fail) were immune to the bug — pareto
-   short-circuits before the ablation is consulted.
+Sonnet · Batch flips at **r\* ≈ 0.42**. Anthropic's real read price is **r ≈ 0.1**
+— far below 0.42 — so under realistic caching it `CLOSES` with margin (cached
+reads would have to cost **several×** their actual price to break it). The per-run
+separation is clean (every Sonnet hybrid Batch run cheaper than every unix run:
+hybrid $0.064–0.076 vs unix $0.113–0.119), not a cold/warm fluke. The warm
+result is **conservative** — true steady-state amortizes run-1's cache-creation,
+which would make `md` look *better*, not worse.
 
-3. **New, newly-valid finding — the md-documented prompt is itself a cost tax.**
-   Across **all four** cells the `hybrid-no-md` baseline (the hybrid/md prompt with
-   `md` stubbed) costs **+25% to +61% more than pure unix**. An agent primed on the
-   md docs reads them, reflexively tries `./md` (the +1 probe), gets the stub, then
-   hand-rolls unix — paying for the longer prompt and the wasted call. So the clean
-   ablation baseline is **not** a competent unix-equivalent (guard #3's "no-md ≈
-   unix" assumption is violated empirically), which is *why* md-lift is
-   un-attributable on the frontier: every structural cell is either `loses-unix`
-   (hybrid > unix) or `SUSPECT` (baseline flails on cost). The gate is working as
-   designed — it declines to claim a win it cannot attribute.
+## 5. Adversarial second opinion (GPT-5 Pro, extended thinking)
 
-Caveat: Batch is a single task (n=1 intersection); Targeted is n=4. All N=3.
-`unix`/`hybrid` reused from the clean run (unchanged code path); only `hybrid-no-md`
-re-measured.
+Consulted neutrally (three bases as competing hypotheses). It **rejected
+cache-weighted tokens as the primary basis** (it smuggles a provider-specific
+0.1× coefficient while pretending neutrality, and isn't truly dollars either) and
+recommended **billed `$` as the primary product-cost metric**, with raw tokens
+**renamed to a "context-footprint" diagnostic** (not "cost") and a cache-read
+weight *sweep* as the sensitivity view (§4 above). Deeper structural points it
+raised, logged as follow-ups (§7):
+
+- **Cache state is an experimental *treatment*, not a logging detail** — declare
+  a regime (cold / warm steady-state / amortized-over-K) instead of the current
+  uncontrolled N=3 back-to-back mix.
+- The **both-passed intersection** conditions on tasks both modes solved, so it
+  structurally misses `md`'s value when `md` changes *which* tasks pass — prefer
+  **expected cost per successful task**.
+- The **no-md ablation is contaminated** (blends docs-effect + tool-effect +
+  dead-probe-effect); factorialize into `unix / docs-only / stubbed-tool /
+  hybrid` to separate them.
+- A single cost scalar hides the real shape — `md` buys **reliability / edit
+  locality / batch efficiency**, not universal cost reduction.
+
+## 6. Honest headline (regime-aware)
+
+> **`md` earns no clean frontier win on targeted edits — any model, any cache
+> regime.** On **batch** structural ops, `md` cleanly wins on the mid-frontier
+> model (**Sonnet**) **for repeated / cached use** (`CLOSES` at the realistic
+> r≈0.1, robust to r<0.42), but not for a cold one-off, and the stronger **Opus**
+> does not close even warm. The **`md ∝ 1/capability` gradient holds**; the one
+> frontier win is cache-regime-conditional and **n=1-provisional**.
+
+This supersedes the prior absolute line "no frontier cell closes / `md` earns no
+clean win on a strong model" — true only under cold/raw-token accounting.
+
+## 7. Caveats & follow-ups
+
+- **Batch is n=1** (T12 only). The `CLOSES` is **provisional** until Batch has
+  more tasks — queued as a follow-up (generate + N≥3-measure new batch-mutation
+  tasks; that kills the single-task uncertainty before the win is asserted hard).
+- Pin the **cache regime** as a declared treatment (§5); adopt **billed `$`** as
+  primary with raw-tokens relabeled "context footprint"; consider
+  **expected-cost-per-success** over the both-passed intersection; **factorialize
+  the ablation** (docs-only vs stubbed-tool). These are gate/metric design
+  changes — deferred, not made unilaterally here.
+- `unix`/`hybrid` reused from the clean run (unchanged code path); only
+  `hybrid-no-md` re-measured. All N=3.
