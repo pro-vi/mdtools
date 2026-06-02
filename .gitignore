@@ -16,6 +16,10 @@ bench/runs/**/logs/
 # Machine-specific / private agent instructions (the public CLAUDE.md is shipped)
 CLAUDE.local.md
 
+# Private planning docs — architect/provision plans are local-only by convention
+# (untracked 2026-06-02; the leaked 2026-06-01-001 plan also removed from HEAD)
+docs/plans/
+
 # Never commit raw agent/session dumps anywhere
 **/agent_output.txt
 **/guard.log
