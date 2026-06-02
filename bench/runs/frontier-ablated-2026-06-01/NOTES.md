@@ -4,13 +4,24 @@ The first valid md-attribution measurement (after the `./md` ablation fix
 `611c2c3` on top of the isolation fix `4e20adf`), **plus** the cache-regime
 analysis that followed once we noticed the cost metric was 84% cache-read.
 
-> **TL;DR.** Under the gate, **no targeted-edit cell ever closes** (any model,
-> any cache regime). The one frontier `CLOSES` is **Sonnet · Batch**, and it is
-> **cache-regime-conditional**: it closes under realistic warm/cached pricing
-> (Anthropic read ≈ 0.1×, robust until the read price hits ~0.42× fresh) and is
-> `SUSPECT` only in a cold / one-off / cache-disabled world. The stronger Opus
-> does not close Batch even warm. **`md ∝ 1/capability` holds as a gradient;**
-> the one win is repeated-use-only and **n=1-provisional**.
+> **⚠️ CORRECTION (2026-06-02) — supersedes the regime-conditional framing below.**
+> The "cache-regime-conditional / `SUSPECT` cold / breakpoint r\*≈0.42" conclusion
+> (§3–§4, §6) was an **artifact of the cost formula**: `cost(r)=input+cc+r·cr+output`
+> pins **output at 1×** and sweeps only `cache_read`, but real Anthropic billing
+> weights **output ≈5×** (it is ~54% of the Batch bill) and `cache_read` ≈0.1× (only
+> ~10–14% of the bill). Re-scored on **billed `$`** (cross-checked against logged
+> `cost_usd` to within 1–2%): **Sonnet · Batch `CLOSES` across the *entire* regime
+> span** — warm/repeated **−41%**, cold cache-read **−20%**, true cold one-off
+> **−17%** — the margin narrows but **never flips**. It is a **regime-robust** `md`
+> win, not a conditional one; no cell produces a regime-conditional `CLOSES` at the
+> real operating point under billed-$. The discovery trail (§3–§4) is kept for
+> honesty; its "regime-dependent" verdict is superseded by this banner.
+>
+> **TL;DR (corrected).** Under the gate, **no targeted-edit cell closes** (any
+> model). The one frontier `CLOSES` is **Sonnet · Batch**, and at real billed prices
+> it is **robust across all cache regimes** (~17–41% cheaper, cold→warm). The
+> stronger Opus does not close Batch. **`md ∝ 1/capability` holds as a gradient;**
+> the one win is **n=1-provisional** (T12 only).
 
 ## 1. Why this run exists
 
@@ -89,12 +100,16 @@ raised, logged as follow-ups (§7):
 
 ## 6. Honest headline (regime-aware)
 
-> **`md` earns no clean frontier win on targeted edits — any model, any cache
-> regime.** On **batch** structural ops, `md` cleanly wins on the mid-frontier
-> model (**Sonnet**) **for repeated / cached use** (`CLOSES` at the realistic
-> r≈0.1, robust to r<0.42), but not for a cold one-off, and the stronger **Opus**
-> does not close even warm. The **`md ∝ 1/capability` gradient holds**; the one
-> frontier win is cache-regime-conditional and **n=1-provisional**.
+> **`md` earns no clean frontier win on targeted edits — any model.** On **batch**
+> structural ops, `md` cleanly wins on the mid-frontier model (**Sonnet**) at real
+> billed prices — **`CLOSES` robustly across every cache regime** (~41% cheaper
+> warm/repeated, ~17% cheaper even in a true cold one-off; output is ~54% of the
+> bill and regime-invariant, so the cache-read price cannot flip the verdict) — and
+> the stronger **Opus** does not close even warm. The **`md ∝ 1/capability` gradient
+> holds**; the one frontier win is **n=1-provisional** (T12 only).
+>
+> *(Corrected 2026-06-02 to billed-$; the original "regime-conditional / not cold
+> one-off" line was an output-at-1× artifact — see the top banner.)*
 
 This supersedes the prior absolute line "no frontier cell closes / `md` earns no
 clean win on a strong model" — true only under cold/raw-token accounting.
