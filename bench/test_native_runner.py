@@ -91,22 +91,29 @@ class NativeToolAdoptionTests(unittest.TestCase):
     """U4 (FRAC-194): native Read/Edit/Write calls bypass the Bash guard; parse them
     from the claude-cli transcript so the native-vs-md choice is observable."""
 
-    def test_native_tool_use_counted_bash_excluded(self) -> None:
+    def test_transcript_mix_classifies_native_and_bash(self) -> None:
+        # The Bash guard can't see claude-cli's Bash, so the transcript parse counts
+        # BOTH native Read/Edit/Write AND classified Bash verbs — the full per-cell
+        # native-vs-md adoption signal.
         parsed = parse_agent_output(_transcript([
             ("Read", {}), ("Edit", {}), ("Edit", {}),
-            ("Bash", {"command": "md outline x.md"}),   # shell → guard, NOT native_tool_mix
+            ("Bash", {"command": "md outline x.md"}),                       # query verb
+            ("Bash", {"command": "md set-task 9.3 x.md -i --status done"}), # mutation verb
         ]))
-        self.assertEqual(parsed.native_tool_mix, {"Read": 1, "Edit": 2})
-        self.assertEqual(parsed.tool_calls, 4)          # tool_calls still counts ALL tool_use
+        self.assertEqual(parsed.transcript_tool_mix,
+                         {"Read": 1, "Edit": 2, "md outline": 1, "md set-task": 1})
+        self.assertEqual(parsed.transcript_mutations, 1)   # md set-task -i
+        self.assertEqual(parsed.tool_calls, 5)             # tool_calls counts ALL tool_use
 
-    def test_no_native_calls_leaves_native_mix_empty(self) -> None:
+    def test_transcript_classifies_sed_mutation(self) -> None:
         parsed = parse_agent_output(_transcript([("Bash", {"command": "sed -i s/a/b/ x"})]))
-        self.assertEqual(parsed.native_tool_mix, {})
-        self.assertEqual(parsed.tool_calls, 1)
+        self.assertEqual(parsed.transcript_tool_mix, {"sed": 1})
+        self.assertEqual(parsed.transcript_mutations, 1)
 
     def test_malformed_transcript_does_not_crash(self) -> None:
         parsed = parse_agent_output("not json")
-        self.assertEqual(parsed.native_tool_mix, {})
+        self.assertEqual(parsed.transcript_tool_mix, {})
+        self.assertEqual(parsed.transcript_mutations, 0)
 
 
 if __name__ == "__main__":
