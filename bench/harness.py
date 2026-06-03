@@ -1425,7 +1425,10 @@ def run_agent(
     # no-md baseline silently runs real md, and the md-lift/attribution gate measures
     # nothing. (Observed: no-md agents used `./md set-task`/`./md tasks`, md-probe=0.)
     md_dest = os.path.join(workdir, "md")
-    if mode == "hybrid-no-md":
+    if mode in ("hybrid-no-md", "native+md-no-md"):
+        # both clean-ablation modes: the ./md copy MUST be the stub too (FRAC-194:
+        # native+md-no-md was missed here, so its ./md was the real binary and the
+        # ablation was bypassed — native+md-no-md ran real md via ./md).
         with open(md_dest, "w") as f:
             f.write(_md_ablation_stub())
         os.chmod(md_dest, 0o755)
