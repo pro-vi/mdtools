@@ -1,0 +1,902 @@
+[
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "unix",
+  "input": 4,
+  "cache_creation": 5707,
+  "cache_read": 25527,
+  "output": 585,
+  "cost_usd": 0.03862335
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "unix",
+  "input": 6,
+  "cache_creation": 6184,
+  "cache_read": 47726,
+  "output": 970,
+  "cost_usd": 0.0528458
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "unix",
+  "input": 6,
+  "cache_creation": 6224,
+  "cache_read": 47867,
+  "output": 1018,
+  "cost_usd": 0.0537721
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "unix",
+  "input": 5,
+  "cache_creation": 9831,
+  "cache_read": 40174,
+  "output": 4229,
+  "cost_usd": 0.11315845
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "unix",
+  "input": 5,
+  "cache_creation": 10125,
+  "cache_read": 40472,
+  "output": 4507,
+  "cost_usd": 0.11853435000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "unix",
+  "input": 6,
+  "cache_creation": 9894,
+  "cache_read": 54433,
+  "output": 4114,
+  "cost_usd": 0.1159624
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "unix",
+  "input": 6,
+  "cache_creation": 6069,
+  "cache_read": 47089,
+  "output": 1205,
+  "cost_usd": 0.05577445
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 6184,
+  "cache_read": 57986,
+  "output": 1164,
+  "cost_usd": 0.058850799999999995
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 6084,
+  "cache_read": 57716,
+  "output": 1058,
+  "cost_usd": 0.0568218
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 6002,
+  "cache_read": 58330,
+  "output": 1033,
+  "cost_usd": 0.056332499999999994
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "unix",
+  "input": 5,
+  "cache_creation": 5198,
+  "cache_read": 35661,
+  "output": 526,
+  "cost_usd": 0.038896799999999995
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "unix",
+  "input": 5,
+  "cache_creation": 5204,
+  "cache_read": 35668,
+  "output": 545,
+  "cost_usd": 0.0392154
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "unix",
+  "input": 4,
+  "cache_creation": 15681,
+  "cache_read": 22397,
+  "output": 383,
+  "cost_usd": 0.07203585
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "unix",
+  "input": 4,
+  "cache_creation": 10371,
+  "cache_read": 27742,
+  "output": 429,
+  "cost_usd": 0.05441485000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "unix",
+  "input": 4,
+  "cache_creation": 10341,
+  "cache_read": 27757,
+  "output": 390,
+  "cost_usd": 0.05372385
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "hybrid",
+  "input": 6,
+  "cache_creation": 8051,
+  "cache_read": 52078,
+  "output": 748,
+  "cost_usd": 0.05829365
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "hybrid",
+  "input": 7,
+  "cache_creation": 8178,
+  "cache_read": 65307,
+  "output": 850,
+  "cost_usd": 0.0642676
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "hybrid",
+  "input": 6,
+  "cache_creation": 6270,
+  "cache_read": 48710,
+  "output": 667,
+  "cost_usd": 0.0493875
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 9702,
+  "cache_read": 42123,
+  "output": 1294,
+  "cost_usd": 0.0697134
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 8773,
+  "cache_read": 42076,
+  "output": 1121,
+  "cost_usd": 0.06361555
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "hybrid",
+  "input": 7,
+  "cache_creation": 8924,
+  "cache_read": 68859,
+  "output": 1361,
+  "cost_usd": 0.07580170000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 6001,
+  "cache_read": 37266,
+  "output": 722,
+  "cost_usd": 0.04577555
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 6567,
+  "cache_read": 38367,
+  "output": 609,
+  "cost_usd": 0.04653935
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 7047,
+  "cache_read": 39532,
+  "output": 730,
+  "cost_usd": 0.05050185000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "hybrid",
+  "input": 7,
+  "cache_creation": 16448,
+  "cache_read": 89573,
+  "output": 831,
+  "cost_usd": 0.10230790000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "hybrid",
+  "input": 7,
+  "cache_creation": 16595,
+  "cache_read": 79452,
+  "output": 909,
+  "cost_usd": 0.10100085
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "hybrid",
+  "input": 7,
+  "cache_creation": 16473,
+  "cache_read": 89686,
+  "output": 823,
+  "cost_usd": 0.10231254999999997
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "hybrid",
+  "input": 6,
+  "cache_creation": 7203,
+  "cache_read": 50364,
+  "output": 660,
+  "cost_usd": 0.05325645
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "hybrid",
+  "input": 6,
+  "cache_creation": 7006,
+  "cache_read": 50216,
+  "output": 590,
+  "cost_usd": 0.0514463
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 6952,
+  "cache_read": 39538,
+  "output": 426,
+  "cost_usd": 0.0455564
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6730,
+  "cache_read": 59200,
+  "output": 1282,
+  "cost_usd": 0.0634975
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6933,
+  "cache_read": 60419,
+  "output": 1015,
+  "cost_usd": 0.060624449999999996
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T10",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6921,
+  "cache_read": 59567,
+  "output": 1360,
+  "cost_usd": 0.06549785
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 8967,
+  "cache_read": 64401,
+  "output": 2528,
+  "cost_usd": 0.09213055
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 8859,
+  "cache_read": 63828,
+  "output": 2275,
+  "cost_usd": 0.08778965
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T12",
+  "mode": "hybrid-no-md",
+  "input": 6,
+  "cache_creation": 8256,
+  "cache_read": 49925,
+  "output": 1996,
+  "cost_usd": 0.07716049999999999
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6167,
+  "cache_read": 59217,
+  "output": 1019,
+  "cost_usd": 0.05743934999999999
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6376,
+  "cache_read": 59677,
+  "output": 1018,
+  "cost_usd": 0.058370099999999994
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T13",
+  "mode": "hybrid-no-md",
+  "input": 6,
+  "cache_creation": 6296,
+  "cache_read": 48284,
+  "output": 871,
+  "cost_usd": 0.052422199999999995
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 9359,
+  "cache_read": 59250,
+  "output": 976,
+  "cost_usd": 0.06882025000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "hybrid-no-md",
+  "input": 5,
+  "cache_creation": 5848,
+  "cache_read": 37047,
+  "output": 709,
+  "cost_usd": 0.04497210000000001
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T20",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6178,
+  "cache_read": 59491,
+  "output": 985,
+  "cost_usd": 0.05709679999999999
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "hybrid-no-md",
+  "input": 5,
+  "cache_creation": 5907,
+  "cache_read": 37146,
+  "output": 497,
+  "cost_usd": 0.04201805
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "hybrid-no-md",
+  "input": 5,
+  "cache_creation": 8354,
+  "cache_read": 36705,
+  "output": 531,
+  "cost_usd": 0.05157199999999999
+ },
+ {
+  "model": "claude-sonnet-4-6",
+  "task": "T7",
+  "mode": "hybrid-no-md",
+  "input": 5,
+  "cache_creation": 8270,
+  "cache_read": 36644,
+  "output": 472,
+  "cost_usd": 0.0503317
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "unix",
+  "input": 351,
+  "cache_creation": 3678,
+  "cache_read": 10457,
+  "output": 626,
+  "cost_usd": 0.046397999999999995
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "unix",
+  "input": 350,
+  "cache_creation": 3495,
+  "cache_read": 10443,
+  "output": 504,
+  "cost_usd": 0.042194249999999996
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "unix",
+  "input": 348,
+  "cache_creation": 3489,
+  "cache_read": 10426,
+  "output": 585,
+  "cost_usd": 0.04415925
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "unix",
+  "input": 470,
+  "cache_creation": 4618,
+  "cache_read": 10222,
+  "output": 1432,
+  "cost_usd": 0.07293250000000001
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "unix",
+  "input": 472,
+  "cache_creation": 6606,
+  "cache_read": 22303,
+  "output": 2504,
+  "cost_usd": 0.118177
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "unix",
+  "input": 469,
+  "cache_creation": 6241,
+  "cache_read": 10433,
+  "output": 2602,
+  "cost_usd": 0.11241475
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "unix",
+  "input": 278,
+  "cache_creation": 3122,
+  "cache_read": 9780,
+  "output": 679,
+  "cost_usd": 0.0435515
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "unix",
+  "input": 277,
+  "cache_creation": 3035,
+  "cache_read": 9771,
+  "output": 609,
+  "cost_usd": 0.04124125
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "unix",
+  "input": 279,
+  "cache_creation": 3070,
+  "cache_read": 9791,
+  "output": 605,
+  "cost_usd": 0.041388999999999995
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "unix",
+  "input": 9,
+  "cache_creation": 3525,
+  "cache_read": 19246,
+  "output": 833,
+  "cost_usd": 0.05333425
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 3395,
+  "cache_read": 14585,
+  "output": 856,
+  "cost_usd": 0.05075225
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 3703,
+  "cache_read": 15868,
+  "output": 590,
+  "cost_usd": 0.04668075
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 2918,
+  "cache_read": 13957,
+  "output": 562,
+  "cost_usd": 0.040083999999999995
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 2698,
+  "cache_read": 13721,
+  "output": 543,
+  "cost_usd": 0.038086999999999996
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "unix",
+  "input": 7,
+  "cache_creation": 2839,
+  "cache_read": 13794,
+  "output": 629,
+  "cost_usd": 0.04117775
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3231,
+  "cache_read": 10833,
+  "output": 395,
+  "cost_usd": 0.03676025
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "hybrid",
+  "input": 11,
+  "cache_creation": 4212,
+  "cache_read": 26641,
+  "output": 992,
+  "cost_usd": 0.06573949999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3302,
+  "cache_read": 10869,
+  "output": 439,
+  "cost_usd": 0.038315
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "hybrid",
+  "input": 7,
+  "cache_creation": 5588,
+  "cache_read": 18167,
+  "output": 1298,
+  "cost_usd": 0.0777545
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 4631,
+  "cache_read": 11700,
+  "output": 646,
+  "cost_usd": 0.05220775
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "hybrid",
+  "input": 9,
+  "cache_creation": 5580,
+  "cache_read": 24390,
+  "output": 1215,
+  "cost_usd": 0.078751
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3676,
+  "cache_read": 11045,
+  "output": 441,
+  "cost_usd": 0.040791499999999994
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 4127,
+  "cache_read": 11065,
+  "output": 887,
+  "cost_usd": 0.05477425
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3763,
+  "cache_read": 11036,
+  "output": 529,
+  "cost_usd": 0.043527750000000004
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3672,
+  "cache_read": 11087,
+  "output": 413,
+  "cost_usd": 0.0401155
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "hybrid",
+  "input": 17,
+  "cache_creation": 18138,
+  "cache_read": 70353,
+  "output": 1769,
+  "cost_usd": 0.194117
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3709,
+  "cache_read": 11126,
+  "output": 455,
+  "cost_usd": 0.04141424999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 5138,
+  "cache_read": 12712,
+  "output": 370,
+  "cost_usd": 0.04896349999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 3316,
+  "cache_read": 10928,
+  "output": 382,
+  "cost_usd": 0.036986
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "hybrid",
+  "input": 5,
+  "cache_creation": 5143,
+  "cache_read": 12717,
+  "output": 389,
+  "cost_usd": 0.04949524999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "hybrid-no-md",
+  "input": 9,
+  "cache_creation": 4065,
+  "cache_read": 21314,
+  "output": 868,
+  "cost_usd": 0.05908025
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "hybrid-no-md",
+  "input": 9,
+  "cache_creation": 3676,
+  "cache_read": 20920,
+  "output": 728,
+  "cost_usd": 0.052925
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T10",
+  "mode": "hybrid-no-md",
+  "input": 11,
+  "cache_creation": 4203,
+  "cache_read": 26962,
+  "output": 1076,
+  "cost_usd": 0.06795375000000001
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 6200,
+  "cache_read": 16598,
+  "output": 1914,
+  "cost_usd": 0.09617899999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 5122,
+  "cache_read": 16581,
+  "output": 1139,
+  "cost_usd": 0.07006799999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T12",
+  "mode": "hybrid-no-md",
+  "input": 11,
+  "cache_creation": 5066,
+  "cache_read": 27137,
+  "output": 1352,
+  "cost_usd": 0.080361
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 3726,
+  "cache_read": 15882,
+  "output": 607,
+  "cost_usd": 0.0476925
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 3692,
+  "cache_read": 15851,
+  "output": 568,
+  "cost_usd": 0.0464865
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T13",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 3684,
+  "cache_read": 15844,
+  "output": 562,
+  "cost_usd": 0.046286999999999995
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 4017,
+  "cache_read": 16355,
+  "output": 873,
+  "cost_usd": 0.05641875
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "hybrid-no-md",
+  "input": 15,
+  "cache_creation": 4208,
+  "cache_read": 37381,
+  "output": 1272,
+  "cost_usd": 0.0781435
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T20",
+  "mode": "hybrid-no-md",
+  "input": 11,
+  "cache_creation": 4152,
+  "cache_read": 26990,
+  "output": 1079,
+  "cost_usd": 0.067746
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "hybrid-no-md",
+  "input": 9,
+  "cache_creation": 3724,
+  "cache_read": 20843,
+  "output": 789,
+  "cost_usd": 0.0547155
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "hybrid-no-md",
+  "input": 7,
+  "cache_creation": 3341,
+  "cache_read": 15624,
+  "output": 583,
+  "cost_usd": 0.04455724999999999
+ },
+ {
+  "model": "claude-opus-4-8[1m]",
+  "task": "T7",
+  "mode": "hybrid-no-md",
+  "input": 3839,
+  "cache_creation": 3524,
+  "cache_read": 20537,
+  "output": 549,
+  "cost_usd": 0.0664415
+ }
+]

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 
-BenchMode = Literal["unix", "mdtools", "hybrid"]
+BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
 
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp"]
 MDTOOLS_TOOLS = ["md", "cat", "jq"]
@@ -55,12 +55,25 @@ class GuardEvent:
     def kind(self) -> str | None:
         return classify_command_kind(self.raw_command, self.base_command)
 
+    @property
+    def verb(self) -> str | None:
+        return classify_command_verb(self.raw_command, self.base_command)
+
 
 def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
     if mode == "unix":
         return UNIX_TOOLS.copy()
     if mode == "mdtools":
         return MDTOOLS_TOOLS.copy()
+    if mode == "hybrid-no-md":
+        # clean-ablation baseline: md is on the PATH but a SOFT STUB (counts the
+        # probe, says "use unix", exits 1) — md is "allowed" so the guard doesn't
+        # hard-kill; the agent falls back to unix like a competent user. Isolates
+        # md's causal value (hybrid vs hybrid-no-md = md-lift). See BENCH_V2_CLEAN_ABLATION.md.
+        # jq is retained (it lives in MDTOOLS_TOOLS, advertised by the shared hybrid
+        # prompt) so the ONLY difference from hybrid is md-the-tool — otherwise the
+        # ablation would remove md AND jq and the lift wouldn't isolate md.
+        return UNIX_TOOLS + ["md", "jq"]
     return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
 
 
@@ -73,6 +86,17 @@ def create_restricted_shell_env(
     bin_dir.mkdir(exist_ok=True)
 
     for command in allowed_commands_for_mode(mode):
+        target = bin_dir / command
+        if target.exists() or target.is_symlink():
+            target.unlink()
+
+        if command == "md" and mode == "hybrid-no-md":
+            # clean-ablation soft stub: count the probe, tell the agent md is
+            # unavailable here, exit non-zero so it falls back to unix. No hard-kill.
+            target.write_text(_md_ablation_stub())
+            target.chmod(0o755)
+            continue
+
         if command == "md":
             source = md_binary_path
         else:
@@ -80,10 +104,6 @@ def create_restricted_shell_env(
             if not found:
                 raise FileNotFoundError(f"required benchmark command not found: {command}")
             source = Path(found)
-
-        target = bin_dir / command
-        if target.exists() or target.is_symlink():
-            target.unlink()
         target.symlink_to(source)
 
     guard_log_path = workdir / ".bench-guard.log"
@@ -96,6 +116,7 @@ def create_restricted_shell_env(
     env["BENCH_GUARD_LOG"] = str(guard_log_path)
     env["BENCH_MODE"] = mode
     env["BENCH_RESTRICTED_PATH"] = str(bin_dir)
+    env["BENCH_MD_PROBE_LOG"] = str(workdir / ".md-probe.log")
 
     return RestrictedShellEnv(
         env=env,
@@ -154,6 +175,27 @@ def classify_command_kind(raw_command: str, base_command: str | None = None) -> 
         return "mutation"
 
     return None
+
+
+def classify_command_verb(raw_command: str, base_command: str | None = None) -> str | None:
+    """Per-call tool/verb label for tool-mix accounting.
+
+    Finer than classify_command_kind (query/mutation), coarser than the raw
+    command: returns e.g. "md outline", "md replace-block" for mdtools verbs
+    and the normalized base ("sed", "grep", "jq") for unix tools. Returns None
+    when no base command can be extracted. Guard `allow` events are always an
+    allowed tool, so this labels which one the agent actually chose.
+    """
+    if not base_command:
+        base_command = extract_base_command(raw_command)
+    if not base_command:
+        return None
+
+    normalized = normalize_command(base_command)
+    if normalized == "md":
+        subcommand = _extract_md_subcommand(safe_tokenize_shell(raw_command))
+        return f"md {subcommand}" if subcommand else "md"
+    return normalized
 
 
 def extract_base_command(raw_command: str) -> str | None:
@@ -216,6 +258,22 @@ def _extract_md_subcommand(tokens: list[str]) -> str | None:
             continue
         return token
     return None
+
+
+def _md_ablation_stub() -> str:
+    # Soft canonical md ablation (hybrid-no-md): count the probe, tell the agent
+    # md is unavailable here, exit non-zero so it falls back to unix tools.
+    # NOTE: the message must NOT name "ablation"/"benchmark" — a loop-editable
+    # prompt could branch on that string and behave differently in the
+    # counterfactual. Keep it indistinguishable from a plain "command not found"
+    # recovery hint. See BENCH_V2_CLEAN_ABLATION.md.
+    return (
+        "#!/bin/sh\n"
+        'printf "probe\\n" >> "${BENCH_MD_PROBE_LOG:-/dev/null}"\n'
+        'echo "md: unavailable here; use standard unix tools '
+        '(grep/sed/awk/cat/head/tail/...) instead." >&2\n'
+        "exit 1\n"
+    )
 
 
 def _guard_script() -> str:

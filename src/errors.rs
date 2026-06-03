@@ -34,6 +34,7 @@ pub enum DiagnosticCode {
     TaskItemNotFound,
     NotATaskList,
     InvalidTaskLoc,
+    EtagMismatch,
 }
 
 impl DiagnosticCode {
@@ -50,6 +51,7 @@ impl DiagnosticCode {
             Self::NoTablesInDocument | Self::TableNotATable => MdExitCode::NotFound,
             Self::TaskItemNotFound | Self::NotATaskList => MdExitCode::NotFound,
             Self::InvalidTaskLoc => MdExitCode::InvalidInput,
+            Self::EtagMismatch => MdExitCode::Conflict,
         }
     }
 }
@@ -149,6 +151,18 @@ impl CommandError {
         Self::new(
             DiagnosticCode::InvalidTaskLoc,
             format!("invalid task loc: {:?} (expected N.N[.N...] format)", loc),
+        )
+    }
+
+    pub fn etag_mismatch(index: u32, expected: &str, actual: &str) -> Self {
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "block {} etag mismatch: expected {:?}, found {:?} \
+                 (block content changed since you read it; re-run `md blocks --json` \
+                 for current indices and etags, then retry)",
+                index, expected, actual
+            ),
         )
     }
 

@@ -43,6 +43,8 @@ class LoopTrace:
     turns: int
     invalid_responses: int = 0
     unique_invalid_responses: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
 
 
 @dataclass
@@ -145,6 +147,8 @@ def run_oai_loop(
     invalid_responses = 0
     invalid_response_seen: set[str] = set()
     turn = 0
+    tokens_in = 0
+    tokens_out = 0
 
     def _snapshot() -> LoopTrace:
         return LoopTrace(
@@ -157,25 +161,42 @@ def run_oai_loop(
             turns=turn,
             invalid_responses=invalid_responses,
             unique_invalid_responses=len(invalid_response_seen),
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
         )
 
     try:
         for turn in range(1, max_turns + 1):
+            body = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0,
+                "max_tokens": 1024,
+                "response_format": {"type": "json_object"},
+            }
+            # Disable the Qwen3 chat-template "Thinking Process:" reasoning preamble.
+            # These omlx Qwen builds (3.5-27B, 3.6-35B) emit a long reasoning prefix by
+            # default — pi's --thinking off does NOT reach this (it's a chat_template
+            # kwarg, not a provider thinking-budget), so it must be sent on the request.
+            # Verified via omlx curl: enable_thinking=false -> direct action JSON.
+            # GATED on the Qwen/OMLX path: a non-Qwen OpenAI-compatible endpoint (the
+            # runner is documented for "OMLX or similar") would 400 on this unknown
+            # field. Applied equally across modes so the comparison stays fair;
+            # measurement-infra only (scorer/gate untouched).
+            if "qwen" in model.lower():
+                body["chat_template_kwargs"] = {"enable_thinking": False}
             response = _request_json(
                 base,
                 api_key,
                 "/chat/completions",
-                {
-                    "model": model,
-                    "messages": messages,
-                    "temperature": 0,
-                    "max_tokens": 1024,
-                    "response_format": {"type": "json_object"},
-                },
+                body,
                 request_timeout_seconds,
             )
             assistant_text = _extract_assistant_text(response)
             bytes_output += len(assistant_text.encode())
+            usage = response.get("usage") or {}
+            tokens_in += int(usage.get("prompt_tokens") or 0)
+            tokens_out += int(usage.get("completion_tokens") or 0)
             transcript.append({"turn": turn, "assistant": assistant_text})
 
             try:

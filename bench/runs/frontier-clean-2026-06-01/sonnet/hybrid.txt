@@ -1,0 +1,433 @@
+
+=== MODE: hybrid (N=3, model=claude-sonnet-4-6) ===
+
+  T7 run 1/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 15.72s | ~22091B out | obs:4176B | ~4 calls | 0 mut | deny:0  
+  T7 run 2/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 13.82s | ~19610B out | obs:3901B | ~4 calls | 0 mut | deny:0  
+  T7 run 3/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 11.82s | ~18734B out | obs:4162B | ~3 calls | 0 mut | deny:0  
+  T10 run 1/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 17.22s | ~29190B out | obs:6957B | ~4 calls | 0 mut | deny:0  
+  T10 run 2/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 22.88s | ~30488B out | obs:6998B | ~5 calls | 0 mut | deny:0  
+  T10 run 3/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 16.22s | ~17086B out | obs:1872B | ~4 calls | 0 mut | deny:0  
+  T13 run 1/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 14.73s | ~15328B out | obs:1132B | ~3 calls | 0 mut | deny:0  
+  T13 run 2/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 13.23s | ~17611B out | obs:3027B | ~3 calls | 0 mut | deny:0  
+  T13 run 3/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 18.34s | ~22619B out | obs:4531B | ~3 calls | 0 mut | deny:0  
+  T20 run 1/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 21.33s | ~81108B out | obs:29761B | ~5 calls | 0 mut | deny:0  
+  T20 run 2/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 22.39s | ~81875B out | obs:29855B | ~5 calls | 0 mut | deny:0  
+  T20 run 3/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 20.25s | ~81380B out | obs:29761B | ~5 calls | 0 mut | deny:0  
+  T12 run 1/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 22.53s | ~38964B out | obs:9595B | ~5 calls | 0 mut | deny:0  
+  T12 run 2/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 19.08s | ~33426B out | obs:7878B | ~4 calls | 0 mut | deny:0  
+  T12 run 3/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 27.84s | ~34799B out | obs:7578B | ~5 calls | 0 mut | deny:0  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T7     hybrid     ✓         16s     4   4.1K    0     0    
+T7     hybrid     ✓         14s     4   3.8K    0     0    
+T7     hybrid     ✓         12s     3   4.1K    0     0    
+T10    hybrid     ✓         17s     4   6.8K    0     0    
+T10    hybrid     ✓         23s     5   6.8K    0     0    
+T10    hybrid     ✓         16s     4   1.8K    0     0    
+T13    hybrid     ✓         15s     3   1.1K    0     0    
+T13    hybrid     ✓         13s     3   3.0K    0     0    
+T13    hybrid     ✓         18s     3   4.4K    0     0    
+T20    hybrid     ✓         21s     5  29.1K    0     0    
+T20    hybrid     ✓         22s     5  29.2K    0     0    
+T20    hybrid     ✓         20s     5  29.1K    0     0    
+T12    hybrid     ✓         23s     5   9.4K    0     0    
+T12    hybrid     ✓         19s     4   7.7K    0     0    
+T12    hybrid     ✓         28s     5   7.4K    0     0    
+
+  hybrid: 100% pass | 18s | 4.1 calls | 10KB obs | 0.0 mut | 0.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 22091,
+    "bytes_observation": 4176,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 57573,
+    "tokens_out": 660,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.72,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 19610,
+    "bytes_observation": 3901,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 57228,
+    "tokens_out": 590,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.82,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2272,
+    "bytes_output": 18734,
+    "bytes_observation": 4162,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 46495,
+    "tokens_out": 426,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.82,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2348,
+    "bytes_output": 29190,
+    "bytes_observation": 6957,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 60135,
+    "tokens_out": 748,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 17.22,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2348,
+    "bytes_output": 30488,
+    "bytes_observation": 6998,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 73492,
+    "tokens_out": 850,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 22.88,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2348,
+    "bytes_output": 17086,
+    "bytes_observation": 1872,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 54986,
+    "tokens_out": 667,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 16.22,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2370,
+    "bytes_output": 15328,
+    "bytes_observation": 1132,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 43272,
+    "tokens_out": 722,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 14.73,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2370,
+    "bytes_output": 17611,
+    "bytes_observation": 3027,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 44939,
+    "tokens_out": 609,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.23,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2370,
+    "bytes_output": 22619,
+    "bytes_observation": 4531,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 46584,
+    "tokens_out": 730,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 18.34,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 81108,
+    "bytes_observation": 29761,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 106028,
+    "tokens_out": 831,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 21.33,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 81875,
+    "bytes_observation": 29855,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 96054,
+    "tokens_out": 909,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 22.39,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2431,
+    "bytes_output": 81380,
+    "bytes_observation": 29761,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 106166,
+    "tokens_out": 823,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 20.25,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2369,
+    "bytes_output": 38964,
+    "bytes_observation": 9595,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 51830,
+    "tokens_out": 1294,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 22.53,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2369,
+    "bytes_output": 33426,
+    "bytes_observation": 7878,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 50854,
+    "tokens_out": 1121,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.08,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "hybrid",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-sonnet-4-6",
+    "thinking_level": null,
+    "bytes_prompt": 2369,
+    "bytes_output": 34799,
+    "bytes_observation": 7578,
+    "tool_calls": 5,
+    "turns": 6,
+    "tokens_in": 77790,
+    "tokens_out": 1361,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 27.84,
+    "diff_report": "",
+    "runner_error": null
+  }
+]

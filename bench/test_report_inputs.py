@@ -310,6 +310,78 @@ SCORER ISSUES DETECTED.
         self.assertIn("authentication_failed: Not logged in · Please run /login", completed.stdout)
         self.assertIn("mdtools x1 [T1]", completed.stdout)
 
+    def test_report_parses_hyphenated_hybrid_no_md_mode_header(self) -> None:
+        # Regression (PR#10 Codex P2): the attribution ablation mode name contains a
+        # hyphen, so the text-log MODE-header regex must accept it. The old `(\w+)`
+        # matched only `hybrid`, the record parsed mode=None, and the no-md baseline
+        # silently dropped out of the attribution verdicts (or crashed mode sorting).
+        repo_root = Path(__file__).resolve().parent.parent
+        agent_output = """=== MODE: hybrid-no-md (N=3, model=claude-sonnet-test) ===
+
+  T1: summarize headings
+    md=PASS neutral=PASS | 1.00s | ~100B out | obs:0B | ~2 calls | 0 mut | deny:0
+"""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="bench_report_hybrid_no_md_",
+            suffix=".txt",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(agent_output)
+
+        try:
+            completed = subprocess.run(
+                [sys.executable, "bench/report.py", str(tmp_path)],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn("No results found.", completed.stdout)
+        self.assertIn("hybrid-no-md", completed.stdout)
+        self.assertIn("T1", completed.stdout)
+
+    def test_cost_slice_aggregates_replicates_not_last(self) -> None:
+        # Regression (PR#10 Codex P2): render_cost_slice must aggregate -N>1 replicates
+        # (median per task/mode) BEFORE the both-passed intersection, mirroring
+        # attribution_verdict. The old direct intersection_cost kept only the LAST
+        # replicate per (task,mode), making the headline cost table order-dependent and
+        # inconsistent with the gating verdict for N>=3 runs.
+        from bench.report import render_cost_slice
+
+        def rec(mode: str, cost: int) -> dict:
+            return {
+                "task_id": "T1",
+                "mode": mode,
+                "model": "claude-sonnet-test",
+                "thinking_level": None,
+                "correct": True,
+                "tokens_in": cost,
+                "tokens_out": 0,
+                "tool_calls": 0,
+            }
+
+        # hybrid replicates [100, 100, 999]: median 100, last 999.
+        records = [rec("unix", 200) for _ in range(3)] + [
+            rec("hybrid", c) for c in (100, 100, 999)
+        ]
+        out = render_cost_slice(records, ["unix", "hybrid"])
+        cost_line = next(line for line in out.splitlines() if "Extraction" in line)
+        self.assertIn(
+            " 100 ", cost_line,
+            f"hybrid cost should be the replicate median (100), got: {cost_line}",
+        )
+        self.assertNotIn(
+            "999", cost_line, "must not report the last replicate (999)"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

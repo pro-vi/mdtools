@@ -1,0 +1,433 @@
+
+=== MODE: unix (N=3) ===
+
+  T7 run 1/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 14.07s | ~11483B out | obs:468B | ~3 calls | 0 mut | deny:0  
+  T7 run 2/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 9.36s | ~9805B out | obs:111B | ~3 calls | 0 mut | deny:0  
+  T7 run 3/3: Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else...
+    md=PASS neutral=PASS | 12.59s | ~10288B out | obs:251B | ~3 calls | 0 mut | deny:0  
+  T10 run 1/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 10.72s | ~14471B out | obs:2307B | ~2 calls | 0 mut | deny:0  
+  T10 run 2/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 10.89s | ~13861B out | obs:2019B | ~2 calls | 0 mut | deny:0  
+  T10 run 3/3: Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2...
+    md=PASS neutral=PASS | 9.68s | ~13861B out | obs:2019B | ~2 calls | 0 mut | deny:0  
+  T13 run 1/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 11.68s | ~11600B out | obs:810B | ~2 calls | 0 mut | deny:0  
+  T13 run 2/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 11.03s | ~11470B out | obs:810B | ~2 calls | 0 mut | deny:0  
+  T13 run 3/3: Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup...
+    md=PASS neutral=PASS | 10.18s | ~11378B out | obs:810B | ~2 calls | 0 mut | deny:0  
+  T20 run 1/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 13.51s | ~14348B out | obs:1064B | ~4 calls | 0 mut | deny:0  
+  T20 run 2/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 15.66s | ~14661B out | obs:1019B | ~3 calls | 0 mut | deny:0  
+  T20 run 3/3: In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them....
+    md=PASS neutral=PASS | 12.14s | ~13401B out | obs:1876B | ~3 calls | 0 mut | deny:0  
+  T12 run 1/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 19.15s | ~18726B out | obs:2930B | ~2 calls | 0 mut | deny:0  
+  T12 run 2/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 36.0s | ~29018B out | obs:3941B | ~4 calls | 0 mut | deny:0  
+  T12 run 3/3: Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section...
+    md=PASS neutral=PASS | 33.55s | ~26742B out | obs:3840B | ~2 calls | 0 mut | deny:0  
+
+=== SUMMARY ===
+
+Task   Mode       Pass     Time Calls  ObsKB  Mut  Deny  RQ
+----------------------------------------------------------
+T7     unix       ✓         14s     3   0.5K    0     0    
+T7     unix       ✓          9s     3   0.1K    0     0    
+T7     unix       ✓         13s     3   0.2K    0     0    
+T10    unix       ✓         11s     2   2.3K    0     0    
+T10    unix       ✓         11s     2   2.0K    0     0    
+T10    unix       ✓         10s     2   2.0K    0     0    
+T13    unix       ✓         12s     2   0.8K    0     0    
+T13    unix       ✓         11s     2   0.8K    0     0    
+T13    unix       ✓         10s     2   0.8K    0     0    
+T20    unix       ✓         14s     4   1.0K    0     0    
+T20    unix       ✓         16s     3   1.0K    0     0    
+T20    unix       ✓         12s     3   1.8K    0     0    
+T12    unix       ✓         19s     2   2.9K    0     0    
+T12    unix       ✓         36s     4   3.8K    0     0    
+T12    unix       ✓         34s     2   3.8K    0     0    
+
+  unix: 100% pass | 15s | 2.6 calls | 2KB obs | 0.0 mut | 0.0 deny | 0% requery
+
+[
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 11483,
+    "bytes_observation": 468,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 16882,
+    "tokens_out": 562,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 14.07,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 9805,
+    "bytes_observation": 111,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 16426,
+    "tokens_out": 543,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 9.36,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T7",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 778,
+    "bytes_output": 10288,
+    "bytes_observation": 251,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 16640,
+    "tokens_out": 629,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 12.59,
+    "diff_report": "heading_tree [md]: OK\nblock_order [md]: OK\nblock_text [md]: OK\nheading_tree [neutral]: OK\nblock_text [neutral]: OK",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 854,
+    "bytes_output": 14471,
+    "bytes_observation": 2307,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 14486,
+    "tokens_out": 626,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 10.72,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 854,
+    "bytes_output": 13861,
+    "bytes_observation": 2019,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 14288,
+    "tokens_out": 504,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 10.89,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T10",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 854,
+    "bytes_output": 13861,
+    "bytes_observation": 2019,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 14263,
+    "tokens_out": 585,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 9.68,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 876,
+    "bytes_output": 11600,
+    "bytes_observation": 810,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 13180,
+    "tokens_out": 679,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.68,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 876,
+    "bytes_output": 11470,
+    "bytes_observation": 810,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 13083,
+    "tokens_out": 609,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 11.03,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T13",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 876,
+    "bytes_output": 11378,
+    "bytes_observation": 810,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 13140,
+    "tokens_out": 605,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 10.18,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 937,
+    "bytes_output": 14348,
+    "bytes_observation": 1064,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 22780,
+    "tokens_out": 833,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 13.51,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 937,
+    "bytes_output": 14661,
+    "bytes_observation": 1019,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 17987,
+    "tokens_out": 856,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 15.66,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T20",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 937,
+    "bytes_output": 13401,
+    "bytes_observation": 1876,
+    "tool_calls": 3,
+    "turns": 4,
+    "tokens_in": 19578,
+    "tokens_out": 590,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 12.14,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 875,
+    "bytes_output": 18726,
+    "bytes_observation": 2930,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 15310,
+    "tokens_out": 1432,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 19.15,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 875,
+    "bytes_output": 29018,
+    "bytes_observation": 3941,
+    "tool_calls": 4,
+    "turns": 5,
+    "tokens_in": 29381,
+    "tokens_out": 2504,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 36.0,
+    "diff_report": "",
+    "runner_error": null
+  },
+  {
+    "task_id": "T12",
+    "mode": "unix",
+    "correct": true,
+    "correct_neutral": true,
+    "model": "claude-opus-4-8[1m]",
+    "thinking_level": null,
+    "bytes_prompt": 875,
+    "bytes_output": 26742,
+    "bytes_observation": 3840,
+    "tool_calls": 2,
+    "turns": 3,
+    "tokens_in": 17143,
+    "tokens_out": 2602,
+    "mutations": 0,
+    "tool_mix": {},
+    "md_probe_count": 0,
+    "policy_violations": 0,
+    "requeried": false,
+    "invalid_responses": 0,
+    "unique_invalid_responses": 0,
+    "elapsed_seconds": 33.55,
+    "diff_report": "",
+    "runner_error": null
+  }
+]

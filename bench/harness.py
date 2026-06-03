@@ -30,13 +30,13 @@ from pathlib import Path
 from typing import Literal
 
 try:
-    from bench.command_policy import create_restricted_shell_env, load_guard_events
+    from bench.command_policy import _md_ablation_stub, create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from bench.command_policy import create_restricted_shell_env, load_guard_events
+    from bench.command_policy import _md_ablation_stub, create_restricted_shell_env, load_guard_events
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
@@ -181,7 +181,7 @@ def neutral_block_texts(content: str) -> list[str]:
 
 # ── Types ─────────────────────────────────────────────────────
 
-BenchMode = Literal["unix", "mdtools", "hybrid"]
+BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
 ScorerKind = Literal["structural", "normalized_text", "raw_bytes"]
 
 
@@ -225,7 +225,11 @@ class BenchResult:
     bytes_observation: int = 0   # total tool-result content agent had to read
     tool_calls: int = 0
     turns: int = 0
+    tokens_in: int = 0           # prompt tokens from runner usage (0 if runner gives none)
+    tokens_out: int = 0          # completion tokens from runner usage (0 if runner gives none)
     mutations: int = 0           # write tool calls (set-task, replace-*, insert-*, delete-*)
+    tool_mix: dict[str, int] = field(default_factory=dict)  # per-verb tool-choice counts, e.g. {"md outline": 2, "sed": 1}
+    md_probe_count: int = 0      # hybrid-no-md: times the agent invoked the soft md stub (clean-ablation gate)
     policy_violations: int = 0   # denied commands recorded by the guarded shell executor
     requeried: bool = False      # did agent re-read structure after a mutation?
     invalid_responses: int = 0   # oai-loop parse_action_text failures (action-format adherence)
@@ -243,6 +247,8 @@ class ParsedAgentOutput:
     tool_calls: int = 0
     turns: int = 0
     bytes_observation: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
     tool_outputs: list[str] = field(default_factory=list)
     text_outputs: list[str] = field(default_factory=list)
     runner_error: str | None = None
@@ -353,22 +359,45 @@ ALLOWED TOOLS (standard POSIX):
 Do NOT use: python, perl, ruby, node, or any other scripting language.
 """
 
-HYBRID_DOCS = MDTOOLS_DOCS.rstrip() + """
+# HYBRID_DOCS is a LEAN standalone literal (not MDTOOLS_DOCS) because the hybrid
+# agent also has unix tools and re-reads this prompt every turn — a verbose md
+# reference is O(turns) in token cost (cache_read/creation) without changing
+# behavior. Keep every md subcommand discoverable but terse; keep md the obvious
+# choice for STRUCTURAL ops (so md adds attributable lift, not neutered).
+HYBRID_DOCS = """\
+TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
 
-STANDARD POSIX TOOLS (also available):
-  cat, grep, sed, awk, head, tail, wc, tee, mv, cp
-  Shell: pipes (|), redirection (>, >>), temp files (mktemp)
+`md` subcommands (most take --json; pipe into jq for filtering):
+  md outline F                     heading tree with line spans
+  md blocks F  /  md block N F      list top-level blocks  /  read block N (0-based)
+  md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
+  md search Q F [--kind paragraph|heading|list|code-fence]
+  md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md set-task LOC F -i --status done|pending      toggle a checkbox by loc
+  md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
+  md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
+  md replace-block N F -i --from PATH              replace block N
+  md replace-section "H" F -i --from PATH          replace a section's body
+  md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH
+  md delete-block N F -i  /  md delete-section "H" F -i
+  md move-section --into|--after|--before "DEST" "SRC" F -i   atomic heading+body relocate
 
-Choose the best tool for each step. Use md commands for structural
-markdown operations and unix tools for simple text manipulation.
+POSIX (also available): cat, grep, sed, awk, head, tail, wc, tee, mv, cp; pipes |, redirection >, >>; mktemp; jq.
 Do NOT use: python, perl, ruby, node, or any other scripting language.
+
+Choose the best tool for each step: `md` handles structural markdown operations
+(sections, blocks, GFM tasks, tables, frontmatter, section moves) and POSIX tools
+handle plain line/text work. If `md` is unavailable, the POSIX tools cover the
+same tasks — fall back to them cleanly rather than retrying `md`.
 """
 
 
 def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
     if mode == "mdtools":
         tool_docs = MDTOOLS_DOCS
-    elif mode == "hybrid":
+    elif mode in ("hybrid", "hybrid-no-md"):
+        # hybrid-no-md gets the SAME prompt as hybrid (md advertised); md is just
+        # absent from its toolset, so the only difference is md availability.
         tool_docs = HYBRID_DOCS
     else:
         tool_docs = UNIX_DOCS
@@ -1117,12 +1146,24 @@ def _build_agent_cmd(
         cmd = [parts[0], "-p"]
         if model:
             cmd += ["--model", model]
-        cmd += ["--bare"]
         cmd += ["--tools", "Bash"]
         cmd += ["--allowedTools", "Bash"]
         cmd += ["--dangerously-skip-permissions"]
         cmd += ["--max-turns", str(max_turns)]
         cmd += ["--no-session-persistence"]
+        # bench-v2 ISOLATION (PR#10 Codex P1). The previous `--settings ""` did NOT
+        # isolate: it discovered ~94 slash-commands/skills, 5 agents, 6 MCP servers +
+        # CLAUDE.md (~32k input tokens) into EVERY cell, and the mdtools CLAUDE.md
+        # (which documents `md`) leaked into the unix/hybrid-no-md baselines — a
+        # mode-isolation breach. These flags isolate WITHOUT zeroing usage (unlike
+        # `--bare`, which kills the token cost axis): no slash-commands/skills, strict
+        # (empty) MCP, no user/project/local settings or hooks, no custom agents.
+        # Combined with the clean temp cwd (cwd=workdir, no CLAUDE.md ancestor) a
+        # trivial prompt drops ~32k -> ~3.5k input tokens, usage intact, md-tool docs
+        # NOT in context. The remaining 5 agents are built-ins (no contamination).
+        cmd += ["--disable-slash-commands", "--strict-mcp-config"]
+        cmd += ["--setting-sources", ""]
+        cmd += ["--agents", "{}"]
         cmd += ["--output-format", "json"]
         return cmd
     return parts
@@ -1175,6 +1216,13 @@ def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
             parsed.model = _normalize_runner_model(msg.get("model"))
         elif msg_type == "result":
             parsed.turns = msg.get("num_turns", 0)
+            usage = msg.get("usage") or {}
+            parsed.tokens_in = (
+                int(usage.get("input_tokens") or 0)
+                + int(usage.get("cache_creation_input_tokens") or 0)
+                + int(usage.get("cache_read_input_tokens") or 0)
+            )
+            parsed.tokens_out = int(usage.get("output_tokens") or 0)
             result_text = msg.get("result", "")
             if isinstance(result_text, str):
                 parsed.text_outputs.append(result_text)
@@ -1261,15 +1309,24 @@ def run_agent(
         else:
             shutil.copy2(inp, workdir)
 
-    # Copy md binary into workdir so it's accessible by relative path
-    if md_binary != "md":
-        md_dest = os.path.join(workdir, "md")
+    # Copy md binary into workdir so it's accessible by relative path (the prompt
+    # advertises "md is available at ./md"). CRITICAL (PR#10 Codex P1): in hybrid-no-md
+    # the ./md copy MUST be the soft stub, NOT the real binary — otherwise an agent
+    # that uses ./md (exactly as the prompt says) bypasses the PATH-level ablation, the
+    # no-md baseline silently runs real md, and the md-lift/attribution gate measures
+    # nothing. (Observed: no-md agents used `./md set-task`/`./md tasks`, md-probe=0.)
+    md_dest = os.path.join(workdir, "md")
+    if mode == "hybrid-no-md":
+        with open(md_dest, "w") as f:
+            f.write(_md_ablation_stub())
+        os.chmod(md_dest, 0o755)
+        local_md = "./md"
+    elif md_binary != "md":
         shutil.copy2(md_binary, md_dest)
         local_md = "./md"
     else:
-        local_md = "md"
-        md_dest = os.path.join(workdir, "md")
         shutil.copy2(shutil.which("md") or md_binary, md_dest)
+        local_md = "md"
 
     restricted_env = None
     child_env = os.environ.copy()
@@ -1294,6 +1351,8 @@ def run_agent(
     tool_calls = 0
     num_turns = 0
     bytes_observation = 0
+    tokens_in = 0
+    tokens_out = 0
     mutations = 0
     policy_violations = 0
     requeried = False
@@ -1305,6 +1364,7 @@ def run_agent(
     all_tool_outputs: list[str] = []
     all_text_outputs: list[str] = []
     call_sequence: list[str] = []  # "mutation" or "query"
+    tool_mix: dict[str, int] = {}  # per-verb tool-choice counts (free-choice/hybrid adoption signal)
 
     pi_audit_log_path: Path | None = None
 
@@ -1350,6 +1410,8 @@ def run_agent(
             bytes_observation = trace.bytes_observation
             invalid_responses = trace.invalid_responses
             unique_invalid_responses = trace.unique_invalid_responses
+            tokens_in = trace.tokens_in
+            tokens_out = trace.tokens_out
             all_tool_outputs = trace.tool_outputs
             all_text_outputs = trace.text_outputs
             stdout = "\n".join(all_tool_outputs + all_text_outputs)
@@ -1424,6 +1486,8 @@ def run_agent(
         tool_calls = parsed_output.tool_calls
         num_turns = parsed_output.turns
         bytes_observation = parsed_output.bytes_observation
+        tokens_in = parsed_output.tokens_in
+        tokens_out = parsed_output.tokens_out
         all_tool_outputs = parsed_output.tool_outputs
         all_text_outputs = parsed_output.text_outputs
         runner_error = parsed_output.runner_error
@@ -1435,12 +1499,18 @@ def run_agent(
         if event.decision != "allow":
             policy_violations += 1
             continue
+        verb = event.verb
+        if verb:
+            tool_mix[verb] = tool_mix.get(verb, 0) + 1
         kind = event.kind
         if kind == "mutation":
             mutations += 1
             call_sequence.append("mutation")
         elif kind == "query":
             call_sequence.append("query")
+
+    md_probe_log = workdir_path / ".md-probe.log"
+    md_probe_count = len(md_probe_log.read_text().splitlines()) if md_probe_log.exists() else 0
 
     if pi_audit_log_path is not None:
         audit_counters = summarize_pi_audit_events(
@@ -1542,7 +1612,11 @@ def run_agent(
         bytes_observation=bytes_observation,
         tool_calls=tool_calls,
         turns=num_turns,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
         mutations=mutations,
+        tool_mix=tool_mix,
+        md_probe_count=md_probe_count,
         policy_violations=policy_violations,
         requeried=requeried,
         invalid_responses=invalid_responses,
@@ -1757,7 +1831,7 @@ def extract_final_text(
 def main():
     parser = argparse.ArgumentParser(description="mdtools benchmark harness")
     parser.add_argument("--run", action="store_true", help="Run agent track")
-    parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid"])
+    parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid", "hybrid-no-md"])
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument(

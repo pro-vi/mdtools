@@ -39,6 +39,7 @@ pub fn run_block(args: &BlockArgs, json: bool) -> Result<(), CommandError> {
         index: block.index,
         kind: block.kind,
         span: block.span,
+        etag: output::content_etag(content.as_bytes()),
         preview,
     };
 
@@ -66,6 +67,7 @@ fn build_blocks_result(doc: &ParsedDocument, file: &str) -> BlocksResult {
                 index: b.index,
                 kind: b.kind,
                 span: b.span,
+                etag: output::content_etag(content.as_bytes()),
                 preview: make_preview(content),
             }
         })

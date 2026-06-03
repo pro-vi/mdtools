@@ -64,6 +64,9 @@ def normalize_result(result, default_model, default_runner="unspecified", defaul
             )
         ),
         "rq": bool(result.get("requeried", result.get("rq", False))),
+        "tokens_in": int(result.get("tokens_in", 0) or 0),
+        "tokens_out": int(result.get("tokens_out", 0) or 0),
+        "tool_mix": result.get("tool_mix") or {},
         "runner_error": result.get("runner_error"),
     }
 
@@ -185,7 +188,7 @@ def parse_results(filepath):
                 in_dry_run = True
                 continue
             # === MODE: hybrid (N=1, model=openai-codex/gpt-5.3-codex-spark, thinking=off) ===
-            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: ([\w-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
@@ -255,7 +258,7 @@ def parse_with_task_ids(filepath):
                 pending_task = None
                 in_dry_run = True
                 continue
-            m = re.match(r"=== MODE: (\w+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: ([\w-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
@@ -339,7 +342,14 @@ def main():
     # Group by runner, model, and thinking level so Pi runs at different
     # reasoning budgets stay apples-to-apples distinct.
     groups = sorted({(r["runner"], r["model"], r.get("thinking_level", "unspecified")) for r in all_results})
-    modes = ["unix", "mdtools", "hybrid"]
+    # Always show the canonical modes (as empty columns if absent), UNION any modes
+    # actually present — so ablation modes like hybrid-no-md aren't silently dropped
+    # from per-task totals / summaries, without losing the canonical placeholders.
+    # Canonical order first, extras after. (PR#10 Codex P2.)
+    _MODE_ORDER = {"unix": 0, "mdtools": 1, "hybrid": 2, "hybrid-no-md": 3}
+    _CANONICAL = {"unix", "mdtools", "hybrid"}
+    present = {r.get("mode") for r in all_results if r.get("mode")}
+    modes = sorted(_CANONICAL | present, key=lambda m: (_MODE_ORDER.get(m, 99), m))
     tasks = sorted(set(r["task"] for r in all_results), key=lambda t: int(t[1:]))
 
     for runner, model, thinking_level in groups:

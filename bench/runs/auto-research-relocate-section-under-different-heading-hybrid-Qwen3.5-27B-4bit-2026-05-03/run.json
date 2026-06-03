@@ -3,8 +3,8 @@
   "kind": "agent-track",
   "started_at": "2026-05-04T06:49:11Z",
   "finished_at": "2026-05-04T06:51:13Z",
-  "tasks_path": "/Users/provi/Development/_projs/mdtools/bench/search/candidates/relocate-section-under-different-heading/tasks.json",
-  "task_ids_path": "/Users/provi/Development/_projs/mdtools/bench/search/candidates/relocate-section-under-different-heading/task_ids.json",
+  "tasks_path": "bench/search/candidates/relocate-section-under-different-heading/tasks.json",
+  "task_ids_path": "bench/search/candidates/relocate-section-under-different-heading/task_ids.json",
   "selected_task_ids": [
     "C-AR-038"
   ],

@@ -2,6 +2,14 @@
 
 Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 
+> ⚠️ **PUBLIC REPOSITORY** (`github.com/pro-vi/mdtools`). Never commit: secrets / API
+> keys, **other projects' internals** (tickets, architecture, IP — e.g. fract-ai),
+> agent/session transcripts or dumps (`agent_output.txt`, `*.pi-audit.jsonl`,
+> `guard.log`), or personal usage telemetry. The private research/benchmarking loop
+> lives in gitignored **`.loop/`**; machine-specific workflow goes in gitignored
+> **`CLAUDE.local.md`**. When unsure if something is public-safe, keep it out — a leak
+> in git history needs a force-push rewrite to undo.
+
 ## Architecture
 
 **Parser boundary:** All comrak interaction is in `src/parser.rs`. The rest of the codebase sees only model types (`src/model.rs`), never comrak types. This is the core invariant.
@@ -21,9 +29,9 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 ## Design rules
 
 - **Markdown primitives only.** If it's in the GFM spec or comrak AST, it's our domain. Task IDs (`0.1`), phase headings, metadata patterns — consumer's job via `jq`.
-- **No identity tracking in locs.** Loc is a structural dot-path (`9.0`, `14.4.0`). No versioning, no hashes. Identity-bearing refs are a cross-cutting concern for a future `--expect-etag` on all mutation commands.
+- **Loc carries no identity; etag does.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block` JSON carry a per-block `etag` (FNV-1a content fingerprint of the block's bytes), and `replace-block`/`delete-block`/`insert-block --before|--after` accept `--expect-etag <hash>` to fail-closed (exit 4, `EtagMismatch`) when the target block's current fingerprint differs — making the read→mutate→re-query loop safe. Section/task mutations don't carry etag yet (the remaining slice of the "etag on all mutation commands" cross-cutting concern).
 - **Re-query pattern is the moat.** Agents query `md tasks --json`, mutate, re-query for fresh locs. Design new commands to support this cycle. Locs must be cheap to re-derive.
-- **`--from` for all mutations.** `replace-section`, `replace-block`, `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs.
+- **`--from` for all mutations.** `replace-section`, `replace-block`, `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `replace-block` strips one trailing line-ending from the content (matching the newline-excluded block-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code).
 - **Hybrid > pure.** Agents perform best with both `md` and unix tools. Don't try to replace `sed` for simple edits.
 
 ## Comrak pin
@@ -37,6 +45,14 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 - `search --ignore-case` spans break on Unicode case expansion (Turkish dotted I)
 - `section --ignore-case` is ASCII-only (`eq_ignore_ascii_case`)
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
+- `--expect-etag` is **content-addressed, not identity-addressed**: it verifies the
+  block at the given index still has the expected content fingerprint. In a doc with
+  **duplicate-content blocks**, an intervening edit can shift indices so the old index
+  lands on a *different* same-content block whose fingerprint also matches — the guard
+  passes against the wrong target. Mitigation today: **re-query immediately before
+  mutating** (the moat) to shrink the window. A proper fix (binding the expectation to
+  positional identity / span, or failing closed on hash ambiguity) is a design decision
+  that trades against "loc carries no identity" — deferred as follow-up.
 
 ## Task loc format
 
@@ -46,7 +62,7 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 ```bash
 cargo build --release
-cargo test                           # 282 integration tests
+cargo test                           # 337 integration tests
 cargo test --test cli_tasks          # task-specific tests
 python bench/harness.py --md-binary target/release/md  # validate 20 benchmark scorers
 ```
@@ -59,13 +75,13 @@ python bench/harness.py --md-binary target/release/md  # validate 20 benchmark s
 # Run single task
 python bench/harness.py --run --runner oai-loop --mode hybrid \
   --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
-  --oai-api-key 215069 --task T10
+  --oai-api-key $OMLX_API_KEY --task T10
 
 # Full matrix (oai-loop, primary model)
 for MODE in unix mdtools hybrid; do
   python bench/harness.py --run --runner oai-loop --mode $MODE \
     --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
-    --oai-api-key 215069 --model Qwen3.5-27B-4bit
+    --oai-api-key $OMLX_API_KEY --model Qwen3.5-27B-4bit
 done
 
 # Analyze
@@ -86,20 +102,20 @@ unix-adversary review → manifest assembly.
 python bench/auto_research.py \
   --md-binary target/release/md \
   --api-base http://localhost:10240/v1 \
-  --api-key 215069
+  --api-key $OMLX_API_KEY
 
 # Dry-run (skip harness measurement — just generator + reviews)
 python bench/auto_research.py \
   --md-binary target/release/md \
   --api-base http://localhost:10240/v1 \
-  --api-key 215069 \
+  --api-key $OMLX_API_KEY \
   --skip-measure
 
 # Use a specific generator model (e.g. gemma for speed, Qwen for quality)
 python bench/auto_research.py \
   --md-binary target/release/md \
   --api-base http://localhost:10240/v1 \
-  --api-key 215069 \
+  --api-key $OMLX_API_KEY \
   --model gemma-4-e4b-it-8bit
 ```
 
@@ -126,7 +142,7 @@ OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
 
 ## Next steps (from improvement plan)
 
-1. Ship to fract-ai oracle loop (original consumer)
+1. Ship to the original consumer (oracle-loop integration)
 2. Instrument real deployment (track tool choice, re-query rate)
 3. T6 is the roadmap signal — transactional multi-edit gap, not a bug to fix
 4. `md batch` is NOT on the roadmap (Pro review: prove planning vs execution gap first)
