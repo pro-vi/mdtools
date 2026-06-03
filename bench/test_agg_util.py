@@ -321,6 +321,76 @@ def test_attribution_probe_tail_suspect():
     assert v["verdict"] == "SUSPECT:baseline-flails(probes)", v
 
 
+# --- U5 (FRAC-194): native-rooted attribution arm (the composition matrix) ---
+
+def _native_arm(treat, abl, base, n=1, abl_probe=1):
+    """2-task (T7+T10) native arm so the lift overlap meets min_overlap=2.
+    native=base, native+md=treat, native+md-no-md=abl (clean ablation, probe set)."""
+    recs = []
+    for t in ("T7", "T10"):
+        recs += _ar(t, "native", "claude", True, base, n=n)
+        recs += _ar(t, "native+md", "claude", True, treat, n=n)
+        recs += _rpb(t, "native+md-no-md", "claude", True, abl, probe=abl_probe, n=n)
+    return recs
+
+
+def test_attribution_posix_unchanged():
+    # POSIX-only data → top-level verdict is the historical one AND no native_root key.
+    recs = []
+    for t in ("T7", "T10"):
+        recs += (_ar(t, "unix", "claude", True, 80000)
+                 + _ar(t, "hybrid", "claude", True, 50000)
+                 + _ar(t, "hybrid-no-md", "claude", True, 80000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "CLOSES", v
+    assert "native_root" not in v, v
+    assert v["pareto"].keys() == {"n", "unix", "hybrid"}, v["pareto"]          # byte-identical keys
+    assert v["lift"].keys() == {"n", "hybrid_no_md", "hybrid"}, v["lift"]
+
+
+def test_attribution_native_closes():
+    # native+md cheaper than BOTH native and the clean ablation → md earns it.
+    v = attribution_verdict(_native_arm(treat=50000, abl=80000, base=80000),
+                            "frontier", "Targeted mutation")
+    assert v["native_root"]["verdict"] == "CLOSES", v["native_root"]
+    assert v["native_root"]["pareto"].keys() == {"n", "native", "native+md"}
+
+
+def test_attribution_native_neutering():
+    # native+md ≈ native+md-no-md ≈ native → md adds nothing over native Edit.
+    v = attribution_verdict(_native_arm(treat=80000, abl=80000, base=80000),
+                            "frontier", "Targeted mutation")
+    assert v["native_root"]["verdict"] == "OPEN:no-lift", v["native_root"]
+
+
+def test_attribution_native_suspect():
+    # the clean ablation flails (cost way above native) → blocked, not fake lift.
+    v = attribution_verdict(_native_arm(treat=50000, abl=200000, base=80000),
+                            "frontier", "Targeted mutation")
+    assert v["native_root"]["verdict"] == "SUSPECT:baseline-flails(cost)", v["native_root"]
+
+
+def test_attribution_two_roots_distinct():
+    # both arms present: POSIX no-lift, native CLOSES — rendered as two distinct verdicts.
+    recs = []
+    for t in ("T7", "T10"):
+        recs += (_ar(t, "unix", "claude", True, 80000)
+                 + _ar(t, "hybrid", "claude", True, 80000)
+                 + _ar(t, "hybrid-no-md", "claude", True, 80000))
+    recs += _native_arm(treat=50000, abl=80000, base=80000)
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "OPEN:no-lift", v["verdict"]
+    assert v["native_root"]["verdict"] == "CLOSES", v["native_root"]
+    assert v["verdict"] != v["native_root"]["verdict"]
+
+
+def test_attribution_native_partial_data_insufficient():
+    # native present but native+md absent → can't attribute (invariant).
+    recs = _ar("T7", "native", "claude", True, 80000) + _ar("T10", "native", "claude", True, 80000)
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["native_root"]["verdict"] == "OPEN:insufficient-evidence", v.get("native_root")
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:
