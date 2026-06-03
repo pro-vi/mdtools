@@ -155,7 +155,7 @@ def _aggregate_replicates(records: list[dict[str, Any]]) -> list[dict[str, Any]]
         groups.setdefault(key, []).append(r)
     out: list[dict] = []
     for (task, model, thinking, mode, runner), runs in groups.items():
-        passed = sum(1 for r in runs if _passed(r)) * 2 >= len(runs)  # majority
+        passed = sum(1 for r in runs if _passed(r)) * 2 > len(runs)  # strict majority (tie = fail)
         out.append({
             "task_id": task, "model": model, "thinking_level": thinking, "mode": mode,
             "runner": runner,
@@ -198,7 +198,7 @@ def _probe_count(records, mode):
 
 def attribution_verdict(records, tier, category,
                         cost_tol=0.05, lift_margin=0.05, baseline_tol=0.20,
-                        parity_tol=0.10, min_overlap=1):
+                        parity_tol=0.10, min_overlap=2):
     """The md-attribution gate for one (tier x category) cell. A structural cell
     CLOSES only when md is *causally* responsible — hybrid beats unix (Pareto) AND
     beats the hybrid-no-md baseline (md-lift), AND the baseline didn't flail.
@@ -265,7 +265,7 @@ def attribution_verdict(records, tier, category,
         verdict = "OPEN:insufficient-evidence"   # no clean baseline to attribute against
     elif lift_positive:
         verdict = "CLOSES"
-    elif lf["n"] == 0 and not corr_lift:
+    elif lf["n"] < min_overlap and not corr_lift:
         verdict = "OPEN:insufficient-evidence"
     else:
         verdict = "OPEN:no-lift"

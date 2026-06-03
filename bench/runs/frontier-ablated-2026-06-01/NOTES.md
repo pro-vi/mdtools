@@ -8,20 +8,30 @@ analysis that followed once we noticed the cost metric was 84% cache-read.
 > The "cache-regime-conditional / `SUSPECT` cold / breakpoint r\*≈0.42" conclusion
 > (§3–§4, §6) was an **artifact of the cost formula**: `cost(r)=input+cc+r·cr+output`
 > pins **output at 1×** and sweeps only `cache_read`, but real Anthropic billing
-> weights **output ≈5×** (it is ~54% of the Batch bill) and `cache_read` ≈0.1× (only
-> ~10–14% of the bill). Re-scored on **billed `$`** (cross-checked against logged
-> `cost_usd` to within 1–2%): **Sonnet · Batch `CLOSES` across the *entire* regime
-> span** — warm/repeated **−41%**, cold cache-read **−20%**, true cold one-off
-> **−17%** — the margin narrows but **never flips**. It is a **regime-robust** `md`
-> win, not a conditional one; no cell produces a regime-conditional `CLOSES` at the
-> real operating point under billed-$. The discovery trail (§3–§4) is kept for
-> honesty; its "regime-dependent" verdict is superseded by this banner.
+> weights **output ≈5×** and `cache_read` ≈0.1×. `cache_read` is only **~12–22% of
+> the dollar bill** in either arm (84% of the raw *token* count, but reads bill at
+> 0.1×), so re-weighting it can't overcome a ~40% gap. Re-scored on **billed `$`**
+> (cross-checked to logged `cost_usd` at the warm point): the Sonnet · Batch per-run
+> separation is **robust across the whole price axis** — warm **−41%**, cold
+> cache-read **−20%**, true cold one-off **−17%** — the margin narrows but **never
+> flips**. The discovery trail (§3–§4) is kept for honesty; its "regime-dependent"
+> verdict is superseded by this banner.
 >
-> **TL;DR (corrected).** Under the gate, **no targeted-edit cell closes** (any
-> model). The one frontier `CLOSES` is **Sonnet · Batch**, and at real billed prices
-> it is **robust across all cache regimes** (~17–41% cheaper, cold→warm). The
-> stronger Opus does not close Batch. **`md ∝ 1/capability` holds as a gradient;**
-> the one win is **n=1-provisional** (T12 only).
+> **⚠️ But the `CLOSES` *label* is not the committed gate's output.** That billed-$
+> `CLOSES` comes from the re-score script (`billed_verify.py`) at `min_overlap=1`.
+> for this cell the **committed pipeline** (raw tokens) reads `SUSPECT:baseline-flails`;
+> under **billed-$** the spec's **`min_overlap=2`** demotes the single Batch task (n=1)
+> to `OPEN:insufficient-evidence` (on raw tokens it stays `SUSPECT`). So the robust fact is the
+> **per-run dollar advantage**; the **gate-closing `CLOSES` is pending** (a) billed-$
+> wired into the canonical gate and (b) ≥2 batch tasks. (Corrected 2026-06-02 after a
+> code review found the label outran the committed gate.)
+>
+> **TL;DR (corrected).** Under the committed gate, **no frontier cell formally
+> closes** (targeted never closes; Batch reads `SUSPECT` on raw tokens (committed), or
+> `insufficient-evidence` at spec `min_overlap=2` under billed-$). The real signal is a **per-run cost advantage**:
+> Sonnet · Batch hybrid is ~40% cheaper/run than unix at billed prices, robust across
+> cache regimes — but **n=1** and billed-$ isn't in the gate, so not yet a gate-closing
+> win. **`md ∝ 1/capability` holds as a gradient.**
 
 ## 1. Why this run exists
 
@@ -100,16 +110,19 @@ raised, logged as follow-ups (§7):
 
 ## 6. Honest headline (regime-aware)
 
-> **`md` earns no clean frontier win on targeted edits — any model.** On **batch**
-> structural ops, `md` cleanly wins on the mid-frontier model (**Sonnet**) at real
-> billed prices — **`CLOSES` robustly across every cache regime** (~41% cheaper
-> warm/repeated, ~17% cheaper even in a true cold one-off; output is ~54% of the
-> bill and regime-invariant, so the cache-read price cannot flip the verdict) — and
-> the stronger **Opus** does not close even warm. The **`md ∝ 1/capability` gradient
-> holds**; the one frontier win is **n=1-provisional** (T12 only).
+> **`md` earns no formal gate-closing win on a strong model — targeted or batch.**
+> Targeted edits never close. On **batch**, the mid-frontier model (**Sonnet**) shows
+> a real **per-run** cost advantage — hybrid ~40% cheaper than unix at billed prices,
+> robust across cache regimes (−41% warm → −17% true cold one-off) — but it does
+> **not** close the committed gate: raw-token cost → `SUSPECT:baseline-flails`, and
+> the spec's `min_overlap=2` demotes the single Batch task (n=1) to
+> `OPEN:insufficient-evidence`. The `CLOSES` label appears only in the billed-$
+> re-score at `min_overlap=1`. **Opus** doesn't close batch even warm. The
+> **`md ∝ 1/capability` gradient holds**; the batch cost advantage is real but **n=1
+> + billed-$ not yet in the gate**.
 >
-> *(Corrected 2026-06-02 to billed-$; the original "regime-conditional / not cold
-> one-off" line was an output-at-1× artifact — see the top banner.)*
+> *(Corrected 2026-06-02 — first to billed-$, then after a code review found the
+> `CLOSES` label outran the committed gate; see the top banner.)*
 
 This supersedes the prior absolute line "no frontier cell closes / `md` earns no
 clean win on a strong model" — true only under cold/raw-token accounting.

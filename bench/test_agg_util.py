@@ -153,20 +153,43 @@ def test_structural_categories():
 def test_attribution_neutering_stays_open():
     # THE load-bearing test: structural cell where hybrid ≈ hybrid-no-md ≈ unix
     # (the loop neutered the prompt → md unused → removing md changes nothing).
+    # 2 tasks (T7+T10) so the lift overlap meets min_overlap=2 and reaches a
+    # definitive no-lift (a single task → OPEN:insufficient-evidence; see below).
     recs = (_ar("T7", "unix", "claude", True, 80000)
             + _ar("T7", "hybrid", "claude", True, 80000)
-            + _ar("T7", "hybrid-no-md", "claude", True, 80000))
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000)
+            + _ar("T10", "unix", "claude", True, 80000)
+            + _ar("T10", "hybrid", "claude", True, 80000)
+            + _ar("T10", "hybrid-no-md", "claude", True, 80000))
     v = attribution_verdict(recs, "frontier", "Targeted mutation")
     assert v["verdict"] == "OPEN:no-lift", v
 
 
 def test_attribution_genuine_value_closes():
     # md makes hybrid cheaper than hybrid-no-md AND hybrid ≤ unix → md earns it.
+    # 2 tasks (T7+T10), both md-cheaper, so the lift overlap meets min_overlap=2.
+    recs = (_ar("T7", "unix", "claude", True, 80000)
+            + _ar("T7", "hybrid", "claude", True, 50000)
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000)
+            + _ar("T10", "unix", "claude", True, 80000)
+            + _ar("T10", "hybrid", "claude", True, 50000)
+            + _ar("T10", "hybrid-no-md", "claude", True, 80000))
+    v = attribution_verdict(recs, "frontier", "Targeted mutation")
+    assert v["verdict"] == "CLOSES", v
+
+
+def test_attribution_single_task_below_min_overlap():
+    # min_overlap=2 (BENCH_V2_CLEAN_ABLATION.md:84/:119 — "never a silent close on
+    # single-task categories"): a single attributable task can NOT close, even with
+    # genuine md value (hybrid cheaper than unix AND the clean no-md baseline). It
+    # reads OPEN:insufficient-evidence — this PINS the verdict string the corrected
+    # README/NOTES quote for the n=1 Sonnet·Batch cell under a spec-compliant gate.
+    # A regression here means the prose and the gate have drifted again.
     recs = (_ar("T7", "unix", "claude", True, 80000)
             + _ar("T7", "hybrid", "claude", True, 50000)
             + _ar("T7", "hybrid-no-md", "claude", True, 80000))
     v = attribution_verdict(recs, "frontier", "Targeted mutation")
-    assert v["verdict"] == "CLOSES", v
+    assert v["verdict"] == "OPEN:insufficient-evidence", v
 
 
 def test_attribution_loses_unix():
@@ -203,10 +226,14 @@ def test_attribution_insufficient_evidence():
 
 
 def test_attribution_n3_aggregation():
-    # N=3 replicates per (task,mode) must survive intersection keying (majority pass, median cost)
+    # N=3 replicates per (task,mode) must survive intersection keying (majority pass, median cost).
+    # 2 tasks (T7+T10) × N=3 so the aggregated lift overlap meets min_overlap=2.
     recs = (_ar("T7", "unix", "claude", True, 80000, n=3)
             + _ar("T7", "hybrid", "claude", True, 50000, n=3)
-            + _ar("T7", "hybrid-no-md", "claude", True, 80000, n=3))
+            + _ar("T7", "hybrid-no-md", "claude", True, 80000, n=3)
+            + _ar("T10", "unix", "claude", True, 80000, n=3)
+            + _ar("T10", "hybrid", "claude", True, 50000, n=3)
+            + _ar("T10", "hybrid-no-md", "claude", True, 80000, n=3))
     v = attribution_verdict(recs, "frontier", "Targeted mutation")
     assert v["verdict"] == "CLOSES", v
 
