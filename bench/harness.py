@@ -1201,8 +1201,13 @@ def _build_agent_cmd(
         cmd = [parts[0], "-p"]
         if model:
             cmd += ["--model", model]
-        cmd += ["--tools", "Bash"]
-        cmd += ["--allowedTools", "Bash"]
+        # U2 (FRAC-194): native* modes additionally expose Claude Code's native
+        # file tools (Read/Edit/Write) — the realistic frontier alternative to `md`.
+        # These are built-ins, NOT MCP/CLAUDE.md/slash-sourced, so they compose with
+        # the isolation flags below: additive-only, no contamination path reopened.
+        toolset = "Bash Read Edit Write" if mode in ("native", "native+md", "native+md-no-md") else "Bash"
+        cmd += ["--tools", toolset]
+        cmd += ["--allowedTools", toolset]
         cmd += ["--dangerously-skip-permissions"]
         cmd += ["--max-turns", str(max_turns)]
         cmd += ["--no-session-persistence"]
