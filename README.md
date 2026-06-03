@@ -261,6 +261,8 @@ In short: `md`'s generic benefit is largest where the *agent* is structurally we
 
 *Known method limits (deferred, not yet addressed): the cost axis conditions on the both-passed intersection, and the `hybrid-no-md` ablation blends docs-effect with tool-effect — see `bench/runs/frontier-ablated-2026-06-01/NOTES.md` §5/§7. Neither bites this dataset (100% pass, md-docs held constant) but both are open before the envelope generalizes.*
 
+**What "hybrid" actually compares — and the native arm.** The gate's POSIX arm pits `md` against a **POSIX shell** (`sed`/`awk`/`cat`). That is the realistic alternative for a *weak/local* model driving a shell — and it's where the `+37pp` weak-model lift (a pre-gate, legacy 20-task snapshot) comes from. It is **not** the realistic alternative for a *frontier* agent, which reaches for its **native `Edit`**, not `sed`. So `md vs unix` flatters `md` at the frontier. The gate now also runs a **native-rooted arm** (FRAC-194) — `native` (native `Edit`, no `md`) vs `native+md` vs a clean `native+md-no-md` ablation — that asks the deployment-true question: *does `md` help an agent that already has native `Edit`?* The committed code wires and renders this arm (a `·native-arm` verdict row); the frontier numbers are pending a live `claude-cli` sweep (see `bench/BENCH_V2_ATTRIBUTION.md` → *Native-rooted arm*). The hypothesis the rest of the envelope predicts: `md` survives at the frontier as a **read/inspection surface**, not a mutation tool — so the native arm should *deflate* `md`'s mutation-verb story further, not inflate it.
+
 ### Published Snapshot Categories
 
 | Category | Tasks | What they test |
