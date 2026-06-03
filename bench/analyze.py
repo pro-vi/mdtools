@@ -346,8 +346,11 @@ def main():
     # actually present — so ablation modes like hybrid-no-md aren't silently dropped
     # from per-task totals / summaries, without losing the canonical placeholders.
     # Canonical order first, extras after. (PR#10 Codex P2.)
-    _MODE_ORDER = {"unix": 0, "mdtools": 1, "hybrid": 2, "hybrid-no-md": 3}
-    _CANONICAL = {"unix", "mdtools", "hybrid"}
+    _MODE_ORDER = {
+        "unix": 0, "mdtools": 1, "hybrid": 2, "hybrid-no-md": 3,
+        "native": 4, "native+md": 5, "native+md-no-md": 6,  # native-rooted arm (FRAC-194)
+    }
+    _CANONICAL = {"unix", "mdtools", "hybrid"}  # native cols appear only when present in the data
     present = {r.get("mode") for r in all_results if r.get("mode")}
     modes = sorted(_CANONICAL | present, key=lambda m: (_MODE_ORDER.get(m, 99), m))
     tasks = sorted(set(r["task"] for r in all_results), key=lambda t: int(t[1:]))

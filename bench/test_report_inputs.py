@@ -382,6 +382,33 @@ SCORER ISSUES DETECTED.
             "999", cost_line, "must not report the last replicate (999)"
         )
 
+    def _verdict_rows(self, mode_costs: list[tuple[str, int]]) -> str:
+        from bench.report import render_cost_slice
+        recs = []
+        for t in ("T7", "T10"):
+            for m, c in mode_costs:
+                recs.append({"task_id": t, "task": t, "mode": m, "model": "claude-opus-4-8",
+                             "correct": True, "tokens_in": c, "tokens_out": 0,
+                             "md_probe_count": 1 if m.endswith("no-md") else 0,
+                             "thinking_level": None, "runner": "claude-cli"})
+        modes = [m for m, _ in mode_costs]
+        return render_cost_slice(recs, modes, markdown=True)
+
+    def test_native_arm_renders_distinct_verdict_row(self) -> None:
+        # U6 (FRAC-194): POSIX no-lift + native CLOSES (md cheaper than native) →
+        # two distinct rows, the native one tagged ·native-arm.
+        out = self._verdict_rows([
+            ("unix", 80000), ("hybrid", 80000), ("hybrid-no-md", 80000),
+            ("native", 80000), ("native+md", 50000), ("native+md-no-md", 80000),
+        ])
+        self.assertIn("·native-arm", out)
+        self.assertIn("CLOSES", out)
+        self.assertIn("no-lift", out)
+
+    def test_no_native_data_has_no_native_arm_row(self) -> None:
+        out = self._verdict_rows([("unix", 80000), ("hybrid", 50000), ("hybrid-no-md", 80000)])
+        self.assertNotIn("·native-arm", out)
+
 
 if __name__ == "__main__":
     unittest.main()

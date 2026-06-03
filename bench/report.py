@@ -607,6 +607,22 @@ def render_cost_slice(all_results, modes, markdown=False):
             out.append(f"| {tier} | {cat}{struct} | {v['verdict']} | {pcells} | {lcells} | {probe} |")
         else:
             out.append(f"  {tier} | {cat}{struct} | {v['verdict']} | pareto {pcells} | lift {lcells} | md-probe={probe}")
+        # native-rooted arm (FRAC-194): the deployment-true "md vs native Edit" verdict,
+        # rendered as a distinct row when present. Columns reuse the POSIX layout but the
+        # pareto/lift are native→native+md / native+md-no-md→native+md.
+        nr = v.get("native_root")
+        if nr:
+            if "pareto" in nr:
+                np_, nl = nr["pareto"], nr["lift"]
+                npcells = "n=0" if np_["n"] == 0 else f"n={np_['n']} {np_['native']:.0f}→{np_['native+md']:.0f}"
+                nlcells = "n=0" if nl["n"] == 0 else f"n={nl['n']} {nl['native_md_no_md']:.0f}→{nl['native+md']:.0f}"
+                nprobe = f"{nr.get('nomd_probe', 0):.0f}"
+            else:
+                npcells = nlcells = nprobe = "—"
+            if markdown:
+                out.append(f"| {tier} | {cat} ·native-arm | {nr['verdict']} | {npcells} | {nlcells} | {nprobe} |")
+            else:
+                out.append(f"  {tier} | {cat} ·native-arm | {nr['verdict']} | pareto {npcells} | lift {nlcells} | md-probe={nprobe}")
     return "\n".join(out)
 
 
