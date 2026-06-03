@@ -255,6 +255,7 @@ class ParsedAgentOutput:
     tool_outputs: list[str] = field(default_factory=list)
     text_outputs: list[str] = field(default_factory=list)
     runner_error: str | None = None
+    native_tool_mix: dict[str, int] = field(default_factory=dict)  # claude-cli native Read/Edit/Write counts (U4)
 
 
 # ── Tool inventories ──────────────────────────────────────────
@@ -1322,6 +1323,12 @@ def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
                         continue
                     if block.get("type") == "tool_use":
                         parsed.tool_calls += 1
+                        # U4: native file-tool adoption. Bash tool_use runs a shell
+                        # command captured by the guard; Read/Edit/Write bypass it,
+                        # so count them here for the native-vs-md choice signal.
+                        name = block.get("name")
+                        if name in ("Read", "Edit", "Write"):
+                            parsed.native_tool_mix[name] = parsed.native_tool_mix.get(name, 0) + 1
                     if block.get("type") == "text":
                         text = block.get("text", "")
                         parsed.text_outputs.append(text)
@@ -1569,6 +1576,11 @@ def run_agent(
         all_text_outputs = parsed_output.text_outputs
         runner_error = parsed_output.runner_error
         resolved_model = model or parsed_output.model
+        # U4 (FRAC-194): native Read/Edit/Write calls bypass the Bash guard — fold the
+        # transcript-parsed counts into tool_mix so the native-vs-md choice is visible
+        # per cell. (claude-cli only; the guard loop below adds the shell verbs.)
+        for _name, _n in parsed_output.native_tool_mix.items():
+            tool_mix[_name] = tool_mix.get(_name, 0) + _n
     elapsed = time.time() - start
 
     guard_events = load_guard_events(guard_log_path) if guard_log_path is not None else []

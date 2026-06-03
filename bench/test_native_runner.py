@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 import unittest
 
-from bench.harness import _build_agent_cmd, native_runner_error
+from bench.harness import _build_agent_cmd, native_runner_error, parse_agent_output
 
 ISOLATION_FLAGS = ("--disable-slash-commands", "--strict-mcp-config", "--setting-sources", "--agents")
 NATIVE_MODES = ("native", "native+md", "native+md-no-md")
@@ -75,6 +76,37 @@ class NativeRunnerGuardTests(unittest.TestCase):
         err = native_runner_error(["unix", "native+md"], "oai-loop")
         self.assertIsNotNone(err)
         self.assertIn("native+md", err)
+
+
+def _transcript(tool_uses: list[tuple[str, dict]]) -> str:
+    blocks = [{"type": "tool_use", "name": n, "input": i} for n, i in tool_uses]
+    blocks.append({"type": "text", "text": "done"})
+    return json.dumps([
+        {"type": "assistant", "message": {"content": blocks}},
+        {"type": "result", "num_turns": len(tool_uses), "usage": {"output_tokens": 1}, "result": "ok"},
+    ])
+
+
+class NativeToolAdoptionTests(unittest.TestCase):
+    """U4 (FRAC-194): native Read/Edit/Write calls bypass the Bash guard; parse them
+    from the claude-cli transcript so the native-vs-md choice is observable."""
+
+    def test_native_tool_use_counted_bash_excluded(self) -> None:
+        parsed = parse_agent_output(_transcript([
+            ("Read", {}), ("Edit", {}), ("Edit", {}),
+            ("Bash", {"command": "md outline x.md"}),   # shell → guard, NOT native_tool_mix
+        ]))
+        self.assertEqual(parsed.native_tool_mix, {"Read": 1, "Edit": 2})
+        self.assertEqual(parsed.tool_calls, 4)          # tool_calls still counts ALL tool_use
+
+    def test_no_native_calls_leaves_native_mix_empty(self) -> None:
+        parsed = parse_agent_output(_transcript([("Bash", {"command": "sed -i s/a/b/ x"})]))
+        self.assertEqual(parsed.native_tool_mix, {})
+        self.assertEqual(parsed.tool_calls, 1)
+
+    def test_malformed_transcript_does_not_crash(self) -> None:
+        parsed = parse_agent_output("not json")
+        self.assertEqual(parsed.native_tool_mix, {})
 
 
 if __name__ == "__main__":
