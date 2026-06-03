@@ -5,7 +5,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bench.command_policy import classify_command_kind, create_restricted_shell_env, load_guard_events
+import typing
+
+from bench.command_policy import (
+    UNIX_TOOLS,
+    allowed_commands_for_mode,
+    classify_command_kind,
+    create_restricted_shell_env,
+    load_guard_events,
+)
 
 
 class CommandPolicyGuardTests(unittest.TestCase):
@@ -84,6 +92,79 @@ class CommandPolicyGuardTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].decision, "deny")
         self.assertEqual(events[0].base_command, str(abs_md))
+
+
+class NativeModeRegistrationTests(unittest.TestCase):
+    """U1 (FRAC-194): the native-rooted arm mirrors the POSIX triple on the shell
+    side; native file tools are claude-cli built-ins (enabled in U2), not shell."""
+
+    def test_native_allowlist_is_unix_no_md(self) -> None:
+        # baseline: native Edit + POSIX shell, NO md — mirrors `unix`.
+        self.assertEqual(allowed_commands_for_mode("native"), UNIX_TOOLS)
+        self.assertNotIn("md", allowed_commands_for_mode("native"))
+
+    def test_native_md_allowlist_mirrors_hybrid(self) -> None:
+        self.assertEqual(allowed_commands_for_mode("native+md"), allowed_commands_for_mode("hybrid"))
+        self.assertIn("md", allowed_commands_for_mode("native+md"))
+
+    def test_native_md_no_md_allowlist_mirrors_hybrid_no_md(self) -> None:
+        # md is "allowed" (so the guard doesn't hard-kill) but installed as the stub.
+        self.assertEqual(
+            allowed_commands_for_mode("native+md-no-md"),
+            allowed_commands_for_mode("hybrid-no-md"),
+        )
+        self.assertIn("md", allowed_commands_for_mode("native+md-no-md"))
+
+    def test_native_md_no_md_installs_soft_stub(self) -> None:
+        # md on PATH is the soft stub: probes + exits 1, exactly like hybrid-no-md.
+        tmp = tempfile.TemporaryDirectory(prefix="bench_native_stub_")
+        self.addCleanup(tmp.cleanup)
+        workdir = Path(tmp.name)
+        real_md = workdir / "md"
+        real_md.write_text("#!/bin/sh\necho REAL\nexit 0\n")
+        real_md.chmod(0o755)
+        (workdir / "doc.md").write_text("# Title\n\n- [ ] x\n")
+        env_info = create_restricted_shell_env(workdir, "native+md-no-md", real_md)
+        proc = subprocess.run(
+            ["/bin/bash", "-lc", "md tasks doc.md"],        # PATH → .bench-bin/md (the stub)
+            cwd=workdir, env=env_info.env, text=True, capture_output=True,
+        )
+        self.assertEqual(proc.returncode, 1)               # stub exits 1 (allowed → no TERM)
+        self.assertNotIn("REAL", proc.stdout)              # the real md never ran
+        self.assertIn("unavailable here", proc.stderr)
+        self.assertTrue((workdir / ".md-probe.log").exists())  # probe counted
+
+    def test_benchmode_literals_in_sync(self) -> None:
+        # The two BenchMode Literals (command_policy + harness) must stay identical.
+        from bench.command_policy import BenchMode as CMode
+        from bench.harness import BenchMode as HMode
+        self.assertEqual(set(typing.get_args(CMode)), set(typing.get_args(HMode)))
+
+    def test_native_md_prompt_byte_identical_treatment_and_ablation(self) -> None:
+        # Anti-gaming invariant: native+md and native+md-no-md get the SAME prompt
+        # (only md availability differs), so the ablation isn't distinguishable from
+        # the prompt — exactly the hybrid/hybrid-no-md discipline. Load-bearing.
+        from bench.harness import BenchTask, StructuralDiffPolicy, build_prompt
+        task = BenchTask(
+            id="C-NATIVE", description="Edit the doc.", input_files=["inputs/doc.md"],
+            expected_output="expected.md", expected_artifact="file_contents",
+            difficulty="intermediate",
+            scorer=StructuralDiffPolicy(
+                kind="normalized_text", normalize_line_endings=True,
+                ignore_trailing_whitespace=True, compare_frontmatter_json=False,
+                compare_heading_tree=True, compare_block_order=True,
+                compare_link_destinations=False, compare_block_text=True,
+            ),
+        )
+        wd = "/tmp/native-prompt-wd"
+        self.assertEqual(
+            build_prompt(task, "native+md", wd),
+            build_prompt(task, "native+md-no-md", wd),
+        )
+        # and `native` (no md) is a DIFFERENT prompt that never advertises md
+        native_prompt = build_prompt(task, "native", wd)
+        self.assertNotEqual(native_prompt, build_prompt(task, "native+md", wd))
+        self.assertNotIn("md outline", native_prompt)
 
 
 if __name__ == "__main__":

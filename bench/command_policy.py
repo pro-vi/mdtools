@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import Literal
 
 
-BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
+BenchMode = Literal[
+    "unix", "mdtools", "hybrid", "hybrid-no-md",
+    # native-rooted arm (claude-cli only; see harness._build_agent_cmd + FRAC-194):
+    # native Read/Edit/Write are exposed as claude-cli built-ins, NOT shell commands,
+    # so the shell allowlists below mirror the POSIX arm (native↔unix, native+md↔hybrid,
+    # native+md-no-md↔hybrid-no-md).
+    "native", "native+md", "native+md-no-md",
+]
 
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp"]
 MDTOOLS_TOOLS = ["md", "cat", "jq"]
@@ -74,6 +81,18 @@ def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
         # prompt) so the ONLY difference from hybrid is md-the-tool — otherwise the
         # ablation would remove md AND jq and the lift wouldn't isolate md.
         return UNIX_TOOLS + ["md", "jq"]
+    # --- native-rooted arm (mirrors the POSIX triple, + native file tools via claude-cli) ---
+    if mode == "native":
+        # baseline: native Edit + POSIX shell, NO md — the realistic frontier
+        # alternative to md. Shell set mirrors `unix`.
+        return UNIX_TOOLS.copy()
+    if mode == "native+md-no-md":
+        # clean ablation for the native root: same shell set as native+md but md is
+        # the SOFT STUB (see create_restricted_shell_env). Mirrors hybrid-no-md.
+        return UNIX_TOOLS + ["md", "jq"]
+    if mode == "native+md":
+        # treatment: native Edit + POSIX + real md. Shell set mirrors `hybrid`.
+        return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
     return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
 
 
@@ -90,7 +109,7 @@ def create_restricted_shell_env(
         if target.exists() or target.is_symlink():
             target.unlink()
 
-        if command == "md" and mode == "hybrid-no-md":
+        if command == "md" and mode in ("hybrid-no-md", "native+md-no-md"):
             # clean-ablation soft stub: count the probe, tell the agent md is
             # unavailable here, exit non-zero so it falls back to unix. No hard-kill.
             target.write_text(_md_ablation_stub())

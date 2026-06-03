@@ -181,7 +181,10 @@ def neutral_block_texts(content: str) -> list[str]:
 
 # ── Types ─────────────────────────────────────────────────────
 
-BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
+BenchMode = Literal[
+    "unix", "mdtools", "hybrid", "hybrid-no-md",
+    "native", "native+md", "native+md-no-md",  # native-rooted arm (claude-cli only; FRAC-194)
+]
 ScorerKind = Literal["structural", "normalized_text", "raw_bytes"]
 
 
@@ -391,6 +394,52 @@ handle plain line/text work. If `md` is unavailable, the POSIX tools cover the
 same tasks — fall back to them cleanly rather than retrying `md`.
 """
 
+# NATIVE_DOCS / NATIVE_MD_DOCS — the native-rooted arm (claude-cli only; FRAC-194).
+# The agent ALSO has its native Read/Edit/Write tools (enabled in _build_agent_cmd);
+# these prompts advertise the shell/md surface and name the native tools as a
+# co-equal option, so tool choice is free ("any tool at hand"). NATIVE_MD_DOCS is
+# byte-identical for native+md and native+md-no-md — same anti-gaming discipline as
+# HYBRID_DOCS: the clean ablation must not be distinguishable from the prompt.
+NATIVE_DOCS = """\
+TOOLS — you have your native file tools (Read, Edit, Write) for reading and editing
+files directly, plus standard POSIX shell tools:
+  cat, grep, sed, awk, head, tail, wc, tee, mv, cp; pipes (|), redirection (>, >>); mktemp; jq.
+
+Do NOT use: python, perl, ruby, node, or any other scripting language.
+
+Choose the best tool for each step: your native Read/Edit/Write handle reading and
+editing files; POSIX tools handle search and plain line/text work.
+"""
+
+NATIVE_MD_DOCS = """\
+TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-aware CLI), and standard POSIX tools.
+
+`md` subcommands (most take --json; pipe into jq for filtering):
+  md outline F                     heading tree with line spans
+  md blocks F  /  md block N F      list top-level blocks  /  read block N (0-based)
+  md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
+  md search Q F [--kind paragraph|heading|list|code-fence]
+  md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md set-task LOC F -i --status done|pending      toggle a checkbox by loc
+  md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
+  md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
+  md replace-block N F -i --from PATH              replace block N
+  md replace-section "H" F -i --from PATH          replace a section's body
+  md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH
+  md delete-block N F -i  /  md delete-section "H" F -i
+  md move-section --into|--after|--before "DEST" "SRC" F -i   atomic heading+body relocate
+
+POSIX (also available): cat, grep, sed, awk, head, tail, wc, tee, mv, cp; pipes |, redirection >, >>; mktemp; jq.
+Native file tools (also available): Read, Edit, Write — read and edit files directly.
+Do NOT use: python, perl, ruby, node, or any other scripting language.
+
+Choose the best tool for each step: your native Read/Edit/Write handle reading and
+editing files, `md` handles structural markdown operations (sections, blocks, GFM
+tasks, tables, frontmatter, section moves), and POSIX tools handle plain line/text
+work. If `md` is unavailable, your native tools and the POSIX tools cover the same
+tasks — fall back to them cleanly rather than retrying `md`.
+"""
+
 
 def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
     if mode == "mdtools":
@@ -399,6 +448,12 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
         # hybrid-no-md gets the SAME prompt as hybrid (md advertised); md is just
         # absent from its toolset, so the only difference is md availability.
         tool_docs = HYBRID_DOCS
+    elif mode == "native":
+        tool_docs = NATIVE_DOCS
+    elif mode in ("native+md", "native+md-no-md"):
+        # native+md-no-md gets the SAME (byte-identical) prompt as native+md; md is
+        # just the soft stub, so the only difference is md availability.
+        tool_docs = NATIVE_MD_DOCS
     else:
         tool_docs = UNIX_DOCS
 
@@ -1831,7 +1886,10 @@ def extract_final_text(
 def main():
     parser = argparse.ArgumentParser(description="mdtools benchmark harness")
     parser.add_argument("--run", action="store_true", help="Run agent track")
-    parser.add_argument("--mode", choices=["unix", "mdtools", "hybrid", "hybrid-no-md"])
+    parser.add_argument("--mode", choices=[
+        "unix", "mdtools", "hybrid", "hybrid-no-md",
+        "native", "native+md", "native+md-no-md",  # native-rooted arm (claude-cli only)
+    ])
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument(
