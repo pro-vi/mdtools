@@ -115,7 +115,7 @@ unit-testable, including the load-bearing neutering-detection test.
 
 ## System-Wide Impact
 - **Interaction graph:** new mode flows through the same `run_agent → BenchResult → report`; only `agg_util` gains the lattice. No existing field changes meaning.
-- **API parity:** `report.py` + `analyze.py` both consume `agg_util` — verdict logic lives once.
+- **API parity:** verdict logic lives once in `agg_util`, consumed by `report.py` (shipped); `analyze.py` still computes inline — shared-util wiring + the report↔analyze parity test are **deferred to v2**.
 - **Unchanged invariants:** unix/mdtools/hybrid modes, `pass_rate`, dual-scoring, the bench-v2 cost slice all still work; this adds a 4th mode + a gate.
 
 ## Risks & Dependencies

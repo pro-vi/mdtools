@@ -106,13 +106,13 @@ measures **md-vs-unix** choice (what this bench can offer), not md-vs-native-Edi
 - **Dependencies:** U1 (tokens), U3 (util); U2 for the verb-adoption column.
 - **Files:**
   - Modify: `bench/report.py` (grouping ~540-570 to call `agg_util`)
-  - Modify: `bench/analyze.py` (~340-418 to use the same util — kills the drift)
+  - Modify: `bench/analyze.py` (~340-418 to use the same util — kills the drift) — **DEFERRED to v2; not shipped. `analyze.py` still computes inline.**
 - **Approach:** add a report section: rows `(tier, category)`, columns per mode
   showing pass-rate, median tokens, and the intersection-cost delta vs unix.
   Surface `tool_mix` adoption % for hybrid.
 - **Test scenarios:**
   - *Happy path:* a small fixture run renders the tier×category table with non-empty intersection cells.
-  - *Integration:* report and analyze produce identical tier/category/intersection numbers from the same records (proves the shared util removed drift).
+  - *Integration:* report and analyze produce identical tier/category/intersection numbers from the same records (proves the shared util removed drift). **[Deferred to v2 with the analyze wiring — this parity test is not yet written.]**
 - **Verification:** the report shows, for a frontier tier, mode-vs-mode median-token deltas on the both-passed set — the missing Y-axis is now plotted.
 
 ## Scope Boundaries
@@ -126,14 +126,14 @@ measures **md-vs-unix** choice (what this bench can offer), not md-vs-native-Edi
 
 ## System-Wide Impact
 - **Interaction graph:** `oai_loop` → `BenchResult` → `report`/`analyze`. Only additive fields; no existing field changes meaning.
-- **API surface parity:** `report.py` and `analyze.py` must agree — enforced by both consuming `agg_util` (U3/U4).
+- **API surface parity:** verdict logic lives once in `agg_util`, consumed by `report.py` (shipped). `analyze.py` still computes inline — wiring it through + the report↔analyze parity test are **deferred to v2**, so parity is not yet enforced.
 - **Unchanged invariants:** existing `pass_rate` (`harness.py:976`), the three modes, and dual-scoring are untouched; bench-v2 only *adds* axes.
 
 ## Risks & Dependencies
 | Risk | Mitigation |
 |------|------------|
 | Intersection cost computed over wrong subset (the number lies) | U3 is a pure function with the superset/disjoint cases as the gate |
-| report/analyze drift | shared `agg_util` (U4 wires both) |
+| report/analyze drift | `report.py` uses `agg_util`; `analyze.py` inline — shared wiring + parity test **deferred to v2** (drift currently possible, tracked) |
 | tokens absent for some runners | tool_calls/turns proxies always present; util records which basis it used |
 | category mapping duplicated | accepted short-term; deferred tasks.json migration noted |
 

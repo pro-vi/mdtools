@@ -259,6 +259,8 @@ Measured across a local model (Qwen, pre-gate pilots) and — under the full md-
 
 In short: `md`'s generic benefit is largest where the *agent* is structurally weak and narrows as the model strengthens — and on a strong model it shows a real **per-run** cost advantage on batch structural work (Sonnet, ~40% cheaper at billed prices) that is **not yet a gate-closing result** (a single task, and billed-$ isn't wired into the canonical gate). That two-edged envelope is the design intent — *"hybrid > pure; don't replace `sed`"* — now measured rather than asserted, hedges included.
 
+*Known method limits (deferred, not yet addressed): the cost axis conditions on the both-passed intersection, and the `hybrid-no-md` ablation blends docs-effect with tool-effect — see `bench/runs/frontier-ablated-2026-06-01/NOTES.md` §5/§7. Neither bites this dataset (100% pass, md-docs held constant) but both are open before the envelope generalizes.*
+
 ### Published Snapshot Categories
 
 | Category | Tasks | What they test |
