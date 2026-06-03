@@ -73,6 +73,40 @@ proof the agent weighed both tools — native Edit was available and unused.
   was validly exercised; frontier agents generally don't benefit; the clean ablation
   shows no lift.
 
+## Mechanism — why md costs more (code/architecture/model)
+
+Grounded in the transcripts (the *why*, not just the *what*). The +28% billed delta
+decomposes as **~52% cache_read, ~30% output, ~18% cache_creation** (median Targeted:
+cache_read 1.86×, output 1.74×, turns 1.67×, **cache_creation only 1.11×**):
+
+- **Architecture (dominant).** md is **stateless + Bash-mediated**. `md set-task` has
+  no "where am I" context, forcing a **discover→mutate→verify loop**: `md tasks` (find
+  the loc) → `md set-task <loc>` → `md tasks` (verify). Each is a Bash round-trip, and
+  `md tasks --json` returns a ~1,600-token blob (`loc/status/span/heading_block_index`
+  per task, ~4× the native Read) that **re-enters cached context every turn**
+  (cache_read 1.86×). Native `Edit` **fuses** discovery+mutation — it addresses by
+  *string* on content already Read, so no round-trip and a compact result. That
+  cache_creation is only 1.11× is the tell: the cost is **re-reading the verbose md
+  output**, not the bigger prompt. (One run even shows `md tasks --json | jq` failing
+  on a schema mismatch, then retrying — a wasted call.)
+- **Model behavior.** Every native+md run was **Bash-only, zero native Edit** — the
+  ~17-line md reference + "md handles structural markdown operations" *induced* an
+  exclusive-md policy, talking a capable model out of its fluent first-class editor.
+- **Task-fit (root — `md ∝ 1/capability` made concrete).** md is a structural-
+  complexity tool (loc addressing, atomic `move-section`, drift-safe re-query, etag).
+  The anchor tasks toggle ONE checkbox / mark one section — none need any of that — so
+  md's machinery is **pure overhead with no offsetting benefit** (CLAUDE.md: "don't
+  replace `sed` for simple edits"), and 45/45-pass means there's no *correctness* win
+  for that cost to buy back.
+
+**Where md would flip positive** (the inverse the mechanism predicts): section/
+subsection moves (atomic `move-section` vs delete+reinsert+re-derive locs), multi-step
+edits with inter-edit drift (re-query beats stale-loc failures), duplicate-heading/
+content files (Edit's `old_string` is ambiguous; loc+etag precise), large files
+(`md section`'s slice vs a context-blowing Read), and weaker models that fail
+structural tasks outright (md buys a correctness lift native lacks). None are in this
+task set — which is *why* the easy-edit ceiling makes md look purely costly here.
+
 ## What a bulletproof re-run needs (FRAC follow-up)
 Billed-$ as the primary metric (done here for re-score; wire it into the gate);
 the **fixed** ablation with a **preflight no-md proof** in every artifact
