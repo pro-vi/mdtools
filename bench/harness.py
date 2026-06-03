@@ -1229,6 +1229,23 @@ def _build_agent_cmd(
     return parts
 
 
+NATIVE_MODES = ("native", "native+md", "native+md-no-md")
+
+
+def native_runner_error(modes: list[str], runner: str) -> str | None:
+    """U3 (FRAC-194): native* modes need claude-cli's native Read/Edit/Write tools;
+    oai-loop/pi-json drive the model through a Bash-only action protocol and cannot
+    expose them. Return an actionable error string for the first offending mode, or
+    None if the (modes, runner) combination is valid."""
+    offending = [m for m in modes if m in NATIVE_MODES]
+    if offending and runner != "claude-cli":
+        return (
+            f"--mode {offending[0]} requires --runner claude-cli — native "
+            f"Read/Edit/Write tools are claude-cli-only (got --runner {runner})"
+        )
+    return None
+
+
 def _summarize_runner_error(code: str | None, message: str | None) -> str | None:
     clean_code = code.strip() if isinstance(code, str) and code.strip() else None
     clean_message = None
@@ -2036,6 +2053,11 @@ def main():
 
     # Agent track
     modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools", "hybrid"]
+    # U3 (FRAC-194): native* modes need claude-cli's native file tools — fail fast
+    # if requested on a local runner that can't expose them.
+    native_err = native_runner_error(modes, args.runner)
+    if native_err:
+        parser.error(native_err)
     all_results: list[BenchResult] = []
     effective_log_dir = args.log_dir
     if args.results_dir and not effective_log_dir:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from bench.harness import _build_agent_cmd
+from bench.harness import _build_agent_cmd, native_runner_error
 
 ISOLATION_FLAGS = ("--disable-slash-commands", "--strict-mcp-config", "--setting-sources", "--agents")
 NATIVE_MODES = ("native", "native+md", "native+md-no-md")
@@ -50,6 +50,31 @@ class NativeRunnerToolExposureTests(unittest.TestCase):
             return c
 
         self.assertEqual(mask_toolset(_cmd("native+md")), mask_toolset(_cmd("unix")))
+
+
+class NativeRunnerGuardTests(unittest.TestCase):
+    """U3 (FRAC-194): native* modes are claude-cli-only; reject them on local runners."""
+
+    def test_native_on_local_runner_is_rejected(self) -> None:
+        for runner in ("oai-loop", "pi-json"):
+            for mode in NATIVE_MODES:
+                err = native_runner_error([mode], runner)
+                self.assertIsNotNone(err, (mode, runner))
+                self.assertIn("requires --runner claude-cli", err)
+                self.assertIn(mode, err)
+
+    def test_native_on_claude_cli_is_allowed(self) -> None:
+        for mode in NATIVE_MODES:
+            self.assertIsNone(native_runner_error([mode], "claude-cli"), mode)
+
+    def test_posix_modes_unaffected_on_any_runner(self) -> None:
+        for runner in ("oai-loop", "pi-json", "claude-cli"):
+            self.assertIsNone(native_runner_error(["unix", "hybrid", "hybrid-no-md"], runner), runner)
+
+    def test_mixed_modes_flag_the_native_one(self) -> None:
+        err = native_runner_error(["unix", "native+md"], "oai-loop")
+        self.assertIsNotNone(err)
+        self.assertIn("native+md", err)
 
 
 if __name__ == "__main__":
