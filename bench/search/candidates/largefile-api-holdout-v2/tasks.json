@@ -1,0 +1,11 @@
+[
+  {
+    "id": "C-LF-03",
+    "description": "In the Public API Reference (v2) — a large nested document — change the `max_page_size` default from 100 to 250 for the `PATCH /v2/users/{id}` endpoint under `## Service 18 — Gateway 18`. Note: a `/v2/users/{id}` endpoint appears under every service and the default 100 recurs across the document, so you must scope the change to Service 18's users endpoint specifically. Leave every other service and endpoint unchanged. Change exactly one line.",
+    "input_files": ["bench/search/candidates/largefile-api-holdout-v2/input.md"],
+    "expected_output": "bench/search/candidates/largefile-api-holdout-v2/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {"kind": "raw_bytes", "normalize_line_endings": true, "ignore_trailing_whitespace": true, "compare_frontmatter_json": false, "compare_heading_tree": false, "compare_block_order": false, "compare_link_destinations": false, "compare_block_text": false}
+  }
+]
