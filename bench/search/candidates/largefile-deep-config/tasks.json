@@ -1,0 +1,20 @@
+[
+  {
+    "id": "C-LF-01",
+    "description": "In the Platform Configuration Reference (a large 150-module document), change the `timeout_ms` default in Module 118's `### Settings` table from 3000 to 5000. The `timeout_ms` key appears in every module's Settings table and the value 3000 recurs in 50 modules, so scope the change to Module 118 only. Leave Module 118's `### Examples` YAML block (which also shows `timeout_ms: 3000`) unchanged, and leave every other module untouched. Change exactly one line.",
+    "input_files": ["bench/search/candidates/largefile-deep-config/input.md"],
+    "expected_output": "bench/search/candidates/largefile-deep-config/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  }
+]
