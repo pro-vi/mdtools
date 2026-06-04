@@ -9,6 +9,27 @@ FRAC-194 U7. `claude-cli` (Sonnet 4.6), N=3, the 5 fixed anchor tasks
 > frontier, +73%, net-negative." That **overclaimed** — the +73% was a raw-token
 > artifact, and the design can't attribute the cost to md-the-tool. The honest
 > result is below.
+>
+> **✅ UPDATE 2026-06-04 — the VALID ablation (8th-bypass closed, re-run done).** A
+> cross-model code review found the `native+md-no-md` ablation was *still* bypassed:
+> bare `md` (the form `NATIVE_MD_DOCS` advertises) escaped to the real md on the system
+> PATH because claude-cli's Bash never sources `BASH_ENV`. Fixed (workdir prepended to
+> PATH + fail-closed preflight, commit `3668585`) and **`native+md-no-md` re-run N=3**.
+> Now the agent genuinely hits the stub (`md_probe` mean 1.13, was 0) and falls back to
+> native `Read`+`Edit`. The first attributable, valid native-root result:
+>
+> | cell | verdict | native+md vs native (billed-$) | vs its own no-md ablation |
+> |---|---|---|---|
+> | **Targeted** (n=4) | `OPEN:loses-native` | **+28%** | **≈ tie (+28% vs +28%)** — md adds ~0 over the prompt |
+> | **Batch** (n=1, probe=2) | `OPEN:loses-native` | +44% | +44% vs +27% (md costs more than falling back) |
+>
+> **The clean read:** advertising md (`NATIVE_MD_DOCS`) costs **~28% billed** on easy
+> edits with **no correctness lift** (45/45 ceiling) → it Pareto-**loses to native**. But
+> on Targeted the no-md ablation costs the *same* +28%, so **the cost is the md-steering
+> PROMPT, not md-the-tool** — md execution adds ~nothing over the policy the prompt
+> induces. This is the causal attribution the contaminated run could not make. Caveats
+> from §Confounds still hold (easy-task ceiling, single model/runtime, Batch n=1, mixed
+> session for the re-run vs old native/native+md).
 
 ## What this run actually shows (and doesn't)
 
