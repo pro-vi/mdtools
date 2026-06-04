@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-BC-01",
+    "description": "In the Deployment Readiness Checklist, mark every PENDING task item under the three phases labelled `(automated)` — Phase 1, Phase 2, and Phase 3 — as done (`- [ ]` -> `- [x]`). Leave the `(manual)` Phase 4 items pending. The already-done `Compile release artifacts` item stays done. Note that the item `- [ ] Run smoke tests` appears under BOTH automated Phase 1 and manual Phase 4 — toggle only the Phase 1 (automated) one; the Phase 4 one and the mention inside the Notes paragraph must stay exactly as they are. Change nothing else.",
+    "input_files": [
+      "bench/search/candidates/batch-conditional-checklist/input.md"
+    ],
+    "expected_output": "bench/search/candidates/batch-conditional-checklist/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  }
+]
