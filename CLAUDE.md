@@ -53,6 +53,15 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
   mutating** (the moat) to shrink the window. A proper fix (binding the expectation to
   positional identity / span, or failing closed on hash ambiguity) is a design decision
   that trades against "loc carries no identity" — deferred as follow-up.
+- **Bench ablation integrity (maintain this).** The no-md / `native*` baselines must keep
+  `md` unreachable by *every* form — the `./md` workdir copy, bare `md` on PATH, and the
+  `BASH_ENV` the claude-cli shell never sources. This recurred as a bypass **5× across axes**
+  (2026-06) before being closed by one `MD_REAL_MODES` predicate (new modes default to
+  md-excluded) **plus** a fail-closed `_assert_no_md_reachable` preflight that proves
+  unreachability before any run (`bench/harness.py`). **Never add a no-md/ablation mode without
+  routing it through that predicate + preflight** — a new axis silently contaminates the
+  attribution data, and contaminated data outlives the code fix (a re-measure is part of the
+  fix, not optional).
 
 ## Task loc format
 
