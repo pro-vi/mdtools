@@ -594,7 +594,7 @@ def render_cost_slice(all_results, modes, markdown=False):
                else "md-attribution verdicts (structural cells gate on md-lift over hybrid-no-md):")
     if markdown:
         out.append("")
-        out.append("| tier | category | verdict | pareto (unix→hybrid) | lift (no-md→hybrid) | md-probe |")
+        out.append("| tier | category | verdict | pareto (baseline→treatment) | lift (ablation→treatment) | md-probe |")
         out.append("|---|---|---|---|---|---|")
     for tier, cat in sorted(groups):
         v = attribution_verdict(all_results, tier, cat)
