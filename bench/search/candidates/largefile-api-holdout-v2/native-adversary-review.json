@@ -1,0 +1,39 @@
+{
+  "candidate_id": "C-LF-03",
+  "family": "large-file-slice",
+  "role": "holdout-corrected",
+  "mode_cells": [
+    "native",
+    "native+md"
+  ],
+  "model": "claude-sonnet-4-6",
+  "runs_per_mode": 3,
+  "native": {
+    "pass_rate": 1.0,
+    "median_billed_ie": 31449,
+    "median_turns": 9,
+    "tools": "grep+sed+awk+Read+Edit"
+  },
+  "native_md": {
+    "pass_rate": 1.0,
+    "median_billed_ie": 33080,
+    "median_turns": 10,
+    "tools": "md outline(3-7x)+grep+Read+Edit",
+    "md_adopted": "3/3"
+  },
+  "cost_delta_billed_pct": 5.2,
+  "correctness_parity": true,
+  "md_adopted": true,
+  "verdict": "NO EDGE (md +5.2%, parity-to-worse, md adopted)",
+  "decisive_finding": "With the grep anchor removed, md IS adopted (3/3, the confound is gone) \u2014 but md billed +5.2%, NOT a win. The C-LF-01 search edge (-21.3%) does NOT replicate. md adoption BACKFIRES: the agent calls  3-7x on the deep nested tree (run1: outline x7 -> 209k tokens) AND still greps. md adds exploration cost rather than replacing it.",
+  "family_summary": {
+    "C-LF-01_search": "-21.3% (md adopted efficiently, outline x3)",
+    "C-LF-02_holdout": "-11.9% NOISE (md not adopted)",
+    "C-LF-03_corrected_holdout": "+5.2% (md adopted, backfires)"
+  },
+  "conclusion": "The large-file md edge STRADDLES ZERO across clean cells (-21.3% / +5.2%) with high variance -> NOT established. This is the FALSIFICATION: md has no robust frontier cost edge vs native Edit at the Sonnet-4.6 frontier, even in its most plausible regime.",
+  "traces": [
+    "bench/runs/largefile-clf03-native-2026-06-04/",
+    "bench/runs/largefile-clf03-native_md-2026-06-04/"
+  ]
+}
