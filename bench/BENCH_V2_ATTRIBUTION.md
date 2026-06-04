@@ -125,3 +125,44 @@ unit-testable, including the load-bearing neutering-detection test.
 | Prompt-length overhead makes no-md > unix without flailing | generous guard tol absorbs prompt-token delta; lift margin above it |
 | 4 modes double runtime/cost | hybrid-no-md only run for structural cells under diagnosis, per-cell not blanket |
 | Tier conflict makes a cell unwinnable | per-(tier×cat) cells independent; unwinnable → STUCK/documented, not loop-wide block |
+
+## Native-rooted arm (FRAC-194)
+
+The POSIX root above measures `md` vs a POSIX shell. But a real frontier agent's
+baseline is its **native `Edit`**, not `sed` — so `md vs unix` answers the wrong
+question on a strong model. The gate therefore also runs a **native-rooted arm**
+(claude-cli only) over three modes that mirror the POSIX triple:
+
+| mode | tools | role |
+|---|---|---|
+| `native` | native Read/Edit/Write + POSIX (no `md`) | baseline — the real frontier alternative |
+| `native+md` | native + POSIX + real `md` | treatment |
+| `native+md-no-md` | native + POSIX + `md` soft-stub | clean ablation (prompt held identical) |
+
+`attribution_verdict` adds a `native_root` verdict — the **same gate**, rooted at
+`(native, native+md, native+md-no-md)` — whenever a cell has native-arm data
+(present iff both `native` and `native+md` ran; partial ⇒ `insufficient-evidence`).
+`report.py` renders it as a distinct `·native-arm` row. Native modes are
+**claude-cli only** (oai-loop/pi-json drive a Bash-only protocol and can't expose
+native tools — rejected at setup). Native tool *adoption* is parsed from the
+claude-cli transcript (the Bash guard can't see `Read/Edit/Write`).
+
+### Running it (live — claude-cli, real $)
+
+```sh
+DIR=bench/runs/native-arm-$(date +%F)
+for M in native native+md native+md-no-md; do
+  # per-mode results dir — harness writes <results-dir>/results.json, so a SHARED
+  # --results-dir would be overwritten each iteration and report.py would see only the
+  # last mode (FRAC-194 review #6). One dir per mode; report.py merges all three.
+  python bench/harness.py --run --runner claude-cli --mode "$M" -N 3 \
+    --md-binary target/release/md --model claude-sonnet-4-6 --results-dir "$DIR/$M"
+done
+python bench/report.py "$DIR"/*/ --markdown   # merges the three modes; ·native-arm rows
+```
+
+**Hypothesis (FRAC-194):** `md` mostly `OPEN:no-lift` vs native — it survives as a
+**read/inspection surface** (`md blocks`/`outline` framing a native `Edit`), not a
+mutation tool. `tool_mix` shows the native-vs-`md` choice. A native-root `CLOSES`
+on any structural cell would *disconfirm* "native Edit dominates" — a wanted
+finding either way. This is the one unit not run in-build (it costs real frontier $).

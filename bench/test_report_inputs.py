@@ -203,6 +203,46 @@ SCORER ISSUES DETECTED.
         self.assertIn("T2", completed.stdout)
         self.assertRegex(completed.stdout, re.compile(r"^T2\s+0%\s+0s\s+0\.0", re.MULTILINE))
 
+    def test_text_parse_keeps_native_md_mode_intact(self) -> None:
+        # FRAC-194 review #3 (the regex fix), pinned through the actual text parser:
+        # a "=== MODE: native+md" header must yield mode "native+md", not truncate to
+        # "native" at the '+'. The OLD [\w-]+ regex dropped the '+'; existing fixtures
+        # only used hybrid-no-md (which [\w-]+ already matched), so nothing caught it.
+        from bench.report import parse_text_results
+        text = (
+            "=== MODE: native+md (N=3, model=claude-sonnet-4-6, thinking=off) ===\n"
+            "  T7 run 1/3:\n"
+            "    md=PASS | 1.5s | ~100B out | obs:50B | ~3 calls | 1 mut | deny:0\n"
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", prefix="bench_native_md_mode_",
+                                         delete=False, encoding="utf-8") as h:
+            tmp_path = Path(h.name)
+            h.write(text)
+        try:
+            recs = parse_text_results(str(tmp_path))
+        finally:
+            tmp_path.unlink(missing_ok=True)
+        self.assertEqual([r["mode"] for r in recs], ["native+md"])   # not "native"
+
+    def test_native_only_report_suppresses_spurious_posix_verdict_row(self) -> None:
+        # FRAC-194 review #5: a native-only run has no unix/hybrid data, so the
+        # POSIX-rooted verdict would render a spurious "OPEN:loses-unix" row against a
+        # baseline that was never run. It must be suppressed; the ·native-arm row stays.
+        from bench.report import render_cost_slice
+
+        def rec(task: str, mode: str, cost: int) -> dict:
+            return {"task_id": task, "mode": mode, "model": "claude-sonnet-4-6",
+                    "thinking_level": None, "correct": True,
+                    "tokens_in": cost, "tokens_out": 0, "tool_calls": 0}
+
+        recs: list[dict] = []
+        for t in ("T7", "T10"):
+            recs += [rec(t, "native", 80000), rec(t, "native+md", 50000),
+                     rec(t, "native+md-no-md", 80000)]
+        out = render_cost_slice(recs, ["native", "native+md", "native+md-no-md"], markdown=True)
+        self.assertIn("·native-arm", out)        # the real native verdict still renders
+        self.assertNotIn("loses-unix", out)       # the spurious POSIX row is gone
+
     def test_report_separates_same_model_across_runners(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent
         model_id = "claude-haiku-4-5-20251001"
@@ -381,6 +421,33 @@ SCORER ISSUES DETECTED.
         self.assertNotIn(
             "999", cost_line, "must not report the last replicate (999)"
         )
+
+    def _verdict_rows(self, mode_costs: list[tuple[str, int]]) -> str:
+        from bench.report import render_cost_slice
+        recs = []
+        for t in ("T7", "T10"):
+            for m, c in mode_costs:
+                recs.append({"task_id": t, "task": t, "mode": m, "model": "claude-opus-4-8",
+                             "correct": True, "tokens_in": c, "tokens_out": 0,
+                             "md_probe_count": 1 if m.endswith("no-md") else 0,
+                             "thinking_level": None, "runner": "claude-cli"})
+        modes = [m for m, _ in mode_costs]
+        return render_cost_slice(recs, modes, markdown=True)
+
+    def test_native_arm_renders_distinct_verdict_row(self) -> None:
+        # U6 (FRAC-194): POSIX no-lift + native CLOSES (md cheaper than native) →
+        # two distinct rows, the native one tagged ·native-arm.
+        out = self._verdict_rows([
+            ("unix", 80000), ("hybrid", 80000), ("hybrid-no-md", 80000),
+            ("native", 80000), ("native+md", 50000), ("native+md-no-md", 80000),
+        ])
+        self.assertIn("·native-arm", out)
+        self.assertIn("CLOSES", out)
+        self.assertIn("no-lift", out)
+
+    def test_no_native_data_has_no_native_arm_row(self) -> None:
+        out = self._verdict_rows([("unix", 80000), ("hybrid", 50000), ("hybrid-no-md", 80000)])
+        self.assertNotIn("·native-arm", out)
 
 
 if __name__ == "__main__":

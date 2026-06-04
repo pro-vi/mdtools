@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import Literal
 
 
-BenchMode = Literal["unix", "mdtools", "hybrid", "hybrid-no-md"]
+BenchMode = Literal[
+    "unix", "mdtools", "hybrid", "hybrid-no-md",
+    # native-rooted arm (claude-cli only; see harness._build_agent_cmd + FRAC-194):
+    # native Read/Edit/Write are exposed as claude-cli built-ins, NOT shell commands,
+    # so the shell allowlists below mirror the POSIX arm (native↔unix, native+md↔hybrid,
+    # native+md-no-md↔hybrid-no-md).
+    "native", "native+md", "native+md-no-md",
+]
 
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp"]
 MDTOOLS_TOOLS = ["md", "cat", "jq"]
@@ -60,6 +67,23 @@ class GuardEvent:
         return classify_command_verb(self.raw_command, self.base_command)
 
 
+# The ONLY modes that get the REAL md binary (in the workdir ./md copy and on PATH).
+# Everything else — the md-free baselines (unix, native) and the clean ablations
+# (hybrid-no-md, native+md-no-md) — must receive the soft stub, never the real binary.
+# Single source of truth, fail-CLOSED: a newly added mode defaults to stub unless it is
+# explicitly listed here. That default is the fix for the ./md-bypass family that
+# recurred 4× (PR#10 hybrid-no-md, FRAC-194 native+md-no-md, then native): each was a
+# mode silently falling through to the real binary. Membership here is the only place
+# "this mode runs real md" is decided.
+MD_REAL_MODES = frozenset({"mdtools", "hybrid", "native+md"})
+
+
+def md_workdir_must_be_stub(mode: BenchMode) -> bool:
+    """True iff the workdir ./md copy must be the soft ablation stub rather than the
+    real binary. Fail-closed: only the explicit MD_REAL_MODES get the real binary."""
+    return mode not in MD_REAL_MODES
+
+
 def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
     if mode == "unix":
         return UNIX_TOOLS.copy()
@@ -74,6 +98,18 @@ def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
         # prompt) so the ONLY difference from hybrid is md-the-tool — otherwise the
         # ablation would remove md AND jq and the lift wouldn't isolate md.
         return UNIX_TOOLS + ["md", "jq"]
+    # --- native-rooted arm (mirrors the POSIX triple, + native file tools via claude-cli) ---
+    if mode == "native":
+        # baseline: native Edit + POSIX shell, NO md — the realistic frontier
+        # alternative to md. Shell set mirrors `unix`.
+        return UNIX_TOOLS.copy()
+    if mode == "native+md-no-md":
+        # clean ablation for the native root: same shell set as native+md but md is
+        # the SOFT STUB (see create_restricted_shell_env). Mirrors hybrid-no-md.
+        return UNIX_TOOLS + ["md", "jq"]
+    if mode == "native+md":
+        # treatment: native Edit + POSIX + real md. Shell set mirrors `hybrid`.
+        return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
     return sorted(set(UNIX_TOOLS) | set(MDTOOLS_TOOLS))
 
 
@@ -90,9 +126,13 @@ def create_restricted_shell_env(
         if target.exists() or target.is_symlink():
             target.unlink()
 
-        if command == "md" and mode == "hybrid-no-md":
+        if command == "md" and md_workdir_must_be_stub(mode):
             # clean-ablation soft stub: count the probe, tell the agent md is
             # unavailable here, exit non-zero so it falls back to unix. No hard-kill.
+            # Same MD_REAL_MODES predicate as the workdir ./md copy — both md-install
+            # sites now share one source of truth so they can't drift (the ./md-bypass
+            # family). md only reaches this line for modes that have it in the allowlist,
+            # so this is equivalent to the old {hybrid-no-md, native+md-no-md} tuple.
             target.write_text(_md_ablation_stub())
             target.chmod(0o755)
             continue

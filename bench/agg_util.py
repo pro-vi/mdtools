@@ -196,72 +196,67 @@ def _probe_count(records, mode):
     return max(vals) if vals else 0
 
 
-def attribution_verdict(records, tier, category,
-                        cost_tol=0.05, lift_margin=0.05, baseline_tol=0.20,
-                        parity_tol=0.10, min_overlap=2):
-    """The md-attribution gate for one (tier x category) cell. A structural cell
-    CLOSES only when md is *causally* responsible — hybrid beats unix (Pareto) AND
-    beats the hybrid-no-md baseline (md-lift), AND the baseline didn't flail.
+def _root_verdict(sub, structural, baseline, treatment, ablation, ablation_key,
+                  *, cost_tol, lift_margin, baseline_tol, parity_tol, min_overlap):
+    """The attribution gate for ONE baseline-family root. `treatment` CLOSES only
+    when it beats `baseline` (Pareto) AND beats the better of (`baseline`,
+    `ablation`) on the lift axis, AND the clean `ablation` baseline didn't flail.
 
-    Verdicts: CLOSES | OPEN:loses-unix | OPEN:no-lift |
-    OPEN:insufficient-evidence | SUSPECT:baseline-flails.
+    The logic is verbatim the historical hardcoded gate — only the mode names are
+    parameters. POSIX root: (unix, hybrid, hybrid-no-md). Native root (FRAC-194):
+    (native, native+md, native+md-no-md). `ablation_key` is the output dict key for
+    the lift baseline ("hybrid_no_md" for POSIX — preserves byte-identical output).
     """
-    sub = _aggregate_replicates(_cell_records(records, tier, category))
-    structural = category in STRUCTURAL_CATEGORIES
+    base_pass = _pass_rate(sub, baseline)
+    treat_pass = _pass_rate(sub, treatment)
+    abl_pass = _pass_rate(sub, ablation)
 
-    unix_pass = _pass_rate(sub, "unix")
-    hybrid_pass = _pass_rate(sub, "hybrid")
-    nomd_pass = _pass_rate(sub, "hybrid-no-md")
-
-    # Pareto front vs unix (the product claim)
-    pu = intersection_cost(sub, "unix", "hybrid")          # a=unix, b=hybrid
-    correctness_ok = (hybrid_pass is not None and unix_pass is not None
-                      and hybrid_pass >= unix_pass - 1e-9)
+    # Pareto front vs the baseline (the product claim)
+    pu = intersection_cost(sub, baseline, treatment)        # a=baseline, b=treatment
+    correctness_ok = (treat_pass is not None and base_pass is not None
+                      and treat_pass >= base_pass - 1e-9)
     cost_ok = None
     if pu["n"] > 0:
         cost_ok = pu["median_b"] <= pu["median_a"] * (1 + cost_tol) + 1e-9
     pareto = bool(correctness_ok) and (cost_ok is None or cost_ok)
 
     # --- clean-ablation baseline validity: correctness parity + <=1 probe + cost parity ---
-    # The baseline (hybrid-no-md) must be a COMPETENT unix fallback, not a sabotaged
-    # mode — else hybrid "beats" it for the wrong reason. See BENCH_V2_CLEAN_ABLATION.md.
-    nomd_probe = _probe_count(sub, "hybrid-no-md")
-    correctness_parity = (nomd_pass is None or unix_pass is None
-                          or nomd_pass >= unix_pass - parity_tol)
-    probe_ok = nomd_probe <= 1
-    bu = intersection_cost(sub, "unix", "hybrid-no-md")    # a=unix, b=no-md
+    # The ablation must be a COMPETENT fallback, not a sabotaged mode — else the
+    # treatment "beats" it for the wrong reason. See BENCH_V2_CLEAN_ABLATION.md.
+    abl_probe = _probe_count(sub, ablation)
+    correctness_parity = (abl_pass is None or base_pass is None
+                          or abl_pass >= base_pass - parity_tol)
+    probe_ok = abl_probe <= 1
+    bu = intersection_cost(sub, baseline, ablation)         # a=baseline, b=ablation
     cost_parity = (bu["n"] == 0) or (bu["median_b"] <= bu["median_a"] * (1 + baseline_tol))
     baseline_ok = bool(correctness_parity and probe_ok and cost_parity)
     baseline_reason = ("correctness" if not correctness_parity
                        else "probes" if not probe_ok else "cost")
 
-    # --- md-lift: hybrid must beat the BETTER of unix and hybrid-no-md ---
-    # Not just the clean ablation. Else a hybrid-no-md merely degraded WITHIN
-    # baseline tolerance (≤10pp pass, ≤20% cost) becomes the *source* of "lift"
-    # while hybrid only ties unix — tolerance arbitrage. Requiring hybrid to beat
-    # max(unix,no-md) on correctness OR min(unix,no-md) on cost makes md-lift mean
-    # md produced a real, attributable win over a unix-only agent. See
-    # BENCH_V2_CLEAN_ABLATION.md.
-    lf = intersection_cost(sub, "hybrid-no-md", "hybrid")  # a=no-md, b=hybrid
-    pass_baselines = [p for p in (unix_pass, nomd_pass) if p is not None]
-    corr_lift = bool(hybrid_pass is not None and pass_baselines
-                     and hybrid_pass > max(pass_baselines) + 1e-9)
-    # cost: hybrid strictly under unix (pu) AND under the clean no-md (lf), each on
-    # its own valid paired overlap == hybrid < min(unix, no-md) by margin.
-    beats_unix_cost = (pu["n"] >= min_overlap
+    # --- lift: treatment must beat the BETTER of baseline and ablation ---
+    # Not just the clean ablation. Else an ablation merely degraded WITHIN tolerance
+    # (≤10pp pass, ≤20% cost) becomes the *source* of "lift" while the treatment only
+    # ties the baseline — tolerance arbitrage. Requiring treatment to beat
+    # max(baseline,ablation) on correctness OR min(...) on cost makes lift mean a
+    # real, attributable win over a baseline-only agent. See BENCH_V2_CLEAN_ABLATION.md.
+    lf = intersection_cost(sub, ablation, treatment)        # a=ablation, b=treatment
+    pass_baselines = [p for p in (base_pass, abl_pass) if p is not None]
+    corr_lift = bool(treat_pass is not None and pass_baselines
+                     and treat_pass > max(pass_baselines) + 1e-9)
+    beats_base_cost = (pu["n"] >= min_overlap
                        and pu["median_b"] < pu["median_a"] * (1 - lift_margin))
-    beats_nomd_cost = (lf["n"] >= min_overlap and probe_ok
-                       and lf["median_b"] < lf["median_a"] * (1 - lift_margin))
-    cost_lift = bool(beats_unix_cost and beats_nomd_cost)
+    beats_abl_cost = (lf["n"] >= min_overlap and probe_ok
+                      and lf["median_b"] < lf["median_a"] * (1 - lift_margin))
+    cost_lift = bool(beats_base_cost and beats_abl_cost)
     lift_positive = bool(corr_lift or cost_lift)
 
     if not pareto:
-        verdict = "OPEN:loses-unix"
+        verdict = f"OPEN:loses-{baseline}"
     elif not structural:
         verdict = "CLOSES"                       # tie-acceptable: Pareto is enough
     elif not baseline_ok:
         verdict = f"SUSPECT:baseline-flails({baseline_reason})"
-    elif nomd_pass is None:
+    elif abl_pass is None:
         verdict = "OPEN:insufficient-evidence"   # no clean baseline to attribute against
     elif lift_positive:
         verdict = "CLOSES"
@@ -278,7 +273,49 @@ def attribution_verdict(records, tier, category,
         "lift_positive": lift_positive,
         "baseline_ok": baseline_ok,
         "baseline_reason": None if baseline_ok else baseline_reason,
-        "nomd_probe": nomd_probe,
-        "pareto": {"n": pu["n"], "unix": pu["median_a"], "hybrid": pu["median_b"]},
-        "lift": {"n": lf["n"], "hybrid_no_md": lf["median_a"], "hybrid": lf["median_b"]},
+        "nomd_probe": abl_probe,
+        "pareto": {"n": pu["n"], baseline: pu["median_a"], treatment: pu["median_b"]},
+        "lift": {"n": lf["n"], ablation_key: lf["median_a"], treatment: lf["median_b"]},
     }
+
+
+def attribution_verdict(records, tier, category,
+                        cost_tol=0.05, lift_margin=0.05, baseline_tol=0.20,
+                        parity_tol=0.10, min_overlap=2):
+    """The md-attribution gate for one (tier x category) cell.
+
+    Returns the POSIX-rooted verdict (unix, hybrid, hybrid-no-md) at the top level —
+    byte-identical to the historical gate. When the cell also has native-arm data,
+    a "native_root" key carries the deployment-true verdict rooted at
+    (native, native+md, native+md-no-md) — "does md help an agent that already has
+    native Edit?" (FRAC-194). native-root is present iff both native and native+md
+    have ≥1 run; partial native data ⇒ OPEN:insufficient-evidence.
+
+    Verdicts: CLOSES | OPEN:loses-<baseline> | OPEN:no-lift |
+    OPEN:insufficient-evidence | SUSPECT:baseline-flails.
+    """
+    sub = _aggregate_replicates(_cell_records(records, tier, category))
+    structural = category in STRUCTURAL_CATEGORIES
+    tols = dict(cost_tol=cost_tol, lift_margin=lift_margin, baseline_tol=baseline_tol,
+                parity_tol=parity_tol, min_overlap=min_overlap)
+
+    result = _root_verdict(sub, structural, "unix", "hybrid", "hybrid-no-md", "hybrid_no_md", **tols)
+    # Whether this cell actually has POSIX-arm data. The top-level verdict is always
+    # computed (POSIX-rooted), but a native-only run has no unix/hybrid/hybrid-no-md
+    # data — so the verdict is a spurious "loses-unix". Renderers gate the POSIX row on
+    # this. (FRAC-194 review #5; default-True elsewhere preserves historical callers.)
+    result["posix_present"] = any(
+        _pass_rate(sub, m) is not None for m in ("unix", "hybrid", "hybrid-no-md"))
+
+    # native-rooted arm (FRAC-194): only when the cell carries native-arm data.
+    native_pass = _pass_rate(sub, "native")
+    treat_pass = _pass_rate(sub, "native+md")
+    if native_pass is not None and treat_pass is not None:
+        result["native_root"] = _root_verdict(
+            sub, structural, "native", "native+md", "native+md-no-md", "native_md_no_md", **tols)
+    elif native_pass is not None or treat_pass is not None:
+        # partial native data: can't attribute — don't conclude (invariant).
+        result["native_root"] = {"verdict": "OPEN:insufficient-evidence",
+                                 "structural": structural, "incomplete": True}
+
+    return result
