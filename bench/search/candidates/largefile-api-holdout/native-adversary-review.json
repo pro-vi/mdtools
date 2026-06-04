@@ -1,0 +1,34 @@
+{
+  "candidate_id": "C-LF-02",
+  "family": "large-file-slice",
+  "role": "holdout",
+  "mode_cells": [
+    "native",
+    "native+md"
+  ],
+  "model": "claude-sonnet-4-6",
+  "runs_per_mode": 3,
+  "native": {
+    "pass_rate": 1.0,
+    "median_billed_ie": 18653,
+    "median_turns": 5,
+    "tools": "grep+Read+Edit"
+  },
+  "native_md": {
+    "pass_rate": 1.0,
+    "median_billed_ie": 16441,
+    "median_turns": 4,
+    "tools": "grep+Read+Edit (md NOT used)"
+  },
+  "cost_delta_billed_pct": -11.9,
+  "correctness_parity": true,
+  "headline_verdict": "CLOSES -11.9% (MISLEADING)",
+  "honest_verdict": "CONFOUNDED \u2014 NOT a clean holdout-confirm",
+  "confound": "The holdout target carried a UNIQUE greppable marker (s18e5), so the agent greps straight to it; the locate-hazard never fired and native+md DID NOT ADOPT md (tool_mix is grep+Read+Edit in all 3 runs, same as native). The -11.9% is within-strategy run variance, not an md effect. The search instance (C-LF-01) had no unique inline anchor (target='Module 118' + 50x-ambiguous value) -> md WAS adopted (outline/section) and won -21.3%.",
+  "refined_thesis_N12": "md's large-file edge is contingent on (a) a NON-greppable target (locating requires structural navigation grep can't do in one hit) AND (b) the agent actually adopting md. Remove either and native+md collapses to native.",
+  "next": "a CORRECTED holdout with a non-greppable target (identified by structural position, not a unique inline string) to fire the locate-hazard faithfully; plus the adoption question (does the native+md prompt steer md-use when it helps?).",
+  "traces": [
+    "bench/runs/largefile-clf02-native-2026-06-04/",
+    "bench/runs/largefile-clf02-native_md-2026-06-04/"
+  ]
+}
