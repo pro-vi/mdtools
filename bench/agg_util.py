@@ -300,6 +300,12 @@ def attribution_verdict(records, tier, category,
                 parity_tol=parity_tol, min_overlap=min_overlap)
 
     result = _root_verdict(sub, structural, "unix", "hybrid", "hybrid-no-md", "hybrid_no_md", **tols)
+    # Whether this cell actually has POSIX-arm data. The top-level verdict is always
+    # computed (POSIX-rooted), but a native-only run has no unix/hybrid/hybrid-no-md
+    # data — so the verdict is a spurious "loses-unix". Renderers gate the POSIX row on
+    # this. (FRAC-194 review #5; default-True elsewhere preserves historical callers.)
+    result["posix_present"] = any(
+        _pass_rate(sub, m) is not None for m in ("unix", "hybrid", "hybrid-no-md"))
 
     # native-rooted arm (FRAC-194): only when the cell carries native-arm data.
     native_pass = _pass_rate(sub, "native")

@@ -50,9 +50,15 @@ proof the agent weighed both tools — native Edit was available and unused.
 1. **The prompt asymmetry IS the treatment, not a side-confound.** `native+md`
    differs from `native` in four ways (md exists, prompt longer, prompt advertises
    md, agent invited to a new policy). So this measures the *bundle*, not md.
-2. **The clean ablation was bypassed** (`./md` stub bug, fixed in `b362292` but the
-   *data* is already contaminated): native+md-no-md ran real md, so it ≈ native+md
-   (+27% billed). There is **no valid md-causal lift estimate** from this run.
+2. **The clean ablation was bypassed on TWO axes** (so the +27% no-md ≈ +md figure is
+   meaningless): (a) the `./md` workdir copy was the real binary, fixed in `b362292`;
+   (b) **deeper** — a later cross-model review found that even with `./md` stubbed, the
+   agent reaches **bare `md`** (the form `NATIVE_MD_DOCS` advertises) which resolves to
+   the **real md on the system PATH**, because claude-cli's Bash never sources `BASH_ENV`
+   so the guard's PATH restriction never fires. b362292 did **not** close (b). Both are
+   now fixed in code (workdir prepended to PATH so bare `md`→the workdir stub); but this
+   run's *data* is contaminated on both axes. **No valid md-causal lift estimate** from
+   it, and a re-run was impossible-to-trust until the PATH fix landed.
 3. **Ceiling effect**: 45/45 pass → the design *cannot* show correctness lift, only
    cost. It is structurally biased toward the simplest adequate tool; a CLI can't
    beat a first-class `Edit` on trivial single-edits.
@@ -109,8 +115,11 @@ task set — which is *why* the easy-edit ceiling makes md look purely costly he
 
 ## What a bulletproof re-run needs (FRAC follow-up)
 Billed-$ as the primary metric (done here for re-score; wire it into the gate);
-the **fixed** ablation with a **preflight no-md proof** in every artifact
-(`command -v md` / `./md` / hash / alias — fail closed); a small prompt factorial to
+the **fixed** ablation with a **preflight no-md proof** in every artifact that checks
+**both axes** — `./md` **and** bare `md` (`command -v md`, `md --version`, hash, alias)
+must all hit the stub / fail closed, not just `./md` (the PATH-axis bypass, now closed
+by the workdir-PATH-prepend, is exactly what a single-axis preflight would have missed);
+a small prompt factorial to
 decompose prompt-length vs md-doc-steering vs functional-md (A native-docs/no-md,
 B +length-matched neutral/no-md, C +md-docs/no-md, D +md-docs/md, E native-docs/md);
 paired per-task stats (ratios, bootstrap CI, tails, sign count); and harder task

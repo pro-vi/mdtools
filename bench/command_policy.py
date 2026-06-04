@@ -67,6 +67,23 @@ class GuardEvent:
         return classify_command_verb(self.raw_command, self.base_command)
 
 
+# The ONLY modes that get the REAL md binary (in the workdir ./md copy and on PATH).
+# Everything else — the md-free baselines (unix, native) and the clean ablations
+# (hybrid-no-md, native+md-no-md) — must receive the soft stub, never the real binary.
+# Single source of truth, fail-CLOSED: a newly added mode defaults to stub unless it is
+# explicitly listed here. That default is the fix for the ./md-bypass family that
+# recurred 4× (PR#10 hybrid-no-md, FRAC-194 native+md-no-md, then native): each was a
+# mode silently falling through to the real binary. Membership here is the only place
+# "this mode runs real md" is decided.
+MD_REAL_MODES = frozenset({"mdtools", "hybrid", "native+md"})
+
+
+def md_workdir_must_be_stub(mode: BenchMode) -> bool:
+    """True iff the workdir ./md copy must be the soft ablation stub rather than the
+    real binary. Fail-closed: only the explicit MD_REAL_MODES get the real binary."""
+    return mode not in MD_REAL_MODES
+
+
 def allowed_commands_for_mode(mode: BenchMode) -> list[str]:
     if mode == "unix":
         return UNIX_TOOLS.copy()
@@ -109,9 +126,13 @@ def create_restricted_shell_env(
         if target.exists() or target.is_symlink():
             target.unlink()
 
-        if command == "md" and mode in ("hybrid-no-md", "native+md-no-md"):
+        if command == "md" and md_workdir_must_be_stub(mode):
             # clean-ablation soft stub: count the probe, tell the agent md is
             # unavailable here, exit non-zero so it falls back to unix. No hard-kill.
+            # Same MD_REAL_MODES predicate as the workdir ./md copy — both md-install
+            # sites now share one source of truth so they can't drift (the ./md-bypass
+            # family). md only reaches this line for modes that have it in the allowlist,
+            # so this is equivalent to the old {hybrid-no-md, native+md-no-md} tuple.
             target.write_text(_md_ablation_stub())
             target.chmod(0o755)
             continue

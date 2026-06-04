@@ -188,7 +188,7 @@ def parse_results(filepath):
                 in_dry_run = True
                 continue
             # === MODE: hybrid (N=1, model=openai-codex/gpt-5.3-codex-spark, thinking=off) ===
-            m = re.match(r"=== MODE: ([\w-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: ([\w+-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
@@ -258,7 +258,7 @@ def parse_with_task_ids(filepath):
                 pending_task = None
                 in_dry_run = True
                 continue
-            m = re.match(r"=== MODE: ([\w-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: ([\w+-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"

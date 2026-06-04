@@ -152,10 +152,13 @@ claude-cli transcript (the Bash guard can't see `Read/Edit/Write`).
 ```sh
 DIR=bench/runs/native-arm-$(date +%F)
 for M in native native+md native+md-no-md; do
+  # per-mode results dir — harness writes <results-dir>/results.json, so a SHARED
+  # --results-dir would be overwritten each iteration and report.py would see only the
+  # last mode (FRAC-194 review #6). One dir per mode; report.py merges all three.
   python bench/harness.py --run --runner claude-cli --mode "$M" -N 3 \
-    --md-binary target/release/md --model claude-sonnet-4-6 --results-dir "$DIR"
+    --md-binary target/release/md --model claude-sonnet-4-6 --results-dir "$DIR/$M"
 done
-python bench/report.py "$DIR"/ --markdown   # shows the ·native-arm verdict rows
+python bench/report.py "$DIR"/*/ --markdown   # merges the three modes; ·native-arm rows
 ```
 
 **Hypothesis (FRAC-194):** `md` mostly `OPEN:no-lift` vs native — it survives as a

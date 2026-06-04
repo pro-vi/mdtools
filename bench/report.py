@@ -255,7 +255,7 @@ def parse_text_results(filepath):
                 pending_task = None
                 in_dry_run = True
                 continue
-            m = re.match(r"=== MODE: ([\w-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
+            m = re.match(r"=== MODE: ([\w+-]+) \(N=(\d+)(?:, model=([^,)]+))?(?:, thinking=([^)]+))?\)", line)
             if m:
                 mode = m.group(1)
                 model = m.group(3) or "unspecified"
@@ -598,15 +598,19 @@ def render_cost_slice(all_results, modes, markdown=False):
         out.append("|---|---|---|---|---|---|")
     for tier, cat in sorted(groups):
         v = attribution_verdict(all_results, tier, cat)
-        p, lift = v["pareto"], v["lift"]
-        pcells = "n=0" if p["n"] == 0 else f"n={p['n']} {p['unix']:.0f}→{p['hybrid']:.0f}"
-        lcells = "n=0" if lift["n"] == 0 else f"n={lift['n']} {lift['hybrid_no_md']:.0f}→{lift['hybrid']:.0f}"
-        struct = "" if v["structural"] else " (tie-ok)"
-        probe = f"{v.get('nomd_probe', 0):.0f}"
-        if markdown:
-            out.append(f"| {tier} | {cat}{struct} | {v['verdict']} | {pcells} | {lcells} | {probe} |")
-        else:
-            out.append(f"  {tier} | {cat}{struct} | {v['verdict']} | pareto {pcells} | lift {lcells} | md-probe={probe}")
+        # The top-level verdict is POSIX-rooted (unix→hybrid). In a native-only report
+        # there is no unix/hybrid data, so it would render a spurious "OPEN:loses-unix"
+        # row against a baseline that wasn't run — suppress it. (FRAC-194 review #5.)
+        if v.get("posix_present", True):
+            p, lift = v["pareto"], v["lift"]
+            pcells = "n=0" if p["n"] == 0 else f"n={p['n']} {p['unix']:.0f}→{p['hybrid']:.0f}"
+            lcells = "n=0" if lift["n"] == 0 else f"n={lift['n']} {lift['hybrid_no_md']:.0f}→{lift['hybrid']:.0f}"
+            struct = "" if v["structural"] else " (tie-ok)"
+            probe = f"{v.get('nomd_probe', 0):.0f}"
+            if markdown:
+                out.append(f"| {tier} | {cat}{struct} | {v['verdict']} | {pcells} | {lcells} | {probe} |")
+            else:
+                out.append(f"  {tier} | {cat}{struct} | {v['verdict']} | pareto {pcells} | lift {lcells} | md-probe={probe}")
         # native-rooted arm (FRAC-194): the deployment-true "md vs native Edit" verdict,
         # rendered as a distinct row when present. Columns reuse the POSIX layout but the
         # pareto/lift are native→native+md / native+md-no-md→native+md.

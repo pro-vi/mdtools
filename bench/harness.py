@@ -36,6 +36,7 @@ try:
         classify_command_verb,
         create_restricted_shell_env,
         load_guard_events,
+        md_workdir_must_be_stub,
     )
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
@@ -48,6 +49,7 @@ except ModuleNotFoundError:
         classify_command_verb,
         create_restricted_shell_env,
         load_guard_events,
+        md_workdir_must_be_stub,
     )
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
@@ -273,6 +275,11 @@ class ParsedAgentOutput:
     # claude-cli this transcript parse is the only adoption + mutation signal.
     transcript_tool_mix: dict[str, int] = field(default_factory=dict)
     transcript_mutations: int = 0
+    # ordered query/mutation trajectory parsed from the transcript (FRAC-194 #4) — the
+    # guard's call_sequence is empty for claude-cli, so requery detection (a query AFTER
+    # a mutation) needs this. Native Edit/Write are mutations; Read and query verbs are
+    # queries. Folded into the run's call_sequence in the claude-cli branch.
+    transcript_call_sequence: list[str] = field(default_factory=list)
 
 
 # ── Tool inventories ──────────────────────────────────────────
@@ -421,7 +428,7 @@ same tasks — fall back to them cleanly rather than retrying `md`.
 NATIVE_DOCS = """\
 TOOLS — you have your native file tools (Read, Edit, Write) for reading and editing
 files directly, plus standard POSIX shell tools:
-  cat, grep, sed, awk, head, tail, wc, tee, mv, cp; pipes (|), redirection (>, >>); mktemp; jq.
+  cat, grep, sed, awk, head, tail, wc, tee, mv, cp; pipes (|), redirection (>, >>); mktemp.
 
 Do NOT use: python, perl, ruby, node, or any other scripting language.
 
@@ -1285,6 +1292,60 @@ def _normalize_runner_model(value: object) -> str | None:
     return model
 
 
+def _requeried_from_sequence(call_sequence: list[str]) -> bool:
+    """A 'query' AFTER any 'mutation' in the ordered trajectory = the agent re-read
+    structure post-edit (the re-query pattern). Shared by the POSIX-guard arm (which
+    builds call_sequence from guard events) and the claude-cli arm (which builds it from
+    the transcript, FRAC-194 #4) so requery is computed identically for both."""
+    saw_mutation = False
+    for kind in call_sequence:
+        if kind == "mutation":
+            saw_mutation = True
+        elif kind == "query" and saw_mutation:
+            return True
+    return False
+
+
+def _prepend_workdir_to_path(child_env: dict, workdir: str) -> None:
+    """Prepend the workdir to PATH so a BARE `md` call resolves to the workdir copy
+    (the stub for md-free/ablation modes, the real binary for native+md) — identical to
+    `./md`. FRAC-194 #8 (the PATH-axis recurrence of the ./md-bypass family): the native
+    arm runs on claude-cli, whose Bash tool never sources BASH_ENV, so the guard's PATH
+    restriction (export PATH=$BENCH_RESTRICTED_PATH) never fires and the agent keeps the
+    full system PATH — including the real ~/.local/bin/md. NATIVE_MD_DOCS advertises bare
+    `md`, so without this a stub mode (native, native+md-no-md) silently resolves bare
+    `md` to the REAL binary, bypassing the ./md stub and invalidating the clean ablation.
+    For guarded runners the guard overrides PATH to .bench-bin, so this is a no-op there."""
+    child_env["PATH"] = os.path.abspath(workdir) + os.pathsep + child_env.get("PATH", "")
+
+
+class NoMdLeakError(RuntimeError):
+    """A no-md/ablation mode could reach a WORKING md before the task ran — the
+    clean-ablation invariant is broken (the ./md-bypass family). The preflight raises
+    this so we fail CLOSED (abort, before the billed agent call) instead of silently
+    collecting contaminated data — the durable guard against this family's 5 recurrences."""
+
+
+def _assert_no_md_reachable(child_env: dict, workdir: str) -> None:
+    """Preflight fail-closed proof for md-free/ablation modes (FRAC-194 #8 hardening):
+    BEFORE the (billed) agent runs, verify neither bare `md` NOR `./md` resolves to a
+    working binary in the agent's exact env. Runs via /bin/sh -c which — like claude-cli's
+    Bash tool — does NOT source BASH_ENV, so it proves md is unreachable even with the
+    guard absent: the strongest guarantee, and the only one that holds for the guard-blind
+    native arm. The probe log is redirected to /dev/null so these proof calls don't
+    inflate md_probe_count. Raises NoMdLeakError if any form answers (exit 0)."""
+    probe_env = dict(child_env)
+    probe_env["BENCH_MD_PROBE_LOG"] = os.devnull   # don't let proof calls touch the real probe log
+    for invocation in ("md --version", "./md --version"):
+        proc = subprocess.run(["/bin/sh", "-c", invocation], cwd=workdir, env=probe_env,
+                              text=True, capture_output=True)
+        if proc.returncode == 0:   # the stub exits non-zero; a real md --version exits 0
+            raise NoMdLeakError(
+                f"no-md preflight FAILED in {workdir!r}: `{invocation}` ran a working md "
+                f"(exit 0) — real md is reachable, the clean ablation would be invalid. "
+                f"stdout={proc.stdout.strip()[:200]!r}")
+
+
 def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
     """Extract combined stdout, tool stats, and runner failures from agent output."""
     parsed = ParsedAgentOutput(stdout=raw_stdout)
@@ -1347,13 +1408,25 @@ def parse_agent_output(raw_stdout: str) -> ParsedAgentOutput:
                         name = block.get("name")
                         if name in ("Read", "Edit", "Write"):
                             parsed.transcript_tool_mix[name] = parsed.transcript_tool_mix.get(name, 0) + 1
+                            # native Edit/Write mutate the file (Read does not); count
+                            # them as mutations so native-arm mutation/requery metrics
+                            # aren't 0 for a real edit. (FRAC-194 review #4.)
+                            if name == "Read":
+                                parsed.transcript_call_sequence.append("query")
+                            else:
+                                parsed.transcript_mutations += 1
+                                parsed.transcript_call_sequence.append("mutation")
                         elif name == "Bash":
                             cmd = (block.get("input") or {}).get("command", "") or ""
                             verb = classify_command_verb(cmd)
                             if verb:
                                 parsed.transcript_tool_mix[verb] = parsed.transcript_tool_mix.get(verb, 0) + 1
-                            if classify_command_kind(cmd) == "mutation":
+                            kind = classify_command_kind(cmd)
+                            if kind == "mutation":
                                 parsed.transcript_mutations += 1
+                                parsed.transcript_call_sequence.append("mutation")
+                            elif kind == "query":
+                                parsed.transcript_call_sequence.append("query")
                     if block.get("type") == "text":
                         text = block.get("text", "")
                         parsed.text_outputs.append(text)
@@ -1425,10 +1498,14 @@ def run_agent(
     # no-md baseline silently runs real md, and the md-lift/attribution gate measures
     # nothing. (Observed: no-md agents used `./md set-task`/`./md tasks`, md-probe=0.)
     md_dest = os.path.join(workdir, "md")
-    if mode in ("hybrid-no-md", "native+md-no-md"):
-        # both clean-ablation modes: the ./md copy MUST be the stub too (FRAC-194:
-        # native+md-no-md was missed here, so its ./md was the real binary and the
-        # ablation was bypassed — native+md-no-md ran real md via ./md).
+    if md_workdir_must_be_stub(mode):
+        # Every non-real-md mode (fail-closed via command_policy.MD_REAL_MODES): the
+        # two clean ablations (hybrid-no-md, native+md-no-md) AND the md-free baselines
+        # (unix, native). The baseline must be md-free at the FILESYSTEM, not merely
+        # un-advertised — else a stray ./md call silently runs real md and the
+        # md-lift/attribution gate measures nothing. This single predicate replaces the
+        # hand-maintained mode list that let the ./md-bypass family recur 4× (PR#10
+        # hybrid-no-md, FRAC-194 native+md-no-md, then native). (FRAC-194 review #2.)
         with open(md_dest, "w") as f:
             f.write(_md_ablation_stub())
         os.chmod(md_dest, 0o755)
@@ -1451,6 +1528,15 @@ def run_agent(
         )
         child_env = restricted_env.env
         guard_log_path = restricted_env.guard_log_path
+
+    # Close the PATH-axis ./md-bypass (FRAC-194 #8): make bare `md` resolve to the
+    # workdir copy so guard-blind runners (claude-cli) can't escape to the real md on
+    # the system PATH. No-op under the guard, which overrides PATH to .bench-bin.
+    _prepend_workdir_to_path(child_env, workdir)
+    if md_workdir_must_be_stub(mode):
+        # fail-closed: prove md is unreachable BEFORE the billed agent call, so a future
+        # axis of the ./md-bypass family can never silently contaminate a clean ablation.
+        _assert_no_md_reachable(child_env, workdir)
 
     prompt = build_prompt(task, mode, workdir)
     input_file = copied_input_path(task.input_files[0], workdir)
@@ -1611,6 +1697,9 @@ def run_agent(
         for _name, _n in parsed_output.transcript_tool_mix.items():
             tool_mix[_name] = tool_mix.get(_name, 0) + _n
         mutations += parsed_output.transcript_mutations
+        # ordered trajectory so the query-after-mutation requery scan (below) works for
+        # claude-cli, whose guard call_sequence is empty. (FRAC-194 #4.)
+        call_sequence.extend(parsed_output.transcript_call_sequence)
     elapsed = time.time() - start
 
     guard_events = load_guard_events(guard_log_path) if guard_log_path is not None else []
@@ -1648,13 +1737,7 @@ def run_agent(
         mutations = max(mutations, audit_counters.mutations)
         requeried = requeried or audit_counters.requeried
 
-    saw_mutation = False
-    for kind in call_sequence:
-        if kind == "mutation":
-            saw_mutation = True
-        elif kind == "query" and saw_mutation:
-            requeried = True
-            break
+    requeried = requeried or _requeried_from_sequence(call_sequence)
 
     expected_content = Path(task.expected_output).read_text()
 

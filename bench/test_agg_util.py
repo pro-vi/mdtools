@@ -391,6 +391,23 @@ def test_attribution_native_partial_data_insufficient():
     assert v["native_root"]["verdict"] == "OPEN:insufficient-evidence", v.get("native_root")
 
 
+def test_attribution_posix_present_flag():
+    # FRAC-194 review #5: a native-only cell has no unix/hybrid/hybrid-no-md data, so
+    # the POSIX-rooted top-level verdict is a spurious "loses-unix". The posix_present
+    # flag lets renderers suppress that row.
+    native_only = _native_arm(treat=50000, abl=80000, base=80000)
+    v = attribution_verdict(native_only, "frontier", "Targeted mutation")
+    assert v["posix_present"] is False, v
+    assert v["verdict"] == "OPEN:loses-unix", v   # exactly the spurious row #5 hides
+    # add the POSIX arm → flag flips True (full matrix renders the POSIX row normally)
+    recs = list(native_only)
+    for t in ("T7", "T10"):
+        recs += (_ar(t, "unix", "claude", True, 80000)
+                 + _ar(t, "hybrid", "claude", True, 80000)
+                 + _ar(t, "hybrid-no-md", "claude", True, 80000))
+    assert attribution_verdict(recs, "frontier", "Targeted mutation")["posix_present"] is True
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

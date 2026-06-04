@@ -8,11 +8,13 @@ from pathlib import Path
 import typing
 
 from bench.command_policy import (
+    MD_REAL_MODES,
     UNIX_TOOLS,
     allowed_commands_for_mode,
     classify_command_kind,
     create_restricted_shell_env,
     load_guard_events,
+    md_workdir_must_be_stub,
 )
 
 
@@ -133,6 +135,25 @@ class NativeModeRegistrationTests(unittest.TestCase):
         self.assertNotIn("REAL", proc.stdout)              # the real md never ran
         self.assertIn("unavailable here", proc.stderr)
         self.assertTrue((workdir / ".md-probe.log").exists())  # probe counted
+
+    def test_md_workdir_stub_predicate_covers_every_mode(self) -> None:
+        # FRAC-194 review #2 + anti-bypass: the workdir ./md copy is REAL only for the
+        # three real-md modes; every other mode (incl. unix + native baselines, both
+        # clean ablations) must be the stub. Fail-closed is the whole point.
+        from bench.harness import BenchMode
+        real = {"mdtools", "hybrid", "native+md"}
+        self.assertEqual(MD_REAL_MODES, frozenset(real))
+        for mode in typing.get_args(BenchMode):
+            expect_stub = mode not in real
+            self.assertEqual(md_workdir_must_be_stub(mode), expect_stub, mode)
+        # the two baselines and both ablations are stub; nothing else is real
+        for mode in ("unix", "native", "hybrid-no-md", "native+md-no-md"):
+            self.assertTrue(md_workdir_must_be_stub(mode), mode)
+
+    def test_md_workdir_stub_fails_closed_for_unknown_mode(self) -> None:
+        # a hypothetical newly-added mode defaults to STUB — the property that would
+        # have prevented all 4 ./md-bypass recurrences.
+        self.assertTrue(md_workdir_must_be_stub("native+md+something-new"))
 
     def test_benchmode_literals_in_sync(self) -> None:
         # The two BenchMode Literals (command_policy + harness) must stay identical.
