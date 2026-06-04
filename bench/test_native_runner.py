@@ -22,7 +22,7 @@ NATIVE_MODES = ("native", "native+md", "native+md-no-md")
 
 
 def _cmd(mode: str) -> list[str]:
-    return _build_agent_cmd("claude", mode, "md")
+    return _build_agent_cmd("claude", mode)
 
 
 def _toolset(cmd: list[str], flag: str) -> str:

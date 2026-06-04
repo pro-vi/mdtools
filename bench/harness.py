@@ -1215,7 +1215,6 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
 def _build_agent_cmd(
     agent_cmd: str,
     mode: BenchMode,
-    md_binary: str,
     model: str | None = None,
     max_turns: int = 30,
 ) -> list[str]:
@@ -1509,13 +1508,10 @@ def run_agent(
         with open(md_dest, "w") as f:
             f.write(_md_ablation_stub())
         os.chmod(md_dest, 0o755)
-        local_md = "./md"
     elif md_binary != "md":
         shutil.copy2(md_binary, md_dest)
-        local_md = "./md"
     else:
         shutil.copy2(shutil.which("md") or md_binary, md_dest)
-        local_md = "md"
 
     restricted_env = None
     child_env = os.environ.copy()
@@ -1662,7 +1658,7 @@ def run_agent(
         resolved_model = parsed_output.model or model
         resolved_thinking_level = parsed_output.thinking_level or thinking_level
     else:
-        cmd = _build_agent_cmd(agent_cmd, mode, local_md, model, max_turns)
+        cmd = _build_agent_cmd(agent_cmd, mode, model, max_turns)
         try:
             result = subprocess.run(
                 cmd,
