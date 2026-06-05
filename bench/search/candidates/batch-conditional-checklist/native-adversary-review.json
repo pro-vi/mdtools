@@ -1,0 +1,36 @@
+{
+  "candidate_id": "C-BC-01",
+  "family": "conditional-batch",
+  "mode_cells": [
+    "native",
+    "native+md"
+  ],
+  "model": "claude-sonnet-4-6",
+  "runs_per_mode": 3,
+  "runner": "claude-cli",
+  "native": {
+    "pass_rate": 1.0,
+    "median_raw_tokens": 37556,
+    "median_billed_ie": 16162,
+    "median_turns": 3,
+    "median_mutations": 1,
+    "strategy": "single fused multi-line Edit on Read content"
+  },
+  "native_md": {
+    "pass_rate": 1.0,
+    "median_raw_tokens": 56668,
+    "median_billed_ie": 20333,
+    "median_turns": 5,
+    "strategy": "md tasks enumerate -> shell for-loop of md set-task"
+  },
+  "cost_delta_billed_pct": 25.8,
+  "cost_delta_raw_pct": 50.9,
+  "native_root_verdict": "OPEN:loses-native (md +25.8% billed, no correctness lift)",
+  "outcome": "REJECTED_NO_MD_EDGE",
+  "mechanism": "native Edit FUSES the 10-toggle batch into one Edit (1 round-trip on already-Read content); md's per-primitive set-task loop is N round-trips -> more cache_read re-reads + more turns. Same mechanism as N1, now on md's flagship batch family.",
+  "billed_usd_total_n6": 0.3368,
+  "traces": [
+    "bench/runs/batch-cbc01-native-2026-06-04/",
+    "bench/runs/batch-cbc01-native_md-2026-06-04/"
+  ]
+}

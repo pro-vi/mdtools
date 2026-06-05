@@ -2,12 +2,23 @@
 """Auto-research orchestrator for the frontier loop.
 
 Runs the full candidate pipeline in one command:
-  1. Generator  — mdtools-blind LLM call → candidate JSON
-  2. Realism    — separate LLM judge → yes/no verdict
-  3. Measure    — harness.py --run in all 3 modes (N=1 seed)
-  4. Adversary  — LLM proposes best unix strategy → gap_label
-  5. Manifest   — assembles manifest.json + all artifacts
-  6. Promote    — optionally runs N=3 promotion gate
+  1. Generator       — mdtools-blind LLM call → candidate JSON
+  2. Realism         — separate LLM judge → yes/no verdict
+  3. Measure         — harness.py --run in all 3 modes (N=1 seed)
+  4. Unix-adversary  — LLM proposes best unix strategy → gap_label
+  5. Native-adversary — PAID claude-cli `native`-mode run (native Edit, no md);
+                        if native Edit solves it → rejected-no-md-edge (ramp stage 1,
+                        the load-bearing md-edge gate; opt-in via --native-adversary)
+  6. Manifest        — assembles manifest.json + all artifacts
+  7. Promote         — optionally runs N=3 promotion gate
+
+The native-adversary is the deployment-true md-edge gate: md's claimed edge is
+structural entropy that native Read/Edit/Write should struggle with. A candidate
+is only a real md-edge candidate once native Edit has been shown to STRUGGLE on it
+(fails it). Tasks native Edit solves correctly carry no md correctness lift →
+rejected-no-md-edge. Without the gate, an otherwise-promotable candidate lands in
+`pending-native-adversary` (promotion-pending the native gate), never the
+trustworthy `pending-cross-seed`.
 
 Usage:
     python bench/auto_research.py \
@@ -480,6 +491,155 @@ def step_unix_adversary(
     return result
 
 
+def _native_adversary_verdict(
+    results_list: list[dict[str, Any]],
+    task_id: str,
+) -> dict[str, Any]:
+    """Compute the native-adversary verdict from a `native`-mode results list.
+
+    The load-bearing md-edge gate (ramp stage 1): run `native` mode (native
+    Read/Edit/Write, NO md) on the candidate. If native Edit *correctly* solves
+    it, md has no correctness lift to offer → recommend rejected-no-md-edge.
+    Only tasks native Edit STRUGGLES on (fails them) are real md-edge candidates.
+
+    Correctness-primary, threshold-free: the gate keys on whether native Edit
+    *passes* (majority of N), not on a magic cost cutoff. Cost medians are
+    recorded so the stage-2 native-vs-native+md comparison can still surface a
+    cost-edge family (native passes but thrashes) — but stage 1 never auto-promotes
+    on cost (that would need the native+md comparison it does not run here).
+    """
+    task_runs = [r for r in results_list if r.get("task_id") == task_id]
+    if not task_runs:
+        return {
+            "verdict": "no-native-results",
+            "native_pass": False,
+            "native_pass_rate": 0.0,
+            "runs": 0,
+            "recommend_reject_no_md_edge": False,
+            "note": "native harness produced no results for the task (gate inconclusive)",
+        }
+
+    def _med(values: list[int]) -> int:
+        s = sorted(values)
+        return s[len(s) // 2] if s else 0
+
+    n = len(task_runs)
+    passes = sum(1 for r in task_runs if r.get("correct"))
+    pass_rate = passes / n
+    native_pass = pass_rate >= 0.5  # majority of N
+    median_tokens = _med([
+        int(r.get("tokens_in", 0) or 0) + int(r.get("tokens_out", 0) or 0)
+        for r in task_runs
+    ])
+    return {
+        "verdict": "native-solves" if native_pass else "native-struggles-correctness",
+        "native_pass": native_pass,
+        "native_pass_rate": pass_rate,
+        "runs": n,
+        "median_tokens": median_tokens,
+        "median_turns": _med([int(r.get("turns", 0) or 0) for r in task_runs]),
+        "median_tool_calls": _med([int(r.get("tool_calls", 0) or 0) for r in task_runs]),
+        "median_mutations": _med([int(r.get("mutations", 0) or 0) for r in task_runs]),
+        # correctness-primary gate: native solving correctly ⇒ no md correctness lift
+        "recommend_reject_no_md_edge": native_pass,
+        "note": (
+            "native Edit solves this correctly → no md correctness lift "
+            "(a cost-edge is still possible; confirm in stage-2 native-vs-native+md)"
+            if native_pass else
+            "native Edit FAILS this → real md-edge candidate (potential correctness lift)"
+        ),
+    }
+
+
+def step_native_adversary(
+    slug: str,
+    candidate_dir: Path,
+    md_binary: str,
+    runs: int,
+    today: str,
+) -> dict[str, Any]:
+    """Ramp stage 1 — the native-adversary (PAID claude-cli `native`-mode run).
+
+    Runs `native` mode (native Read/Edit/Write, no md = the deployment-true
+    baseline) on the candidate and emits the md-edge gate verdict. This spends
+    real money (claude-cli); the *caller* (the loop orchestrator) owns the
+    budget / SPEND-ledger bookkeeping — this function just runs the cell.
+    """
+    print("[5/7] Native-adversary (native Edit, no md — PAID) ...", flush=True)
+    task_ids = json.loads((candidate_dir / "task_ids.json").read_text())
+    task_id = task_ids[0]
+    bundle_name = f"auto-research-{slug}-native-adversary-{today}"
+    bundle_dir = BENCH_DIR / "runs" / bundle_name
+    cmd = [
+        sys.executable, str(HARNESS),
+        "--run",
+        "--runner", "claude-cli",
+        "--mode", "native",
+        "--md-binary", md_binary,
+        "--tasks-path", str(candidate_dir / "tasks.json"),
+        "--task-ids-path", str(candidate_dir / "task_ids.json"),
+        "--results-dir", str(bundle_dir),
+        "-N", str(runs),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"    WARN: native-adversary harness exited {proc.returncode}", flush=True)
+        print(proc.stderr[-500:], flush=True)
+    results_file = bundle_dir / "results.json"
+    results_list = json.loads(results_file.read_text()) if results_file.exists() else []
+    verdict = _native_adversary_verdict(results_list, task_id)
+    verdict["bundle"] = f"bench/runs/{bundle_name}/"
+    verdict["runner"] = "claude-cli"
+    verdict["mode"] = "native"
+    verdict["runs_requested"] = runs
+    print(
+        f"    verdict: {verdict['verdict']} "
+        f"(native_pass={verdict['native_pass']}, pass_rate={verdict['native_pass_rate']:.2f})",
+        flush=True,
+    )
+    return verdict
+
+
+def _resolve_status(
+    *,
+    realism_ok: bool,
+    hybrid_pass: bool,
+    unix_pass: bool,
+    ast_structural: bool,
+    gap_label: str | None,
+    gap_pp: float,
+    native_adversary: dict[str, Any] | None,
+) -> str:
+    """Pure candidate-status decision.
+
+    The unix-pipeline gates (realism / hybrid-pass / unix-fail / AST-structural /
+    gap>0) come first, unchanged. The native-adversary is then the load-bearing
+    md-edge gate: a candidate may only reach the trustworthy `pending-cross-seed`
+    once native Edit has been shown to STRUGGLE on it. Back-compat strengthening:
+    when the native-adversary did not run, an otherwise-promotable candidate lands
+    in `pending-native-adversary` (promotion-pending the native gate) — strictly
+    more honest than the old unconditional `pending-cross-seed`, never weaker.
+    """
+    if not realism_ok:
+        return "rejected-planning"  # closest bucket for realism fail
+    if not hybrid_pass:
+        return "rejected-hybrid-fail-no-gap"
+    if unix_pass:
+        return "rejected-both-pass-no-gap"
+    if not ast_structural:
+        return f"rejected-{(gap_label or 'unknown').replace('/', '-')}"
+    if gap_pp <= 0:
+        return "rejected-both-fail-no-gap"
+    # Passed the unix-pipeline gates — now the deployment-true native-root gate:
+    na = native_adversary or {}
+    verdict = na.get("verdict", "not-run")
+    if verdict in (None, "not-run", "no-native-results"):
+        return "pending-native-adversary"   # native gate not applied / inconclusive
+    if na.get("recommend_reject_no_md_edge"):
+        return "rejected-no-md-edge"         # native Edit solves it → no md edge
+    return "pending-cross-seed"              # native struggles → real md-edge candidate
+
+
 def step_assemble_manifest(
     slug: str,
     candidate_dir: Path,
@@ -489,8 +649,9 @@ def step_assemble_manifest(
     adversary: dict[str, Any],
     model: str,
     today: str,
+    native_adversary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    print("[5/6] Assembling manifest...", flush=True)
+    print("[6/7] Assembling manifest...", flush=True)
     results = measurement.get("results", {})
     gap = measurement.get("gap", {})
     hybrid_pass = results.get("hybrid", {}).get("pass", False)
@@ -499,18 +660,15 @@ def step_assemble_manifest(
     ast_structural = adversary.get("accepted_as_ast_structural", False)
     realism_ok = realism.get("verdict") == "yes"
 
-    if not realism_ok:
-        status = "rejected-planning"  # closest bucket for realism fail
-    elif not hybrid_pass:
-        status = "rejected-hybrid-fail-no-gap"
-    elif unix_pass:
-        status = "rejected-both-pass-no-gap"
-    elif not ast_structural:
-        status = f"rejected-{adversary.get('gap_label', 'unknown').replace('/', '-')}"
-    elif gap_pp <= 0:
-        status = "rejected-both-fail-no-gap"
-    else:
-        status = "pending-cross-seed"  # ready for promotion gate
+    status = _resolve_status(
+        realism_ok=realism_ok,
+        hybrid_pass=hybrid_pass,
+        unix_pass=unix_pass,
+        ast_structural=ast_structural,
+        gap_label=adversary.get("gap_label"),
+        gap_pp=gap_pp,
+        native_adversary=native_adversary,
+    )
 
     task_ids = measurement.get("task_ids", [])
 
@@ -562,9 +720,20 @@ def step_assemble_manifest(
             "gap_label": adversary.get("gap_label"),
             "accepted_as_ast_structural": ast_structural,
         },
+        "native_adversary_review": {
+            "artifact": "native-adversary-review.json" if native_adversary else None,
+            "ran": native_adversary is not None,
+            "verdict": (native_adversary or {}).get("verdict", "not-run"),
+            "native_pass": (native_adversary or {}).get("native_pass"),
+            "native_pass_rate": (native_adversary or {}).get("native_pass_rate"),
+            "recommend_reject_no_md_edge": (native_adversary or {}).get(
+                "recommend_reject_no_md_edge", False),
+            "bundle": (native_adversary or {}).get("bundle"),
+        },
         "promotion_notes": (
             f"Auto-generated. Status: {status}. Gap: {gap_pp:+.1f}pp. "
-            f"Realism: {realism.get('verdict')}. Unix adversary: {adversary.get('gap_label')}."
+            f"Realism: {realism.get('verdict')}. Unix adversary: {adversary.get('gap_label')}. "
+            f"Native adversary: {(native_adversary or {}).get('verdict', 'not-run')}."
         ),
     }
     return manifest
@@ -622,6 +791,12 @@ def main() -> None:
                         help="Skip harness measurement (dry-run through pipeline)")
     parser.add_argument("--runs-per-task", type=int, default=1,
                         help="Number of harness runs per task per mode")
+    parser.add_argument("--native-adversary", action="store_true",
+                        help="Run the native-adversary (ramp stage 1): a PAID claude-cli "
+                             "`native`-mode run that rejects candidates native Edit solves "
+                             "at parity (no md edge). Off by default — it spends real money.")
+    parser.add_argument("--native-adversary-runs", type=int, default=3,
+                        help="N for the native-adversary native cell (default 3, the N>=3 gate)")
     args = parser.parse_args()
 
     api_base = args.api_base
@@ -666,7 +841,7 @@ def main() -> None:
 
     # Step 3: Measure
     if args.skip_measure:
-        print("[3/6] Skipping measurement (--skip-measure)", flush=True)
+        print("[3/7] Skipping measurement (--skip-measure)", flush=True)
         measurement: dict[str, Any] = {
             "measured_at": today, "model": model, "runner": "oai-loop",
             "executor": "guarded", "runs_per_task": 0, "holdout_version": 1,
@@ -685,21 +860,44 @@ def main() -> None:
     adversary = step_unix_adversary(api_base, api_key, model, generated, measurement, oai_timeout)
     (candidate_dir / "unix-adversary-review.json").write_text(json.dumps(adversary, indent=2))
 
-    # Step 5: Manifest
+    # Step 5: Native-adversary (the load-bearing md-edge gate) — PAID, opt-in.
+    native_adversary: dict[str, Any] | None = None
+    if args.native_adversary and not args.skip_measure:
+        native_adversary = step_native_adversary(
+            slug, candidate_dir, args.md_binary, args.native_adversary_runs, today
+        )
+        (candidate_dir / "native-adversary-review.json").write_text(
+            json.dumps(native_adversary, indent=2))
+    else:
+        reason = "--skip-measure" if args.skip_measure else "--native-adversary off"
+        print(f"[5/7] Native-adversary: SKIPPED ({reason}) — an otherwise-promotable "
+              "candidate stays pending-native-adversary (native gate not applied)", flush=True)
+
+    # Step 6: Manifest
     manifest = step_assemble_manifest(
-        slug, candidate_dir, generated, realism, measurement, adversary, model, today
+        slug, candidate_dir, generated, realism, measurement, adversary, model, today,
+        native_adversary=native_adversary,
     )
     (candidate_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    print(f"\n[6/6] Done.", flush=True)
+    print(f"\n[7/7] Done.", flush=True)
     print(f"  candidate: {candidate_dir}", flush=True)
     print(f"  status:    {manifest['status']}", flush=True)
     gap_display = measurement.get("gap", {}).get("hybrid_minus_unix_pp", 0.0)
     print(f"  gap:       {gap_display:+.1f}pp (hybrid − unix)", flush=True)
+    if native_adversary is not None:
+        print(f"  native:    {native_adversary['verdict']} "
+              f"(pass_rate={native_adversary['native_pass_rate']:.2f})", flush=True)
     print(f"  manifest:  {candidate_dir}/manifest.json", flush=True)
 
-    if manifest["status"] == "pending-cross-seed":
-        print("\nNext step: run cross-seed promotion gate (N=3):", flush=True)
+    if manifest["status"] == "pending-native-adversary":
+        print("\nNext step: apply the native-adversary gate (PAID claude-cli native run):", flush=True)
+        print(f"  python bench/auto_research.py --native-adversary --slug {slug} ...  # (re-runs the gate)")
+        print(f"  or directly: python bench/harness.py --run --runner claude-cli --mode native -N 3 \\")
+        print(f"    --md-binary {args.md_binary} --tasks-path {candidate_dir}/tasks.json \\")
+        print(f"    --task-ids-path {candidate_dir}/task_ids.json")
+    elif manifest["status"] == "pending-cross-seed":
+        print("\nNative gate CLEARED (native Edit struggles). Next: cross-seed promotion gate (N=3):", flush=True)
         print(f"  python bench/harness.py --run --mode hybrid -N 3 \\")
         print(f"    --md-binary {args.md_binary} --tasks-path {candidate_dir}/tasks.json \\")
         print(f"    --task-ids-path {candidate_dir}/task_ids.json")

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-DH-02",
+    "description": "In the SDK release notes, the v3.0.0 version's `#### Breaking Changes` subsection currently holds the placeholder line `- None.`. Replace ONLY that line in the v3.0.0 section with:\n\n- The `connect()` method now returns a coroutine; callers must `await` it. Synchronous callers should use `connect_sync()`.\n\nThe identical `- None.` placeholder also appears under the v2.4.0 and v2.3.0 Breaking Changes subsections and inside the fenced Template block — leave all of those, and the `## Breaking Change Policy` section, exactly as they are.",
+    "input_files": [
+      "bench/search/candidates/dupheading-relnotes-breaking/input.md"
+    ],
+    "expected_output": "bench/search/candidates/dupheading-relnotes-breaking/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

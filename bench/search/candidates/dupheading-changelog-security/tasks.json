@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C-DH-01",
+    "description": "In CHANGELOG, the [2.1.0] release's `### Security` subsection currently holds the placeholder line `- _No security advisories in this release._`. Replace ONLY that line in the [2.1.0] section with:\n\n- Fixed CVE-2026-3310: authenticated path traversal in the export endpoint allowed reading arbitrary workspace files. Upgrade immediately.\n\nThe identical placeholder also appears under the [2.0.0] and [1.9.0] Security subsections and inside the fenced Release Process template — leave all of those, and the `## Security Policy` section, exactly as they are.",
+    "input_files": [
+      "bench/search/candidates/dupheading-changelog-security/input.md"
+    ],
+    "expected_output": "bench/search/candidates/dupheading-changelog-security/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "normalized_text",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": true,
+      "compare_block_order": true,
+      "compare_link_destinations": false,
+      "compare_block_text": true
+    }
+  }
+]

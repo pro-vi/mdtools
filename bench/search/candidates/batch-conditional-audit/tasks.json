@@ -1,0 +1,20 @@
+[
+  {
+    "id": "C-BC-02",
+    "description": "In the SOC 2 Evidence Collection Checklist, mark every PENDING task item under the three `(in-scope)` stages — Access Controls, Change Management, and Monitoring — as done (`- [ ]` -> `- [x]`). Leave the `(out-of-scope)` Vendor Review items pending. The already-done `Export IAM role inventory` item stays done. Note that `- [ ] Collect MFA enrollment report` appears under BOTH in-scope Access Controls and out-of-scope Vendor Review — toggle only the Access Controls one; the Vendor Review one and the mention inside the Notes paragraph must stay exactly as they are. Change nothing else.",
+    "input_files": ["bench/search/candidates/batch-conditional-audit/input.md"],
+    "expected_output": "bench/search/candidates/batch-conditional-audit/expected.md",
+    "expected_artifact": "file_contents",
+    "difficulty": "intermediate",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  }
+]

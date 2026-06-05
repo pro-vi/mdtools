@@ -1,0 +1,42 @@
+{
+  "candidate_id": "C-LF-01",
+  "family": "large-file-slice",
+  "mode_cells": [
+    "native",
+    "native+md"
+  ],
+  "model": "claude-sonnet-4-6",
+  "runs_per_mode": 3,
+  "runner": "claude-cli",
+  "doc_size_lines": 4053,
+  "target": "Module 118 Settings timeout_ms (50x ambiguous value)",
+  "native": {
+    "pass_rate": 1.0,
+    "median_billed_ie": 26603,
+    "median_raw_tokens": 113685,
+    "median_turns": 9,
+    "strategy": "grep + sed(3-6x) + multi-Read to locate among 50 timeout hits (fuse-on-Read BREAKS at scale)"
+  },
+  "native_md": {
+    "pass_rate": 1.0,
+    "median_billed_ie": 20946,
+    "median_raw_tokens": 78126,
+    "median_turns": 6,
+    "strategy": "md outline / md section to slice the target module; no whole-file scan"
+  },
+  "cost_delta_billed_pct": -21.3,
+  "correctness_parity": true,
+  "native_root_verdict": "CLOSES (md -21.3% billed at correctness parity)",
+  "claim_scope": "search_only",
+  "outcome": "FRONTIER_MEMBER_SEARCH (holdout pending)",
+  "mechanism": "On a 4053-line doc with a 50x-ambiguous target value, native cannot cheaply locate the edit site (grep returns 50 hits; it sed/grep-thrashes), so its locate cost dominates. md's structural addressing (outline/section/loc) scopes to the module without scanning -> -21.3% billed. This is the one regime (N10) where native's fuse-on-Read does not hold.",
+  "billed_usd": {
+    "native_median": 0.0808,
+    "native_md_median": 0.0643
+  },
+  "caveat": "N=3, search-only, HIGH variance (native 62k-148k raw). NOT a real edge until holdout-confirmed.",
+  "traces": [
+    "bench/runs/largefile-clf01-native-2026-06-04/",
+    "bench/runs/largefile-clf01-native_md-2026-06-04/"
+  ]
+}

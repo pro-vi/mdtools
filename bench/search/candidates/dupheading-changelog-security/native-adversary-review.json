@@ -1,0 +1,20 @@
+{
+  "verdict": "native-solves",
+  "native_pass": true,
+  "native_pass_rate": 1.0,
+  "runs": 3,
+  "median_tokens": 36975,
+  "median_turns": 3,
+  "median_tool_calls": 2,
+  "median_mutations": 1,
+  "recommend_reject_no_md_edge": true,
+  "note": "native Edit solves this correctly \u2192 no md correctness lift (a cost-edge is still possible; confirm in stage-2 native-vs-native+md)",
+  "bundle": "bench/runs/dupheading-native-adversary-2026-06-04/",
+  "runner": "claude-cli",
+  "mode": "native",
+  "model": "claude-sonnet-4-6",
+  "runs_requested": 3,
+  "billed_usd_total": 0.1698,
+  "cost_variance_note": "run2 thrashed (grep x4, 7 turns, 85k tokens, 2.3x median) to disambiguate; runs 0-1 clean (Read+Edit, 3 turns, ~36k). Native Edit ADAPTS via grep+context \u2014 correctness lift falsified.",
+  "outcome": "REJECTED_NO_MD_EDGE"
+}
