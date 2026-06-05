@@ -96,3 +96,41 @@ proportional to model capability* — now with the deployment-true native oracle
   drift-safety vs native's no-rollback) — the two regimes this run did not reach.
 - The leaner-md cost lever (N6) is **not** worth pursuing: there is no winning
   family to optimize cost on.
+
+## The dedicated attack — the obvious levers are verified no-ops (2026-06-05)
+
+After the loop falsified the *families*, a follow-up swarm attacked the three
+closest losers directly — designing the single strongest targeted `md` fix for
+each, then red-teaming it against the actual source + the N=3 transcripts. **All
+three levers are no-ops.** This upgrades the result from "no winning family" to
+"the obvious fixes provably cannot move the measured cost." Do not re-attempt
+these — the engineering is wasted:
+
+- **large-file — a `--lean outline` flag is a no-op.** The premise (verbose
+  span-JSON balloons context) is false: every `md outline --json` call is already
+  piped through `jq`/`head`, so the raw span JSON never enters context (run1's
+  total `tokens_in`=206,883 can't even contain the claimed bloat). The real driver
+  is **turns × jq-schema-rediscovery** (the agent cycling `.[]` → `.entries[].title`
+  → `.entries[].heading.text` across round-trips) — tokens track outline-call-count
+  exactly (3 calls/92.7k beats native; 7 calls/206.9k blows up). A `--lean` flag
+  removes **zero** context tokens and cannot cut turn count; a second schema could
+  *worsen* the thrash.
+- **conditional-batch — a fused `set-tasks LOCS…` verb is a no-op.** The premise
+  (N separate file-re-reading round-trips) is false: every run already issues
+  **one** `for loc in …; do ./md set-task …; done` Bash call. The +25.8% is the
+  `md tasks --json` enumeration blob (3.9× the file) native's single `Read` avoids,
+  plus a redundant `Read` + one extra turn. A batch verb swaps one single-call loop
+  for one single-call verb — **zero turns, zero meaningful tokens** removed; best
+  case still ~+10–18%.
+- **duplicate-heading — unflippable.** Native passes 3/3, so correctness-lift is
+  impossible under the frozen gate; only a cost-lift remains, and `md` is the
+  *wrong sign* (it adds a locate-probe + md-output re-read on a ~1.2 KB file). The
+  proposed lever (`--occurrence`) **already exists and is already advertised** in
+  the prompt — a literal no-op.
+
+**The architectural through-line:** `md` adds discover→re-read→mutate **round-trips
+it cannot amortize** at the capable-model frontier, while native `Edit` fuses
+discovery and mutation on content it has **already `Read`**. This is the *shape* of
+the tool, not a tuning gap — confirmed at the mechanism level, $0, with no new
+sweeps. Cost: ~$2 of compute across the whole hunt + attack, to avoid building
+three useless features.
