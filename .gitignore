@@ -9,9 +9,13 @@ __pycache__/
 # Benchmark results
 bench/results/
 bench/runs/**/logs/
+bench/runs/*.log
+bench/runs/**/sweep.log
+bench/runs/*smoke*/
 
 # Private loop / research process — NOT public (split out 2026-06-01)
 .loop/
+.research/
 
 # Machine-specific / private agent instructions (the public CLAUDE.md is shipped)
 CLAUDE.local.md

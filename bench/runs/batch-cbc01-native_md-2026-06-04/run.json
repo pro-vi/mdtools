@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-06-04T19:25:53Z",
+  "finished_at": "2026-06-04T19:26:59Z",
+  "tasks_path": "bench/search/candidates/batch-conditional-checklist/tasks.json",
+  "task_ids_path": "bench/search/candidates/batch-conditional-checklist/task_ids.json",
+  "selected_task_ids": [
+    "C-BC-01"
+  ],
+  "modes": [
+    "native+md"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "claude-cli",
+  "executor": "guarded",
+  "model": "claude-sonnet-4-6",
+  "thinking_level": null,
+  "runs_per_task": 3,
+  "holdout_version": 1,
+  "aggregates": {
+    "overall": {
+      "runs": 3,
+      "pass_count": 3,
+      "pass_rate": 1.0,
+      "neutral_pass_count": 3,
+      "neutral_pass_rate": 1.0,
+      "avg_elapsed_seconds": 22.100000000000005,
+      "avg_tool_calls": 4.0,
+      "avg_bytes_output": 31079.666666666668,
+      "avg_bytes_observation": 6277.0,
+      "avg_mutations": 0.0,
+      "avg_policy_violations": 0.0,
+      "avg_invalid_responses": 0.0,
+      "avg_unique_invalid_responses": 0.0,
+      "requery_rate": 0.0
+    },
+    "by_mode": {
+      "native+md": {
+        "runs": 3,
+        "pass_count": 3,
+        "pass_rate": 1.0,
+        "neutral_pass_count": 3,
+        "neutral_pass_rate": 1.0,
+        "avg_elapsed_seconds": 22.100000000000005,
+        "avg_tool_calls": 4.0,
+        "avg_bytes_output": 31079.666666666668,
+        "avg_bytes_observation": 6277.0,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.0,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 0.0
+      }
+    }
+  }
+}
