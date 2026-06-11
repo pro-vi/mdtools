@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 28 tasks. Current evidence supports `md` for weak/tool-poor agents and structural read workflows. It does not show a reliable advantage over strong agents that already have native file-edit tools, and generated benchmark candidates are treated as provisional until independently verified.
+> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 28 tasks. Current evidence is strong where `md` is meant to matter: structural Markdown reads and shell-level agent edits. The headline signal is now three-pronged: Haiku 4.5 and GPT 5.4 mini both reach 27/28 (96%) with `hybrid` on the June 11, 2026 full-corpus rerun, up from 15/28 (54%) with `unix` alone, and Qwen3.5-27B-4bit shows a +38.9pp `hybrid` lift on the fixed local-runner search corpus. The same evidence does not show a reliable advantage over strong agents that already have native file-edit tools, and generated benchmark candidates are treated as provisional until independently verified.
 
 Structural access to Markdown for LLM agents.
 
@@ -220,23 +220,28 @@ The repo also includes local OpenAI-compatible search-pilot bundles under `bench
 
 Benchmark runs now default to a guarded executor that constrains the Bash tool to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
 
-### Current evidence map (June 2026)
+### Current read (June 2026)
 
-- **Current full-corpus rerun:** the June 11, 2026 rerun covers all 28 tasks in `bench/tasks/tasks.json` with the guarded executor. Haiku improves from 54% `unix` to 93% `mdtools` and 96% `hybrid`; GPT 5.4 mini improves from 54% `unix` to 86% `mdtools` and 96% `hybrid`.
-- **Current local-agent result:** on the Qwen3.5-27B-4bit local runner, `hybrid` beats `unix` by **+38.9pp** on the fixed 18-task search corpus (April 28, 2026). The broader measured search corpus is **+50.0pp** as of May 5, 2026, but includes generated candidate tasks and should be read as descriptive.
-- **Search-pilot evidence:** `bench/runs/` contains local-model search-split bundles. Useful for model/task-family exploration; not a replacement for a holdout-confirmed aggregate.
-- **Historical published snapshot:** the April 2, 2026 20-task v1 snapshot is still useful for comparing against the original public numbers, but it predates T21-T24, the candidate-derived tasks, and the guarded executor.
-- **Strong agents with native file tools:** `docs/decisions/2026-06-04-md-frontier-edge-falsification.md` and `bench/runs/native-arm-2026-06-03/NOTES.md` are the latest frontier benchmark outputs. They show no robust `md` edge over native `Edit` on Sonnet 4.6 across the tested hard families: conditional batch costs +25.8% more, duplicate-heading edits are solved by native tools, and the large-file search near-win (-21.3%) does not reproduce on the corrected holdout (+5.2%).
-- **Generated candidate tasks:** generated candidates under `bench/search/candidates/` are research artifacts, not trusted benchmark corpus entries by default. They are useful for discovering harder task families, but candidate inputs, expected outputs, and some review judgments are still model-produced. Treat them as leads until they are independently checked, run with expected-failure controls, and confirmed on holdout tasks.
+The current benchmark story is positive but bounded: when an agent has to edit Markdown through shell-level tools, `md` gives it document structure instead of forcing it through brittle text manipulation. The result is now a three-pronged signal across two frontier API runners and one local model runner: Haiku 4.5, GPT 5.4 mini, and Qwen3.5-27B-4bit all show large `hybrid` lifts over `unix` in their respective measured corpora. The boundary is native editing: these results do not establish a reliable `md` advantage over strong agents that already have native file-edit tools.
 
 ### Results
 
-Current full-corpus rerun, June 11, 2026. Source: `bench/runs/full-benchmark-2026-06-11-summary.md`.
+Headline tool-value signal:
 
-| Model | Runner | `unix` | `mdtools` | `hybrid` |
-|-------|--------|--------|-----------|----------|
-| Haiku 4.5 | `claude-cli` | 15/28 (54%) | 26/28 (93%) | 27/28 (96%) |
-| GPT 5.4 mini | `pi-json`, thinking=minimal | 15/28 (54%) | 24/28 (86%) | 27/28 (96%) |
+| Agent | Runner | Evidence set | `hybrid` lift over `unix` |
+|-------|--------|--------------|---------------------------|
+| Haiku 4.5 | `claude-cli` | June 11 full corpus, 28 tasks | 15/28 (54%) -> 27/28 (96%), +43pp |
+| GPT 5.4 mini | `pi-json`, thinking=minimal | June 11 full corpus, 28 tasks | 15/28 (54%) -> 27/28 (96%), +43pp |
+| Qwen3.5-27B-4bit | `oai-loop` local runner | fixed 18-task search corpus, April 28 | +38.9pp |
+
+The Qwen row is intentionally labeled as search-corpus evidence rather than the June full-corpus snapshot. A broader Qwen measured search corpus reached 15/22 `hybrid` vs 4/22 `unix` (+50.0pp) as of May 5, 2026, but includes generated candidate tasks, so it is descriptive rather than headline evidence.
+
+Full-corpus detail: June 11, 2026, guarded executor, 28 tasks, one run per task/mode. Source: `bench/runs/full-benchmark-2026-06-11-summary.md`.
+
+| Model | Runner | `unix` | `mdtools` | `hybrid` | `mdtools` lift | `hybrid` lift |
+|-------|--------|--------|-----------|----------|----------------|---------------|
+| Haiku 4.5 | `claude-cli` | 15/28 (54%) | 26/28 (93%) | 27/28 (96%) | +39pp | +43pp |
+| GPT 5.4 mini | `pi-json`, thinking=minimal | 15/28 (54%) | 24/28 (86%) | 27/28 (96%) | +32pp | +43pp |
 
 `T8` failed in every model/mode cell in this rerun. Treat that as a task to inspect before using it as headline evidence. The four `C-*` rows are candidate-derived relocation tasks and should remain provisional until independently reviewed.
 
@@ -259,13 +264,7 @@ Sonnet 4.6      80%     85%    +5pp    Speed (3-5x faster)
 Opus 4.6        89%     83%    -6pp    Efficiency only
 ```
 
-**Tool benefit is not monotonic with model strength.** The current full-corpus rerun shows a large correctness lift for both Haiku and GPT 5.4 mini when `md` is available, with `hybrid` at 96% for both models. The clearest current local-runner search result is still Qwen3.5-27B-4bit: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus. The historical frontier-model snapshot suggests weaker frontier models gain correctness while stronger ones mostly gain speed, and the committed local search pilots show clear model-family and task-family interactions.
-
-Key findings from the current rerun:
-- **Haiku still shows a large tool lift.** `unix` passes 15/28 tasks; `mdtools` passes 26/28; `hybrid` passes 27/28.
-- **GPT 5.4 mini also benefits from hybrid access.** `unix` passes 15/28 tasks; `mdtools` passes 24/28; `hybrid` passes 27/28.
-- **Hybrid is not a universal win by itself.** `T8` fails for every model/mode cell, and candidate-derived tasks are still provisional evidence.
-- **Historical comparison moved.** The April 2, 2026 20-task table above remains useful for continuity, but the June 11 rerun is the current public benchmark snapshot.
+**Tool benefit is real, but not monotonic with model strength.** The current evidence now has a clear three-pronged signal: Haiku and GPT 5.4 mini on the guarded full corpus, plus Qwen3.5-27B-4bit on the local-runner search corpus. The historical frontier-model snapshot suggests weaker frontier models gain correctness while stronger ones mostly gain speed, while the Sonnet 4.6 native-file sweep in `docs/decisions/2026-06-04-md-frontier-edge-falsification.md` and `bench/runs/native-arm-2026-06-03/NOTES.md` does not show a reliable `md` advantage over native `Edit`.
 
 ### Value envelope (bench-v2)
 
@@ -273,7 +272,7 @@ The v2 harness adds cost and attribution checks on top of pass/fail scoring. It 
 
 The current read is intentionally narrow:
 
-- **Weak and local agents:** `md` is most useful when the agent can only drive shell tools. In the current 28-task rerun, Haiku improves from 54% `unix` to 96% `hybrid`, and GPT 5.4 mini improves from 54% `unix` to 96% `hybrid`. The current Qwen3.5-27B-4bit local-runner search result points the same way: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus.
+- **Agents without native editor tools:** this is the strongest current value case. When the agent has to work through shell-level commands, `md` changes Markdown editing from text surgery into structure-aware operations. In the current 28-task rerun, Haiku improves from 54% `unix` to 96% `hybrid`, and GPT 5.4 mini improves from 54% `unix` to 96% `hybrid`. The current Qwen3.5-27B-4bit local-runner search result points the same way: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus.
 - **Read and inspection workflows:** `md outline`, `blocks`, `section`, `tasks`, `links`, `frontmatter`, and `table` give agents and scripts structured Markdown views without hand-rolled parsing.
 - **Strong agents vs POSIX shell:** `md` can still reduce cost on some structural shell workflows. The strongest measured example is one Sonnet batch-checkbox task, where `md` is about 40% cheaper per run than `sed`/`awk` at billed prices. That is a useful signal, but it is still one task, so it is not yet a general benchmark claim.
 - **Strong agents with native file-edit tools:** the latest runs do not show a reliable `md` advantage. On Sonnet 4.6, `md` costs more on easy edits, loses the conditional batch task by +25.8% billed cost, and the large-file near-win from search does not reproduce on the corrected holdout.
