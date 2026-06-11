@@ -111,6 +111,135 @@ class ReportInputTests(unittest.TestCase):
         self.assertIn("### Per-task results (N=1 per task/mode)", completed.stdout)
         self.assertNotIn("N=3", completed.stdout)
 
+    def test_report_uses_group_sample_count_for_multiple_inputs(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+
+        def bundle(model: str, passed: bool) -> tuple[list[BenchResult], dict]:
+            results = [
+                BenchResult(
+                    task_id="T1",
+                    mode="mdtools",
+                    correct=passed,
+                    correct_neutral=passed,
+                    model=model,
+                    tool_calls=2,
+                    elapsed_seconds=1.0,
+                )
+            ]
+            metadata = build_run_metadata(
+                run_kind="agent-track",
+                tasks_path="bench/tasks/tasks.json",
+                task_ids_path=None,
+                selected_task_ids=["T1"],
+                modes=["mdtools"],
+                md_binary="target/debug/md",
+                runner="claude-cli",
+                executor="guarded",
+                model=None,
+                runs_per_task=1,
+                results=results,
+                started_at=0,
+                finished_at=1,
+            )
+            return results, metadata
+
+        with tempfile.TemporaryDirectory(prefix="bench_report_multi_n1_") as first_dir, tempfile.TemporaryDirectory(
+            prefix="bench_report_multi_n1_"
+        ) as second_dir:
+            first_results, first_metadata = bundle("model-a", True)
+            second_results, second_metadata = bundle("model-b", False)
+            write_run_artifacts(
+                first_dir,
+                metadata=first_metadata,
+                results=first_results,
+                selected_task_ids=["T1"],
+            )
+            write_run_artifacts(
+                second_dir,
+                metadata=second_metadata,
+                results=second_results,
+                selected_task_ids=["T1"],
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/report.py", first_dir, second_dir, "--markdown"],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.count("N=1 per task/mode"), 2)
+        self.assertNotIn("N=2 per task/mode", completed.stdout)
+
+    def test_report_accepts_candidate_task_ids(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        results = [
+            BenchResult(
+                task_id="T24",
+                mode="mdtools",
+                correct=True,
+                correct_neutral=True,
+                elapsed_seconds=1.0,
+                tool_calls=1,
+            ),
+            BenchResult(
+                task_id="C-T10-28",
+                mode="mdtools",
+                correct=True,
+                correct_neutral=True,
+                elapsed_seconds=2.0,
+                tool_calls=2,
+            ),
+            BenchResult(
+                task_id="C-AR-040",
+                mode="mdtools",
+                correct=False,
+                correct_neutral=False,
+                elapsed_seconds=3.0,
+                tool_calls=3,
+                runner_error="candidate task failed",
+            ),
+        ]
+        selected_task_ids = ["T24", "C-T10-28", "C-AR-040"]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=selected_task_ids,
+            modes=["mdtools"],
+            md_binary="target/debug/md",
+            runner="claude-cli",
+            executor="guarded",
+            model=None,
+            runs_per_task=1,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_report_candidate_ids_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=selected_task_ids,
+            )
+
+            completed = subprocess.run(
+                [sys.executable, "bench/report.py", tmpdir, "--markdown"],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertLess(completed.stdout.index("| T24 |"), completed.stdout.index("| C-T10-28 |"))
+        self.assertLess(completed.stdout.index("| C-T10-28 |"), completed.stdout.index("| C-AR-040 |"))
+        self.assertIn("| mdtools | 1 | C-AR-040 |", completed.stdout)
+
     def test_report_surfaces_runner_errors_from_run_bundle(self) -> None:
         repo_root = Path(__file__).resolve().parent.parent
         results = [

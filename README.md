@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 24 tasks. Current evidence supports `md` for weak/tool-poor agents and structural read workflows. It does not show a reliable advantage over strong agents that already have native file-edit tools, and generated benchmark candidates are treated as provisional until independently verified.
+> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 28 tasks. Current evidence supports `md` for weak/tool-poor agents and structural read workflows. It does not show a reliable advantage over strong agents that already have native file-edit tools, and generated benchmark candidates are treated as provisional until independently verified.
 
 Structural access to Markdown for LLM agents.
 
@@ -212,23 +212,35 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 `bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both) — plus a fourth `hybrid-no-md` ablation mode used by the v2 attribution gate (see [Value envelope](#value-envelope-bench-v2)).
 
-The current default corpus is 24 tasks in `bench/tasks/tasks.json`. To reduce visible-corpus overfitting, that corpus is now partitioned into an 18-task search split in `bench/search/task_ids.json` and a 6-task holdout split in `bench/holdout/task_ids.json`.
+The current default corpus is 28 tasks in `bench/tasks/tasks.json`: T1-T24 plus four candidate-derived relocation tasks. To reduce visible-corpus overfitting, that corpus is partitioned into a 22-task search split in `bench/search/task_ids.json` and a 6-task holdout split in `bench/holdout/task_ids.json`.
 
-The published aggregate numbers below were generated on April 2, 2026 against the historical 20-task snapshot preserved in `bench/tasks/tasks_v1.json`, before the explicit search/holdout split existed.
+The current full-corpus aggregate below was generated on June 11, 2026 against `bench/tasks/tasks.json`, using the guarded executor and one run per task/mode. The older April 2, 2026 20-task snapshot is preserved in `bench/tasks/tasks_v1.json` for historical comparison.
 
-The repo also now includes committed local OpenAI-compatible search-pilot bundles under `bench/runs/` for the extraction, targeted mutation, and multistep families. Those runs are narrower than the published 20-task snapshot and should be read as search-split evidence, not as a replacement for the historical frontier-model table below.
+The repo also includes local OpenAI-compatible search-pilot bundles under `bench/runs/` for the extraction, targeted mutation, and multistep families. Those runs are narrower than the full-corpus rerun and should be read as search-split evidence, not as a replacement for the table below.
 
 Benchmark runs now default to a guarded executor that constrains the Bash tool to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
 
 ### Current evidence map (June 2026)
 
-- **Published benchmark snapshot:** the April 2, 2026 20-task v1 snapshot below is still the clean public aggregate for `md` vs POSIX-shell workflows.
+- **Current full-corpus rerun:** the June 11, 2026 rerun covers all 28 tasks in `bench/tasks/tasks.json` with the guarded executor. Haiku improves from 54% `unix` to 93% `mdtools` and 96% `hybrid`; GPT 5.4 mini improves from 54% `unix` to 86% `mdtools` and 96% `hybrid`.
 - **Current local-agent result:** on the Qwen3.5-27B-4bit local runner, `hybrid` beats `unix` by **+38.9pp** on the fixed 18-task search corpus (April 28, 2026). The broader measured search corpus is **+50.0pp** as of May 5, 2026, but includes generated candidate tasks and should be read as descriptive.
 - **Search-pilot evidence:** `bench/runs/` contains local-model search-split bundles. Useful for model/task-family exploration; not a replacement for a holdout-confirmed aggregate.
+- **Historical published snapshot:** the April 2, 2026 20-task v1 snapshot is still useful for comparing against the original public numbers, but it predates T21-T24, the candidate-derived tasks, and the guarded executor.
 - **Strong agents with native file tools:** `docs/decisions/2026-06-04-md-frontier-edge-falsification.md` and `bench/runs/native-arm-2026-06-03/NOTES.md` are the latest frontier benchmark outputs. They show no robust `md` edge over native `Edit` on Sonnet 4.6 across the tested hard families: conditional batch costs +25.8% more, duplicate-heading edits are solved by native tools, and the large-file search near-win (-21.3%) does not reproduce on the corrected holdout (+5.2%).
 - **Generated candidate tasks:** generated candidates under `bench/search/candidates/` are research artifacts, not trusted benchmark corpus entries by default. They are useful for discovering harder task families, but candidate inputs, expected outputs, and some review judgments are still model-produced. Treat them as leads until they are independently checked, run with expected-failure controls, and confirmed on holdout tasks.
 
 ### Results
+
+Current full-corpus rerun, June 11, 2026. Source: `bench/runs/full-benchmark-2026-06-11-summary.md`.
+
+| Model | Runner | `unix` | `mdtools` | `hybrid` |
+|-------|--------|--------|-----------|----------|
+| Haiku 4.5 | `claude-cli` | 15/28 (54%) | 26/28 (93%) | 27/28 (96%) |
+| GPT 5.4 mini | `pi-json`, thinking=minimal | 15/28 (54%) | 24/28 (86%) | 27/28 (96%) |
+
+`T8` failed in every model/mode cell in this rerun. Treat that as a task to inspect before using it as headline evidence. The four `C-*` rows are candidate-derived relocation tasks and should remain provisional until independently reviewed.
+
+Historical 20-task v1 snapshot, April 2, 2026:
 
 ```mermaid
 xychart-beta
@@ -247,13 +259,13 @@ Sonnet 4.6      80%     85%    +5pp    Speed (3-5x faster)
 Opus 4.6        89%     83%    -6pp    Efficiency only
 ```
 
-**Tool benefit is not monotonic with model strength.** The clearest current local-runner result is Qwen3.5-27B-4bit: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus. The published frontier-model snapshot still suggests weaker frontier models gain correctness while stronger ones mostly gain speed, but the committed local search pilots show clear model-family and task-family interactions.
+**Tool benefit is not monotonic with model strength.** The current full-corpus rerun shows a large correctness lift for both Haiku and GPT 5.4 mini when `md` is available, with `hybrid` at 96% for both models. The clearest current local-runner search result is still Qwen3.5-27B-4bit: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus. The historical frontier-model snapshot suggests weaker frontier models gain correctness while stronger ones mostly gain speed, and the committed local search pilots show clear model-family and task-family interactions.
 
-Key findings from the published 20-task snapshot:
-- **+37pp correctness on Haiku.** Fails 10/20 tasks in unix mode but only 3/20 with hybrid tools. Structural extraction (T1, T5, T9), aggregation (T11), and multi-step workflows (T15) flip from FAIL to PASS.
-- **3-5x faster on Sonnet.** Slight correctness lift (+5pp) plus structural tasks (T9, T11, T12, T18) complete in a fraction of the time with fewer tool calls.
-- **Hybrid is not a universal win.** On the committed local search pilots, Qwen-family models match `mdtools` in hybrid, Hermes regresses in hybrid on extraction and mutation but ties on multistep, and magnum stays mixed by family.
-- The current default corpus adds T21-T24 to cover `frontmatter`, `links`, `table`, and `set`. The aggregate tables below have not yet been rerun on that expanded set.
+Key findings from the current rerun:
+- **Haiku still shows a large tool lift.** `unix` passes 15/28 tasks; `mdtools` passes 26/28; `hybrid` passes 27/28.
+- **GPT 5.4 mini also benefits from hybrid access.** `unix` passes 15/28 tasks; `mdtools` passes 24/28; `hybrid` passes 27/28.
+- **Hybrid is not a universal win by itself.** `T8` fails for every model/mode cell, and candidate-derived tasks are still provisional evidence.
+- **Historical comparison moved.** The April 2, 2026 20-task table above remains useful for continuity, but the June 11 rerun is the current public benchmark snapshot.
 
 ### Value envelope (bench-v2)
 
@@ -261,7 +273,7 @@ The v2 harness adds cost and attribution checks on top of pass/fail scoring. It 
 
 The current read is intentionally narrow:
 
-- **Weak and local agents:** `md` is most useful when the agent can only drive shell tools. The current local-agent headline is Qwen3.5-27B-4bit: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus. Haiku shows the same direction in the older 20-task snapshot, improving from 50% to 87% when `md` is available.
+- **Weak and local agents:** `md` is most useful when the agent can only drive shell tools. In the current 28-task rerun, Haiku improves from 54% `unix` to 96% `hybrid`, and GPT 5.4 mini improves from 54% `unix` to 96% `hybrid`. The current Qwen3.5-27B-4bit local-runner search result points the same way: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus.
 - **Read and inspection workflows:** `md outline`, `blocks`, `section`, `tasks`, `links`, `frontmatter`, and `table` give agents and scripts structured Markdown views without hand-rolled parsing.
 - **Strong agents vs POSIX shell:** `md` can still reduce cost on some structural shell workflows. The strongest measured example is one Sonnet batch-checkbox task, where `md` is about 40% cheaper per run than `sed`/`awk` at billed prices. That is a useful signal, but it is still one task, so it is not yet a general benchmark claim.
 - **Strong agents with native file-edit tools:** the latest runs do not show a reliable `md` advantage. On Sonnet 4.6, `md` costs more on easy edits, loses the conditional batch task by +25.8% billed cost, and the large-file near-win from search does not reproduce on the corrected holdout.
@@ -270,7 +282,7 @@ In short: `md` is a structural Markdown tool, not a replacement for a capable ed
 
 Known method limits: the current cost report compares only tasks both modes passed, and the `hybrid-no-md` ablation still blends documentation effects with tool effects. See `bench/runs/frontier-ablated-2026-06-01/NOTES.md` for details.
 
-### Published Snapshot Categories
+### Task Categories
 
 | Category | Tasks | What they test |
 |----------|-------|---------------|
@@ -281,66 +293,69 @@ Known method limits: the current cost report compares only tasks both modes pass
 | Content delivery | T2, T3, T8, T17 | Section insertion/replacement, shell metacharacters |
 | Safe-fail | T14 | Refuse edit when target is ambiguous |
 | Text manipulation | T4, T6 | Word replacement, section completion |
+| Metadata | T21, T24 | Frontmatter projection and frontmatter mutation |
+| Links and tables | T22, T23 | Link extraction and table projection |
+| Candidate relocation | C-T10-15, C-T10-28, C-AR-040, C-AR-041 | Generated candidate-derived section relocation tasks |
 
 ### Running benchmarks
 
 ```sh
-pip install markdown-it-py
+python3 -m pip install markdown-it-py
 
 # Local parser/runtime microbenchmarks
 cargo bench --bench core
 
 # Validate the current default corpus scorers (no agent needed)
-python bench/harness.py --md-binary target/release/md
+python3 bench/harness.py --md-binary target/release/md
 
-# Search-set runs for iterative optimization on the default 24-task corpus
-python bench/harness.py --run --task-ids-path bench/search/task_ids.json \
+# Search-set runs for iterative optimization on the default 28-task corpus
+python3 bench/harness.py --run --task-ids-path bench/search/task_ids.json \
   --md-binary target/release/md
 
 # Holdout validation after accepting a search-set change
-python bench/harness.py --run --task-ids-path bench/holdout/task_ids.json \
+python3 bench/harness.py --run --task-ids-path bench/holdout/task_ids.json \
   --md-binary target/release/md
 
 # Persist a machine-readable run bundle under bench/runs/.
 # Agent runs also write prompt/output/guard logs to <results-dir>/logs by default;
 # those logs are local debug aids and are gitignored under bench/runs/**/logs/.
-python bench/harness.py --task-ids-path bench/search/task_ids.json \
+python3 bench/harness.py --task-ids-path bench/search/task_ids.json \
   --md-binary target/release/md \
   --results-dir bench/runs/search-dry-run
 
 # Agent runs default to the guarded executor and emit deny:<N> policy violations.
 # Use --results-dir for durable results.json/run.json/task_ids.json artifacts and
 # --log-dir to override where per-run prompt/output/guard logs land.
-python bench/harness.py --run --mode hybrid --md-binary target/release/md \
+python3 bench/harness.py --run --mode hybrid --md-binary target/release/md \
   --results-dir bench/runs/search-hybrid-haiku
 
 # Local OpenAI-compatible loop runner (for OMLX or similar)
 export BENCH_OAI_API_BASE=http://127.0.0.1:10240/v1
 export BENCH_OAI_API_KEY=your-local-key
-python bench/harness.py --run --runner oai-loop --mode mdtools \
+python3 bench/harness.py --run --runner oai-loop --mode mdtools \
   --model your-model-id --md-binary target/release/md --task T1
 
 # Reproduce the published 20-task snapshot
 MD=target/release/md
 SNAPSHOT=bench/tasks/tasks_v1.json
 for MODE in unix mdtools hybrid; do
-  python bench/harness.py --run --mode $MODE --tasks-path $SNAPSHOT --md-binary $MD \
+  python3 bench/harness.py --run --mode $MODE --tasks-path $SNAPSHOT --md-binary $MD \
     --model claude-haiku-4-5-20251001 \
     > /tmp/bench_haiku_${MODE}.txt 2>&1
 done
 for MODE in unix hybrid; do
-  python bench/harness.py --run --mode $MODE --tasks-path $SNAPSHOT --md-binary $MD \
+  python3 bench/harness.py --run --mode $MODE --tasks-path $SNAPSHOT --md-binary $MD \
     > /tmp/bench_opus_${MODE}.txt 2>&1
 done
-python bench/harness.py --run --mode hybrid --tasks-path $SNAPSHOT --md-binary $MD \
+python3 bench/harness.py --run --mode hybrid --tasks-path $SNAPSHOT --md-binary $MD \
   --model claude-sonnet-4-6 > /tmp/bench_sonnet_hybrid.txt 2>&1
-python bench/harness.py --run --mode unix --tasks-path $SNAPSHOT --md-binary $MD \
+python3 bench/harness.py --run --mode unix --tasks-path $SNAPSHOT --md-binary $MD \
   --model claude-sonnet-4-6 > /tmp/bench_sonnet_unix.txt 2>&1
 
 # Analyze results from legacy text outputs or durable run bundles
-python bench/analyze.py /tmp/bench_*.txt
-python bench/analyze.py bench/runs/search-hybrid-haiku
-python bench/report.py bench/runs/search-hybrid-haiku --markdown
+python3 bench/analyze.py /tmp/bench_*.txt
+python3 bench/analyze.py bench/runs/search-hybrid-haiku
+python3 bench/report.py bench/runs/search-hybrid-haiku --markdown
 ```
 
 ## License

@@ -166,7 +166,7 @@ def collect_runner_errors(results):
             {
                 "mode": mode,
                 "count": entry["count"],
-                "tasks": sorted(entry["tasks"], key=lambda task_id: int(task_id[1:])),
+                "tasks": sorted(entry["tasks"], key=task_sort_key),
                 "error": error,
             }
         )
@@ -239,6 +239,19 @@ def format_group_label(runner, model, thinking_level="unspecified"):
     if runner and runner != "unspecified":
         label = f"{label} [{runner}]"
     return label
+
+
+def task_sort_key(task_id):
+    """Sort canonical T* tasks before candidate task IDs."""
+    match = re.fullmatch(r"T(\d+)", task_id)
+    if match:
+        return (0, int(match.group(1)), "")
+
+    embedded = re.search(r"T(\d+)", task_id)
+    if embedded:
+        return (1, int(embedded.group(1)), task_id)
+
+    return (2, 0, task_id)
 
 
 def parse_with_task_ids(filepath):
@@ -353,7 +366,7 @@ def main():
     _CANONICAL = {"unix", "mdtools", "hybrid"}  # native cols appear only when present in the data
     present = {r.get("mode") for r in all_results if r.get("mode")}
     modes = sorted(_CANONICAL | present, key=lambda m: (_MODE_ORDER.get(m, 99), m))
-    tasks = sorted(set(r["task"] for r in all_results), key=lambda t: int(t[1:]))
+    tasks = sorted(set(r["task"] for r in all_results), key=task_sort_key)
 
     for runner, model, thinking_level in groups:
         header = f"MODEL: {model}"

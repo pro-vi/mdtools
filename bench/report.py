@@ -208,6 +208,19 @@ def escape_markdown_cell(value):
     return str(value).replace("|", "\\|")
 
 
+def task_sort_key(task_id):
+    """Sort canonical T* tasks before candidate task IDs."""
+    match = re.fullmatch(r"T(\d+)", task_id)
+    if match:
+        return (0, int(match.group(1)), "")
+
+    embedded = re.search(r"T(\d+)", task_id)
+    if embedded:
+        return (1, int(embedded.group(1)), task_id)
+
+    return (2, 0, task_id)
+
+
 def collect_runner_errors(results):
     grouped = defaultdict(lambda: {"count": 0, "tasks": set()})
     for result in results:
@@ -220,18 +233,13 @@ def collect_runner_errors(results):
         entry["count"] += 1
         entry["tasks"].add(task_id)
 
-    def sort_task_id(task_id):
-        if task_id.startswith("T") and task_id[1:].isdigit():
-            return int(task_id[1:])
-        return task_id
-
     rows = []
     for (mode, error), entry in sorted(grouped.items()):
         rows.append(
             {
                 "mode": mode,
                 "count": entry["count"],
-                "tasks": sorted(entry["tasks"], key=sort_task_id),
+                "tasks": sorted(entry["tasks"], key=task_sort_key),
                 "error": error,
             }
         )
@@ -647,10 +655,8 @@ def main():
         return
 
     print_run_context(run_metadata, markdown=markdown)
-    sample_count_label = format_sample_count_label(all_results)
-
     modes = sorted(set(r.get("mode", "?") for r in all_results))
-    tasks = sorted(set(r["task_id"] for r in all_results), key=lambda t: int(t[1:]))
+    tasks = sorted(set(r["task_id"] for r in all_results), key=task_sort_key)
 
     # Group by runner, model, and thinking level so Pi runs at different
     # reasoning budgets stay apples-to-apples distinct.
@@ -670,6 +676,7 @@ def main():
         ]
         if multi_group:
             render_group_header(runner, model, thinking_level, markdown)
+        sample_count_label = format_sample_count_label(group_results)
         render_per_task_table(group_results, modes, tasks, sample_count_label, markdown)
         render_aggregate(group_results, modes, markdown)
         render_runner_errors(group_results, markdown)
