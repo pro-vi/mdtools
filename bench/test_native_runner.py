@@ -11,11 +11,14 @@ from bench.harness import (
     NoMdLeakError,
     _assert_no_md_reachable,
     _build_agent_cmd,
+    _pi_agent_bin_dir,
+    _pi_tools_for_mode,
     _prepend_workdir_to_path,
     _requeried_from_sequence,
     native_runner_error,
     parse_agent_output,
 )
+from bench.pi_runner import build_pi_json_command
 
 ISOLATION_FLAGS = ("--disable-slash-commands", "--strict-mcp-config", "--setting-sources", "--agents")
 NATIVE_MODES = ("native", "native+md", "native+md-no-md")
@@ -66,15 +69,22 @@ class NativeRunnerToolExposureTests(unittest.TestCase):
 
 
 class NativeRunnerGuardTests(unittest.TestCase):
-    """U3 (FRAC-194): native* modes are claude-cli-only; reject them on local runners."""
+    """native* modes need a runner with native file tools: claude-cli or pi-json (pi's
+    read/edit/write via --tools, 2026-06-13). oai-loop has no native editor and stays rejected."""
 
-    def test_native_on_local_runner_is_rejected(self) -> None:
-        for runner in ("oai-loop", "pi-json"):
-            for mode in NATIVE_MODES:
-                err = native_runner_error([mode], runner)
-                self.assertIsNotNone(err, (mode, runner))
-                self.assertIn("requires --runner claude-cli", err)
-                self.assertIn(mode, err)
+    def test_native_on_oai_loop_is_rejected(self) -> None:
+        # oai-loop drives a single Bash action protocol — no native editor to expose.
+        for mode in NATIVE_MODES:
+            err = native_runner_error([mode], "oai-loop")
+            self.assertIsNotNone(err, mode)
+            self.assertIn("oai-loop", err)
+            self.assertIn(mode, err)
+            self.assertNotIn("claude-cli only", err)   # the old single-runner message is gone
+
+    def test_native_on_pi_json_is_allowed(self) -> None:
+        # pi-json exposes pi's native read/edit/write via --tools — it can serve native*.
+        for mode in NATIVE_MODES:
+            self.assertIsNone(native_runner_error([mode], "pi-json"), mode)
 
     def test_native_on_claude_cli_is_allowed(self) -> None:
         for mode in NATIVE_MODES:
@@ -243,6 +253,78 @@ class NoMdPreflightTests(unittest.TestCase):
         child_env = {"PATH": str(fake_real_dir) + os.pathsep + "/usr/bin:/bin"}
         with self.assertRaises(NoMdLeakError):
             _assert_no_md_reachable(child_env, workdir)
+
+
+class PiNativeArmTests(unittest.TestCase):
+    """2026-06-13 pi-json native arm: pi exposes read/edit/write via --tools, so it can serve
+    native* modes. Two invariants: (1) native* modes get the native toolset, others stay
+    Bash-only — the md-vs-native distinction stays at the FILESYSTEM (MD_REAL_MODES + the
+    preflight), never the tool list; (2) the no-md preflight must probe the bin dir pi
+    PREPENDS to PATH (~/.pi/agent/bin), else a real md there is invisible to the proof but
+    reachable to pi — the ./md-bypass family, pi-PATH axis."""
+
+    def _build(self, mode: str) -> list[str]:
+        return build_pi_json_command(
+            agent_cmd="pi",
+            model=None,
+            audit_extension_path=Path("/x/audit.ts"),
+            session_dir=Path("/y/sessions"),
+            tools=_pi_tools_for_mode(mode),
+        )
+
+    def test_native_modes_get_native_toolset(self) -> None:
+        for mode in NATIVE_MODES:
+            self.assertEqual(_pi_tools_for_mode(mode), ("read", "bash", "edit", "write"), mode)
+            cmd = self._build(mode)
+            self.assertEqual(_toolset(cmd, "--tools"), "read,bash,edit,write", mode)
+
+    def test_non_native_modes_stay_bash_only(self) -> None:
+        for mode in ("unix", "mdtools", "hybrid", "hybrid-no-md"):
+            self.assertEqual(_pi_tools_for_mode(mode), ("bash",), mode)
+            self.assertEqual(_toolset(self._build(mode), "--tools"), "bash", mode)
+
+    def _stub_workdir(self) -> str:
+        tmp = tempfile.TemporaryDirectory(prefix="bench_pi_preflight_")
+        self.addCleanup(tmp.cleanup)
+        workdir = tmp.name
+        stub = Path(workdir) / "md"
+        stub.write_text("#!/bin/sh\nprintf 'probe\\n' >> \"${BENCH_MD_PROBE_LOG:-/dev/null}\"\n"
+                        "echo 'md: unavailable here' >&2\nexit 1\n")
+        stub.chmod(0o755)
+        return workdir
+
+    def test_preflight_blind_to_pi_bin_dir_without_the_fix(self) -> None:
+        # The bug we guard against: a real md in pi's prepended bin dir, but that dir is NOT
+        # in child_env's PATH — the un-augmented preflight passes (proves the wrong PATH).
+        workdir = self._stub_workdir()
+        pi_bin = Path(workdir) / "pibin"
+        pi_bin.mkdir()
+        (pi_bin / "md").write_text("#!/bin/sh\necho 'md 9.9.9'\nexit 0\n")
+        (pi_bin / "md").chmod(0o755)
+        child_env = {"PATH": "/usr/bin:/bin"}                # pi bin dir absent, as in run_agent
+        _prepend_workdir_to_path(child_env, workdir)
+        _assert_no_md_reachable(child_env, workdir)          # passes — the blind spot, pinned
+
+    def test_preflight_raises_when_pi_bin_dir_probed(self) -> None:
+        # The fix: probe pi's prepended bin dir too — now the real md there is caught.
+        workdir = self._stub_workdir()
+        pi_bin = Path(workdir) / "pibin"
+        pi_bin.mkdir()
+        (pi_bin / "md").write_text("#!/bin/sh\necho 'md 9.9.9'\nexit 0\n")
+        (pi_bin / "md").chmod(0o755)
+        child_env = {"PATH": "/usr/bin:/bin"}
+        _prepend_workdir_to_path(child_env, workdir)
+        with self.assertRaises(NoMdLeakError):
+            _assert_no_md_reachable(child_env, workdir, extra_path_dirs=(str(pi_bin),))
+
+    def test_preflight_passes_with_pi_bin_dir_when_only_stub_reachable(self) -> None:
+        # No real md anywhere in pi's PATH (workdir stub + clean pi bin dir + system) → pass.
+        workdir = self._stub_workdir()
+        pi_bin = Path(workdir) / "pibin"
+        pi_bin.mkdir()                                        # empty (the benign case today)
+        child_env = {"PATH": "/usr/bin:/bin"}
+        _prepend_workdir_to_path(child_env, workdir)
+        _assert_no_md_reachable(child_env, workdir, extra_path_dirs=(str(pi_bin),))   # no raise
 
 
 if __name__ == "__main__":

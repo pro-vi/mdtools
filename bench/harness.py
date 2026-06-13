@@ -1255,17 +1255,51 @@ def _build_agent_cmd(
 
 NATIVE_MODES = ("native", "native+md", "native+md-no-md")
 
+# Runners that expose first-class file Read/Edit/Write tools — the "native editor" the
+# native* arm measures md against. claude-cli ships Read/Edit/Write; pi-json exposes pi's
+# built-in read/edit/write via `--tools` (2026-06-13: pi-json native arm). oai-loop is
+# intentionally ABSENT — it drives the model through a single Bash action protocol
+# (oai_loop.py: only {"type":"bash"}/{"type":"final"} actions) and has no native editor to
+# expose. Allowlist (not `!= "claude-cli"`) so a future runner stays blocked from native*
+# until it's proven to expose a native editor — fail-closed, same discipline as MD_REAL_MODES.
+NATIVE_CAPABLE_RUNNERS = ("claude-cli", "pi-json")
+
+# pi (`--runner pi-json`) tool allowlists, passed to `pi --tools` (lowercase, comma-joined
+# by build_pi_json_command). native* modes expose pi's native editor; every other mode is
+# Bash-only — mirroring the claude-cli toolset switch (the "Bash Read Edit Write" line in
+# _build_agent_cmd). All THREE native modes get the SAME tuple: the native / native+md /
+# native+md-no-md distinction is whether ./md is the real binary or the stub (MD_REAL_MODES
+# + the no-md preflight), enforced at the FILESYSTEM, never via the tool list.
+PI_NATIVE_TOOLS = ("read", "bash", "edit", "write")
+PI_BASH_ONLY_TOOLS = ("bash",)
+
+
+def _pi_tools_for_mode(mode: str) -> tuple[str, ...]:
+    return PI_NATIVE_TOOLS if mode in NATIVE_MODES else PI_BASH_ONLY_TOOLS
+
+
+def _pi_agent_bin_dir() -> Path:
+    """The bin dir pi's getShellEnv() PREPENDS to PATH at spawn time (pi dist/utils/shell.js
+    getBinDir): <$PI_CODING_AGENT_DIR or ~/.pi/agent>/bin. The no-md preflight must probe
+    this dir too for runner==pi-json: pi resolves bare commands with it on PATH, but the
+    harness child_env does NOT include it — so a real `md` landing there would be invisible
+    to the preflight yet reachable to pi (the ./md-bypass family, pi-PATH axis). Resolved
+    exactly as pi_runner.default_audit_extension_path resolves the agent dir."""
+    agent_dir = Path(os.environ.get("PI_CODING_AGENT_DIR", "~/.pi/agent")).expanduser()
+    return agent_dir / "bin"
+
 
 def native_runner_error(modes: list[str], runner: str) -> str | None:
-    """U3 (FRAC-194): native* modes need claude-cli's native Read/Edit/Write tools;
-    oai-loop/pi-json drive the model through a Bash-only action protocol and cannot
-    expose them. Return an actionable error string for the first offending mode, or
-    None if the (modes, runner) combination is valid."""
+    """native* modes need a runner with first-class file Read/Edit/Write tools — the native
+    editor the arm measures md against: claude-cli, or pi-json (pi's read/edit/write via
+    `--tools`). oai-loop drives a single Bash action protocol and has no native editor, so it
+    stays rejected. Return an actionable error for the first offending mode, else None."""
     offending = [m for m in modes if m in NATIVE_MODES]
-    if offending and runner != "claude-cli":
+    if offending and runner not in NATIVE_CAPABLE_RUNNERS:
         return (
-            f"--mode {offending[0]} requires --runner claude-cli — native "
-            f"Read/Edit/Write tools are claude-cli-only (got --runner {runner})"
+            f"--mode {offending[0]} requires a runner with native file tools "
+            f"(claude-cli or pi-json) — got --runner {runner}. oai-loop drives a single "
+            f"Bash action protocol and has no Read/Edit/Write to expose"
         )
     return None
 
@@ -1325,16 +1359,24 @@ class NoMdLeakError(RuntimeError):
     collecting contaminated data — the durable guard against this family's 5 recurrences."""
 
 
-def _assert_no_md_reachable(child_env: dict, workdir: str) -> None:
+def _assert_no_md_reachable(child_env: dict, workdir: str,
+                            extra_path_dirs: tuple[str, ...] = ()) -> None:
     """Preflight fail-closed proof for md-free/ablation modes (FRAC-194 #8 hardening):
     BEFORE the (billed) agent runs, verify neither bare `md` NOR `./md` resolves to a
     working binary in the agent's exact env. Runs via /bin/sh -c which — like claude-cli's
     Bash tool — does NOT source BASH_ENV, so it proves md is unreachable even with the
     guard absent: the strongest guarantee, and the only one that holds for the guard-blind
     native arm. The probe log is redirected to /dev/null so these proof calls don't
-    inflate md_probe_count. Raises NoMdLeakError if any form answers (exit 0)."""
+    inflate md_probe_count. Raises NoMdLeakError if any form answers (exit 0).
+
+    extra_path_dirs are PREPENDED to the probe PATH so the proof covers a PATH the agent's
+    runner will use but child_env omits — pi-json prepends its own bin dir at spawn time
+    (getShellEnv; see _pi_agent_bin_dir), so without this the preflight could pass while pi
+    resolves a real md on its own PATH (the ./md-bypass family, pi-PATH axis)."""
     probe_env = dict(child_env)
     probe_env["BENCH_MD_PROBE_LOG"] = os.devnull   # don't let proof calls touch the real probe log
+    if extra_path_dirs:
+        probe_env["PATH"] = os.pathsep.join([*extra_path_dirs, probe_env.get("PATH", "")])
     for invocation in ("md --version", "./md --version"):
         proc = subprocess.run(["/bin/sh", "-c", invocation], cwd=workdir, env=probe_env,
                               text=True, capture_output=True)
@@ -1532,7 +1574,11 @@ def run_agent(
     if md_workdir_must_be_stub(mode):
         # fail-closed: prove md is unreachable BEFORE the billed agent call, so a future
         # axis of the ./md-bypass family can never silently contaminate a clean ablation.
-        _assert_no_md_reachable(child_env, workdir)
+        # pi-json prepends its own bin dir to PATH at spawn (getShellEnv), which child_env
+        # omits — probe it too so the proof matches the PATH pi actually runs with, else a
+        # real md in ~/.pi/agent/bin would be invisible here but reachable to pi.
+        extra_path_dirs = (str(_pi_agent_bin_dir()),) if runner == "pi-json" else ()
+        _assert_no_md_reachable(child_env, workdir, extra_path_dirs=extra_path_dirs)
 
     prompt = build_prompt(task, mode, workdir)
     input_file = copied_input_path(task.input_files[0], workdir)
@@ -1618,7 +1664,7 @@ def run_agent(
             model=model,
             audit_extension_path=audit_extension_path,
             session_dir=pi_session_dir,
-            tools=("bash",),
+            tools=_pi_tools_for_mode(mode),
             thinking_level=thinking_level,
         )
         pi_env = child_env.copy()
@@ -1732,6 +1778,12 @@ def run_agent(
         policy_violations = max(policy_violations, audit_counters.policy_violations)
         mutations = max(mutations, audit_counters.mutations)
         requeried = requeried or audit_counters.requeried
+        # Fold pi's native edit/write/read counts into tool_mix — the guarded shell never
+        # saw them (they bypass bash), so without this the native-arm adoption split would
+        # show md verbs with no native-editor counterpart. md verbs come from the guard loop
+        # above; the native-editor alternative comes from here.
+        for _tool, _n in audit_counters.native_tool_mix.items():
+            tool_mix[_tool] = tool_mix.get(_tool, 0) + _n
 
     requeried = requeried or _requeried_from_sequence(call_sequence)
 

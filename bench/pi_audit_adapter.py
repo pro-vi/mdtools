@@ -24,6 +24,11 @@ class PiAuditCounters:
     model: str | None = None
     thinking_level: str | None = None
     bash_commands: list[str] = field(default_factory=list)
+    # Per-tool counts for pi's NATIVE file tools (edit/write/read). The guarded bash shell
+    # never sees these (they bypass it), so they're absent from the harness's guard-derived
+    # tool_mix — the harness folds this in to make the md-vs-native-editor adoption split
+    # computable on the native arm. Keyed by pi tool name (lowercase): edit/write/read.
+    native_tool_mix: dict[str, int] = field(default_factory=dict)
 
 
 def load_pi_audit_events(path: Path) -> list[dict[str, Any]]:
@@ -56,7 +61,9 @@ def summarize_pi_audit_events(
     """
     counters = PiAuditCounters()
     call_sequence: list[str] = []
+    audit_calls: list[tuple[str, str | None]] = []   # ordered (toolName, command) per tool_call
     seen_tool_calls: set[str] = set()
+    saw_native_tool = False
 
     for event in events:
         event_name = event.get("event")
@@ -75,11 +82,26 @@ def summarize_pi_audit_events(
                 counters.tool_calls += 1
 
             command = _command_from_event(event)
+            audit_calls.append((tool_name, command))
             if tool_name == "bash" and command:
                 counters.bash_commands.append(command)
                 kind = classify_command_kind(command)
                 if kind:
                     call_sequence.append(kind)
+            elif tool_name in ("edit", "write"):
+                # pi's native editor mutations bypass the guarded shell, so the guard never
+                # sees them; record them here, else the native arm reports mutations=0 even
+                # when the agent edited the file (the inverse of the claude-cli native arm,
+                # which maps Edit/Write tool_use -> transcript_mutations).
+                call_sequence.append("mutation")
+                counters.native_tool_mix[tool_name] = counters.native_tool_mix.get(tool_name, 0) + 1
+                saw_native_tool = True
+            elif tool_name == "read":
+                # native read == a structural query (mirrors the claude-cli arm, where Read
+                # feeds the query-after-mutation re-query scan).
+                call_sequence.append("query")
+                counters.native_tool_mix[tool_name] = counters.native_tool_mix.get(tool_name, 0) + 1
+                saw_native_tool = True
 
         elif event_name == "tool_result":
             counters.tool_results += 1
@@ -100,6 +122,7 @@ def summarize_pi_audit_events(
             if thinking_level:
                 counters.thinking_level = thinking_level
 
+    guard_events = list(guard_events)
     guard_sequence: list[str] = []
     for guard_event in guard_events:
         if guard_event.decision != "allow":
@@ -109,11 +132,62 @@ def summarize_pi_audit_events(
         if kind:
             guard_sequence.append(kind)
 
-    # Prefer the shell guard when available: it sees inner commands inside a bash string.
-    effective_sequence = guard_sequence or call_sequence
+    # The guard is the only source that expands a compound bash string into its inner
+    # commands (`grep ... && ./md set-task ...` -> query, mutation); classify_command_kind
+    # on the whole string is coarse and can hide a mutation after a query. The audit stream
+    # is the only source of pi's native edit/write/read (they bypass the guarded shell, so
+    # the guard never sees them). Neither alone is complete when the two are mixed:
+    #   - bash-only run: keep the guard view (finer), or coarse call_sequence if no guard log.
+    #   - native tools present: MERGE both views in event order, so a bash mutation between a
+    #     bash query and a native re-read still registers as a mutation and a requery.
+    if saw_native_tool:
+        effective_sequence = _merge_native_and_guard_sequence(audit_calls, guard_events)
+    else:
+        effective_sequence = guard_sequence or call_sequence
     counters.mutations = sum(1 for kind in effective_sequence if kind == "mutation")
     counters.requeried = _has_query_after_mutation(effective_sequence)
     return counters
+
+
+def _merge_native_and_guard_sequence(
+    audit_calls: list[tuple[str, str | None]],
+    guard_events: Iterable[GuardEvent],
+) -> list[str]:
+    """Merge pi's native tool calls with the guard's granular bash view into one ordered
+    query/mutation sequence. The guard expands a compound bash command into its inner
+    commands (the coarse classify_command_kind on the whole string can't); the audit stream
+    is the only source of native edit/write/read. Walk the audit tool-calls in order: a bash
+    call splices in its guard kinds (matched by the guard's raw_command appearing in the
+    call's command string, consumed in order); edit/write -> mutation, read -> query. A bash
+    call with no matching guard rows (guard absent / shape differs) falls back to coarse
+    classification; any unaligned guard kinds are appended so no bash mutation/query is lost."""
+    allow_guard = [g for g in guard_events if g.decision == "allow"]
+    gi = 0
+    n = len(allow_guard)
+    merged: list[str] = []
+    for tool_name, command in audit_calls:
+        if tool_name in ("edit", "write"):
+            merged.append("mutation")
+        elif tool_name == "read":
+            merged.append("query")
+        elif tool_name == "bash" and command:
+            consumed = False
+            while gi < n and allow_guard[gi].raw_command and allow_guard[gi].raw_command.strip() in command:
+                kind = allow_guard[gi].kind
+                if kind:
+                    merged.append(kind)
+                gi += 1
+                consumed = True
+            if not consumed:
+                kind = classify_command_kind(command)
+                if kind:
+                    merged.append(kind)
+    while gi < n:
+        kind = allow_guard[gi].kind
+        if kind:
+            merged.append(kind)
+        gi += 1
+    return merged
 
 
 def _command_from_event(event: dict[str, Any]) -> str | None:

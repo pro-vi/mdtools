@@ -74,6 +74,72 @@ class PiAuditAdapterTests(unittest.TestCase):
         self.assertEqual(counters.thinking_level, "off")
 
 
+class PiNativeToolMutationTests(unittest.TestCase):
+    """2026-06-13 pi native arm: pi's edit/write/read tools bypass the guarded shell, so the
+    guard never classifies them. The adapter must map edit/write -> mutation and read ->
+    query, else a native-edit run reports mutations=0 / requeried=False (the inverse of the
+    claude-cli native arm). native_tool_mix exposes native-editor usage for the adoption split."""
+
+    @staticmethod
+    def _call(tool_call_id: str, tool_name: str, command: str | None = None) -> dict:
+        ev = {"schema": "pi-audit.v1", "event": "tool_call",
+              "toolCallId": tool_call_id, "toolName": tool_name}
+        if command is not None:
+            ev["input"] = {"command": command}
+        return ev
+
+    def test_native_edit_write_counted_as_mutation_read_as_query(self) -> None:
+        events = [
+            self._call("1", "read"),
+            self._call("2", "edit"),
+            self._call("3", "write"),
+            self._call("4", "read"),
+        ]
+        counters = summarize_pi_audit_events(events)
+        self.assertEqual(counters.mutations, 2, "edit + write are two mutations")
+        self.assertTrue(counters.requeried, "the trailing read is a query after a mutation")
+        self.assertEqual(counters.native_tool_mix, {"read": 2, "edit": 1, "write": 1})
+
+    def test_native_mutation_not_dropped_when_guard_sequence_nonempty(self) -> None:
+        # The bug the fix closes: a bash grep fires a guard event (query), but the actual
+        # edit happens via pi's native edit tool (invisible to the guard). The old
+        # `guard_sequence or call_sequence` preferred the bash-only guard view and reported
+        # mutations=0. With native tools present, the audit call_sequence must win.
+        events = [
+            self._call("1", "bash", "grep -n '## Tasks' doc.md"),
+            self._call("2", "edit"),
+        ]
+        guard_events = [GuardEvent("allow", "grep", "grep -n '## Tasks' doc.md")]
+        counters = summarize_pi_audit_events(events, guard_events=guard_events)
+        self.assertEqual(counters.mutations, 1, "native edit must not be dropped")
+        self.assertEqual(counters.native_tool_mix.get("edit"), 1)
+
+    def test_bash_only_run_keeps_guard_preferred_behavior(self) -> None:
+        # No native tools used -> guard preference unchanged (no regression).
+        events = [self._call("1", "bash", "./md set-task 9.0 doc.md -i --status done")]
+        guard_events = [GuardEvent("allow", "md", "./md set-task 9.0 doc.md -i --status done")]
+        counters = summarize_pi_audit_events(events, guard_events=guard_events)
+        self.assertEqual(counters.mutations, 1)
+        self.assertEqual(counters.native_tool_mix, {})
+
+    def test_compound_bash_mutation_then_native_read_is_requery(self) -> None:
+        # The mixed case: a compound bash call hides an md mutation after a query (coarse
+        # classification sees only the leading `grep` -> query), then a native read. Merging
+        # the guard's granular expansion with the native read must register the md mutation
+        # AND the read-after-mutation requery — neither sequence alone catches it.
+        events = [
+            self._call("1", "bash", "grep -n foo doc.md && ./md set-task 9.0 doc.md -i --status done"),
+            self._call("2", "read"),
+        ]
+        guard_events = [
+            GuardEvent("allow", "grep", "grep -n foo doc.md"),
+            GuardEvent("allow", "md", "./md set-task 9.0 doc.md -i --status done"),
+        ]
+        counters = summarize_pi_audit_events(events, guard_events=guard_events)
+        self.assertEqual(counters.mutations, 1, "the md set-task inside the compound must count")
+        self.assertTrue(counters.requeried, "native read after the bash mutation is a requery")
+
+
 class PiRunnerTests(unittest.TestCase):
     def test_default_audit_extension_path_uses_global_pi_agent_dir(self) -> None:
         with patch.dict("os.environ", {"PI_CODING_AGENT_DIR": "/tmp/pi-agent"}, clear=True):
