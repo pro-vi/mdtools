@@ -61,7 +61,12 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
   unreachability before any run (`bench/harness.py`). **Never add a no-md/ablation mode without
   routing it through that predicate + preflight** — a new axis silently contaminates the
   attribution data, and contaminated data outlives the code fix (a re-measure is part of the
-  fix, not optional).
+  fix, not optional). **This generalizes from modes to RUNNERS:** enabling a new native-capable
+  runner (2026-06-13: `pi-json`) requires verifying the preflight probes *that runner's actual
+  PATH* — pi prepends `~/.pi/agent/bin` (`getShellEnv`), invisible to the harness `child_env`, so
+  `_assert_no_md_reachable` gained `extra_path_dirs` to probe it. A new runner with its own
+  PATH-prepend needs the same, or a real `md` there is unreachable to the proof yet reachable to
+  the agent. (Decision record: `docs/decisions/2026-06-13-pi-json-native-arm.md`.)
 
 ## Task loc format
 
@@ -86,7 +91,8 @@ python bench/harness.py --run --runner oai-loop --mode hybrid \
   --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
   --oai-api-key $OMLX_API_KEY --task T10
 
-# Full matrix (oai-loop, primary model)
+# Full matrix — one invocation PER mode. `--mode` is single-valued (action="store"):
+# repeated `--mode A --mode B` flags silently keep only the LAST. Loop to run a matrix.
 for MODE in unix mdtools hybrid; do
   python bench/harness.py --run --runner oai-loop --mode $MODE \
     --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \

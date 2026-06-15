@@ -180,6 +180,11 @@ done
 - **Efficiency signal:** Haiku native+md used fewer mutations (0.8) than native / native+md-no-md (1.5 / 1.6) — md does structural edits in one shot where native Edit takes several.
 - **pi-json native arm, first production run: clean.** No harness/integrity errors. The only failures were task-level: pi's native `edit` tool's non-unique-match on the duplicate-heading tasks (T6, T13: "Found 3 occurrences … must be unique") — exactly the native-Edit weakness md's structural addressing fixes. Part B instrumentation worked: edit→mutation, read→query, native tools in tool_mix → the 74% adoption split above.
 
+Caveat: the per-task `mutations`/`requeried` in these bundles were computed *before* the
+2026-06-13 guard/native-merge fix in `pi_audit_adapter.py` (a run mixing native tools with a
+compound bash command could under-report them). The headline pass rates and the 74% adoption
+(from `tool_mix`) are unaffected; only a re-run/re-aggregation would refine the secondary metrics.
+
 Bundles: `bench/runs/native-haiku-2026-06-13` (native+md-no-md), `-native`, `-native+md`;
 `bench/runs/native-gpt54mini-2026-06-13-{native,native+md,native+md-no-md}`.
 
