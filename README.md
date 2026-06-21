@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 28 tasks. Current evidence is strong where `md` is meant to matter: structural Markdown reads and shell-level agent edits. The headline signal is now three-pronged: Haiku 4.5 and GPT 5.4 mini both reach 27/28 (96%) with `hybrid` on the June 11, 2026 full-corpus rerun, up from 15/28 (54%) with `unix` alone, and Qwen3.5-27B-4bit shows a +38.9pp `hybrid` lift on the fixed local-runner search corpus. The same evidence does not show a reliable advantage over strong agents that already have native file-edit tools, and generated benchmark candidates are treated as provisional until independently verified.
+> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 28 tasks. Current evidence is strong where `md` is meant to matter: structural Markdown reads and shell-level agent edits. The headline signal is now three-pronged: Haiku 4.5 and GPT 5.4 mini both reach 27/28 (96%) with `hybrid` on the June 11, 2026 full-corpus rerun, up from 15/28 (54%) with `unix` alone, and Qwen3.5-27B-4bit shows a +38.9pp `hybrid` lift on the fixed local-runner search corpus. The same weak-model lift holds against native file-edit tools (Haiku 4.5 68% -> 96%, GPT 5.4 mini 54% -> 96%, ablation-clean), while the evidence does not show a reliable advantage for strong agents that already have those tools, and generated benchmark candidates are treated as provisional until independently verified.
 
 Structural access to Markdown for LLM agents.
 
@@ -226,33 +226,21 @@ The current benchmark story is positive but bounded: when an agent has to edit M
 
 ### Results
 
+**Canonical results live in [`bench/RESULTS.md`](bench/RESULTS.md)** — one page, regenerated from the run bundles by `bench/results_canon.py` so the numbers cannot drift from the data. The tables below are the headline excerpt.
+
 Headline tool-value signal. In every row below the `unix` baseline is the raw shell text toolkit (cat/grep/sed/awk), **not** a native file editor, so these lifts measure `md`-vs-shell, not `md`-vs-native-`Edit`:
 
 | Agent | Runner | Evidence set | `hybrid` lift over `unix` |
 |-------|--------|--------------|---------------------------|
 | Haiku 4.5 | `claude-cli` | June 11 full corpus, 28 tasks | 15/28 (54%) -> 27/28 (96%), +43pp |
 | GPT 5.4 mini | `pi-json`, thinking=minimal | June 11 full corpus, 28 tasks | 15/28 (54%) -> 27/28 (96%), +43pp |
-| Qwen3.5-27B-4bit | `oai-loop` local runner | fixed 18-task search corpus, April 28 | +38.9pp |
+| Qwen3.5-27B-4bit | `oai-loop` local runner | fixed 18-task search corpus, April 28 (provisional, per-task bundles) | +38.9pp |
 
 The Qwen row is intentionally labeled as search-corpus evidence rather than the June full-corpus snapshot. A broader Qwen measured search corpus reached 15/22 `hybrid` vs 4/22 `unix` (+50.0pp) as of May 5, 2026, but includes generated candidate tasks, so it is descriptive rather than headline evidence.
 
-Full-corpus detail: June 11, 2026, guarded executor, 28 tasks, one run per task/mode. Source: `bench/runs/full-benchmark-2026-06-11-summary.md`.
+Full per-mode detail — the unix/mdtools/hybrid cells, the `mdtools`-only lift, and per-task failure lists for both axes — lives in [`bench/RESULTS.md`](bench/RESULTS.md). `T8` fails in every shell-mode cell (it passes under native tools), and the four `C-*` candidate-relocation rows stay provisional until independently reviewed.
 
-| Model | Runner | `unix` | `mdtools` | `hybrid` | `mdtools` lift | `hybrid` lift |
-|-------|--------|--------|-----------|----------|----------------|---------------|
-| Haiku 4.5 | `claude-cli` | 15/28 (54%) | 26/28 (93%) | 27/28 (96%) | +39pp | +43pp |
-| GPT 5.4 mini | `pi-json`, thinking=minimal | 15/28 (54%) | 24/28 (86%) | 27/28 (96%) | +32pp | +43pp |
-
-`T8` failed in every model/mode cell in this rerun. Treat that as a task to inspect before using it as headline evidence. The four `C-*` rows are candidate-derived relocation tasks and should remain provisional until independently reviewed.
-
-The lifts above are `md`-vs-shell. The `md`-vs-native-`Edit` comparison now exists for the weak models too (June 13, 2026, 28 tasks, one run per task/mode, native Read/Edit/Write tools):
-
-| Model | Runner | `native` (native Edit) | `native+md` | `native+md-no-md` (ablation) | `md` lift over native Edit |
-|-------|--------|------------------------|-------------|------------------------------|----------------------------|
-| Haiku 4.5 | `claude-cli` | 19/28 (68%) | 27/28 (96%) | 19/28 (68%) | +28pp |
-| GPT 5.4 mini | `pi-json`, thinking=minimal | 15/28 (54%) | 27/28 (96%) | 15/28 (54%) | +42pp |
-
-Both lifts are ablation-clean: the `native+md-no-md` control (md advertised but stubbed) lands exactly on `native`, so the gain is the tool, not the md-advertising prompt — and on `native+md` GPT 5.4 mini adopts `md` for 74% of its tool-calls when both are available. This is the **inverse of the Sonnet 4.6 native sweep** (no reliable advantage): `md` helps weak agents even against a native editor, while strong agents already see the structure through their own editor. So the floor-model lifts and the Sonnet null are not one matrix — they are two ends of the same capability axis. Sources: `bench/runs/native-haiku-2026-06-13*`, `bench/runs/native-gpt54mini-2026-06-13-*`.
+The lifts above are `md`-vs-shell. The `md`-vs-native-`Edit` comparison (June 13, 2026, 28 tasks, native Read/Edit/Write tools) lives in full in [`bench/RESULTS.md`](bench/RESULTS.md): `md` lifts Haiku 4.5 from 68% to 96% and GPT 5.4 mini from 54% to 96%, both ablation-clean (the `native+md-no-md` control lands exactly on the `native` baseline, so the gain is the tool, not the md-advertising prompt). This is the **inverse of the Sonnet 4.6 native sweep** (no reliable advantage): `md` helps weak agents even against a native editor, while strong agents already see the structure through their own editor. The two are not one matrix; they are two ends of the same capability axis.
 
 Historical 20-task v1 snapshot, April 2, 2026:
 
@@ -284,7 +272,7 @@ The current read is intentionally narrow:
 - **Agents without native editor tools:** this is the strongest current value case. When the agent has to work through shell-level commands, `md` changes Markdown editing from text surgery into structure-aware operations. In the current 28-task rerun, Haiku improves from 54% `unix` to 96% `hybrid`, and GPT 5.4 mini improves from 54% `unix` to 96% `hybrid`. The current Qwen3.5-27B-4bit local-runner search result points the same way: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus.
 - **Read and inspection workflows:** `md outline`, `blocks`, `section`, `tasks`, `links`, `frontmatter`, and `table` give agents and scripts structured Markdown views without hand-rolled parsing.
 - **Strong agents vs POSIX shell:** `md` can still reduce cost on some structural shell workflows. The strongest measured example is one Sonnet batch-checkbox task, where `md` is about 40% cheaper per run than `sed`/`awk` at billed prices. That is a useful signal, but it is still one task, so it is not yet a general benchmark claim.
-- **Weak agents with native file-edit tools:** the newest result — `md` helps here too, not just against shell. Measured against native Read/Edit/Write on the 28-task corpus, `md` lifts Haiku 4.5 from 68% to 96% (+28pp) and GPT 5.4 mini from 54% to 96% (+42pp), both ablation-clean: the md-stubbed control (`native+md-no-md`) matches the plain-`native` baseline, so the gain is the tool, not the md-advertising prompt. GPT 5.4 mini adopts `md` for 74% of its tool-calls when both are offered. A weaker agent can gain from structure even when it already has an editor — native `Edit`'s exact-string matching fails on duplicate headings (the T6/T13 tasks), exactly where `md`'s structural addressing wins. One run per task/mode, so treat the point estimates as indicative.
+- **Weak agents with native file-edit tools:** `md` helps here too, not just against shell. Against native Read/Edit/Write on the 28-task corpus it lifts Haiku 4.5 from 68% to 96% and GPT 5.4 mini from 54% to 96%, both ablation-clean: the md-stubbed control (`native+md-no-md`) matches the plain-`native` baseline, so the gain is the tool, not the md-advertising prompt. GPT 5.4 mini adopts `md` for 74% of its tool-calls when both are offered. The mechanism is structure extraction: on `native` these models failed the read-and-assemble tasks (outline, per-phase checkbox counts, counting real tasks while ignoring fenced fake ones), and `md` flips those to passing. It is **not** a duplicate-heading / exact-string-`Edit` effect: T6 and T13 both pass on plain `native` (see [`bench/RESULTS.md`](bench/RESULTS.md)). One run per task/mode, so treat the point estimates as indicative.
 - **Strong agents with native file-edit tools:** the latest runs do not show a reliable `md` advantage. On Sonnet 4.6, `md` costs more on easy edits, loses the conditional batch task by +25.8% billed cost, and the large-file near-win from search does not reproduce on the corrected holdout.
 
 In short: `md` is a structural Markdown tool, not a replacement for a capable editor. It is strongest when the alternative is brittle shell text processing, when a script needs structured Markdown output, or when a weaker agent needs help staying inside document structure.
