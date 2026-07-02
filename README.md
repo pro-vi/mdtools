@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands functional; the benchmark harness now covers 28 tasks. Current evidence is strong where `md` is meant to matter: structural Markdown reads and shell-level agent edits. The headline signal is now three-pronged: Haiku 4.5 and GPT 5.4 mini both reach 27/28 (96%) with `hybrid` on the June 11, 2026 full-corpus rerun, up from 15/28 (54%) with `unix` alone, and Qwen3.5-27B-4bit shows a +38.9pp `hybrid` lift on the fixed local-runner search corpus. The same weak-model lift holds against native file-edit tools (Haiku 4.5 68% -> 96%, GPT 5.4 mini 54% -> 96%, ablation-clean), while the evidence does not show a reliable advantage for strong agents that already have those tools, and generated benchmark candidates are treated as provisional until independently verified.
+> **Status: WIP** — core CLI + task commands are functional. The benchmark harness is being upgraded to bench v3 after a measurement audit found that the pre-v3 headline numbers were underpowered and scorer-coupled; see [Benchmark](#benchmark).
 
 Structural access to Markdown for LLM agents.
 
@@ -210,74 +210,21 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 ## Benchmark
 
-`bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools. Three modes: **unix** (cat/grep/sed/awk), **mdtools** (md commands), **hybrid** (both) — plus a fourth `hybrid-no-md` ablation mode used by the v2 attribution gate (see [Value envelope](#value-envelope-bench-v2)).
+`bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools and native file-edit tools. The harness supports unix, mdtools, hybrid, native, and no-md ablation modes through a guarded executor.
 
-The current default corpus is 28 tasks in `bench/tasks/tasks.json`: T1-T24 plus four candidate-derived relocation tasks. To reduce visible-corpus overfitting, that corpus is partitioned into a 22-task search split in `bench/search/task_ids.json` and a 6-task holdout split in `bench/holdout/task_ids.json`.
+### Bench v3 retraction
 
-The current full-corpus aggregate below was generated on June 11, 2026 against `bench/tasks/tasks.json`, using the guarded executor and one run per task/mode. The older April 2, 2026 20-task snapshot is preserved in `bench/tasks/tasks_v1.json` for historical comparison.
+**BENCH_V3_RETRACTION:** the pre-v3 headline benchmark numbers are retracted and should not be cited as current evidence. The old runs were useful engineering provenance, but the public claims were not publishable because they used one trial per task/mode, shared scorer authority with the tool under test, prompt-coached several tasks, and mixed gap-selected generated tasks into headline tables.
 
-The repo also includes local OpenAI-compatible search-pilot bundles under `bench/runs/` for the extraction, targeted mutation, and multistep families. Those runs are narrower than the full-corpus rerun and should be read as search-split evidence, not as a replacement for the table below.
+The archived v2 page remains at [`bench/RESULTS.md`](bench/RESULTS.md) for provenance only. The replacement protocol is [`bench/V3.md`](bench/V3.md): neutral task prompts, machine-readable task provenance, independent scorer authority, N>=5 trials per cell, confidence intervals on every published number, pass@1 and pass^k reporting, cost-vs-success reporting, and a preregistered analysis manifest before paid runs.
 
-Benchmark runs now default to a guarded executor that constrains the Bash tool to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
+No v3 headline numbers have shipped yet. Until the v3 local validation and supervised paid close-out complete, this README makes no current benchmark claim beyond the tool's intended measurement question.
 
-### Current read (June 2026)
+### Corpus
 
-The current benchmark story is positive but bounded: when an agent has to edit Markdown through shell-level tools, `md` gives it document structure instead of forcing it through brittle text manipulation. The result is now a three-pronged signal across two frontier API runners and one local model runner: Haiku 4.5, GPT 5.4 mini, and Qwen3.5-27B-4bit all show large `hybrid` lifts over `unix` in their respective measured corpora. The native-editing comparison now exists across the capability range too: against native Read/Edit/Write tools, `md` still lifts the weak models (Haiku 4.5, GPT 5.4 mini — ablation-clean) but shows no reliable advantage for a strong agent (Sonnet 4.6). On the models measured, `md`'s value is largest where the agent is weakest, and that ordering holds whether the alternative is shell or a native editor.
+The default corpus is 28 tasks in `bench/tasks/tasks.json`: T1-T24 plus four candidate-derived relocation tasks. Search and holdout splits live in `bench/search/task_ids.json` and `bench/holdout/task_ids.json`; v3 additionally labels tasks as `core` or `adversarially-mined` so gap-selected tasks cannot enter the headline aggregate silently.
 
-### Results
-
-**Canonical results live in [`bench/RESULTS.md`](bench/RESULTS.md)** — one page, regenerated from the run bundles by `bench/results_canon.py` so the numbers cannot drift from the data. The tables below are the headline excerpt.
-
-Headline tool-value signal. In every row below the `unix` baseline is the raw shell text toolkit (cat/grep/sed/awk), **not** a native file editor, so these lifts measure `md`-vs-shell, not `md`-vs-native-`Edit`:
-
-| Agent | Runner | Evidence set | `hybrid` lift over `unix` |
-|-------|--------|--------------|---------------------------|
-| Haiku 4.5 | `claude-cli` | June 11 full corpus, 28 tasks | 15/28 (54%) -> 27/28 (96%), +43pp |
-| GPT 5.4 mini | `pi-json`, thinking=minimal | June 11 full corpus, 28 tasks | 15/28 (54%) -> 27/28 (96%), +43pp |
-| Qwen3.5-27B-4bit | `oai-loop` local runner | fixed 18-task search corpus, April 28 (provisional, per-task bundles) | +38.9pp |
-
-The Qwen row is intentionally labeled as search-corpus evidence rather than the June full-corpus snapshot. A broader Qwen measured search corpus reached 15/22 `hybrid` vs 4/22 `unix` (+50.0pp) as of May 5, 2026, but includes generated candidate tasks, so it is descriptive rather than headline evidence.
-
-Full per-mode detail — the unix/mdtools/hybrid cells, the `mdtools`-only lift, and per-task failure lists for both axes — lives in [`bench/RESULTS.md`](bench/RESULTS.md). `T8` fails in every shell-mode cell (it passes under native tools), and the four `C-*` candidate-relocation rows stay provisional until independently reviewed.
-
-The lifts above are `md`-vs-shell. The `md`-vs-native-`Edit` comparison (June 13, 2026, 28 tasks, native Read/Edit/Write tools) lives in full in [`bench/RESULTS.md`](bench/RESULTS.md): `md` lifts Haiku 4.5 from 68% to 96% and GPT 5.4 mini from 54% to 96%, both ablation-clean (the `native+md-no-md` control lands exactly on the `native` baseline, so the gain is the tool, not the md-advertising prompt). This is the **inverse of the Sonnet 4.6 native sweep** (no reliable advantage): `md` helps weak agents even against a native editor, while strong agents already see the structure through their own editor. The two are not one matrix; they are two ends of the same capability axis.
-
-Historical 20-task v1 snapshot, April 2, 2026:
-
-```mermaid
-xychart-beta
-    title "Pass rate by model and tool mode (20-task v1 snapshot)"
-    x-axis ["Haiku 4.5", "Sonnet 4.6", "Opus 4.6"]
-    y-axis "Pass rate %" 40 --> 100
-    line [50, 80, 89]
-    line [87, 85, 83]
-```
-
-```
-Model          unix   hybrid    Δ      Tool value
-─────────────────────────────────────────────────
-Haiku 4.5       50%     87%   +37pp    Correctness + speed
-Sonnet 4.6      80%     85%    +5pp    Speed (3-5x faster)
-Opus 4.6        89%     83%    -6pp    Efficiency only
-```
-
-**Tool benefit is real, but not monotonic with model strength.** The current evidence now has a clear three-pronged signal: Haiku and GPT 5.4 mini on the guarded full corpus, plus Qwen3.5-27B-4bit on the local-runner search corpus. The historical frontier-model snapshot suggests weaker frontier models gain correctness while stronger ones mostly gain speed, while the Sonnet 4.6 native-file sweep in `docs/decisions/2026-06-04-md-frontier-edge-falsification.md` and `bench/runs/native-arm-2026-06-03/NOTES.md` does not show a reliable `md` advantage over native `Edit`. The June 13 native-`Edit` cells (table above) extend the same ordering to a native editor, not just shell: the weak models gain from `md` even against native Read/Edit/Write while Sonnet 4.6 does not.
-
-### Value envelope (bench-v2)
-
-The v2 harness adds cost and attribution checks on top of pass/fail scoring. It measures the cost of a successful run and uses a `hybrid-no-md` ablation mode to separate real `md` value from prompt steering.
-
-The current read is intentionally narrow:
-
-- **Agents without native editor tools:** this is the strongest current value case. When the agent has to work through shell-level commands, `md` changes Markdown editing from text surgery into structure-aware operations. In the current 28-task rerun, Haiku improves from 54% `unix` to 96% `hybrid`, and GPT 5.4 mini improves from 54% `unix` to 96% `hybrid`. The current Qwen3.5-27B-4bit local-runner search result points the same way: `hybrid` is +38.9pp over `unix` on the fixed 18-task search corpus.
-- **Read and inspection workflows:** `md outline`, `blocks`, `section`, `tasks`, `links`, `frontmatter`, and `table` give agents and scripts structured Markdown views without hand-rolled parsing.
-- **Strong agents vs POSIX shell:** `md` can still reduce cost on some structural shell workflows. The strongest measured example is one Sonnet batch-checkbox task, where `md` is about 40% cheaper per run than `sed`/`awk` at billed prices. That is a useful signal, but it is still one task, so it is not yet a general benchmark claim.
-- **Weak agents with native file-edit tools:** `md` helps here too, not just against shell. Against native Read/Edit/Write on the 28-task corpus it lifts Haiku 4.5 from 68% to 96% and GPT 5.4 mini from 54% to 96%, both ablation-clean: the md-stubbed control (`native+md-no-md`) matches the plain-`native` baseline, so the gain is the tool, not the md-advertising prompt. GPT 5.4 mini adopts `md` for 74% of its tool-calls when both are offered. The mechanism is structure extraction: on `native` these models failed the read-and-assemble tasks (outline, per-phase checkbox counts, counting real tasks while ignoring fenced fake ones), and `md` flips those to passing. It is **not** a duplicate-heading / exact-string-`Edit` effect: T6 and T13 both pass on plain `native` (see [`bench/RESULTS.md`](bench/RESULTS.md)). One run per task/mode, so treat the point estimates as indicative.
-- **Strong agents with native file-edit tools:** the latest runs do not show a reliable `md` advantage. On Sonnet 4.6, `md` costs more on easy edits, loses the conditional batch task by +25.8% billed cost, and the large-file near-win from search does not reproduce on the corrected holdout.
-
-In short: `md` is a structural Markdown tool, not a replacement for a capable editor. It is strongest when the alternative is brittle shell text processing, when a script needs structured Markdown output, or when a weaker agent needs help staying inside document structure.
-
-Known method limits: the current cost report compares only tasks both modes passed, and the `hybrid-no-md` ablation still blends documentation effects with tool effects. See `bench/runs/frontier-ablated-2026-06-01/NOTES.md` for details.
+Benchmark runs default to a guarded executor that constrains Bash to the mode-specific command set at runtime and reports denied commands as `deny:N` in the run output. Use `--executor legacy` only for historical comparisons with the pre-guard harness.
 
 ### Task Categories
 
@@ -332,7 +279,7 @@ export BENCH_OAI_API_KEY=your-local-key
 python3 bench/harness.py --run --runner oai-loop --mode mdtools \
   --model your-model-id --md-binary target/release/md --task T1
 
-# Reproduce the published 20-task snapshot
+# Reproduce the archived 20-task snapshot for provenance only
 MD=target/release/md
 SNAPSHOT=bench/tasks/tasks_v1.json
 for MODE in unix mdtools hybrid; do
