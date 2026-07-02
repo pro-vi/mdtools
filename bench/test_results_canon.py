@@ -54,7 +54,6 @@ class BenchV3RetractionTests(unittest.TestCase):
                             "task_id": task_id,
                             "mode": mode,
                             "model": "claude-haiku-4-5-20251001",
-                            "runner": "claude-cli",
                             "run_index": run_index,
                             "correct": mode == "hybrid" or run_index < 2,
                             "verdict": "pass" if mode == "hybrid" or run_index < 2 else "fail",
@@ -71,6 +70,7 @@ class BenchV3RetractionTests(unittest.TestCase):
         self.assertIn("Cost-vs-Success Frontier", doc)
         self.assertIn("Harness Card", doc)
         self.assertIn("claude-haiku-4-5-20251001", doc)
+        self.assertIn("| claude-haiku-4-5-20251001 | `claude-cli` | `hybrid` |", doc)
 
     def test_v3_renderer_blocks_unadjudicated_quarantine(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bench_v3_quarantine_") as tmpdir:

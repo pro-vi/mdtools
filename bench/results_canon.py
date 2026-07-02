@@ -14,10 +14,9 @@ axis in CANON below, and re-run. Rows are grouped by each row's own `mode` field
 so directory-name inconsistencies (e.g. the no-md ablation bundle that lost its
 suffix) do not matter.
 
-What is NOT auto-derived (no clean aggregate bundle exists): the Qwen local-runner
-row, the Sonnet 4.6 native null, and the historical 20-task v1 snapshot. Those live
-in PROVISIONAL below as cited evidence with source pointers, clearly partitioned from
-the regenerated tables.
+What is NOT auto-derived (no clean aggregate bundle exists): the Sonnet 4.6 native
+null and the historical 20-task v1 snapshot. Those live in PROVISIONAL below as cited
+evidence with source pointers, clearly partitioned from the regenerated tables.
 """
 import json
 import statistics
@@ -40,7 +39,7 @@ TASKS = Path(__file__).resolve().parent / "tasks" / "tasks.json"
 ADJUDICATIONS = Path(__file__).resolve().parent / "v3" / "adjudications.json"
 SCORER_VERSION = "v3-neutral-primary"
 
-V3_CANON: list[str] = []
+V3_CANON: list[str] = ["v3-validation-qwen-2026-07-01"]
 
 
 class CanonBlockedError(RuntimeError):
@@ -117,6 +116,17 @@ def _load_bundle(bundle: str | Path) -> tuple[dict, list[dict]]:
     if not run_path.exists() or not results_path.exists():
         raise FileNotFoundError(f"v3 bundle missing run.json/results.json: {path}")
     return json.loads(run_path.read_text()), json.loads(results_path.read_text())
+
+
+def _rows_with_run_metadata(run: dict, rows: list[dict]) -> list[dict]:
+    return [
+        {
+            **row,
+            "model": row.get("model") or run.get("model"),
+            "runner": row.get("runner") or run.get("runner"),
+        }
+        for row in rows
+    ]
 
 
 def _task_provenance(tasks_path: Path = TASKS) -> dict[str, str]:
@@ -268,6 +278,7 @@ def render_v3(
     exploratory_reasons: list[str] = []
     for bundle in bundles:
         run, bundle_rows = _load_bundle(bundle)
+        bundle_rows = _rows_with_run_metadata(run, bundle_rows)
         blocked = _blocked_quarantines(bundle_rows, adjudicated)
         if blocked:
             offenders = ", ".join(
