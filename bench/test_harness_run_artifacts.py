@@ -12,6 +12,7 @@ from bench.harness import (
     BenchTask,
     StructuralDiffPolicy,
     build_run_metadata,
+    load_resume_results,
     load_tasks,
     run_agent,
     select_tasks,
@@ -192,6 +193,132 @@ class HarnessRunArtifactTests(unittest.TestCase):
             # No .tmp residue from the atomic write pattern.
             residue = sorted(p.name for p in Path(tmpdir).iterdir() if p.name.endswith(".tmp"))
             self.assertEqual(residue, [])
+
+    def test_load_resume_results_accepts_matching_partial_bundle(self) -> None:
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="unix",
+                correct=False,
+                correct_neutral=True,
+                run_index=0,
+                model="Qwen3.6-35B-A3B-8bit",
+                tool_calls=29,
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1", "T2"],
+            modes=["unix", "mdtools", "hybrid"],
+            md_binary="target/release/md",
+            runner="oai-loop",
+            executor="guarded",
+            model="Qwen3.6-35B-A3B-8bit",
+            runs_per_task=5,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_resume_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1", "T2"],
+            )
+            loaded = load_resume_results(
+                tmpdir,
+                selected_task_ids=["T1", "T2"],
+                modes=["unix", "mdtools", "hybrid"],
+                runs_per_task=5,
+                runner="oai-loop",
+                executor="guarded",
+                model="Qwen3.6-35B-A3B-8bit",
+            )
+
+        self.assertEqual(len(loaded), 1)
+        self.assertEqual(loaded[0].task_id, "T1")
+        self.assertEqual(loaded[0].mode, "unix")
+        self.assertEqual(loaded[0].run_index, 0)
+        self.assertEqual(loaded[0].tool_calls, 29)
+
+    def test_load_resume_results_rejects_duplicate_cells(self) -> None:
+        results = [
+            BenchResult(task_id="T1", mode="unix", correct=False, run_index=0),
+            BenchResult(task_id="T1", mode="unix", correct=True, run_index=0),
+        ]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["unix"],
+            md_binary="target/release/md",
+            runner="oai-loop",
+            executor="guarded",
+            model="Qwen3.6-35B-A3B-8bit",
+            runs_per_task=5,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_resume_dupe_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate result"):
+                load_resume_results(
+                    tmpdir,
+                    selected_task_ids=["T1"],
+                    modes=["unix"],
+                    runs_per_task=5,
+                    runner="oai-loop",
+                    executor="guarded",
+                    model="Qwen3.6-35B-A3B-8bit",
+                )
+
+    def test_load_resume_results_rejects_metadata_mismatch(self) -> None:
+        results = [BenchResult(task_id="T1", mode="unix", correct=False, run_index=0)]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["unix"],
+            md_binary="target/release/md",
+            runner="oai-loop",
+            executor="guarded",
+            model="Qwen3.6-35B-A3B-8bit",
+            runs_per_task=1,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_resume_mismatch_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+            with self.assertRaisesRegex(ValueError, "trials_per_cell"):
+                load_resume_results(
+                    tmpdir,
+                    selected_task_ids=["T1"],
+                    modes=["unix"],
+                    runs_per_task=5,
+                    runner="oai-loop",
+                    executor="guarded",
+                    model="Qwen3.6-35B-A3B-8bit",
+                )
 
     def test_run_metadata_records_qwen_temperature_policy(self) -> None:
         results = [

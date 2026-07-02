@@ -24,7 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -1105,6 +1105,80 @@ def write_run_artifacts(
     _write_atomic(output_dir / "task_ids.json", json.dumps(selected_task_ids, indent=2) + "\n")
 
 
+def load_resume_results(
+    results_dir: str,
+    *,
+    selected_task_ids: list[str],
+    modes: list[BenchMode],
+    runs_per_task: int,
+    runner: str,
+    executor: str,
+    model: str | None,
+) -> list[BenchResult]:
+    output_dir = Path(results_dir)
+    results_path = output_dir / "results.json"
+    run_path = output_dir / "run.json"
+    if not results_path.exists():
+        return []
+    if not run_path.exists():
+        raise ValueError("--resume found results.json but no run.json")
+
+    run_metadata = json.loads(run_path.read_text())
+    expected_metadata = {
+        "kind": "agent-track",
+        "selected_task_ids": selected_task_ids,
+        "modes": list(modes),
+        "trials_per_cell": runs_per_task,
+        "runner": runner,
+        "executor": executor,
+        "model": model,
+        "task_file_sha256": sha256_file("bench/tasks/tasks.json"),
+        "prompt_template_sha256": current_prompt_template_sha256(),
+        "scorer_version": SCORER_VERSION,
+    }
+    for key, expected in expected_metadata.items():
+        actual = run_metadata.get(key)
+        if actual != expected:
+            raise ValueError(
+                f"--resume bundle metadata mismatch for {key}: "
+                f"expected {expected!r}, found {actual!r}"
+            )
+
+    raw_results = json.loads(results_path.read_text())
+    if not isinstance(raw_results, list):
+        raise ValueError("--resume results.json must contain a list")
+
+    allowed_fields = {field_.name for field_ in fields(BenchResult)}
+    selected = set(selected_task_ids)
+    allowed_modes = set(modes)
+    seen: set[tuple[str, str, int]] = set()
+    results: list[BenchResult] = []
+    for index, raw_row in enumerate(raw_results):
+        if not isinstance(raw_row, dict):
+            raise ValueError(f"--resume results row {index} must be an object")
+        row = {key: value for key, value in raw_row.items() if key in allowed_fields}
+        try:
+            result = BenchResult(**row)
+        except TypeError as exc:
+            raise ValueError(f"--resume results row {index} is invalid: {exc}") from exc
+        if result.mode not in allowed_modes:
+            raise ValueError(f"--resume row {index} has unexpected mode {result.mode!r}")
+        if result.task_id not in selected:
+            raise ValueError(f"--resume row {index} has unexpected task_id {result.task_id!r}")
+        if result.run_index is None or not 0 <= result.run_index < runs_per_task:
+            raise ValueError(f"--resume row {index} has invalid run_index {result.run_index!r}")
+        key = (result.mode, result.task_id, result.run_index)
+        if key in seen:
+            mode, task_id, run_index = key
+            raise ValueError(
+                f"--resume duplicate result for mode={mode} task_id={task_id} "
+                f"run_index={run_index}"
+            )
+        seen.add(key)
+        results.append(result)
+    return results
+
+
 def _verdict_fields(
     *,
     task_id: str,
@@ -2090,6 +2164,11 @@ def main():
         help="Optional directory to persist run.json, results.json, and task_ids.json",
     )
     parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume an existing --results-dir bundle by skipping completed mode×task×run cells",
+    )
+    parser.add_argument(
         "--tasks-path",
         default="bench/tasks/tasks.json",
         help="Path to the benchmark task corpus JSON file",
@@ -2126,6 +2205,8 @@ def main():
 
     if args.headline and not args.run:
         parser.error("--headline is only valid with --run")
+    if args.resume and not args.results_dir:
+        parser.error("--resume requires --results-dir")
     if args.headline:
         try:
             validate_headline_run_request(
@@ -2217,6 +2298,26 @@ def main():
     effective_log_dir = args.log_dir
     if args.results_dir and not effective_log_dir:
         effective_log_dir = str(Path(args.results_dir) / "logs")
+    completed_cells: set[tuple[str, str, int]] = set()
+    if args.resume:
+        try:
+            all_results = load_resume_results(
+                args.results_dir,
+                selected_task_ids=selected_task_ids,
+                modes=modes,
+                runs_per_task=args.N,
+                runner=args.runner,
+                executor=args.executor,
+                model=args.model,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        completed_cells = {
+            (result.mode, result.task_id, result.run_index)
+            for result in all_results
+            if result.run_index is not None
+        }
+        print(f"Resuming {args.results_dir}: {len(completed_cells)} completed cells loaded.")
 
     for mode in modes:
         model_label = f", model={args.model}" if args.model else ""
@@ -2225,6 +2326,9 @@ def main():
         for task in tasks:
             for run_i in range(args.N):
                 label = f"{task.id} run {run_i+1}/{args.N}" if args.N > 1 else task.id
+                if (mode, task.id, run_i) in completed_cells:
+                    print(f"  {label}: already complete, skipping.")
+                    continue
                 print(f"  {label}: {task.description}...")
                 result = run_agent(
                     task,
