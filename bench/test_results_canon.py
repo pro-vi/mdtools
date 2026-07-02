@@ -36,10 +36,11 @@ class BenchV3RetractionTests(unittest.TestCase):
             bundle = Path(tmpdir) / "bundle"
             bundle.mkdir()
             (bundle / "run.json").write_text(json.dumps({
-                "runner": "oai-loop",
-                "model": "Qwen3.6-35B-A3B-8bit",
+                "runner": "claude-cli",
+                "model": "claude-haiku-4-5-20251001",
+                "modes": ["unix", "hybrid", "hybrid-no-md"],
                 "trials_per_cell": 5,
-                "temperature_policy": "temperature=0",
+                "temperature_policy": "provider default (temperature not exposed by claude-cli)",
                 "holdout_version": 2,
                 "task_file_sha256": manifest["task_file_sha256"],
                 "prompt_template_sha256": manifest["prompt_template_sha256"],
@@ -52,8 +53,8 @@ class BenchV3RetractionTests(unittest.TestCase):
                         rows.append({
                             "task_id": task_id,
                             "mode": mode,
-                            "model": "Qwen3.6-35B-A3B-8bit",
-                            "runner": "oai-loop",
+                            "model": "claude-haiku-4-5-20251001",
+                            "runner": "claude-cli",
                             "run_index": run_index,
                             "correct": mode == "hybrid" or run_index < 2,
                             "verdict": "pass" if mode == "hybrid" or run_index < 2 else "fail",
@@ -69,7 +70,7 @@ class BenchV3RetractionTests(unittest.TestCase):
         self.assertIn("pass^k", doc)
         self.assertIn("Cost-vs-Success Frontier", doc)
         self.assertIn("Harness Card", doc)
-        self.assertIn("Qwen3.6-35B-A3B-8bit", doc)
+        self.assertIn("claude-haiku-4-5-20251001", doc)
 
     def test_v3_renderer_blocks_unadjudicated_quarantine(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bench_v3_quarantine_") as tmpdir:
@@ -109,6 +110,7 @@ class BenchV3RetractionTests(unittest.TestCase):
             (bundle / "run.json").write_text(json.dumps({
                 "runner": "oai-loop",
                 "model": "Qwen3.6-35B-A3B-8bit",
+                "modes": ["unix", "mdtools", "hybrid"],
                 "trials_per_cell": 1,
                 "task_file_sha256": manifest["task_file_sha256"],
                 "prompt_template_sha256": manifest["prompt_template_sha256"],

@@ -78,6 +78,23 @@ def bundle_conformance(run: dict[str, Any], manifest: dict[str, Any]) -> BundleC
         observed = run.get(field)
         if expected and observed != expected:
             reasons.append(f"{field} mismatch")
+    run_modes = set(run.get("modes") or [])
+    preregistered = False
+    for comparison in manifest.get("primary_comparisons", []):
+        left, right = [part.strip() for part in comparison["comparison"].split("->", 1)]
+        required_modes = {left, right}
+        ablation = comparison.get("ablation")
+        if ablation:
+            required_modes.add(ablation)
+        if (
+            run.get("runner") == comparison.get("runner")
+            and run.get("model") == comparison.get("model")
+            and required_modes.issubset(run_modes)
+        ):
+            preregistered = True
+            break
+    if not preregistered:
+        reasons.append("not a preregistered primary comparison")
     if reasons:
         return BundleConformance(status="exploratory", reasons=tuple(reasons))
     return BundleConformance(status="headline-eligible")

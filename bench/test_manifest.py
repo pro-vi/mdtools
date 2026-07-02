@@ -32,6 +32,9 @@ class BenchV3ManifestTests(unittest.TestCase):
         manifest = load_manifest()
         run = {
             "trials_per_cell": 5,
+            "runner": "claude-cli",
+            "model": "claude-haiku-4-5-20251001",
+            "modes": ["unix", "hybrid", "hybrid-no-md"],
             "task_file_sha256": manifest["task_file_sha256"],
             "prompt_template_sha256": manifest["prompt_template_sha256"],
             "scorer_version": manifest["scorer_version"],
@@ -41,6 +44,8 @@ class BenchV3ManifestTests(unittest.TestCase):
         exploratory = bundle_conformance(wrong_n, manifest)
         self.assertEqual(exploratory.status, "exploratory")
         self.assertIn("wrong N", exploratory.reasons[0])
+        local = dict(run, runner="oai-loop", model="Qwen3.6-35B-A3B-8bit")
+        self.assertEqual(bundle_conformance(local, manifest).status, "exploratory")
 
     def test_success_threshold_confirm_and_downgrade(self) -> None:
         manifest = load_manifest()
