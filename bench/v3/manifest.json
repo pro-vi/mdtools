@@ -1,0 +1,52 @@
+{
+  "schema_version": "mdtools.bench.v3.1",
+  "frozen_at": "2026-07-01",
+  "primary_comparisons": [
+    {
+      "runner": "claude-cli",
+      "model": "claude-haiku-4-5-20251001",
+      "comparison": "unix -> hybrid",
+      "ablation": "hybrid-no-md"
+    },
+    {
+      "runner": "claude-cli",
+      "model": "claude-haiku-4-5-20251001",
+      "comparison": "native -> native+md",
+      "ablation": "native+md-no-md"
+    },
+    {
+      "runner": "pi-json",
+      "model": "openai-codex/gpt-5.4-mini",
+      "comparison": "native -> native+md",
+      "ablation": "native+md-no-md"
+    }
+  ],
+  "primary_metric": {
+    "name": "mean_pass_at_1",
+    "trials_per_task": 5,
+    "task_split": "core"
+  },
+  "secondary_metrics": [
+    "pass^5",
+    "cost_vs_success_frontier"
+  ],
+  "success_threshold": {
+    "ci_lower_bound_lift_pp": 15.0,
+    "exact_p_lt": 0.05,
+    "manual_review_if_md_favorable_quarantines_gt": 2
+  },
+  "downgrade_wording": "The v3 result is directional/exploratory rather than confirmed.",
+  "task_file_sha256": "f70d9d29ea5af24394ae3f5f94d42ea13fd6c927b7324d569aa6597fbd94d239",
+  "prompt_template_sha256": "291e489fc1f985c36789dcfc2d6eb9935dacdcaa1a8cfc4f3b578e552bfdc35b",
+  "scorer_version": "v3-neutral-primary",
+  "temperature_policy": {
+    "claude-cli": "provider default (temperature not exposed by claude-cli)",
+    "pi-json": "provider default via pi-json",
+    "oai-loop": "temperature=0"
+  },
+  "retry_policy": "one retry; persistent infrastructure error records an error trial",
+  "error_trial_invalidation_rule": {
+    "max_error_rate": 0.1
+  },
+  "cost_basis": "cost_usd when present, else tokens, else tool_calls proxy"
+}

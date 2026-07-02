@@ -42,6 +42,16 @@ try:
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
+    from bench.v3_manifest import (
+        MANIFEST_PATH,
+        SCORER_VERSION,
+        ManifestConformanceError,
+        current_prompt_template_sha256,
+        load_manifest,
+        manifest_hash,
+        sha256_file,
+        validate_headline_run_request,
+    )
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import (
@@ -56,6 +66,16 @@ except ModuleNotFoundError:
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
+    from bench.v3_manifest import (
+        MANIFEST_PATH,
+        SCORER_VERSION,
+        ManifestConformanceError,
+        current_prompt_template_sha256,
+        load_manifest,
+        manifest_hash,
+        sha256_file,
+        validate_headline_run_request,
+    )
 
 # ── Types ─────────────────────────────────────────────────────
 
@@ -1033,6 +1053,10 @@ def build_run_metadata(
         "model": resolved_model,
         "thinking_level": resolved_thinking_level,
         "temperature_policy": temperature_policy,
+        "task_file_sha256": sha256_file(tasks_path),
+        "prompt_template_sha256": current_prompt_template_sha256(),
+        "scorer_version": SCORER_VERSION,
+        "manifest_hash": manifest_hash(MANIFEST_PATH) if MANIFEST_PATH.exists() else None,
         "runs_per_task": runs_per_task,
         "trials_per_cell": runs_per_task,
         "holdout_version": holdout_version,
@@ -2022,6 +2046,11 @@ def extract_final_text(
 def main():
     parser = argparse.ArgumentParser(description="mdtools benchmark harness")
     parser.add_argument("--run", action="store_true", help="Run agent track")
+    parser.add_argument(
+        "--headline",
+        action="store_true",
+        help="Validate the frozen bench v3 manifest before starting an agent run",
+    )
     parser.add_argument("--mode", choices=[
         "unix", "mdtools", "hybrid", "hybrid-no-md",
         "native", "native+md", "native+md-no-md",  # native-rooted arm (claude-cli only)
@@ -2094,6 +2123,18 @@ def main():
     )
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
+
+    if args.headline and not args.run:
+        parser.error("--headline is only valid with --run")
+    if args.headline:
+        try:
+            validate_headline_run_request(
+                manifest=load_manifest(MANIFEST_PATH),
+                runs_per_task=args.N,
+                tasks_path=args.tasks_path,
+            )
+        except ManifestConformanceError as exc:
+            parser.error(str(exc))
 
     started_at = time.time()
     tasks = load_tasks(args.tasks_path)

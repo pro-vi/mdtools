@@ -27,10 +27,12 @@ from pathlib import Path
 try:
     from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
     from bench.stats import wilson_ci
+    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, load_manifest
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
     from bench.stats import wilson_ci
+    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, load_manifest
 
 RUNS = Path(__file__).resolve().parent / "runs"
 OUT = Path(__file__).resolve().parent / "RESULTS.md"
@@ -254,12 +256,16 @@ def render_v3(
     *,
     tasks_path: Path = TASKS,
     adjudications_path: Path = ADJUDICATIONS,
+    manifest_path: Path = MANIFEST_PATH,
 ) -> str:
     bundles = V3_CANON if bundles is None else bundles
     provenance = _task_provenance(tasks_path)
     adjudicated = _load_adjudications(adjudications_path)
+    manifest = load_manifest(manifest_path)
     run_meta: list[dict] = []
     rows: list[dict] = []
+    exploratory_rows: list[dict] = []
+    exploratory_reasons: list[str] = []
     for bundle in bundles:
         run, bundle_rows = _load_bundle(bundle)
         blocked = _blocked_quarantines(bundle_rows, adjudicated)
@@ -269,8 +275,19 @@ def render_v3(
                 for row in blocked
             )
             raise CanonBlockedError(f"unadjudicated scorer divergence blocks v3 canon: {offenders}")
+        conformance = bundle_conformance(run, manifest)
+        run = dict(run)
+        run["canon_status"] = conformance.status
+        if conformance.reasons:
+            run["canon_reasons"] = list(conformance.reasons)
         run_meta.append(run)
-        rows.extend(bundle_rows)
+        if conformance.headline_eligible:
+            rows.extend(bundle_rows)
+        else:
+            exploratory_rows.extend(bundle_rows)
+            exploratory_reasons.append(
+                f"{_bundle_path(bundle).name}: {', '.join(conformance.reasons)}"
+            )
 
     parts = [
         "# mdtools benchmark v3 — canonical results\n",
@@ -294,6 +311,16 @@ def render_v3(
                 "No unadjudicated scorer divergences in the registered v3 bundles.\n",
             ]
         )
+    if exploratory_rows:
+        parts.extend(
+            [
+                "## Exploratory Bundles\n",
+                "These bundles do not conform to the frozen v3 manifest and are not headline evidence.\n",
+            ]
+        )
+        for reason in exploratory_reasons:
+            parts.append(f"- {reason}")
+        parts.extend(["", _render_cell_table(exploratory_rows, provenance, "core")])
     parts.extend(["## Harness Card\n", _render_harness_card(run_meta)])
     return "\n".join(parts).rstrip() + "\n"
 

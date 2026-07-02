@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from bench import results_canon
+from bench.v3_manifest import load_manifest
 
 
 REPO = Path(__file__).resolve().parent.parent
@@ -31,6 +32,7 @@ class BenchV3RetractionTests(unittest.TestCase):
 
     def test_v3_renderer_renders_synthetic_bundle_sections(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bench_v3_canon_") as tmpdir:
+            manifest = load_manifest()
             bundle = Path(tmpdir) / "bundle"
             bundle.mkdir()
             (bundle / "run.json").write_text(json.dumps({
@@ -39,6 +41,9 @@ class BenchV3RetractionTests(unittest.TestCase):
                 "trials_per_cell": 5,
                 "temperature_policy": "temperature=0",
                 "holdout_version": 2,
+                "task_file_sha256": manifest["task_file_sha256"],
+                "prompt_template_sha256": manifest["prompt_template_sha256"],
+                "scorer_version": manifest["scorer_version"],
             }))
             rows = []
             for task_id in ["T1", "T2", "C-T10-15"]:
@@ -95,6 +100,34 @@ class BenchV3RetractionTests(unittest.TestCase):
                     [bundle],
                     adjudications_path=adjudications,
                 )
+
+    def test_v3_renderer_routes_wrong_n_to_exploratory(self) -> None:
+        manifest = load_manifest()
+        with tempfile.TemporaryDirectory(prefix="bench_v3_exploratory_") as tmpdir:
+            bundle = Path(tmpdir) / "bundle"
+            bundle.mkdir()
+            (bundle / "run.json").write_text(json.dumps({
+                "runner": "oai-loop",
+                "model": "Qwen3.6-35B-A3B-8bit",
+                "trials_per_cell": 1,
+                "task_file_sha256": manifest["task_file_sha256"],
+                "prompt_template_sha256": manifest["prompt_template_sha256"],
+                "scorer_version": manifest["scorer_version"],
+            }))
+            (bundle / "results.json").write_text(json.dumps([
+                {
+                    "task_id": "T1",
+                    "mode": "hybrid",
+                    "model": "Qwen3.6-35B-A3B-8bit",
+                    "runner": "oai-loop",
+                    "run_index": 0,
+                    "correct": True,
+                    "verdict": "pass",
+                }
+            ]))
+            doc = results_canon.render_v3("2026-07-01", [bundle])
+        self.assertIn("## Exploratory Bundles", doc)
+        self.assertIn("wrong N", doc)
 
 
 if __name__ == "__main__":
