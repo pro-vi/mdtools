@@ -457,15 +457,15 @@ def _run_bash_command(
             cwd=workdir,
             env=env,
             capture_output=True,
-            text=True,
+            text=False,
             timeout=timeout_seconds,
         )
-        stdout = result.stdout or ""
-        stderr = result.stderr or ""
+        stdout = _decode_process_output(result.stdout)
+        stderr = _decode_process_output(result.stderr)
         exit_code = result.returncode
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout or ""
-        stderr = exc.stderr or ""
+        stdout = _decode_process_output(exc.stdout)
+        stderr = _decode_process_output(exc.stderr)
         exit_code = 124
 
     return (
@@ -474,3 +474,11 @@ def _run_bash_command(
         f"STDOUT:\n{stdout if stdout else '(empty)'}\n"
         f"STDERR:\n{stderr if stderr else '(empty)'}"
     )
+
+
+def _decode_process_output(output: bytes | str | None) -> str:
+    if output is None:
+        return ""
+    if isinstance(output, bytes):
+        return output.decode("utf-8", errors="replace")
+    return output

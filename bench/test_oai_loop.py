@@ -221,6 +221,18 @@ class OAILoopTests(unittest.TestCase):
             )
         self.assertEqual(result, fixture)
 
+    def test_run_bash_command_replaces_invalid_utf8(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_bytes_") as tmpdir:
+            observation = oai_loop._run_bash_command(
+                "printf '\\342\\050\\241'",
+                workdir=Path(tmpdir),
+                env={"PATH": "/usr/bin:/bin"},
+                timeout_seconds=1,
+            )
+
+        self.assertIn("EXIT_CODE: 0", observation)
+        self.assertIn("\ufffd", observation)
+
     def test_run_oai_loop_reraises_keyboard_interrupt(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bench_oai_loop_interrupt_") as tmpdir, \
                 patch.object(oai_loop, "_request_json", side_effect=KeyboardInterrupt()):
