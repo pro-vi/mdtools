@@ -197,8 +197,8 @@ class HoldoutVersionStampTests(unittest.TestCase):
     run start; build_run_metadata threads the value into run.json metadata.
     """
 
-    def test_read_holdout_version_returns_one_for_live_repo(self) -> None:
-        self.assertEqual(read_holdout_version(), 1)
+    def test_read_holdout_version_returns_current_live_repo_version(self) -> None:
+        self.assertEqual(read_holdout_version(), 2)
 
     def test_read_holdout_version_returns_none_when_missing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bench_no_fingerprints_") as tmpdir:

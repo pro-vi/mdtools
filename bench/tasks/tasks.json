@@ -2,6 +2,7 @@
   {
     "id": "T1",
     "description": "Extract the document outline as a JSON heading tree",
+    "provenance": "core",
     "input_files": ["bench/inputs/t1_mixed_headings.md"],
     "expected_output": "bench/expected/t1_outline.json",
     "expected_artifact": "json_envelope",
@@ -19,7 +20,8 @@
   },
   {
     "id": "T2",
-    "description": "Insert a new section after the third top-level block (block index 2). The new section content is exactly:\n## v2.5\n\nHotfix release for auth regression.\n",
+    "description": "Insert a new section immediately after the paragraph that ends 'Added pagination and search endpoints.' The new section content is exactly:\n## v2.5\n\nHotfix release for auth regression.\n",
+    "provenance": "core",
     "input_files": ["bench/inputs/t2_insert_target.md"],
     "expected_output": "bench/expected/t2_inserted.md",
     "expected_artifact": "file_contents",
@@ -38,6 +40,7 @@
   {
     "id": "T3",
     "description": "Replace the second occurrence of the duplicate '## Methods' section. In that section, change 'Updates an existing item.' to 'Updates an existing item. Now supports partial updates via PATCH semantics.' and change 'Deletes an item. Requires admin privileges.' to 'Deletes an item. Requires admin privileges. Soft-delete available via query param.' Remove the blank line before ## Changelog.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t3_duplicate_sections.md"],
     "expected_output": "bench/expected/t3_replaced.md",
     "expected_artifact": "file_contents",
@@ -56,6 +59,7 @@
   {
     "id": "T4",
     "description": "Replace 'method' with 'approach' in body text only, not in headings, code blocks, or tables",
+    "provenance": "core",
     "input_files": ["bench/inputs/t4_word_replace.md"],
     "expected_output": "bench/expected/t4_replaced.md",
     "expected_artifact": "file_contents",
@@ -73,7 +77,8 @@
   },
   {
     "id": "T5",
-    "description": "Extract the outline of a 287-line progress document with 10 headings as JSON",
+    "description": "Extract the outline of the progress document as JSON",
+    "provenance": "core",
     "input_files": ["bench/inputs/t5_progress.md"],
     "expected_output": "bench/expected/t5_outline.json",
     "expected_artifact": "json_envelope",
@@ -92,6 +97,7 @@
   {
     "id": "T6",
     "description": "In the Phase 3 section: (1) mark all checkboxes as [x], (2) add a line '**Status:** COMPLETE' immediately after the **Iteration limit:** line, (3) remove the thematic break (---) that follows Phase 3's **Gate:** line. Do not change any other section.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t6_progress.md"],
     "expected_output": "bench/expected/t6_phase_complete.md",
     "expected_artifact": "file_contents",
@@ -110,6 +116,7 @@
   {
     "id": "T7",
     "description": "Toggle task 0.4 checkbox from [ ] to [x] in Phase 0 without changing anything else",
+    "provenance": "core",
     "input_files": ["bench/inputs/t7_progress.md"],
     "expected_output": "bench/expected/t7_checkbox_toggled.md",
     "expected_artifact": "file_contents",
@@ -128,6 +135,7 @@
   {
     "id": "T8",
     "description": "Insert a new section before the 'Checkpoint Notes Template' heading. The section content is exactly:\n\n---\n\n## Phase 7: Distribution (PROJ-107)\n\n**Goal:** Publish app to distribution channels.\n**Oracle:** ORACLE_BASE\n**Iteration limit:** 10\n\n- [ ] 7.1 App store submission\n  - Prepare metadata and screenshots\n  - Submit for review\n\n- [ ] 7.2 Auto-update mechanism\n  - Check for updates on launch\n  - Download and apply updates\n\n**Checkpoint:** App available in distribution channel.\n**Gate:** /gate + /code-review\n",
+    "provenance": "core",
     "input_files": ["bench/inputs/t8_progress.md"],
     "expected_output": "bench/expected/t8_phase_inserted.md",
     "expected_artifact": "file_contents",
@@ -146,6 +154,7 @@
   {
     "id": "T9",
     "description": "Extract all pending GFM task items as a projected JSON array (loc, nearest_heading, summary_text) — ignore fake [ ] in code, tables, comments, and prose",
+    "provenance": "core",
     "input_files": ["bench/inputs/t9_rollout.md"],
     "expected_output": "bench/expected/t9_pending.json",
     "expected_artifact": "json_envelope",
@@ -166,6 +175,7 @@
   {
     "id": "T10",
     "description": "Mark exactly one pending task as done: 'Remove collation overrides' under 'Phase 0 — SQL normalization' — not the duplicate in Archived notes or Phase 2",
+    "provenance": "core",
     "input_files": ["bench/inputs/t10_rollout.md"],
     "expected_output": "bench/expected/t10_marked.md",
     "expected_artifact": "file_contents",
@@ -184,6 +194,7 @@
   {
     "id": "T11",
     "description": "Count done/pending GFM task items per Phase heading. Output JSON: {\"phases\": [{\"phase\": \"Phase N — Name\", \"done\": N, \"pending\": N}], \"totals\": {\"done\": N, \"pending\": N}}. Use exactly these key names.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t11_rollout.md"],
     "expected_output": "bench/expected/t11_summary.json",
     "expected_artifact": "json_envelope",
@@ -203,6 +214,7 @@
   {
     "id": "T12",
     "description": "Mark every pending GFM task item under 'Phase 0 — SQL normalization' as done — including nested tasks and blockquote tasks — without touching anything outside that section",
+    "provenance": "core",
     "input_files": ["bench/inputs/t12_rollout.md"],
     "expected_output": "bench/expected/t12_batch.md",
     "expected_artifact": "file_contents",
@@ -221,6 +233,7 @@
   {
     "id": "T13",
     "description": "Mark exactly one grandchild task 'Add regression test' as done — the one under Parser cleanup > Range handling, not the copies under Token offsets or Executor cleanup",
+    "provenance": "core",
     "input_files": ["bench/inputs/t13_nested_dupes.md"],
     "expected_output": "bench/expected/t13_disambiguated.md",
     "expected_artifact": "file_contents",
@@ -238,7 +251,8 @@
   },
   {
     "id": "T14",
-    "description": "Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its loc — otherwise make no changes and print exactly AMBIGUOUS",
+    "description": "Safe-fail: if exactly one pending task has summary_text 'Add regression test' mark it done and print its task location — otherwise make no changes and print exactly AMBIGUOUS",
+    "provenance": "core",
     "input_files": ["bench/inputs/t14_nested_dupes.md"],
     "expected_output": "bench/inputs/t14_nested_dupes.md",
     "expected_artifact": "stdout_and_file",
@@ -257,7 +271,8 @@
   },
   {
     "id": "T15",
-    "description": "Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file. The second edit must account for line-number drift caused by the first.",
+    "description": "Two sequential edits: (1) delete the 'Notes' section entirely, (2) then mark the first pending task in Phase 1 as done. Both edits in-place on the same file.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t15_line_drift.md"],
     "expected_output": "bench/expected/t15_drifted.md",
     "expected_artifact": "file_contents",
@@ -276,6 +291,7 @@
   {
     "id": "T16",
     "description": "Count all pending GFM task items across all .md files in the vault directory. Ignore fake [ ] in code fences, tables, and comments. Output JSON: {\"total_pending\": N, \"files\": [{\"file\": \"name.md\", \"pending\": N}]} sorted by filename.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t16_vault/frontend.md", "bench/inputs/t16_vault/backend.md", "bench/inputs/t16_vault/devops.md"],
     "expected_output": "bench/expected/t16_count.json",
     "expected_artifact": "json_envelope",
@@ -294,7 +310,8 @@
   },
   {
     "id": "T17",
-    "description": "Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly. Use: md replace-section \"Environment Variables\" FILE -i --from t17_replacement.md",
+    "description": "Replace the 'Environment Variables' section with the content from the file t17_replacement.md (included alongside the input). The replacement contains shell metacharacters ($(), ${}, backticks, pipes, backslashes, mixed quotes) that must survive exactly.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t17_pipe_stress.md"],
     "support_files": ["bench/inputs/t17_replacement.md"],
     "expected_output": "bench/expected/t17_replaced.md",
@@ -313,7 +330,8 @@
   },
   {
     "id": "T18",
-    "description": "Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely using delete-section, (2) then mark the task 'Deploy to staging' in Phase 2 as done. You must re-read the file structure after step 1 because block indices shift when a section is deleted.",
+    "description": "Two sequential edits on the same file: (1) delete the 'Draft Notes' section entirely, (2) then mark the task 'Deploy to staging' in Phase 2 as done.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t18_stale_loc.md"],
     "expected_output": "bench/expected/t18_requeried.md",
     "expected_artifact": "file_contents",
@@ -331,7 +349,8 @@
   },
   {
     "id": "T19",
-    "description": "Count done/pending GFM task items per Phase heading in a 471-line document with 12 phases and 97 tasks (including nested and blockquote tasks). Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {\"phases\": [{\"phase\": \"Phase N: Name (TICKET)\", \"done\": N, \"pending\": N}], \"totals\": {\"done\": N, \"pending\": N}}. Use exactly these key names.",
+    "description": "Count done/pending GFM task items per Phase heading in a long document with nested and blockquote tasks. Ignore fake [ ] in code fences, tables, inline code, and comments. Output JSON: {\"phases\": [{\"phase\": \"Phase N: Name (TICKET)\", \"done\": N, \"pending\": N}], \"totals\": {\"done\": N, \"pending\": N}}. Use exactly these key names.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t19_scale.md"],
     "expected_output": "bench/expected/t19_summary.json",
     "expected_artifact": "json_envelope",
@@ -351,6 +370,7 @@
   {
     "id": "T20",
     "description": "In a 471-line document, mark exactly one task as done: the task whose text ends with 'Add regression test' under 'Phase 5: Desktop Shell (PLAT-105)'. There are 5 other tasks with the same name in different phases — do not change any of them.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t20_scale.md"],
     "expected_output": "bench/expected/t20_disambiguated.md",
     "expected_artifact": "file_contents",
@@ -369,6 +389,7 @@
   {
     "id": "T21",
     "description": "Read the YAML frontmatter as JSON. Correctness is the parsed frontmatter payload and format; ignore the markdown body.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t21_frontmatter.md"],
     "expected_output": "bench/expected/t21_frontmatter.json",
     "expected_artifact": "json_envelope",
@@ -387,6 +408,7 @@
   {
     "id": "T22",
     "description": "List all standard inline markdown links as JSON. Ignore wiki links and image syntax; correctness is the ordered list of link kinds and destinations.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t22_links.md"],
     "expected_output": "bench/expected/t22_links.json",
     "expected_artifact": "json_envelope",
@@ -405,6 +427,7 @@
   {
     "id": "T23",
     "description": "Print the only Markdown table as TSV with only the Feature and Status columns, preserving row order.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t23_table.md"],
     "expected_output": "bench/expected/t23_table.tsv",
     "expected_artifact": "stdout_text",
@@ -423,6 +446,7 @@
   {
     "id": "T24",
     "description": "In the TOML frontmatter, set release.channel to stable in place without changing the markdown body.",
+    "provenance": "core",
     "input_files": ["bench/inputs/t24_set.md"],
     "expected_output": "bench/expected/t24_set.md",
     "expected_artifact": "file_contents",
@@ -441,6 +465,7 @@
   {
     "id": "C-T10-15",
     "description": "In the provided Markdown operations document, move the complete subsection titled 'Database Configuration' from under the top-level 'System Configuration' section to under the top-level 'Server Setup' section, placing it immediately after the 'Network Configuration' subsection and before 'Service Status'. Preserve the moved subsection exactly, including its list items and fenced code block. Leave the similarly named 'Database Backups' subsection and the mention of 'Database Configuration' inside the fenced code block untouched.",
+    "provenance": "adversarially-mined",
     "input_files": ["bench/search/accepted/server-setup-subsection-relocation/input.md"],
     "expected_output": "bench/search/accepted/server-setup-subsection-relocation/expected.md",
     "expected_artifact": "file_contents",
@@ -459,6 +484,7 @@
   {
     "id": "C-T10-28",
     "description": "In the operations handbook, move the complete `Error Logging Format` subsection from under `Data Processing` to under `Reporting`, placing it immediately before `Report Generation Schedule`. Preserve the moved subsection exactly, including its table, checklist, and fenced log example. Leave the `Error Logging Exceptions` decoy heading and the quoted archive mention of `### Error Logging Format` untouched.",
+    "provenance": "adversarially-mined",
     "input_files": ["bench/search/accepted/error-logging-format-relocation/input.md"],
     "expected_output": "bench/search/accepted/error-logging-format-relocation/expected.md",
     "expected_artifact": "file_contents",
@@ -477,6 +503,7 @@
   {
     "id": "C-AR-040",
     "description": "Move the 'Logging' section from the 'Development Setup' section to be a direct child of the 'Application Configuration' heading. Ensure all subsections and content under 'Logging' remain intact and properly nested under the new parent.",
+    "provenance": "adversarially-mined",
     "input_files": ["bench/search/accepted/relocate-logging-section-to-app-configuration/input.md"],
     "expected_output": "bench/search/accepted/relocate-logging-section-to-app-configuration/expected.md",
     "expected_artifact": "file_contents",
@@ -495,6 +522,7 @@
   {
     "id": "C-AR-041",
     "description": "Move the 'Authentication' subsection from the 'User Management' section to the 'API Reference' section. Ensure all content under 'Authentication' is moved and the hierarchy levels are preserved.",
+    "provenance": "adversarially-mined",
     "input_files": ["bench/search/accepted/relocate-subsection-between-parent-sections/input.md"],
     "expected_output": "bench/search/accepted/relocate-subsection-between-parent-sections/expected.md",
     "expected_artifact": "file_contents",
