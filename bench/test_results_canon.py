@@ -1,3 +1,5 @@
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,6 +12,7 @@ REPO = Path(__file__).resolve().parent.parent
 class BenchV3RetractionTests(unittest.TestCase):
     def test_results_canon_renders_archived_v2_banner(self) -> None:
         doc = results_canon.render("2026-07-01")
+        self.assertIn("mdtools benchmark v3", doc)
         self.assertIn("ARCHIVED (v2)", doc)
         self.assertIn("should not be cited as current evidence", doc)
         self.assertIn("bench/V3.md", doc)
@@ -25,6 +28,73 @@ class BenchV3RetractionTests(unittest.TestCase):
         v3 = (REPO / "bench" / "V3.md").read_text()
         self.assertIn("at least five trials per task/mode", v3)
         self.assertIn("Scorer divergence blocks headline publication", v3)
+
+    def test_v3_renderer_renders_synthetic_bundle_sections(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_v3_canon_") as tmpdir:
+            bundle = Path(tmpdir) / "bundle"
+            bundle.mkdir()
+            (bundle / "run.json").write_text(json.dumps({
+                "runner": "oai-loop",
+                "model": "Qwen3.6-35B-A3B-8bit",
+                "trials_per_cell": 5,
+                "temperature_policy": "temperature=0",
+                "holdout_version": 2,
+            }))
+            rows = []
+            for task_id in ["T1", "T2", "C-T10-15"]:
+                for mode in ["unix", "hybrid"]:
+                    for run_index in range(5):
+                        rows.append({
+                            "task_id": task_id,
+                            "mode": mode,
+                            "model": "Qwen3.6-35B-A3B-8bit",
+                            "runner": "oai-loop",
+                            "run_index": run_index,
+                            "correct": mode == "hybrid" or run_index < 2,
+                            "verdict": "pass" if mode == "hybrid" or run_index < 2 else "fail",
+                            "tool_calls": run_index + 1,
+                        })
+            (bundle / "results.json").write_text(json.dumps(rows))
+
+            doc = results_canon.render_v3("2026-07-01", [bundle])
+
+        self.assertIn("## Core Tasks", doc)
+        self.assertIn("## Adversarially Mined Tasks", doc)
+        self.assertIn("Mean pass@1", doc)
+        self.assertIn("pass^k", doc)
+        self.assertIn("Cost-vs-Success Frontier", doc)
+        self.assertIn("Harness Card", doc)
+        self.assertIn("Qwen3.6-35B-A3B-8bit", doc)
+
+    def test_v3_renderer_blocks_unadjudicated_quarantine(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_v3_quarantine_") as tmpdir:
+            root = Path(tmpdir)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            (bundle / "run.json").write_text(json.dumps({
+                "runner": "oai-loop",
+                "model": "Qwen3.6-35B-A3B-8bit",
+                "trials_per_cell": 5,
+            }))
+            (bundle / "results.json").write_text(json.dumps([
+                {
+                    "task_id": "T1",
+                    "mode": "hybrid",
+                    "model": "Qwen3.6-35B-A3B-8bit",
+                    "runner": "oai-loop",
+                    "run_index": 0,
+                    "correct": None,
+                    "verdict": "divergent",
+                }
+            ]))
+            adjudications = root / "adjudications.json"
+            adjudications.write_text("[]")
+            with self.assertRaisesRegex(results_canon.CanonBlockedError, "T1:hybrid:run0"):
+                results_canon.render_v3(
+                    "2026-07-01",
+                    [bundle],
+                    adjudications_path=adjudications,
+                )
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """Generate bench/RESULTS.md — the single canonical benchmark page — from run bundles.
 
 Every number here is derived from a bundle's `results.json` (the per-task `correct`
@@ -18,11 +20,29 @@ in PROVISIONAL below as cited evidence with source pointers, clearly partitioned
 the regenerated tables.
 """
 import json
+import statistics
 import sys
 from pathlib import Path
 
+try:
+    from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
+    from bench.stats import wilson_ci
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
+    from bench.stats import wilson_ci
+
 RUNS = Path(__file__).resolve().parent / "runs"
 OUT = Path(__file__).resolve().parent / "RESULTS.md"
+TASKS = Path(__file__).resolve().parent / "tasks" / "tasks.json"
+ADJUDICATIONS = Path(__file__).resolve().parent / "v3" / "adjudications.json"
+SCORER_VERSION = "v3-neutral-primary"
+
+V3_CANON: list[str] = []
+
+
+class CanonBlockedError(RuntimeError):
+    pass
 
 MODEL_LABELS = {
     "claude-haiku-4-5-20251001": "Haiku 4.5",
@@ -79,6 +99,203 @@ def load_rows(bundle):
     if not p.exists():
         raise SystemExit(f"canon bundle missing: {p}")
     return json.loads(p.read_text())
+
+
+def _bundle_path(bundle: str | Path) -> Path:
+    path = Path(bundle)
+    if path.is_absolute() or path.exists():
+        return path
+    return RUNS / str(bundle)
+
+
+def _load_bundle(bundle: str | Path) -> tuple[dict, list[dict]]:
+    path = _bundle_path(bundle)
+    run_path = path / "run.json"
+    results_path = path / "results.json"
+    if not run_path.exists() or not results_path.exists():
+        raise FileNotFoundError(f"v3 bundle missing run.json/results.json: {path}")
+    return json.loads(run_path.read_text()), json.loads(results_path.read_text())
+
+
+def _task_provenance(tasks_path: Path = TASKS) -> dict[str, str]:
+    tasks = json.loads(tasks_path.read_text())
+    return {task["id"]: task.get("provenance", "core") for task in tasks}
+
+
+def _load_adjudications(path: Path = ADJUDICATIONS) -> set[tuple[str, str, int | None]]:
+    if not path.exists():
+        return set()
+    raw = json.loads(path.read_text())
+    out = set()
+    for item in raw:
+        out.add((item.get("task"), item.get("mode"), item.get("run_index")))
+    return out
+
+
+def _blocked_quarantines(rows: list[dict], adjudicated: set[tuple[str, str, int | None]]) -> list[dict]:
+    blocked = []
+    for row in rows:
+        if row.get("verdict") != "divergent":
+            continue
+        key = (row.get("task_id"), row.get("mode"), row.get("run_index"))
+        if key not in adjudicated:
+            blocked.append(row)
+    return blocked
+
+
+def _cost_value(row: dict) -> float | None:
+    if row.get("cost_usd") is not None:
+        return float(row["cost_usd"])
+    tokens = int(row.get("tokens_in", 0) or 0) + int(row.get("tokens_out", 0) or 0)
+    if tokens:
+        return float(tokens)
+    calls = int(row.get("tool_calls", 0) or 0)
+    return float(calls) if calls else None
+
+
+def _fmt_pct(value: float) -> str:
+    return f"{value * 100:.1f}%"
+
+
+def _render_cell_table(rows: list[dict], provenance: dict[str, str], split: str) -> str:
+    split_rows = [row for row in rows if provenance.get(row.get("task_id"), "core") == split]
+    if not split_rows:
+        return "_No rows in this split._\n"
+    keys = sorted({(row.get("model"), row.get("runner"), row.get("mode")) for row in split_rows})
+    lines = [
+        "| Model | Runner | Mode | Tasks | Trials | Mean pass@1 ± 95% CI | pass^k | Median cost | Cost/success |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for model, runner, mode in keys:
+        trials = cell_trials(split_rows, mode=mode, model=model, runner=runner)
+        task_ids = sorted({row.get("task_id") for row in trials})
+        successes = sum(1 for row in trials if row.get("correct") is True)
+        interval = wilson_ci(successes, len(trials))
+        pass1 = pass_at_1_mean(trials)
+        passk = pass_hat_k(trials)
+        costs = [cost for cost in (_cost_value(row) for row in trials) if cost is not None]
+        median_cost = statistics.median(costs) if costs else None
+        cost_success = (sum(costs) / successes) if costs and successes else None
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    str(model or ""),
+                    f"`{runner or ''}`",
+                    f"`{mode or ''}`",
+                    str(len(task_ids)),
+                    str(len(trials)),
+                    f"{_fmt_pct(pass1)} [{_fmt_pct(interval.low)}, {_fmt_pct(interval.high)}]",
+                    _fmt_pct(passk),
+                    "-" if median_cost is None else f"{median_cost:.4g}",
+                    "-" if cost_success is None else f"{cost_success:.4g}",
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _render_cost_frontier(rows: list[dict], provenance: dict[str, str]) -> str:
+    core_rows = [row for row in rows if provenance.get(row.get("task_id"), "core") == "core"]
+    keys = sorted({(row.get("model"), row.get("runner"), row.get("mode")) for row in core_rows})
+    points = []
+    for model, runner, mode in keys:
+        trials = cell_trials(core_rows, mode=mode, model=model, runner=runner)
+        if not trials:
+            continue
+        pass1 = pass_at_1_mean(trials)
+        costs = [cost for cost in (_cost_value(row) for row in trials) if cost is not None]
+        median_cost = statistics.median(costs) if costs else None
+        points.append((model, runner, mode, pass1, median_cost))
+    if not points:
+        return "_No core cost data yet._\n"
+    lines = [
+        "| Model | Runner | Mode | Mean pass@1 | Median cost |",
+        "|---|---|---|---:|---:|",
+    ]
+    for model, runner, mode, pass1, median_cost in sorted(points, key=lambda item: (-(item[3]), item[4] is None, item[4] or 0)):
+        lines.append(
+            f"| {model or ''} | `{runner or ''}` | `{mode or ''}` | {_fmt_pct(pass1)} | "
+            f"{'-' if median_cost is None else f'{median_cost:.4g}'} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _render_harness_card(run_meta: list[dict]) -> str:
+    if not run_meta:
+        return "_No v3 run bundles are registered yet._\n"
+    lines = [
+        "| Runner | Model | N | Temperature policy | Scorer | Manifest | Holdout |",
+        "|---|---|---:|---|---|---|---:|",
+    ]
+    for run in run_meta:
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"`{run.get('runner') or ''}`",
+                    str(run.get("model") or ""),
+                    str(run.get("trials_per_cell") or run.get("runs_per_task") or ""),
+                    str(run.get("temperature_policy") or ""),
+                    str(run.get("scorer_version") or SCORER_VERSION),
+                    str(run.get("manifest_hash") or "not-pinned-yet"),
+                    str(run.get("holdout_version") or ""),
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_v3(
+    date_stamp: str,
+    bundles: list[str | Path] | None = None,
+    *,
+    tasks_path: Path = TASKS,
+    adjudications_path: Path = ADJUDICATIONS,
+) -> str:
+    bundles = V3_CANON if bundles is None else bundles
+    provenance = _task_provenance(tasks_path)
+    adjudicated = _load_adjudications(adjudications_path)
+    run_meta: list[dict] = []
+    rows: list[dict] = []
+    for bundle in bundles:
+        run, bundle_rows = _load_bundle(bundle)
+        blocked = _blocked_quarantines(bundle_rows, adjudicated)
+        if blocked:
+            offenders = ", ".join(
+                f"{row.get('task_id')}:{row.get('mode')}:run{row.get('run_index')}"
+                for row in blocked
+            )
+            raise CanonBlockedError(f"unadjudicated scorer divergence blocks v3 canon: {offenders}")
+        run_meta.append(run)
+        rows.extend(bundle_rows)
+
+    parts = [
+        "# mdtools benchmark v3 — canonical results\n",
+        "> Generated by `bench/results_canon.py`. Pre-v3 numbers are archived below for provenance only and should not be cited as current evidence.\n",
+        f"Generated: {date_stamp}.\n",
+        "## Headline Status\n",
+    ]
+    if not rows:
+        parts.append("No headline-eligible v3 run bundles are registered yet.\n")
+    else:
+        parts.extend(
+            [
+                "## Core Tasks\n",
+                _render_cell_table(rows, provenance, "core"),
+                "## Adversarially Mined Tasks\n",
+                "Adversarially filtered tasks are reported separately and are not generalized as headline evidence.\n",
+                _render_cell_table(rows, provenance, "adversarially-mined"),
+                "## Cost-vs-Success Frontier\n",
+                _render_cost_frontier(rows, provenance),
+                "## Quarantine Report\n",
+                "No unadjudicated scorer divergences in the registered v3 bundles.\n",
+            ]
+        )
+    parts.extend(["## Harness Card\n", _render_harness_card(run_meta)])
+    return "\n".join(parts).rstrip() + "\n"
 
 
 def bundle_date(bundle):
@@ -254,7 +471,7 @@ and check the source before quoting.
 """
 
 
-def render(date_stamp):
+def render_v2_archive(date_stamp):
     collected = [(axis, *collect(axis)) for axis in CANON]
     uf = {axis["key"]: universal_fails(agg, axis["modes"]) for axis, agg, _d, _r in collected}
 
@@ -284,6 +501,14 @@ def render(date_stamp):
     parts.append(MECHANISM)
     parts.append(PROVISIONAL)
     return "\n".join(parts).rstrip() + "\n"
+
+
+def render(date_stamp):
+    return (
+        render_v3(date_stamp)
+        + "\n---\n\n"
+        + render_v2_archive(date_stamp)
+    )
 
 
 def main():

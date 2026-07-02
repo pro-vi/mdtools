@@ -216,7 +216,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 **BENCH_V3_RETRACTION:** the pre-v3 headline benchmark numbers are retracted and should not be cited as current evidence. The old runs were useful engineering provenance, but the public claims were not publishable because they used one trial per task/mode, shared scorer authority with the tool under test, prompt-coached several tasks, and mixed gap-selected generated tasks into headline tables.
 
-The archived v2 page remains at [`bench/RESULTS.md`](bench/RESULTS.md) for provenance only. The replacement protocol is [`bench/V3.md`](bench/V3.md): neutral task prompts, machine-readable task provenance, independent scorer authority, N>=5 trials per cell, confidence intervals on every published number, pass@1 and pass^k reporting, cost-vs-success reporting, and a preregistered analysis manifest before paid runs.
+The generated v3 canon lives at [`bench/RESULTS.md`](bench/RESULTS.md); until v3 bundles are registered it renders the v3 harness card/placeholder first and keeps the v2 tables underneath as an explicitly archived appendix. The replacement protocol is [`bench/V3.md`](bench/V3.md): neutral task prompts, machine-readable task provenance, independent scorer authority, N>=5 trials per cell, confidence intervals on every published number, pass@1 and pass^k reporting, cost-vs-success reporting, and a preregistered analysis manifest before paid runs.
 
 No v3 headline numbers have shipped yet. Until the v3 local validation and supervised paid close-out complete, this README makes no current benchmark claim beyond the tool's intended measurement question.
 
