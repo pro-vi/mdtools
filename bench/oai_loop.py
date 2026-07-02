@@ -146,7 +146,7 @@ def _normalize_bash_command(command: str, *, workdir: Path | None) -> str:
 
 
 def _has_forbidden_command_separator(command: str) -> bool:
-    return "\n" in command or _split_first_command_separator(command) is not None
+    return _split_first_command_separator(command) is not None
 
 
 def _split_first_command_separator(command: str) -> tuple[str, str, str] | None:
@@ -168,6 +168,8 @@ def _split_first_command_separator(command: str) -> tuple[str, str, str] | None:
             continue
         if in_single_quote or in_double_quote:
             continue
+        if char == "\n":
+            return command[:index], "\n", command[index + 1:]
         if char == ";":
             return command[:index], ";", command[index + 1:]
         if command.startswith("&&", index):

@@ -72,10 +72,21 @@ class OAILoopTests(unittest.TestCase):
         action = parse_action_text(json.dumps({"type": "bash", "command": command}))
         self.assertEqual(action.command, command)
 
+    def test_parse_action_text_allows_quoted_sed_newline(self) -> None:
+        command = "sed '/Added pagination/a\\\n## v2.5' doc.md > out.md"
+        action = parse_action_text(json.dumps({"type": "bash", "command": command}))
+        self.assertEqual(action.command, command)
+
     def test_parse_action_text_rejects_unquoted_semicolon_after_quoted_program(self) -> None:
         with self.assertRaises(ValueError):
             parse_action_text(
                 json.dumps({"type": "bash", "command": "awk '{print $1}' doc.md; echo done"})
+            )
+
+    def test_parse_action_text_rejects_unquoted_newline(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_action_text(
+                json.dumps({"type": "bash", "command": "cat doc.md\nmd outline doc.md --json"})
             )
 
     def test_format_final_output_serializes_json_values(self) -> None:
