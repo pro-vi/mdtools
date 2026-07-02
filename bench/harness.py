@@ -38,6 +38,7 @@ try:
         load_guard_events,
         md_workdir_must_be_stub,
     )
+    from bench.neutral_scorer import neutral_block_texts, neutral_heading_tree
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
@@ -51,147 +52,10 @@ except ModuleNotFoundError:
         load_guard_events,
         md_workdir_must_be_stub,
     )
+    from bench.neutral_scorer import neutral_block_texts, neutral_heading_tree
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
-
-# ── Independent scorer (no md dependency) ─────────────────────
-
-from markdown_it import MarkdownIt
-
-_NEUTRAL_MD = MarkdownIt("commonmark", {"html": True}).enable(["table"])
-
-
-def _render_inline_to_plaintext(children) -> str:
-    """Concatenate text-bearing inline children, dropping markup wrappers.
-
-    Matches `md outline`'s rendered-plaintext contract: text + code_inline
-    content survive (backticks already stripped by tokenizer), image renders
-    its alt text via children, and emphasis/link/strikethrough/html_inline
-    markup is dropped while the wrapped text content survives via sibling
-    text tokens. Without this rendering, `neutral_heading_tree` returned the
-    raw markdown source (`tokens[i+1].content`), creating SCORER DIVERGENCE
-    against `_md_heading_tree` on any heading with inline formatting (F8-6).
-    """
-    parts = []
-    for child in children or []:
-        if child.type in ("text", "code_inline"):
-            parts.append(child.content)
-        elif child.type == "image":
-            parts.append(_render_inline_to_plaintext(child.children))
-        elif child.type in ("softbreak", "hardbreak"):
-            # Multi-line setext headings carry softbreaks between physical
-            # lines. Dropping them concatenates words and partially undoes
-            # F8-6 by reintroducing scorer divergence on multi-line headings.
-            parts.append(" ")
-    return "".join(parts)
-
-
-def neutral_heading_tree(content: str) -> list[tuple[int, str]]:
-    """Extract heading tree using markdown-it-py (independent of md binary)."""
-    tokens = _NEUTRAL_MD.parse(content)
-    tree = []
-    for i, tok in enumerate(tokens):
-        if tok.type == "heading_open":
-            level = int(tok.tag[1:])
-            if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
-                text = _render_inline_to_plaintext(tokens[i + 1].children)
-            else:
-                text = ""
-            tree.append((level, text))
-    return tree
-
-
-def neutral_block_texts(content: str) -> list[str]:
-    """Extract normalized block-level text using markdown-it-py."""
-    tokens = _NEUTRAL_MD.parse(content)
-    lines = content.splitlines()
-    texts = []
-    i = 0
-    while i < len(tokens):
-        tok = tokens[i]
-        # Collect top-level blocks: headings, paragraphs, code, tables, etc.
-        if tok.type in ("heading_open", "paragraph_open", "bullet_list_open",
-                        "ordered_list_open", "blockquote_open", "table_open",
-                        "html_block", "code_block", "fence", "hr"):
-            # F8-7 closure: source-fidelity slicing for hr and heading via
-            # tok.map mirrors _md_block_texts's byte-slice contract — preserves
-            # hr style (---/***/___) and heading marker prefix (# / ##) or
-            # setext underline that the prior inline-collection path dropped.
-            if tok.type == "hr":
-                if tok.map is not None:
-                    start, end = tok.map
-                    texts.append("\n".join(lines[start:end]).strip())
-                else:
-                    texts.append("---")
-                i += 1
-                continue
-            if tok.type == "heading_open":
-                if tok.map is not None:
-                    start, end = tok.map
-                    texts.append("\n".join(lines[start:end]).strip())
-                elif i + 1 < len(tokens) and tokens[i + 1].type == "inline":
-                    texts.append((tokens[i + 1].content or "").strip())
-                while i < len(tokens) and tokens[i].type != "heading_close":
-                    i += 1
-                i += 1  # past heading_close
-                continue
-            if tok.type in ("html_block", "code_block", "fence"):
-                texts.append((tok.content or "").strip())
-                i += 1
-                continue
-            # F8-8 closure: source-fidelity slicing for the five collection-type
-            # blocks via tok.map mirrors F8-7's hr/heading fix and _md_block_texts'
-            # byte-slice contract — preserves list markers (- , 1. ), blockquote
-            # prefixes (> ), table separators (|, ---), and indentation that
-            # distinguishes nesting levels and that the prior inline-collection
-            # path dropped. Defensive fallback to the inline-collection path when
-            # tok.map is None (e.g. parser configurations that disable source maps).
-            if tok.type in (
-                "paragraph_open",
-                "bullet_list_open",
-                "ordered_list_open",
-                "blockquote_open",
-                "table_open",
-            ) and tok.map is not None:
-                start, end = tok.map
-                texts.append("\n".join(lines[start:end]).strip())
-                close_type = tok.type.replace("_open", "_close")
-                depth = 1
-                i += 1
-                while i < len(tokens) and depth > 0:
-                    t = tokens[i]
-                    if t.type == tok.type:
-                        depth += 1
-                    elif t.type == close_type:
-                        depth -= 1
-                        if depth == 0:
-                            i += 1  # past the close
-                            break
-                    i += 1
-                continue
-            # Find the close token
-            close_type = tok.type.replace("_open", "_close")
-            depth = 1
-            parts = []
-            i += 1
-            while i < len(tokens) and depth > 0:
-                t = tokens[i]
-                if t.type == tok.type:
-                    depth += 1
-                elif t.type == close_type:
-                    depth -= 1
-                    if depth == 0:
-                        break
-                if t.type == "inline" and t.content:
-                    parts.append(t.content)
-                elif t.type in ("code_block", "fence") and t.content:
-                    parts.append(t.content.strip())
-                i += 1
-            texts.append("\n".join(parts).strip())
-        i += 1
-    return [t for t in texts if t]  # Drop empties
-
 
 # ── Types ─────────────────────────────────────────────────────
 
@@ -233,9 +97,12 @@ class BenchTask:
 class BenchResult:
     task_id: str
     mode: BenchMode
-    correct: bool
+    correct: bool | None
     correct_neutral: bool = True  # Independent scorer agreement
     run_index: int | None = None
+    correct_diagnostic: bool | None = None
+    verdict: str = "pass"
+    quarantine: dict[str, object] | None = None
     model: str | None = None
     thinking_level: str | None = None
     bytes_prompt: int = 0
@@ -539,9 +406,12 @@ def score_task(
     actual: str,
     expected: str,
     md_binary: str = "md",
-) -> tuple[bool, bool, str]:
-    """Score using both md-based and neutral scorers.
-    Returns (correct_md, correct_neutral, diff_report)."""
+) -> tuple[bool | None, bool | None, str]:
+    """Score with independent primary authority plus an md diagnostic when available.
+
+    Returns (correct_primary, correct_diagnostic, diff_report). A divergent
+    primary/diagnostic pair is turned into a durable quarantine by run_agent.
+    """
     policy = task.scorer
     report = []
 
@@ -554,10 +424,12 @@ def score_task(
         if policy.ignore_trailing_whitespace:
             a = "\n".join(line.rstrip() for line in a.split("\n")).rstrip()
             e = "\n".join(line.rstrip() for line in e.split("\n")).rstrip()
-        ok = a == e
-        if not ok:
+        ok_primary = a == e
+        if ok_primary:
+            report.append("exact: OK")
+        else:
             report.append(f"raw_bytes: MISMATCH ({len(e)}b expected, {len(a)}b actual)")
-        return ok, ok, "\n".join(report)
+        return ok_primary, ok_primary, "\n".join(report)
 
     # Normalize
     a, e = actual, expected
@@ -569,19 +441,23 @@ def score_task(
         e = "\n".join(line.rstrip() for line in e.split("\n"))
 
     if policy.kind == "structural" and policy.json_canonical:
-        ok_md, ok_neutral = score_json_canonical(policy, a, e, report)
-        return ok_md, ok_neutral, "\n".join(report)
+        ok_primary, ok_diagnostic = score_json_canonical(policy, a, e, report)
+        return ok_primary, ok_diagnostic, "\n".join(report)
 
     if policy.kind == "structural" and task.expected_artifact == "json_envelope":
-        ok_md, ok_neutral = score_structural_json(policy, a, e, report)
-        return ok_md, ok_neutral, "\n".join(report)
+        ok_primary, ok_diagnostic = score_structural_json(policy, a, e, report)
+        return ok_primary, ok_diagnostic, "\n".join(report)
 
     if policy.kind == "normalized_text":
-        ok_md = score_normalized_text_md(policy, a, e, md_binary, report)
-        ok_neutral = score_normalized_text_neutral(policy, a, e, report)
-        if ok_md != ok_neutral:
-            report.append(f"  ⚠ SCORER DIVERGENCE: md={ok_md} neutral={ok_neutral}")
-        return ok_md, ok_neutral, "\n".join(report)
+        ok_primary = score_normalized_text_neutral(policy, a, e, report)
+        try:
+            ok_diagnostic = score_normalized_text_md(policy, a, e, md_binary, report)
+        except Exception as exc:  # noqa: BLE001 - diagnostic scorer failures block publication
+            ok_diagnostic = None
+            report.append(f"diagnostic_md_error: {type(exc).__name__}: {exc}")
+        if ok_primary != ok_diagnostic:
+            report.append(f"SCORER DIVERGENCE: primary={ok_primary} diagnostic_md={ok_diagnostic}")
+        return ok_primary, ok_diagnostic, "\n".join(report)
 
     ok = a.strip() == e.strip()
     return ok, ok, "\n".join(report)
@@ -611,7 +487,7 @@ def score_json_canonical(
     expected_str: str,
     report: list[str],
 ) -> tuple[bool, bool]:
-    """Score JSON output with canonical comparison. Returns (ok, ok)."""
+    """Score JSON output with a canonical invariant comparison."""
     try:
         actual = json.loads(actual_str)
         expected = json.loads(expected_str)
@@ -654,7 +530,7 @@ def score_structural_json(
     expected_str: str,
     report: list[str],
 ) -> tuple[bool, bool]:
-    """Score JSON envelope. Returns (md_ok, neutral_ok)."""
+    """Score JSON envelope using invariant checks independent of the md binary."""
     try:
         actual_json = json.loads(actual_str)
         expected_json = json.loads(expected_str)
@@ -686,23 +562,19 @@ def score_structural_json(
         )
         return False, False
 
-    ok_md = True
-    ok_neutral = True
+    ok_primary = True
+    ok_diagnostic = True
 
     if policy.compare_heading_tree:
-        # md-based: from JSON structure
+        # JSON envelope invariant: compare the emitted heading tree.
         a_tree = [(e["heading"]["level"], e["heading"]["text"]) for e in actual_json.get("entries", [])]
         e_tree = [(e["heading"]["level"], e["heading"]["text"]) for e in expected_json.get("entries", [])]
         if a_tree != e_tree:
-            ok_md = False
-            report.append(f"heading_tree [md]: MISMATCH")
+            ok_primary = False
+            ok_diagnostic = False
+            report.append("heading_tree [primary]: MISMATCH")
         else:
-            report.append("heading_tree [md]: OK")
-
-        # Neutral check: can't easily re-parse JSON task expected from markdown
-        # For JSON envelope tasks, both scorers agree on the JSON structure
-        ok_neutral = ok_md
-        report.append(f"heading_tree [neutral]: {'OK' if ok_neutral else 'MISMATCH'}")
+            report.append("heading_tree [primary]: OK")
 
     if policy.compare_frontmatter_json:
         actual_present = actual_json.get("present")
@@ -719,8 +591,8 @@ def score_structural_json(
             or actual_format != expected_format
             or actual_data != expected_data
         ):
-            ok_md = False
-            ok_neutral = False
+            ok_primary = False
+            ok_diagnostic = False
             report.append("frontmatter_json: MISMATCH")
         else:
             report.append("frontmatter_json: OK")
@@ -736,13 +608,13 @@ def score_structural_json(
         ]
 
         if actual_links != expected_links:
-            ok_md = False
-            ok_neutral = False
+            ok_primary = False
+            ok_diagnostic = False
             report.append(f"link_destinations: MISMATCH {expected_links} vs {actual_links}")
         else:
             report.append("link_destinations: OK")
 
-    return ok_md, ok_neutral
+    return ok_primary, ok_diagnostic
 
 
 def score_normalized_text_md(
@@ -1209,8 +1081,30 @@ def write_run_artifacts(
     _write_atomic(output_dir / "task_ids.json", json.dumps(selected_task_ids, indent=2) + "\n")
 
 
+def _verdict_fields(
+    *,
+    task_id: str,
+    mode: BenchMode,
+    primary: bool | None,
+    diagnostic: bool | None,
+) -> tuple[bool | None, str, dict[str, object] | None]:
+    if diagnostic is None or primary != diagnostic:
+        return (
+            None,
+            "divergent",
+            {
+                "task_id": task_id,
+                "mode": mode,
+                "reason": "scorer_divergence",
+                "primary": primary,
+                "diagnostic": diagnostic,
+            },
+        )
+    return primary, "pass" if primary else "fail", None
+
+
 def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
-    """Validate dual scorer: expected vs itself should pass both paths."""
+    """Validate scorer authority: expected vs itself should pass primary and diagnostic paths."""
     results = []
     for task in tasks:
         expected = Path(task.expected_output).read_text()
@@ -1219,19 +1113,30 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
             # For safe-fail tasks: expected_output is the unchanged input file,
             # expected_stdout is the text that should appear on stdout.
             # Dry-run: verify file identity passes and stdout matches itself.
-            ok_file, _, file_report = score_task(task, expected, expected, md_binary)
+            ok_file_primary, ok_file_diagnostic, file_report = score_task(task, expected, expected, md_binary)
             ok_stdout = task.expected_stdout is not None
             report = file_report
             if ok_stdout:
                 report += "\nstdout_check: OK (dry-run)"
-            ok_md = ok_file and ok_stdout
-            ok_neutral = ok_md
+            ok_primary = bool(ok_file_primary and ok_stdout)
+            ok_diagnostic = bool(ok_file_diagnostic and ok_stdout)
         else:
-            ok_md, ok_neutral, report = score_task(task, expected, expected, md_binary)
+            ok_primary, ok_diagnostic, report = score_task(task, expected, expected, md_binary)
+
+        correct, verdict, quarantine = _verdict_fields(
+            task_id=task.id,
+            mode="mdtools",
+            primary=ok_primary,
+            diagnostic=ok_diagnostic,
+        )
 
         results.append(BenchResult(
             task_id=task.id, mode="mdtools",
-            correct=ok_md, correct_neutral=ok_neutral,
+            correct=correct,
+            correct_neutral=bool(ok_primary),
+            correct_diagnostic=ok_diagnostic,
+            verdict=verdict,
+            quarantine=quarantine,
             run_index=0,
             diff_report=report,
         ))
@@ -1835,31 +1740,38 @@ def run_agent(
             actual_file = Path(input_file).read_text()
         except FileNotFoundError:
             actual_file = ""
-        ok_file_md, ok_file_n, file_report = score_task(task, actual_file, expected_content, md_binary)
+        ok_file_primary, ok_file_diagnostic, file_report = score_task(task, actual_file, expected_content, md_binary)
         report_parts.append(file_report)
-        ok_md = ok_stdout and ok_file_md
-        ok_neutral = ok_stdout and ok_file_n
+        ok_primary = bool(ok_stdout and ok_file_primary)
+        ok_diagnostic = bool(ok_stdout and ok_file_diagnostic)
         report = "\n".join(report_parts)
     elif task.expected_artifact == "file_contents":
         try:
             actual = Path(input_file).read_text()
         except FileNotFoundError:
             actual = ""
-        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
+        ok_primary, ok_diagnostic, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "json_envelope":
         actual = select_json_envelope_actual(
             all_tool_outputs, all_text_outputs, stdout, expected_content
         )
-        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
+        ok_primary, ok_diagnostic, report = score_task(task, actual, expected_content, md_binary)
     elif task.expected_artifact == "stdout_text":
         actual = extract_final_text(all_tool_outputs, all_text_outputs, stdout)
-        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
+        ok_primary, ok_diagnostic, report = score_task(task, actual, expected_content, md_binary)
     else:
         actual = stdout
-        ok_md, ok_neutral, report = score_task(task, actual, expected_content, md_binary)
+        ok_primary, ok_diagnostic, report = score_task(task, actual, expected_content, md_binary)
 
-    if runner_error and (not ok_md or not ok_neutral):
+    if runner_error and (not ok_primary or not ok_diagnostic):
         report = f"runner_error: {runner_error}\n{report}" if report else f"runner_error: {runner_error}"
+
+    correct, verdict, quarantine = _verdict_fields(
+        task_id=task.id,
+        mode=mode,
+        primary=ok_primary,
+        diagnostic=ok_diagnostic,
+    )
 
     if log_dir:
         run_log_dir = Path(log_dir) / f"{task.id}_{mode}_{int(start)}"
@@ -1879,8 +1791,11 @@ def run_agent(
     return BenchResult(
         task_id=task.id,
         mode=mode,
-        correct=ok_md,
-        correct_neutral=ok_neutral,
+        correct=correct,
+        correct_neutral=bool(ok_primary),
+        correct_diagnostic=ok_diagnostic,
+        verdict=verdict,
+        quarantine=quarantine,
         model=resolved_model,
         thinking_level=resolved_thinking_level,
         bytes_prompt=bytes_prompt,
@@ -2216,10 +2131,10 @@ def main():
         print("=== DRY RUN: dual scorer validation ===\n")
         results = dry_run(tasks, args.md_binary)
         for r in results:
-            md_s = "PASS" if r.correct else "FAIL"
-            ne_s = "PASS" if r.correct_neutral else "FAIL"
-            div = "" if r.correct == r.correct_neutral else " ⚠ DIVERGENCE"
-            print(f"  {r.task_id}: md={md_s} neutral={ne_s}{div}")
+            primary_s = "DIVERGENT" if r.verdict == "divergent" else ("PASS" if r.correct else "FAIL")
+            diag_s = "n/a" if r.correct_diagnostic is None else ("PASS" if r.correct_diagnostic else "FAIL")
+            div = "" if r.verdict != "divergent" else " SCORER-DIVERGENCE"
+            print(f"  {r.task_id}: primary={primary_s} diagnostic={diag_s}{div}")
             for line in r.diff_report.split("\n"):
                 if line.strip():
                     print(f"    {line}")
@@ -2287,12 +2202,14 @@ def main():
                     thinking_level=args.thinking,
                 )
                 result.run_index = run_i
+                if result.quarantine is not None:
+                    result.quarantine["run_index"] = run_i
                 all_results.append(result)
-                s = "PASS" if result.correct else "FAIL"
-                ns = "PASS" if result.correct_neutral else "FAIL"
+                s = "DIVERGENT" if result.verdict == "divergent" else ("PASS" if result.correct else "FAIL")
+                ns = "n/a" if result.correct_diagnostic is None else ("PASS" if result.correct_diagnostic else "FAIL")
                 rq = "↻" if result.requeried else " "
                 err = f" | err:{result.runner_error}" if result.runner_error else ""
-                print(f"    md={s} neutral={ns} | {result.elapsed_seconds}s | "
+                print(f"    primary={s} diagnostic={ns} | {result.elapsed_seconds}s | "
                       f"~{result.bytes_output}B out | obs:{result.bytes_observation}B | "
                       f"~{result.tool_calls} calls | {result.mutations} mut | "
                       f"deny:{result.policy_violations} {rq}{err}")
