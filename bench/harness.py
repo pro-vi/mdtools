@@ -235,6 +235,7 @@ class BenchResult:
     mode: BenchMode
     correct: bool
     correct_neutral: bool = True  # Independent scorer agreement
+    run_index: int | None = None
     model: str | None = None
     thinking_level: str | None = None
     bytes_prompt: int = 0
@@ -1114,6 +1115,7 @@ def build_run_metadata(
     finished_at: float,
     thinking_level: str | None = None,
     holdout_version: int | None = None,
+    temperature_policy: str | None = None,
 ) -> dict[str, object]:
     resolved_model = model
     if resolved_model is None:
@@ -1141,6 +1143,9 @@ def build_run_metadata(
         if mode_results:
             by_mode[mode] = aggregate_results(mode_results)
 
+    if temperature_policy is None:
+        temperature_policy = _temperature_policy(runner, resolved_model, resolved_thinking_level)
+
     return {
         "schema_version": 1,
         "kind": run_kind,
@@ -1155,13 +1160,33 @@ def build_run_metadata(
         "executor": executor,
         "model": resolved_model,
         "thinking_level": resolved_thinking_level,
+        "temperature_policy": temperature_policy,
         "runs_per_task": runs_per_task,
+        "trials_per_cell": runs_per_task,
         "holdout_version": holdout_version,
         "aggregates": {
             "overall": aggregate_results(results),
             "by_mode": by_mode,
         },
     }
+
+
+def _temperature_policy(
+    runner: str | None,
+    model: str | None,
+    thinking_level: str | None,
+) -> str | None:
+    if runner == "oai-loop":
+        if model and "qwen" in model.lower():
+            return "temperature=0; chat_template_kwargs.enable_thinking=false"
+        return "temperature=0"
+    if runner == "claude-cli":
+        return "provider default (temperature not exposed by claude-cli)"
+    if runner == "pi-json":
+        if thinking_level:
+            return f"provider default via pi-json; thinking={thinking_level}"
+        return "provider default via pi-json"
+    return None
 
 
 def _write_atomic(path: Path, content: str) -> None:
@@ -1207,6 +1232,7 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
         results.append(BenchResult(
             task_id=task.id, mode="mdtools",
             correct=ok_md, correct_neutral=ok_neutral,
+            run_index=0,
             diff_report=report,
         ))
     return results
@@ -2260,6 +2286,7 @@ def main():
                     oai_tool_timeout=args.oai_tool_timeout,
                     thinking_level=args.thinking,
                 )
+                result.run_index = run_i
                 all_results.append(result)
                 s = "PASS" if result.correct else "FAIL"
                 ns = "PASS" if result.correct_neutral else "FAIL"

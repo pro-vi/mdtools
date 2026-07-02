@@ -28,6 +28,7 @@ class HarnessRunArtifactTests(unittest.TestCase):
                 mode="hybrid",
                 correct=True,
                 correct_neutral=True,
+                run_index=0,
                 model="claude-sonnet-4-6",
                 tool_calls=3,
                 elapsed_seconds=1.25,
@@ -37,6 +38,7 @@ class HarnessRunArtifactTests(unittest.TestCase):
                 mode="hybrid",
                 correct=False,
                 correct_neutral=True,
+                run_index=0,
                 model="claude-sonnet-4-6",
                 policy_violations=1,
                 requeried=True,
@@ -77,11 +79,17 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual(run_data["selected_task_ids"], ["T2", "T1"])
         self.assertEqual(run_data["aggregates"]["overall"]["runs"], 2)
         self.assertEqual(run_data["aggregates"]["by_mode"]["hybrid"]["pass_count"], 1)
+        self.assertEqual(run_data["trials_per_cell"], 1)
+        self.assertEqual(
+            run_data["temperature_policy"],
+            "provider default (temperature not exposed by claude-cli)",
+        )
         self.assertEqual(run_data["started_at"], "1970-01-01T00:00:00Z")
         self.assertEqual(run_data["finished_at"], "1970-01-01T00:00:01Z")
         self.assertEqual(run_data["model"], "claude-sonnet-4-6")
 
         self.assertEqual([item["task_id"] for item in result_data], ["T2", "T1"])
+        self.assertEqual([item["run_index"] for item in result_data], [0, 0])
         self.assertEqual(result_data[0]["model"], "claude-sonnet-4-6")
         self.assertEqual(result_data[1]["policy_violations"], 1)
         self.assertEqual(result_data[0]["invalid_responses"], 0)
@@ -184,6 +192,39 @@ class HarnessRunArtifactTests(unittest.TestCase):
             # No .tmp residue from the atomic write pattern.
             residue = sorted(p.name for p in Path(tmpdir).iterdir() if p.name.endswith(".tmp"))
             self.assertEqual(residue, [])
+
+    def test_run_metadata_records_qwen_temperature_policy(self) -> None:
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="hybrid",
+                correct=True,
+                correct_neutral=True,
+                run_index=0,
+                model="Qwen3.6-35B-A3B-8bit",
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["hybrid"],
+            md_binary="target/debug/md",
+            runner="oai-loop",
+            executor="guarded",
+            model="Qwen3.6-35B-A3B-8bit",
+            runs_per_task=5,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        self.assertEqual(metadata["trials_per_cell"], 5)
+        self.assertEqual(
+            metadata["temperature_policy"],
+            "temperature=0; chat_template_kwargs.enable_thinking=false",
+        )
 
     def test_run_agent_records_runner_error_when_oai_loop_raises(self) -> None:
         """A hung or failed oai-loop request becomes a recorded runner_error

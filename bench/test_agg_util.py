@@ -17,11 +17,15 @@ import sys as _sys
 _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
 
 from bench.agg_util import (
+    InvalidCellError,
     STRUCTURAL_CATEGORIES,
     attribution_verdict,
     category_for,
+    cell_trials,
     extract_model_tier,
     intersection_cost,
+    pass_at_1_mean,
+    pass_hat_k,
 )
 
 
@@ -29,6 +33,18 @@ def _rec(task, mode, model, passed, tin=0, tout=0, calls=0, thinking=None):
     return {
         "task_id": task, "mode": mode, "model": model, "thinking_level": thinking,
         "correct": passed, "tokens_in": tin, "tokens_out": tout, "tool_calls": calls,
+    }
+
+
+def _trial(task, mode, passed, run_index, model="qwen", runner="oai-loop", error=None):
+    return {
+        "task_id": task,
+        "mode": mode,
+        "model": model,
+        "runner": runner,
+        "correct": passed,
+        "run_index": run_index,
+        "runner_error": error,
     }
 
 
@@ -109,6 +125,43 @@ def test_accepts_normalized_shape():
     out = intersection_cost(recs, "unix", "mdtools")
     assert out["n"] == 1 and out["basis"] == "tool_calls"
     assert out["median_a"] == 5 and out["median_b"] == 2
+
+
+def test_v3_cell_trials_preserve_raw_k5_metrics():
+    trials = []
+    trials += [_trial("T1", "hybrid", True, i) for i in range(5)]
+    trials += [_trial("T2", "hybrid", i < 3, i) for i in range(5)]
+    trials += [_trial("T3", "hybrid", False, i) for i in range(5)]
+    selected = cell_trials(trials, mode="hybrid", model="qwen", runner="oai-loop")
+    assert len(selected) == 15
+    assert pass_at_1_mean(selected) == (1.0 + 0.6 + 0.0) / 3
+    assert pass_hat_k(selected) == 1 / 3
+
+
+def test_v3_k1_matches_legacy_pass_rate():
+    trials = [
+        _trial("T1", "unix", True, 0),
+        _trial("T2", "unix", False, 0),
+        _trial("T3", "unix", True, 0),
+    ]
+    assert pass_at_1_mean(trials) == 2 / 3
+    assert pass_hat_k(trials) == 2 / 3
+
+
+def test_v3_cell_rejects_high_error_rate():
+    trials = [
+        _trial("T1", "hybrid", True, 0),
+        _trial("T1", "hybrid", False, 1, error="oai_loop_error: timeout"),
+        _trial("T1", "hybrid", False, 2, error="oai_loop_error: timeout"),
+        _trial("T1", "hybrid", True, 3),
+        _trial("T1", "hybrid", True, 4),
+    ]
+    try:
+        pass_at_1_mean(trials)
+    except InvalidCellError as exc:
+        assert "T1: 2/5 error trials" in str(exc)
+    else:
+        raise AssertionError("expected InvalidCellError")
 
 
 def test_intersection_keeps_runners_separate():

@@ -13,6 +13,7 @@ analyze.normalize_result shape (`task` / `pass` / `calls`).
 from __future__ import annotations
 
 import statistics
+from collections import defaultdict
 from typing import Any
 
 # Canonical task -> family map. report.py imports this (single source of truth).
@@ -81,6 +82,94 @@ def _cost(rec: dict[str, Any], basis: str) -> int:
 
 def _median(values: list[float]) -> float | None:
     return statistics.median(values) if values else None
+
+
+class InvalidCellError(ValueError):
+    """Raised when v3 cell aggregation would hide too many infrastructure errors."""
+
+
+def _is_error_trial(rec: dict[str, Any]) -> bool:
+    return bool(rec.get("runner_error")) or rec.get("verdict") == "error"
+
+
+def cell_trials(
+    records: list[dict[str, Any]],
+    *,
+    mode: str | None = None,
+    model: str | None = None,
+    runner: str | None = None,
+    thinking_level: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return raw v3 trials for one logical cell without majority-vote collapse."""
+    trials = []
+    for rec in records:
+        if mode is not None and rec.get("mode") != mode:
+            continue
+        if model is not None and rec.get("model") != model:
+            continue
+        if runner is not None and rec.get("runner") != runner:
+            continue
+        if thinking_level is not None and rec.get("thinking_level") != thinking_level:
+            continue
+        trials.append(rec)
+    return sorted(trials, key=lambda r: (_task_id(r), int(r.get("run_index") or 0)))
+
+
+def _validate_error_rate(trials: list[dict[str, Any]], *, max_error_rate: float) -> None:
+    by_task: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+    for trial in trials:
+        by_task[_task_id(trial)].append(trial)
+    bad = []
+    for task, task_trials in by_task.items():
+        if not task_trials:
+            continue
+        errors = sum(1 for trial in task_trials if _is_error_trial(trial))
+        if errors / len(task_trials) > max_error_rate:
+            bad.append(f"{task}: {errors}/{len(task_trials)} error trials")
+    if bad:
+        raise InvalidCellError(
+            "cell invalid because error-trial rate exceeds "
+            f"{max_error_rate:.0%}: " + "; ".join(sorted(bad))
+        )
+
+
+def pass_at_1_mean(
+    trials: list[dict[str, Any]],
+    *,
+    max_error_rate: float = 0.10,
+) -> float:
+    """Mean per-task pass@1 over raw trials; error trials count as failed trials."""
+    if not trials:
+        return 0.0
+    _validate_error_rate(trials, max_error_rate=max_error_rate)
+    by_task: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+    for trial in trials:
+        by_task[_task_id(trial)].append(trial)
+    task_rates = [
+        sum(1 for trial in task_trials if _passed(trial) and not _is_error_trial(trial))
+        / len(task_trials)
+        for task_trials in by_task.values()
+    ]
+    return sum(task_rates) / len(task_rates)
+
+
+def pass_hat_k(
+    trials: list[dict[str, Any]],
+    *,
+    max_error_rate: float = 0.10,
+) -> float:
+    """Fraction of tasks that pass all k raw trials; k may be 1 for legacy bundles."""
+    if not trials:
+        return 0.0
+    _validate_error_rate(trials, max_error_rate=max_error_rate)
+    by_task: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+    for trial in trials:
+        by_task[_task_id(trial)].append(trial)
+    return sum(
+        1
+        for task_trials in by_task.values()
+        if task_trials and all(_passed(trial) and not _is_error_trial(trial) for trial in task_trials)
+    ) / len(by_task)
 
 
 def intersection_cost(records: list[dict[str, Any]], mode_a: str, mode_b: str) -> dict[str, Any]:
