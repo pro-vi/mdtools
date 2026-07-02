@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import signal
 import subprocess
 import threading
@@ -93,7 +94,7 @@ def resolve_oai_model(api_base: str, api_key: str, requested_model: str | None) 
     return first["id"]
 
 
-def parse_action_text(raw_text: str) -> LoopAction:
+def parse_action_text(raw_text: str, *, workdir: Path | None = None) -> LoopAction:
     candidate = _extract_last_json_object(raw_text)
     parsed = json.loads(candidate)
     if not isinstance(parsed, dict):
@@ -104,7 +105,8 @@ def parse_action_text(raw_text: str) -> LoopAction:
         command = parsed.get("command")
         if not isinstance(command, str) or not command.strip():
             raise ValueError("bash response must include a non-empty string command")
-        if any(token in command for token in ("\n", ";", "&&", "||")):
+        command = _normalize_bash_command(command, workdir=workdir)
+        if _has_forbidden_command_separator(command):
             raise ValueError("bash command must be a single shell command without separators")
         return LoopAction(action_type="bash", command=command.strip())
 
@@ -112,6 +114,67 @@ def parse_action_text(raw_text: str) -> LoopAction:
         return LoopAction(action_type="final", output=parsed.get("output", ""))
 
     raise ValueError("response type must be 'bash' or 'final'")
+
+
+def _normalize_bash_command(command: str, *, workdir: Path | None) -> str:
+    command = command.strip()
+    if workdir is None:
+        return command
+
+    split_command = _split_first_command_separator(command)
+    if split_command is None:
+        return command
+
+    prefix, separator, rest = split_command
+    if separator not in {"&&", ";"}:
+        return command
+
+    try:
+        prefix_parts = shlex.split(prefix)
+    except ValueError:
+        return command
+    if len(prefix_parts) != 2 or prefix_parts[0] != "cd":
+        return command
+
+    target = Path(prefix_parts[1])
+    if not target.is_absolute():
+        target = workdir / target
+
+    if target.resolve() != workdir.resolve():
+        return command
+    return rest.strip()
+
+
+def _has_forbidden_command_separator(command: str) -> bool:
+    return "\n" in command or _split_first_command_separator(command) is not None
+
+
+def _split_first_command_separator(command: str) -> tuple[str, str, str] | None:
+    in_single_quote = False
+    in_double_quote = False
+    escaped = False
+    for index, char in enumerate(command):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and not in_single_quote:
+            escaped = True
+            continue
+        if char == "'" and not in_double_quote:
+            in_single_quote = not in_single_quote
+            continue
+        if char == "\"" and not in_single_quote:
+            in_double_quote = not in_double_quote
+            continue
+        if in_single_quote or in_double_quote:
+            continue
+        if char == ";":
+            return command[:index], ";", command[index + 1:]
+        if command.startswith("&&", index):
+            return command[:index], "&&", command[index + 2:]
+        if command.startswith("||", index):
+            return command[:index], "||", command[index + 2:]
+    return None
 
 
 def format_final_output(output: Any) -> str:
@@ -200,7 +263,7 @@ def run_oai_loop(
             transcript.append({"turn": turn, "assistant": assistant_text})
 
             try:
-                action = parse_action_text(assistant_text)
+                action = parse_action_text(assistant_text, workdir=workdir)
             except (json.JSONDecodeError, ValueError) as exc:
                 invalid_responses += 1
                 invalid_response_seen.add(assistant_text)

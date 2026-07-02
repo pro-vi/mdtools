@@ -28,9 +28,55 @@ class OAILoopTests(unittest.TestCase):
         self.assertEqual(action.action_type, "bash")
         self.assertEqual(action.command, "md outline doc.md --json")
 
+    def test_parse_action_text_strips_leading_cd_to_workdir(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_cd_") as tmpdir:
+            command = f"cd {tmpdir} && ./md outline doc.md --json"
+            action = parse_action_text(
+                json.dumps({"type": "bash", "command": command}),
+                workdir=Path(tmpdir),
+            )
+
+        self.assertEqual(action.action_type, "bash")
+        self.assertEqual(action.command, "./md outline doc.md --json")
+
+    def test_parse_action_text_strips_leading_cd_semicolon_to_workdir(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_cd_") as tmpdir:
+            command = f"cd {tmpdir}; ./md outline doc.md --json"
+            action = parse_action_text(
+                json.dumps({"type": "bash", "command": command}),
+                workdir=Path(tmpdir),
+            )
+
+        self.assertEqual(action.action_type, "bash")
+        self.assertEqual(action.command, "./md outline doc.md --json")
+
+    def test_parse_action_text_rejects_leading_cd_to_other_dir(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_oai_loop_cd_") as tmpdir:
+            with self.assertRaises(ValueError):
+                parse_action_text(
+                    json.dumps({"type": "bash", "command": "cd /tmp && ./md outline doc.md --json"}),
+                    workdir=Path(tmpdir),
+                )
+
     def test_parse_action_text_rejects_command_separators(self) -> None:
         with self.assertRaises(ValueError):
             parse_action_text(json.dumps({"type": "bash", "command": "cat doc.md && md outline doc.md --json"}))
+
+    def test_parse_action_text_allows_quoted_program_semicolons(self) -> None:
+        command = "cat doc.md | awk '{print $1; print $2}'"
+        action = parse_action_text(json.dumps({"type": "bash", "command": command}))
+        self.assertEqual(action.command, command)
+
+    def test_parse_action_text_allows_escaped_semicolon(self) -> None:
+        command = "find . -name '*.md' -exec md tasks {} \\;"
+        action = parse_action_text(json.dumps({"type": "bash", "command": command}))
+        self.assertEqual(action.command, command)
+
+    def test_parse_action_text_rejects_unquoted_semicolon_after_quoted_program(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_action_text(
+                json.dumps({"type": "bash", "command": "awk '{print $1}' doc.md; echo done"})
+            )
 
     def test_format_final_output_serializes_json_values(self) -> None:
         rendered = format_final_output({"ok": True, "items": [1, 2]})
@@ -86,7 +132,7 @@ class OAILoopTests(unittest.TestCase):
         # unique counter surfaces exactly that distinction.
         stuck_reply = json.dumps({
             "type": "bash",
-            "command": "find . -name '*.md' -exec md tasks {} \\; | jq -s '.'",
+            "command": "find . -name '*.md'; md tasks doc.md",
         })
         scripted_assistant_replies = [
             stuck_reply,
