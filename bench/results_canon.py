@@ -39,7 +39,10 @@ TASKS = Path(__file__).resolve().parent / "tasks" / "tasks.json"
 ADJUDICATIONS = Path(__file__).resolve().parent / "v3" / "adjudications.json"
 SCORER_VERSION = "v3-neutral-primary"
 
-V3_CANON: list[str] = ["v3-validation-qwen-2026-07-01"]
+V3_CANON: list[str] = [
+    "v3-validation-qwen-2026-07-01",
+    "v3-closeout-haiku-shell-2026-07-02",
+]
 
 
 class CanonBlockedError(RuntimeError):
