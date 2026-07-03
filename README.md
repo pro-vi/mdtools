@@ -1,6 +1,6 @@
 # mdtools
 
-> **Status: WIP** — core CLI + task commands are functional. The benchmark harness is being upgraded to bench v3 after a measurement audit found that the pre-v3 headline numbers were underpowered and scorer-coupled; see [Benchmark](#benchmark).
+> **Status: WIP** — core CLI + task commands are functional. Benchmark claims are under bench v3: the old headline is retracted, and the current v3 result is directional rather than certified; see [Benchmark](#benchmark).
 
 Structural access to Markdown for LLM agents.
 
@@ -212,13 +212,15 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 `bench/` contains an agent benchmark harness measuring whether `md` helps LLM agents complete Markdown editing tasks compared to raw unix tools and native file-edit tools. The harness supports unix, mdtools, hybrid, native, and no-md ablation modes through a guarded executor.
 
-### Bench v3 retraction
+### Bench v3 status
 
 **BENCH_V3_RETRACTION:** the pre-v3 headline benchmark numbers are retracted and should not be cited as current evidence. The old runs were useful engineering provenance, but the public claims were not publishable because they used one trial per task/mode, shared scorer authority with the tool under test, prompt-coached several tasks, and mixed gap-selected generated tasks into headline tables.
 
-The generated v3 canon lives at [`bench/RESULTS.md`](bench/RESULTS.md); until v3 bundles are registered it renders the v3 harness card/placeholder first and keeps the v2 tables underneath as an explicitly archived appendix. The replacement protocol is [`bench/V3.md`](bench/V3.md): neutral task prompts, machine-readable task provenance, independent scorer authority, N>=5 trials per cell, confidence intervals on every published number, pass@1 and pass^k reporting, cost-vs-success reporting, and a preregistered analysis manifest before paid runs.
+The generated v3 canon lives at [`bench/RESULTS.md`](bench/RESULTS.md). It renders the current v3 verdict first and keeps the v2 tables underneath as an explicitly archived appendix. The replacement protocol is [`bench/V3.md`](bench/V3.md): neutral task prompts, machine-readable task provenance, independent scorer authority, N>=5 trials per cell, confidence intervals on every published number, pass@1 and pass^k reporting, cost-vs-success reporting, and a preregistered analysis manifest before paid runs.
 
-No v3 headline numbers have shipped yet. Until the v3 local validation and supervised paid close-out complete, this README makes no current benchmark claim beyond the tool's intended measurement question.
+Current v3 result: `md` shows a large directional lift for the tested weak models, and the no-md ablations fall back to their baselines, which supports the interpretation that the lift comes from structural Markdown access rather than prompt wording. The preregistered broad headline still **failed** the certification gate: the paired lift estimates are +28.3pp, +27.5pp, and +30.8pp, but their 95% CI lower bounds are only +10.0pp, +9.2pp, and +10.8pp, below the frozen +15pp floor. Treat the result as **directional/exploratory rather than confirmed**.
+
+The failure is about scope, not absence of effect. The flip table shows a concentrated regime: a minority of core tasks flip strongly with `md`, while most tasks do not move. The variance decomposition says task variance dominates trial variance, so more repeats are not the next lever; a confirmed broad claim needs more gap-blind core tasks, while a narrower family-scoped claim should stay tied to the task families that actually flip.
 
 ### Corpus
 

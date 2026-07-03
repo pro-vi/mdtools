@@ -6,6 +6,18 @@ Generated: 2026-07-03.
 
 ## Headline Status
 
+Manifest threshold: PASS requires 95% paired-lift CI lower bound > +15pp, exact collapsed-task p < 0.05, and no md-favorable quarantine concentration.
+
+| Comparison | Core tasks | Lift pass@1 mean ± 95% CI | Exact p | Majority flips (+/-) | Ablation control | Verdict |
+|---|---:|---:|---:|---:|---|---|
+| claude-haiku-4-5-20251001 `unix` -> `hybrid` | 24 | +28.3pp [+10.0pp, +47.5pp] | 0.125 | +6/-1 | 60.8% vs 57.5% (clean) | FAIL (downgrade) |
+| claude-haiku-4-5-20251001 `native` -> `native+md` | 24 | +27.5pp [+9.2pp, +46.7pp] | 0.01562 | +7/-0 | 60.8% vs 60.8% (clean) | FAIL (downgrade) |
+| openai-codex/gpt-5.4-mini `native` -> `native+md` | 24 | +30.8pp [+10.8pp, +50.8pp] | 0.02148 | +9/-1 | 55.8% vs 55.0% (clean) | FAIL (downgrade) |
+
+## Interpretation Notes
+
+- 2026-07-03 — tool_error runner_error classification: Rows whose runner_error starts with tool_error: are model/tool-use outcomes, not infrastructure errors. They remain scored by the row's correctness verdict; non-tool runner_error values and verdict=error remain infrastructure errors for the manifest error-trial invalidation rule. This clarifies interpretation only and does not change task content, thresholds, prompt hash, scorer version, or correctness labels. Affected rows: v3-closeout-gpt54mini-native-2026-07-03: native 17, native+md 15, native+md-no-md 132. Unaffected bundles: v3-closeout-haiku-shell-2026-07-02, v3-closeout-haiku-native-2026-07-03.
+
 ## Core Tasks
 
 | Model | Runner | Mode | Tasks | Trials | Mean pass@1 ± 95% CI | pass^k | Median cost | Cost/success |
@@ -19,6 +31,22 @@ Generated: 2026-07-03.
 | openai-codex/gpt-5.4-mini | `pi-json` | `native` | 24 | 120 | 55.0% [46.1%, 63.6%] | 50.0% | 3 | 5.47 |
 | openai-codex/gpt-5.4-mini | `pi-json` | `native+md` | 24 | 120 | 85.8% [78.5%, 91.0%] | 66.7% | 3 | 4.718 |
 | openai-codex/gpt-5.4-mini | `pi-json` | `native+md-no-md` | 24 | 120 | 55.8% [46.9%, 64.4%] | 45.8% | 5 | 8.313 |
+
+## Variance Decomposition
+
+Approximate contribution to mean pass-rate variance; high task share means more corpus breadth buys more certainty than more repeats.
+
+| Model | Runner | Mode | Tasks | Mean k | Task variance term | Trial variance term | Task share |
+|---|---|---|---:|---:|---:|---:|---:|
+| claude-haiku-4-5-20251001 | `claude-cli` | `hybrid` | 24 | 5.0 | 0.004562 | 0.000139 | 97.0% |
+| claude-haiku-4-5-20251001 | `claude-cli` | `hybrid-no-md` | 24 | 5.0 | 0.008765 | 0.000306 | 96.6% |
+| claude-haiku-4-5-20251001 | `claude-cli` | `native` | 24 | 5.0 | 0.009925 | 0.000083 | 99.2% |
+| claude-haiku-4-5-20251001 | `claude-cli` | `native+md` | 24 | 5.0 | 0.003466 | 0.000194 | 94.7% |
+| claude-haiku-4-5-20251001 | `claude-cli` | `native+md-no-md` | 24 | 5.0 | 0.009780 | 0.000111 | 98.9% |
+| claude-haiku-4-5-20251001 | `claude-cli` | `unix` | 24 | 5.0 | 0.008306 | 0.000444 | 94.9% |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native` | 24 | 5.0 | 0.009601 | 0.000222 | 97.7% |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md` | 24 | 5.0 | 0.002823 | 0.000472 | 85.7% |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md-no-md` | 24 | 5.0 | 0.009417 | 0.000250 | 97.4% |
 
 ## Adversarially Mined Tasks
 

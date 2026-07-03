@@ -21,7 +21,10 @@ class BenchV3RetractionTests(unittest.TestCase):
     def test_readme_retracts_pre_v3_headlines(self) -> None:
         readme = (REPO / "README.md").read_text()
         self.assertIn("BENCH_V3_RETRACTION", readme)
-        self.assertIn("No v3 headline numbers have shipped yet", readme)
+        self.assertIn("directional/exploratory rather than confirmed", readme)
+        self.assertIn("failed", readme)
+        self.assertIn("+28.3pp", readme)
+        self.assertIn("below the frozen +15pp floor", readme)
         self.assertNotIn("+43pp", readme)
         self.assertNotIn("54%", readme)
 
@@ -64,6 +67,14 @@ class BenchV3RetractionTests(unittest.TestCase):
             doc = results_canon.render_v3("2026-07-01", [bundle])
 
         self.assertIn("## Core Tasks", doc)
+        self.assertIn("## Headline Status", doc)
+        self.assertIn("Manifest threshold", doc)
+        self.assertIn("Lift pass@1 mean", doc)
+        self.assertIn("Exact p", doc)
+        self.assertIn("FAIL (downgrade)", doc)
+        self.assertIn("## Interpretation Notes", doc)
+        self.assertIn("## Variance Decomposition", doc)
+        self.assertIn("Task variance term", doc)
         self.assertIn("## Adversarially Mined Tasks", doc)
         self.assertIn("Mean pass@1", doc)
         self.assertIn("pass^k", doc)
@@ -130,6 +141,55 @@ class BenchV3RetractionTests(unittest.TestCase):
             doc = results_canon.render_v3("2026-07-01", [bundle])
         self.assertIn("## Exploratory Bundles", doc)
         self.assertIn("wrong N", doc)
+
+    def test_v3_renderer_renders_interpretation_notes(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_v3_notes_") as tmpdir:
+            root = Path(tmpdir)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            manifest = load_manifest()
+            (bundle / "run.json").write_text(json.dumps({
+                "runner": "claude-cli",
+                "model": "claude-haiku-4-5-20251001",
+                "modes": ["unix", "hybrid", "hybrid-no-md"],
+                "trials_per_cell": 5,
+                "task_file_sha256": manifest["task_file_sha256"],
+                "prompt_template_sha256": manifest["prompt_template_sha256"],
+                "scorer_version": manifest["scorer_version"],
+            }))
+            rows = []
+            for task_id in ["T1", "T2"]:
+                for mode in ["unix", "hybrid", "hybrid-no-md"]:
+                    for run_index in range(5):
+                        rows.append({
+                            "task_id": task_id,
+                            "mode": mode,
+                            "model": "claude-haiku-4-5-20251001",
+                            "runner": "claude-cli",
+                            "run_index": run_index,
+                            "correct": mode == "hybrid",
+                            "verdict": "pass" if mode == "hybrid" else "fail",
+                        })
+            (bundle / "results.json").write_text(json.dumps(rows))
+            notes = root / "adjudications.json"
+            notes.write_text(json.dumps([
+                {
+                    "type": "interpretation_note",
+                    "date": "2026-07-03",
+                    "topic": "tool_error classification",
+                    "summary": "tool_error rows are scored model behavior.",
+                    "affected_rows": {"bundle": {"native": 1}},
+                    "unaffected_bundles": ["haiku"],
+                }
+            ]))
+            doc = results_canon.render_v3(
+                "2026-07-03",
+                [bundle],
+                adjudications_path=notes,
+            )
+        self.assertIn("2026-07-03", doc)
+        self.assertIn("tool_error rows are scored model behavior", doc)
+        self.assertIn("bundle: native 1", doc)
 
 
 if __name__ == "__main__":

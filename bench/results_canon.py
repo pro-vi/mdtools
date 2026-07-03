@@ -25,13 +25,13 @@ from pathlib import Path
 
 try:
     from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
-    from bench.stats import wilson_ci
-    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, load_manifest
+    from bench.stats import exact_sign_test, flip_table, hierarchical_bootstrap_ci, variance_decomposition, wilson_ci
+    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, evaluate_success_threshold, load_manifest
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
-    from bench.stats import wilson_ci
-    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, load_manifest
+    from bench.stats import exact_sign_test, flip_table, hierarchical_bootstrap_ci, variance_decomposition, wilson_ci
+    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, evaluate_success_threshold, load_manifest
 
 RUNS = Path(__file__).resolve().parent / "runs"
 OUT = Path(__file__).resolve().parent / "RESULTS.md"
@@ -145,8 +145,17 @@ def _load_adjudications(path: Path = ADJUDICATIONS) -> set[tuple[str, str, int |
     raw = json.loads(path.read_text())
     out = set()
     for item in raw:
+        if item.get("type") == "interpretation_note":
+            continue
         out.add((item.get("task"), item.get("mode"), item.get("run_index")))
     return out
+
+
+def _load_interpretation_notes(path: Path = ADJUDICATIONS) -> list[dict]:
+    if not path.exists():
+        return []
+    raw = json.loads(path.read_text())
+    return [item for item in raw if item.get("type") == "interpretation_note"]
 
 
 def _blocked_quarantines(rows: list[dict], adjudicated: set[tuple[str, str, int | None]]) -> list[dict]:
@@ -172,6 +181,148 @@ def _cost_value(row: dict) -> float | None:
 
 def _fmt_pct(value: float) -> str:
     return f"{value * 100:.1f}%"
+
+
+def _fmt_pp(value: float) -> str:
+    sign = "+" if value >= 0 else ""
+    return f"{sign}{value * 100:.1f}pp"
+
+
+def _comparison_modes(comparison: dict) -> tuple[str, str]:
+    left, right = [part.strip() for part in comparison["comparison"].split("->", 1)]
+    return left, right
+
+
+def _rows_for_cell(
+    rows: list[dict],
+    *,
+    provenance: dict[str, str],
+    model: str,
+    runner: str,
+    mode: str,
+    split: str,
+) -> list[dict]:
+    split_rows = [
+        row
+        for row in rows
+        if provenance.get(row.get("task_id"), "core") == split
+    ]
+    return cell_trials(split_rows, mode=mode, model=model, runner=runner)
+
+
+def _render_ablation_status(
+    *,
+    baseline_trials: list[dict],
+    ablation_trials: list[dict],
+) -> str:
+    if not baseline_trials or not ablation_trials:
+        return "-"
+    baseline = pass_at_1_mean(baseline_trials)
+    ablation = pass_at_1_mean(ablation_trials)
+    delta_pp = abs(ablation - baseline) * 100
+    status = "clean" if delta_pp <= 5.0 else "separated"
+    return f"{_fmt_pct(ablation)} vs {_fmt_pct(baseline)} ({status})"
+
+
+def _render_headline_status(rows: list[dict], provenance: dict[str, str], manifest: dict) -> str:
+    primary = manifest.get("primary_comparisons", [])
+    if not primary:
+        return "No preregistered primary comparisons in the v3 manifest.\n"
+    lines = [
+        "Manifest threshold: PASS requires 95% paired-lift CI lower bound > +15pp, exact collapsed-task p < 0.05, and no md-favorable quarantine concentration.\n",
+        "| Comparison | Core tasks | Lift pass@1 mean ± 95% CI | Exact p | Majority flips (+/-) | Ablation control | Verdict |",
+        "|---|---:|---:|---:|---:|---|---|",
+    ]
+    for comparison in primary:
+        runner = comparison["runner"]
+        model = comparison["model"]
+        baseline_mode, treatment_mode = _comparison_modes(comparison)
+        baseline = _rows_for_cell(
+            rows,
+            provenance=provenance,
+            model=model,
+            runner=runner,
+            mode=baseline_mode,
+            split="core",
+        )
+        treatment = _rows_for_cell(
+            rows,
+            provenance=provenance,
+            model=model,
+            runner=runner,
+            mode=treatment_mode,
+            split="core",
+        )
+        ablation_mode = comparison.get("ablation")
+        ablation = (
+            _rows_for_cell(
+                rows,
+                provenance=provenance,
+                model=model,
+                runner=runner,
+                mode=ablation_mode,
+                split="core",
+            )
+            if ablation_mode
+            else []
+        )
+        label = f"{model} `{baseline_mode}` -> `{treatment_mode}`"
+        if not baseline or not treatment:
+            lines.append(f"| {label} | 0 | - | - | - | - | MISSING |")
+            continue
+        ci = hierarchical_bootstrap_ci(treatment, baseline)
+        flips = flip_table(baseline, treatment).majority_of_k
+        exact_p = exact_sign_test(flips.pass_fail, flips.fail_pass)
+        verdict = evaluate_success_threshold(
+            lift_ci_low_pp=ci.low * 100,
+            exact_p=exact_p,
+            favorable_quarantines=0,
+            manifest=manifest,
+        )
+        verdict_label = "PASS" if verdict == "confirmed" else "FAIL (downgrade)"
+        ablation_status = _render_ablation_status(
+            baseline_trials=baseline,
+            ablation_trials=ablation,
+        )
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    label,
+                    str(len({row.get("task_id") for row in baseline})),
+                    f"{_fmt_pp(ci.estimate)} [{_fmt_pp(ci.low)}, {_fmt_pp(ci.high)}]",
+                    f"{exact_p:.4g}",
+                    f"+{flips.fail_pass}/-{flips.pass_fail}",
+                    ablation_status,
+                    verdict_label,
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _render_interpretation_notes(notes: list[dict]) -> str:
+    if not notes:
+        return "_No post-freeze interpretation notes._\n"
+    lines = []
+    for note in notes:
+        affected = note.get("affected_rows") or {}
+        affected_parts = []
+        for bundle, modes in affected.items():
+            if isinstance(modes, dict):
+                mode_counts = ", ".join(f"{mode} {count}" for mode, count in modes.items())
+                affected_parts.append(f"{bundle}: {mode_counts}")
+            else:
+                affected_parts.append(str(bundle))
+        affected_text = "; ".join(affected_parts) if affected_parts else "none"
+        unaffected = ", ".join(note.get("unaffected_bundles") or [])
+        unaffected_text = f" Unaffected bundles: {unaffected}." if unaffected else ""
+        lines.append(
+            f"- {note.get('date', 'undated')} — {note.get('topic', 'note')}: "
+            f"{note.get('summary', '')} Affected rows: {affected_text}.{unaffected_text}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _render_cell_table(rows: list[dict], provenance: dict[str, str], split: str) -> str:
@@ -239,6 +390,40 @@ def _render_cost_frontier(rows: list[dict], provenance: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _render_variance_decomposition(rows: list[dict], provenance: dict[str, str]) -> str:
+    core_rows = [row for row in rows if provenance.get(row.get("task_id"), "core") == "core"]
+    keys = sorted({(row.get("model"), row.get("runner"), row.get("mode")) for row in core_rows})
+    if not keys:
+        return "_No core variance data yet._\n"
+    lines = [
+        "| Model | Runner | Mode | Tasks | Mean k | Task variance term | Trial variance term | Task share |",
+        "|---|---|---|---:|---:|---:|---:|---:|",
+    ]
+    for model, runner, mode in keys:
+        trials = cell_trials(core_rows, mode=mode, model=model, runner=runner)
+        if not trials:
+            continue
+        decomp = variance_decomposition(trials)
+        task_share = decomp.task_variance_term / decomp.total if decomp.total else 0.0
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    str(model or ""),
+                    f"`{runner or ''}`",
+                    f"`{mode or ''}`",
+                    str(decomp.n_tasks),
+                    f"{decomp.mean_k:.1f}",
+                    f"{decomp.task_variance_term:.6f}",
+                    f"{decomp.trial_variance_term:.6f}",
+                    _fmt_pct(task_share),
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _render_harness_card(run_meta: list[dict]) -> str:
     if not run_meta:
         return "_No v3 run bundles are registered yet._\n"
@@ -276,6 +461,7 @@ def render_v3(
     bundles = V3_CANON if bundles is None else bundles
     provenance = _task_provenance(tasks_path)
     adjudicated = _load_adjudications(adjudications_path)
+    notes = _load_interpretation_notes(adjudications_path)
     manifest = load_manifest(manifest_path)
     run_meta: list[dict] = []
     rows: list[dict] = []
@@ -316,8 +502,14 @@ def render_v3(
     else:
         parts.extend(
             [
+                _render_headline_status(rows, provenance, manifest),
+                "## Interpretation Notes\n",
+                _render_interpretation_notes(notes),
                 "## Core Tasks\n",
                 _render_cell_table(rows, provenance, "core"),
+                "## Variance Decomposition\n",
+                "Approximate contribution to mean pass-rate variance; high task share means more corpus breadth buys more certainty than more repeats.\n",
+                _render_variance_decomposition(rows, provenance),
                 "## Adversarially Mined Tasks\n",
                 "Adversarially filtered tasks are reported separately and are not generalized as headline evidence.\n",
                 _render_cell_table(rows, provenance, "adversarially-mined"),

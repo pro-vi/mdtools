@@ -1,1 +1,19 @@
-[]
+[
+  {
+    "type": "interpretation_note",
+    "date": "2026-07-03",
+    "topic": "tool_error runner_error classification",
+    "summary": "Rows whose runner_error starts with tool_error: are model/tool-use outcomes, not infrastructure errors. They remain scored by the row's correctness verdict; non-tool runner_error values and verdict=error remain infrastructure errors for the manifest error-trial invalidation rule. This clarifies interpretation only and does not change task content, thresholds, prompt hash, scorer version, or correctness labels.",
+    "affected_rows": {
+      "v3-closeout-gpt54mini-native-2026-07-03": {
+        "native": 17,
+        "native+md": 15,
+        "native+md-no-md": 132
+      }
+    },
+    "unaffected_bundles": [
+      "v3-closeout-haiku-shell-2026-07-02",
+      "v3-closeout-haiku-native-2026-07-03"
+    ]
+  }
+]

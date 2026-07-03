@@ -44,6 +44,36 @@ class BenchStatsTests(unittest.TestCase):
         self.assertEqual(table.all_k.fail_fail, 1)
         self.assertEqual(table.all_k.fail_pass, 1)
 
+    def test_tool_errors_are_scored_not_infra_failures(self) -> None:
+        cell_a = [
+            {**trial("T1", True, 0), "runner_error": "tool_error: edit recovered"},
+            {**trial("T1", True, 1), "runner_error": "tool_error: md unavailable"},
+            trial("T1", False, 2),
+        ]
+        cell_b = [
+            trial("T1", False, 0),
+            trial("T1", False, 1),
+            trial("T1", True, 2),
+        ]
+        table = flip_table(cell_a, cell_b)
+        self.assertEqual(table.majority_of_k.pass_fail, 1)
+        self.assertEqual(table.majority_of_k.fail_pass, 0)
+
+    def test_verdict_error_still_counts_as_infra_failure(self) -> None:
+        cell_a = [
+            {**trial("T1", True, 0), "verdict": "error"},
+            {**trial("T1", True, 1), "verdict": "error"},
+            trial("T1", False, 2),
+        ]
+        cell_b = [
+            trial("T1", False, 0),
+            trial("T1", False, 1),
+            trial("T1", True, 2),
+        ]
+        table = flip_table(cell_a, cell_b)
+        self.assertEqual(table.majority_of_k.pass_fail, 0)
+        self.assertEqual(table.majority_of_k.fail_fail, 1)
+
     def test_bootstrap_ci_large_effect_excludes_zero(self) -> None:
         cell_a = [trial(f"T{i}", True, r) for i in range(8) for r in range(5)]
         cell_b = [trial(f"T{i}", False, r) for i in range(8) for r in range(5)]

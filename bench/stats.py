@@ -68,8 +68,18 @@ def _task_id(rec: dict[str, Any]) -> str:
     return str(rec.get("task_id") or rec.get("task"))
 
 
+def _is_tool_error(rec: dict[str, Any]) -> bool:
+    return str(rec.get("runner_error") or "").startswith("tool_error:")
+
+
+def _is_error_trial(rec: dict[str, Any]) -> bool:
+    if rec.get("verdict") == "error":
+        return True
+    return bool(rec.get("runner_error")) and not _is_tool_error(rec)
+
+
 def _passed(rec: dict[str, Any]) -> bool:
-    if rec.get("runner_error") or rec.get("verdict") == "error":
+    if _is_error_trial(rec):
         return False
     if "correct" in rec:
         return bool(rec["correct"])
