@@ -2115,6 +2115,10 @@ def extract_final_text(
     return combined_stdout.strip()
 
 
+def selected_agent_modes(mode_args: list[BenchMode] | None) -> list[BenchMode]:
+    return list(mode_args) if mode_args else ["unix", "mdtools", "hybrid"]
+
+
 # ── CLI ───────────────────────────────────────────────────────
 
 def main():
@@ -2125,10 +2129,10 @@ def main():
         action="store_true",
         help="Validate the frozen bench v3 manifest before starting an agent run",
     )
-    parser.add_argument("--mode", choices=[
+    parser.add_argument("--mode", action="append", choices=[
         "unix", "mdtools", "hybrid", "hybrid-no-md",
         "native", "native+md", "native+md-no-md",  # native-rooted arm (claude-cli only)
-    ])
+    ], help="Mode to run. Repeat to run a preregistered multi-mode bundle.")
     parser.add_argument("--task", help="Run only this task ID")
     parser.add_argument("-N", type=int, default=1, help="Runs per task×mode (agent track)")
     parser.add_argument(
@@ -2288,7 +2292,7 @@ def main():
         sys.exit(0 if ok else 1)
 
     # Agent track
-    modes: list[BenchMode] = [args.mode] if args.mode else ["unix", "mdtools", "hybrid"]
+    modes = selected_agent_modes(args.mode)
     # U3 (FRAC-194): native* modes need claude-cli's native file tools — fail fast
     # if requested on a local runner that can't expose them.
     native_err = native_runner_error(modes, args.runner)

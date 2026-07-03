@@ -16,12 +16,20 @@ from bench.harness import (
     load_tasks,
     run_agent,
     select_tasks,
+    selected_agent_modes,
     write_run_artifacts,
 )
 from bench.oai_loop import LoopError, LoopTrace
 
 
 class HarnessRunArtifactTests(unittest.TestCase):
+    def test_selected_agent_modes_preserves_default_and_repeated_flags(self) -> None:
+        self.assertEqual(selected_agent_modes(None), ["unix", "mdtools", "hybrid"])
+        self.assertEqual(
+            selected_agent_modes(["native", "native+md", "native+md-no-md"]),
+            ["native", "native+md", "native+md-no-md"],
+        )
+
     def test_write_run_artifacts_persists_metadata_results_and_task_ids(self) -> None:
         results = [
             BenchResult(
