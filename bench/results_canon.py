@@ -43,6 +43,7 @@ V3_CANON: list[str] = [
     "v3-validation-qwen-2026-07-01",
     "v3-closeout-haiku-shell-2026-07-02",
     "v3-closeout-haiku-native-2026-07-03",
+    "v3-closeout-gpt54mini-native-2026-07-03",
 ]
 
 

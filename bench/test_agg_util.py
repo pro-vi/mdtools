@@ -36,7 +36,7 @@ def _rec(task, mode, model, passed, tin=0, tout=0, calls=0, thinking=None):
     }
 
 
-def _trial(task, mode, passed, run_index, model="qwen", runner="oai-loop", error=None):
+def _trial(task, mode, passed, run_index, model="qwen", runner="oai-loop", error=None, verdict=None):
     return {
         "task_id": task,
         "mode": mode,
@@ -45,6 +45,7 @@ def _trial(task, mode, passed, run_index, model="qwen", runner="oai-loop", error
         "correct": passed,
         "run_index": run_index,
         "runner_error": error,
+        "verdict": verdict,
     }
 
 
@@ -158,6 +159,34 @@ def test_v3_cell_rejects_high_error_rate():
     ]
     try:
         pass_at_1_mean(trials)
+    except InvalidCellError as exc:
+        assert "T1: 2/5 error trials" in str(exc)
+    else:
+        raise AssertionError("expected InvalidCellError")
+
+
+def test_v3_tool_error_counts_as_scored_trial_not_infra_error():
+    trials = [
+        _trial("T1", "hybrid", True, 0, error="tool_error: edit oldText not unique"),
+        _trial("T1", "hybrid", False, 1, error="tool_error: bash: md unavailable"),
+        _trial("T1", "hybrid", True, 2),
+        _trial("T1", "hybrid", True, 3),
+        _trial("T1", "hybrid", True, 4),
+    ]
+    assert pass_at_1_mean(trials) == 0.8
+    assert pass_hat_k(trials) == 0.0
+
+
+def test_v3_verdict_error_still_rejects_high_error_rate():
+    trials = [
+        _trial("T1", "hybrid", True, 0),
+        _trial("T1", "hybrid", False, 1, verdict="error"),
+        _trial("T1", "hybrid", False, 2, verdict="error"),
+        _trial("T1", "hybrid", True, 3),
+        _trial("T1", "hybrid", True, 4),
+    ]
+    try:
+        pass_hat_k(trials)
     except InvalidCellError as exc:
         assert "T1: 2/5 error trials" in str(exc)
     else:

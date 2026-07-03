@@ -16,6 +16,9 @@ Generated: 2026-07-03.
 | claude-haiku-4-5-20251001 | `claude-cli` | `native+md` | 24 | 120 | 88.3% [81.4%, 92.9%] | 79.2% | 7.87e+04 | 9.722e+04 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `native+md-no-md` | 24 | 120 | 60.8% [51.9%, 69.1%] | 54.2% | 9.594e+04 | 1.92e+05 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `unix` | 24 | 120 | 57.5% [48.6%, 66.0%] | 41.7% | 7.355e+04 | 1.921e+05 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native` | 24 | 120 | 55.0% [46.1%, 63.6%] | 50.0% | 3 | 5.47 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md` | 24 | 120 | 85.8% [78.5%, 91.0%] | 66.7% | 3 | 4.718 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md-no-md` | 24 | 120 | 55.8% [46.9%, 64.4%] | 45.8% | 5 | 8.313 |
 
 ## Adversarially Mined Tasks
 
@@ -29,6 +32,9 @@ Adversarially filtered tasks are reported separately and are not generalized as 
 | claude-haiku-4-5-20251001 | `claude-cli` | `native+md` | 4 | 20 | 95.0% [76.4%, 99.1%] | 75.0% | 9.775e+04 | 1.012e+05 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `native+md-no-md` | 4 | 20 | 85.0% [64.0%, 94.8%] | 50.0% | 1.18e+05 | 1.38e+05 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `unix` | 4 | 20 | 80.0% [58.4%, 91.9%] | 50.0% | 1.113e+05 | 1.419e+05 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native` | 4 | 20 | 55.0% [34.2%, 74.2%] | 50.0% | 3 | 5.455 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md` | 4 | 20 | 85.0% [64.0%, 94.8%] | 50.0% | 4 | 4.824 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md-no-md` | 4 | 20 | 50.0% [29.9%, 70.1%] | 50.0% | 4 | 9 |
 
 ## Cost-vs-Success Frontier
 
@@ -36,10 +42,13 @@ Adversarially filtered tasks are reported separately and are not generalized as 
 |---|---|---|---:|---:|
 | claude-haiku-4-5-20251001 | `claude-cli` | `native+md` | 88.3% | 7.87e+04 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `hybrid` | 85.8% | 7.2e+04 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md` | 85.8% | 3 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `hybrid-no-md` | 60.8% | 1.148e+05 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `native` | 60.8% | 6.604e+04 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `native+md-no-md` | 60.8% | 9.594e+04 |
 | claude-haiku-4-5-20251001 | `claude-cli` | `unix` | 57.5% | 7.355e+04 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native+md-no-md` | 55.8% | 5 |
+| openai-codex/gpt-5.4-mini | `pi-json` | `native` | 55.0% | 3 |
 
 ## Quarantine Report
 
@@ -64,6 +73,7 @@ These bundles do not conform to the frozen v3 manifest and are not headline evid
 | `oai-loop` | Qwen3.6-35B-A3B-8bit | 5 | temperature=0; chat_template_kwargs.enable_thinking=false | v3-neutral-primary | 1799e3386443d0f399f7ca1f51e1cc1cd2759ecbbc11e9f276378ffbc531b912 | 2 |
 | `claude-cli` | claude-haiku-4-5-20251001 | 5 | provider default (temperature not exposed by claude-cli) | v3-neutral-primary | 1799e3386443d0f399f7ca1f51e1cc1cd2759ecbbc11e9f276378ffbc531b912 | 2 |
 | `claude-cli` | claude-haiku-4-5-20251001 | 5 | provider default (temperature not exposed by claude-cli) | v3-neutral-primary | 1799e3386443d0f399f7ca1f51e1cc1cd2759ecbbc11e9f276378ffbc531b912 | 2 |
+| `pi-json` | openai-codex/gpt-5.4-mini | 5 | provider default via pi-json; thinking=minimal | v3-neutral-primary | 1799e3386443d0f399f7ca1f51e1cc1cd2759ecbbc11e9f276378ffbc531b912 | 2 |
 
 ---
 

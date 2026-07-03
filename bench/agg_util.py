@@ -88,8 +88,14 @@ class InvalidCellError(ValueError):
     """Raised when v3 cell aggregation would hide too many infrastructure errors."""
 
 
+def _is_tool_error(rec: dict[str, Any]) -> bool:
+    return str(rec.get("runner_error") or "").startswith("tool_error:")
+
+
 def _is_error_trial(rec: dict[str, Any]) -> bool:
-    return bool(rec.get("runner_error")) or rec.get("verdict") == "error"
+    if rec.get("verdict") == "error":
+        return True
+    return bool(rec.get("runner_error")) and not _is_tool_error(rec)
 
 
 def cell_trials(
