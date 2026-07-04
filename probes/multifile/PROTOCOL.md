@@ -31,6 +31,16 @@ mode, it must pass through the existing `MD_REAL_MODES` and no-md preflight poli
 
 Hard cap: $40 equivalent subscription spend. Abort and report rather than exceeding it.
 
+Measured-run model substitution locked before data collection (2026-07-04): this
+probe requires `pi-json` for the live drift hook, and the current Pi registry does
+not expose Claude Haiku/Sonnet models. The measured pair is therefore:
+
+- Strong: `openai-codex/gpt-5.4` with `--thinking minimal`
+- Weak/local: `omlx/Qwen3.6-35B-A3B-8bit` with no `--thinking` flag
+
+Interpret the readout as a strong/weak native-capable Pi-runner pair, not as a
+Claude-vs-Claude replication.
+
 ## Drift Injection
 
 The committed injector is `probes/multifile/drift_injector.py`.
@@ -101,6 +111,8 @@ Report, per task/model/mode:
 - whether md was invoked before the target mutation
 - observed-read -> drift -> target-mutation proof
 - clobber count
+
+The committed readout script is `probes/multifile/summarize_results.py`.
 
 ## Current Execution Status
 
