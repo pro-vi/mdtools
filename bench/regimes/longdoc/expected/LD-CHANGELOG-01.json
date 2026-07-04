@@ -1,0 +1,8 @@
+{
+  "open_checks": 2,
+  "program": "Atlas",
+  "quarter": "Q3",
+  "retry_budget_minutes": 12,
+  "rollback_owner": "Mira",
+  "window_index": 17
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "description": "In mega_changelog.md, navigate by structure: Program Atlas -> Quarter Q3 -> the 17th `Release Window` subsection, counting only Release Window subsections inside that quarter. From its `Migration Notes`, print JSON with keys program, quarter, window_index, retry_budget_minutes, rollback_owner, open_checks. The same headings, checklist labels, owners, and retry-budget values recur throughout the document.",
+    "difficulty": "regime",
+    "expected_artifact": "json_envelope",
+    "expected_output": "bench/regimes/longdoc/expected/LD-CHANGELOG-01.json",
+    "id": "LD-CHANGELOG-01",
+    "input_files": [
+      "bench/regimes/longdoc/inputs/mega_changelog.md"
+    ],
+    "provenance": "exploratory-longdoc-regime",
+    "scorer": {
+      "compare_block_order": false,
+      "compare_block_text": false,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_link_destinations": false,
+      "ignore_trailing_whitespace": true,
+      "json_canonical": true,
+      "json_required_keys": [
+        "program",
+        "quarter",
+        "window_index",
+        "retry_budget_minutes",
+        "rollback_owner",
+        "open_checks"
+      ],
+      "kind": "structural",
+      "normalize_line_endings": true
+    }
+  },
+  {
+    "description": "In ops_runbook.md, navigate by structure: Region west -> Service ledger -> the 21st `Quarterly Drill` subsection, counting only Quarterly Drill subsections inside that service. From its Drill Checklist and Escalation Matrix, print JSON with keys region, service, drill_index, unchecked_rollback_owner, escalation_tier, backup. The same region/service/drill headings and rollback labels recur throughout the document.",
+    "difficulty": "regime",
+    "expected_artifact": "json_envelope",
+    "expected_output": "bench/regimes/longdoc/expected/LD-RUNBOOK-02.json",
+    "id": "LD-RUNBOOK-02",
+    "input_files": [
+      "bench/regimes/longdoc/inputs/ops_runbook.md"
+    ],
+    "provenance": "exploratory-longdoc-regime",
+    "scorer": {
+      "compare_block_order": false,
+      "compare_block_text": false,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_link_destinations": false,
+      "ignore_trailing_whitespace": true,
+      "json_canonical": true,
+      "json_required_keys": [
+        "region",
+        "service",
+        "drill_index",
+        "unchecked_rollback_owner",
+        "escalation_tier",
+        "backup"
+      ],
+      "kind": "structural",
+      "normalize_line_endings": true
+    }
+  },
+  {
+    "description": "In interop_spec.md, navigate by structure: Part 4 -> Chapter 11 -> `Pattern B`. From its Compatibility Matrix and Exceptions section, print JSON with keys part, chapter, pattern, boundary_handoff_status, audit_memo_retention_status, must_exceptions. Pattern B, Compatibility Matrix, and the status values recur throughout the document.",
+    "difficulty": "regime",
+    "expected_artifact": "json_envelope",
+    "expected_output": "bench/regimes/longdoc/expected/LD-SPEC-03.json",
+    "id": "LD-SPEC-03",
+    "input_files": [
+      "bench/regimes/longdoc/inputs/interop_spec.md"
+    ],
+    "provenance": "exploratory-longdoc-regime",
+    "scorer": {
+      "compare_block_order": false,
+      "compare_block_text": false,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_link_destinations": false,
+      "ignore_trailing_whitespace": true,
+      "json_canonical": true,
+      "json_required_keys": [
+        "part",
+        "chapter",
+        "pattern",
+        "boundary_handoff_status",
+        "audit_memo_retention_status",
+        "must_exceptions"
+      ],
+      "kind": "structural",
+      "normalize_line_endings": true
+    }
+  }
+]

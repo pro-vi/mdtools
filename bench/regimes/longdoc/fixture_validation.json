@@ -1,0 +1,24 @@
+{
+  "LD-CHANGELOG-01": {
+    "lines": 38945,
+    "migration_notes_headings": 2160,
+    "release_window_headings": 2160,
+    "retry_budget_value": 432,
+    "rollback_owner_value": 360
+  },
+  "LD-RUNBOOK-02": {
+    "backup_value": 288,
+    "drill_checklist_headings": 1728,
+    "escalation_tier_value": 576,
+    "lines": 32945,
+    "quarterly_drill_headings": 1728,
+    "rollback_label": 5184
+  },
+  "LD-SPEC-03": {
+    "audit_status_value": 360,
+    "boundary_status_value": 360,
+    "compatibility_matrix_headings": 1440,
+    "lines": 24735,
+    "pattern_b_headings": 120
+  }
+}

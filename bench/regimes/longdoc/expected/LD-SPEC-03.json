@@ -1,0 +1,8 @@
+{
+  "audit_memo_retention_status": "required",
+  "boundary_handoff_status": "required",
+  "chapter": 11,
+  "must_exceptions": 2,
+  "part": 4,
+  "pattern": "Pattern B"
+}

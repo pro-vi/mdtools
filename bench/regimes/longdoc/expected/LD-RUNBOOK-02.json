@@ -1,0 +1,8 @@
+{
+  "backup": "Pax",
+  "drill_index": 21,
+  "escalation_tier": "SEV-1",
+  "region": "west",
+  "service": "ledger",
+  "unchecked_rollback_owner": 1
+}
