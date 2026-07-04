@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-07-04T12:20:33Z",
+  "finished_at": "2026-07-04T12:47:00Z",
+  "tasks_path": "bench/regimes/longdoc/tasks.json",
+  "task_ids_path": "bench/regimes/longdoc/task_ids.json",
+  "selected_task_ids": [
+    "LD-CHANGELOG-01",
+    "LD-RUNBOOK-02",
+    "LD-SPEC-03"
+  ],
+  "modes": [
+    "native",
+    "native+md",
+    "native+md-no-md"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "claude-cli",
+  "executor": "guarded",
+  "model": "claude-haiku-4-5-20251001",
+  "requested_model": "claude-haiku-4-5-20251001",
+  "thinking_level": null,
+  "requested_thinking_level": null,
+  "temperature_policy": "provider default (temperature not exposed by claude-cli)",
+  "task_file_sha256": "6d8706e3604abd4d65983187f0012b249d5abfe90b70aa7d61a86d84fb534f7f",
+  "prompt_template_sha256": "291e489fc1f985c36789dcfc2d6eb9935dacdcaa1a8cfc4f3b578e552bfdc35b",
+  "scorer_version": "v3-neutral-primary",
+  "manifest_hash": "1799e3386443d0f399f7ca1f51e1cc1cd2759ecbbc11e9f276378ffbc531b912",
+  "runs_per_task": 3,
+  "trials_per_cell": 3,
+  "holdout_version": 2,
+  "aggregates": {
+    "overall": {
+      "runs": 27,
+      "pass_count": 1,
+      "pass_rate": 0.037037037037037035,
+      "neutral_pass_count": 1,
+      "neutral_pass_rate": 0.037037037037037035,
+      "avg_elapsed_seconds": 48.57925925925925,
+      "avg_tool_calls": 10.555555555555555,
+      "avg_bytes_output": 112279.11111111111,
+      "avg_bytes_observation": 13268.962962962964,
+      "avg_mutations": 0.037037037037037035,
+      "avg_policy_violations": 0.14814814814814814,
+      "avg_invalid_responses": 0.0,
+      "avg_unique_invalid_responses": 0.0,
+      "requery_rate": 0.037037037037037035
+    },
+    "by_mode": {
+      "native": {
+        "runs": 9,
+        "pass_count": 1,
+        "pass_rate": 0.1111111111111111,
+        "neutral_pass_count": 1,
+        "neutral_pass_rate": 0.1111111111111111,
+        "avg_elapsed_seconds": 39.642222222222216,
+        "avg_tool_calls": 7.222222222222222,
+        "avg_bytes_output": 80704.55555555556,
+        "avg_bytes_observation": 10401.333333333334,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.1111111111111111,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 0.0
+      },
+      "native+md": {
+        "runs": 9,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 65.16888888888889,
+        "avg_tool_calls": 14.666666666666666,
+        "avg_bytes_output": 157630.11111111112,
+        "avg_bytes_observation": 13880.222222222223,
+        "avg_mutations": 0.0,
+        "avg_policy_violations": 0.2222222222222222,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 0.0
+      },
+      "native+md-no-md": {
+        "runs": 9,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 40.92666666666666,
+        "avg_tool_calls": 9.777777777777779,
+        "avg_bytes_output": 98502.66666666667,
+        "avg_bytes_observation": 15525.333333333334,
+        "avg_mutations": 0.1111111111111111,
+        "avg_policy_violations": 0.1111111111111111,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 0.1111111111111111
+      }
+    }
+  }
+}
