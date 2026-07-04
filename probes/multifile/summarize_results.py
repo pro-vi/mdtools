@@ -168,11 +168,16 @@ def summarize_bundles(bundles: list[Path]) -> str:
     for model in models:
         native = model_mode_pass_all.get((model, "native"), [])
         md = model_mode_pass_all.get((model, "native+md"), [])
-        native_parity = bool(native) and bool(md) and native == md
-        if native_parity:
+        if not native or not md:
+            verdict = "INCOMPLETE: missing native or native+md rows."
+        elif md == native and all(md):
             verdict = "CLOSED: native handled drift at pass^n parity with native+md."
+        elif md == native:
+            verdict = "CLOSED: neither arm reached pass^n reliability; no native+md edge was demonstrated."
+        elif all(md) and not all(native):
+            verdict = "CANDIDATE: native+md reached pass^n where native did not."
         else:
-            verdict = "CANDIDATE: native+md and native are not at pass^n parity."
+            verdict = "CLOSED: native+md did not reach pass^n reliability."
         lines.append(f"- `{model}`: {verdict}")
 
     return "\n".join(lines) + "\n"

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "kind": "agent-track",
+  "started_at": "2026-07-04T11:36:17Z",
+  "finished_at": "2026-07-04T11:47:18Z",
+  "tasks_path": "bench/regimes/multifile/tasks.json",
+  "task_ids_path": "bench/regimes/multifile/task_ids.json",
+  "selected_task_ids": [
+    "MF-ETAG-01",
+    "MF-ETAG-02"
+  ],
+  "modes": [
+    "native",
+    "native+md"
+  ],
+  "md_binary": "target/release/md",
+  "runner": "pi-json",
+  "executor": "guarded",
+  "model": "omlx/Qwen3.6-35B-A3B-8bit",
+  "requested_model": "omlx/Qwen3.6-35B-A3B-8bit",
+  "thinking_level": "off",
+  "requested_thinking_level": null,
+  "temperature_policy": "provider default via pi-json; thinking=off",
+  "task_file_sha256": "dcf7d41b7527ae2850ee357258c81f1fc458f3d48783fe0fb0a08b24abcca088",
+  "prompt_template_sha256": "291e489fc1f985c36789dcfc2d6eb9935dacdcaa1a8cfc4f3b578e552bfdc35b",
+  "scorer_version": "v3-neutral-primary",
+  "manifest_hash": "1799e3386443d0f399f7ca1f51e1cc1cd2759ecbbc11e9f276378ffbc531b912",
+  "runs_per_task": 3,
+  "trials_per_cell": 3,
+  "holdout_version": 2,
+  "aggregates": {
+    "overall": {
+      "runs": 12,
+      "pass_count": 1,
+      "pass_rate": 0.08333333333333333,
+      "neutral_pass_count": 1,
+      "neutral_pass_rate": 0.08333333333333333,
+      "avg_elapsed_seconds": 54.89416666666667,
+      "avg_tool_calls": 16.5,
+      "avg_bytes_output": 1030238.0,
+      "avg_bytes_observation": 2082.4166666666665,
+      "avg_mutations": 4.083333333333333,
+      "avg_policy_violations": 2.9166666666666665,
+      "avg_invalid_responses": 0.0,
+      "avg_unique_invalid_responses": 0.0,
+      "requery_rate": 1.0
+    },
+    "by_mode": {
+      "native": {
+        "runs": 6,
+        "pass_count": 0,
+        "pass_rate": 0.0,
+        "neutral_pass_count": 0,
+        "neutral_pass_rate": 0.0,
+        "avg_elapsed_seconds": 51.99166666666667,
+        "avg_tool_calls": 14.333333333333334,
+        "avg_bytes_output": 856396.8333333334,
+        "avg_bytes_observation": 1632.8333333333333,
+        "avg_mutations": 3.8333333333333335,
+        "avg_policy_violations": 3.0,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 1.0
+      },
+      "native+md": {
+        "runs": 6,
+        "pass_count": 1,
+        "pass_rate": 0.16666666666666666,
+        "neutral_pass_count": 1,
+        "neutral_pass_rate": 0.16666666666666666,
+        "avg_elapsed_seconds": 57.79666666666666,
+        "avg_tool_calls": 18.666666666666668,
+        "avg_bytes_output": 1204079.1666666667,
+        "avg_bytes_observation": 2532.0,
+        "avg_mutations": 4.333333333333333,
+        "avg_policy_violations": 2.8333333333333335,
+        "avg_invalid_responses": 0.0,
+        "avg_unique_invalid_responses": 0.0,
+        "requery_rate": 1.0
+      }
+    }
+  }
+}
