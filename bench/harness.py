@@ -1051,7 +1051,9 @@ def build_run_metadata(
         "runner": runner,
         "executor": executor,
         "model": resolved_model,
+        "requested_model": model,
         "thinking_level": resolved_thinking_level,
+        "requested_thinking_level": thinking_level,
         "temperature_policy": temperature_policy,
         "task_file_sha256": sha256_file(tasks_path),
         "prompt_template_sha256": current_prompt_template_sha256(),
@@ -1114,6 +1116,8 @@ def load_resume_results(
     runner: str,
     executor: str,
     model: str | None,
+    tasks_path: str | Path = "bench/tasks/tasks.json",
+    thinking_level: str | None = None,
 ) -> list[BenchResult]:
     output_dir = Path(results_dir)
     results_path = output_dir / "results.json"
@@ -1131,11 +1135,18 @@ def load_resume_results(
         "trials_per_cell": runs_per_task,
         "runner": runner,
         "executor": executor,
-        "model": model,
-        "task_file_sha256": sha256_file("bench/tasks/tasks.json"),
+        "task_file_sha256": sha256_file(tasks_path),
         "prompt_template_sha256": current_prompt_template_sha256(),
         "scorer_version": SCORER_VERSION,
     }
+    if "requested_model" in run_metadata:
+        expected_metadata["requested_model"] = model
+    elif model is not None:
+        expected_metadata["model"] = model
+    if "requested_thinking_level" in run_metadata:
+        expected_metadata["requested_thinking_level"] = thinking_level
+    elif thinking_level is not None:
+        expected_metadata["thinking_level"] = thinking_level
     for key, expected in expected_metadata.items():
         actual = run_metadata.get(key)
         if actual != expected:
@@ -2313,6 +2324,8 @@ def main():
                 runner=args.runner,
                 executor=args.executor,
                 model=args.model,
+                tasks_path=args.tasks_path,
+                thinking_level=args.thinking if args.runner == "pi-json" else None,
             )
         except ValueError as exc:
             parser.error(str(exc))

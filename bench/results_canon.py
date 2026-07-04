@@ -26,12 +26,24 @@ from pathlib import Path
 try:
     from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
     from bench.stats import exact_sign_test, flip_table, hierarchical_bootstrap_ci, variance_decomposition, wilson_ci
-    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, evaluate_success_threshold, load_manifest
+    from bench.v3_manifest import (
+        MANIFEST_PATH,
+        bundle_conformance,
+        evaluate_success_threshold,
+        headline_completeness_reasons,
+        load_manifest,
+    )
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.agg_util import cell_trials, pass_at_1_mean, pass_hat_k
     from bench.stats import exact_sign_test, flip_table, hierarchical_bootstrap_ci, variance_decomposition, wilson_ci
-    from bench.v3_manifest import MANIFEST_PATH, bundle_conformance, evaluate_success_threshold, load_manifest
+    from bench.v3_manifest import (
+        MANIFEST_PATH,
+        bundle_conformance,
+        evaluate_success_threshold,
+        headline_completeness_reasons,
+        load_manifest,
+    )
 
 RUNS = Path(__file__).resolve().parent / "runs"
 OUT = Path(__file__).resolve().parent / "RESULTS.md"
@@ -478,17 +490,34 @@ def render_v3(
             )
             raise CanonBlockedError(f"unadjudicated scorer divergence blocks v3 canon: {offenders}")
         conformance = bundle_conformance(run, manifest)
-        run = dict(run)
-        run["canon_status"] = conformance.status
-        if conformance.reasons:
-            run["canon_reasons"] = list(conformance.reasons)
-        run_meta.append(run)
+        conformance_reasons = list(conformance.reasons)
         if conformance.headline_eligible:
+            split = manifest.get("primary_metric", {}).get("task_split", "core")
+            core_task_ids = [
+                task_id
+                for task_id, task_split in provenance.items()
+                if task_split == split
+            ]
+            conformance_reasons.extend(
+                headline_completeness_reasons(
+                    run,
+                    bundle_rows,
+                    manifest,
+                    core_task_ids=core_task_ids,
+                )
+            )
+        headline_eligible = conformance.headline_eligible and not conformance_reasons
+        run = dict(run)
+        run["canon_status"] = "headline-eligible" if headline_eligible else "exploratory"
+        if conformance_reasons:
+            run["canon_reasons"] = conformance_reasons
+        run_meta.append(run)
+        if headline_eligible:
             rows.extend(bundle_rows)
         else:
             exploratory_rows.extend(bundle_rows)
             exploratory_reasons.append(
-                f"{_bundle_path(bundle).name}: {', '.join(conformance.reasons)}"
+                f"{_bundle_path(bundle).name}: {', '.join(conformance_reasons)}"
             )
 
     parts = [

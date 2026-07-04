@@ -253,6 +253,139 @@ class HarnessRunArtifactTests(unittest.TestCase):
         self.assertEqual(loaded[0].run_index, 0)
         self.assertEqual(loaded[0].tool_calls, 29)
 
+    def test_load_resume_results_accepts_default_claude_cli_resolved_model(self) -> None:
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="unix",
+                correct=True,
+                run_index=0,
+                model="claude-haiku-4-5-20251001",
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["unix"],
+            md_binary="target/release/md",
+            runner="claude-cli",
+            executor="guarded",
+            model=None,
+            runs_per_task=5,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_resume_claude_default_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+            loaded = load_resume_results(
+                tmpdir,
+                selected_task_ids=["T1"],
+                modes=["unix"],
+                runs_per_task=5,
+                runner="claude-cli",
+                executor="guarded",
+                model=None,
+            )
+
+        self.assertEqual(len(loaded), 1)
+        self.assertEqual(loaded[0].model, "claude-haiku-4-5-20251001")
+
+    def test_load_resume_results_rejects_tasks_path_hash_mismatch(self) -> None:
+        results = [BenchResult(task_id="T1", mode="unix", correct=False, run_index=0)]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["unix"],
+            md_binary="target/release/md",
+            runner="oai-loop",
+            executor="guarded",
+            model="Qwen3.6-35B-A3B-8bit",
+            runs_per_task=1,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_resume_tasks_hash_") as tmpdir:
+            root = Path(tmpdir)
+            tasks_path = root / "tasks.json"
+            tasks_path.write_text("[]\n")
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+            with self.assertRaisesRegex(ValueError, "task_file_sha256"):
+                load_resume_results(
+                    tmpdir,
+                    selected_task_ids=["T1"],
+                    modes=["unix"],
+                    runs_per_task=1,
+                    runner="oai-loop",
+                    executor="guarded",
+                    model="Qwen3.6-35B-A3B-8bit",
+                    tasks_path=tasks_path,
+                )
+
+    def test_load_resume_results_rejects_thinking_level_mismatch(self) -> None:
+        results = [
+            BenchResult(
+                task_id="T1",
+                mode="native",
+                correct=True,
+                run_index=0,
+                model="openai-codex/gpt-5.4-mini",
+                thinking_level="minimal",
+            )
+        ]
+        metadata = build_run_metadata(
+            run_kind="agent-track",
+            tasks_path="bench/tasks/tasks.json",
+            task_ids_path=None,
+            selected_task_ids=["T1"],
+            modes=["native"],
+            md_binary="target/release/md",
+            runner="pi-json",
+            executor="guarded",
+            model="openai-codex/gpt-5.4-mini",
+            thinking_level="minimal",
+            runs_per_task=5,
+            results=results,
+            started_at=0,
+            finished_at=1,
+        )
+
+        with tempfile.TemporaryDirectory(prefix="bench_resume_thinking_") as tmpdir:
+            write_run_artifacts(
+                tmpdir,
+                metadata=metadata,
+                results=results,
+                selected_task_ids=["T1"],
+            )
+            with self.assertRaisesRegex(ValueError, "requested_thinking_level"):
+                load_resume_results(
+                    tmpdir,
+                    selected_task_ids=["T1"],
+                    modes=["native"],
+                    runs_per_task=5,
+                    runner="pi-json",
+                    executor="guarded",
+                    model="openai-codex/gpt-5.4-mini",
+                    thinking_level="low",
+                )
+
     def test_load_resume_results_rejects_duplicate_cells(self) -> None:
         results = [
             BenchResult(task_id="T1", mode="unix", correct=False, run_index=0),

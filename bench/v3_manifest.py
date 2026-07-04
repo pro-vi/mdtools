@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 
 MANIFEST_PATH = Path("bench/v3/manifest.json")
@@ -67,6 +67,36 @@ def validate_manifest_current(
         )
 
 
+def comparison_modes(comparison: dict[str, Any]) -> tuple[str, str]:
+    left, right = [part.strip() for part in comparison["comparison"].split("->", 1)]
+    return left, right
+
+
+def required_modes_for_comparison(comparison: dict[str, Any]) -> set[str]:
+    left, right = comparison_modes(comparison)
+    modes = {left, right}
+    ablation = comparison.get("ablation")
+    if ablation:
+        modes.add(ablation)
+    return modes
+
+
+def matching_primary_comparisons(
+    run: dict[str, Any],
+    manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    run_modes = set(run.get("modes") or [])
+    return [
+        comparison
+        for comparison in manifest.get("primary_comparisons", [])
+        if (
+            run.get("runner") == comparison.get("runner")
+            and run.get("model") == comparison.get("model")
+            and required_modes_for_comparison(comparison).issubset(run_modes)
+        )
+    ]
+
+
 def bundle_conformance(run: dict[str, Any], manifest: dict[str, Any]) -> BundleConformance:
     reasons: list[str] = []
     expected_k = int(manifest.get("primary_metric", {}).get("trials_per_task", 5))
@@ -78,26 +108,85 @@ def bundle_conformance(run: dict[str, Any], manifest: dict[str, Any]) -> BundleC
         observed = run.get(field)
         if expected and observed != expected:
             reasons.append(f"{field} mismatch")
-    run_modes = set(run.get("modes") or [])
-    preregistered = False
-    for comparison in manifest.get("primary_comparisons", []):
-        left, right = [part.strip() for part in comparison["comparison"].split("->", 1)]
-        required_modes = {left, right}
-        ablation = comparison.get("ablation")
-        if ablation:
-            required_modes.add(ablation)
-        if (
-            run.get("runner") == comparison.get("runner")
-            and run.get("model") == comparison.get("model")
-            and required_modes.issubset(run_modes)
-        ):
-            preregistered = True
-            break
-    if not preregistered:
+    if not matching_primary_comparisons(run, manifest):
         reasons.append("not a preregistered primary comparison")
     if reasons:
         return BundleConformance(status="exploratory", reasons=tuple(reasons))
     return BundleConformance(status="headline-eligible")
+
+
+def headline_completeness_reasons(
+    run: dict[str, Any],
+    rows: Iterable[dict[str, Any]],
+    manifest: dict[str, Any],
+    *,
+    core_task_ids: Iterable[str],
+) -> tuple[str, ...]:
+    """Validate required core task × mode × run-index rows for headline bundles."""
+    comparisons = matching_primary_comparisons(run, manifest)
+    if not comparisons:
+        return ()
+
+    expected_k = int(manifest.get("primary_metric", {}).get("trials_per_task", 5))
+    expected_indices = set(range(expected_k))
+    core_ids = set(core_task_ids)
+    required_modes = set().union(
+        *(required_modes_for_comparison(comparison) for comparison in comparisons)
+    )
+    expected = {
+        (task_id, mode, run_index)
+        for task_id in core_ids
+        for mode in required_modes
+        for run_index in expected_indices
+    }
+    seen: set[tuple[str, str, int]] = set()
+    duplicates: list[tuple[str, str, int]] = []
+    invalid_indices: list[str] = []
+
+    for index, row in enumerate(rows):
+        task_id = row.get("task_id")
+        mode = row.get("mode")
+        if task_id not in core_ids or mode not in required_modes:
+            continue
+        row_model = row.get("model") or run.get("model")
+        row_runner = row.get("runner") or run.get("runner")
+        if row_model != run.get("model") or row_runner != run.get("runner"):
+            continue
+        run_index = row.get("run_index")
+        if type(run_index) is not int or run_index not in expected_indices:
+            invalid_indices.append(f"row {index}: {task_id}:{mode}:run{run_index!r}")
+            continue
+        key = (task_id, mode, run_index)
+        if key in seen:
+            duplicates.append(key)
+            continue
+        seen.add(key)
+
+    def sample(cells: Iterable[tuple[str, str, int]]) -> str:
+        ordered = sorted(cells, key=lambda item: (item[0], item[1], item[2]))
+        return ", ".join(f"{task}:{mode}:run{run_index}" for task, mode, run_index in ordered[:5])
+
+    reasons: list[str] = []
+    missing = expected - seen
+    if missing:
+        reasons.append(
+            "incomplete results: "
+            f"missing {len(missing)} required core trials"
+            + (f" (e.g. {sample(missing)})" if missing else "")
+        )
+    if duplicates:
+        reasons.append(
+            "incomplete results: "
+            f"{len(duplicates)} duplicate required core trials"
+            + (f" (e.g. {sample(duplicates)})" if duplicates else "")
+        )
+    if invalid_indices:
+        reasons.append(
+            "incomplete results: "
+            f"{len(invalid_indices)} required core rows have invalid run_index"
+            f" (e.g. {', '.join(invalid_indices[:5])})"
+        )
+    return tuple(reasons)
 
 
 def evaluate_success_threshold(

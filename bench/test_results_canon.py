@@ -10,6 +10,46 @@ from bench.v3_manifest import load_manifest
 REPO = Path(__file__).resolve().parent.parent
 
 
+def _core_task_ids() -> list[str]:
+    tasks = json.loads((REPO / "bench" / "tasks" / "tasks.json").read_text())
+    return [
+        task["id"]
+        for task in tasks
+        if task.get("provenance", "core") == "core"
+    ]
+
+
+def _complete_haiku_shell_rows() -> list[dict]:
+    rows = []
+    for task_id in _core_task_ids():
+        for mode in ["unix", "hybrid", "hybrid-no-md"]:
+            for run_index in range(5):
+                correct = mode == "hybrid" and run_index == 0
+                rows.append({
+                    "task_id": task_id,
+                    "mode": mode,
+                    "model": "claude-haiku-4-5-20251001",
+                    "runner": "claude-cli",
+                    "run_index": run_index,
+                    "correct": correct,
+                    "verdict": "pass" if correct else "fail",
+                    "tool_calls": run_index + 1,
+                })
+    for mode in ["unix", "hybrid"]:
+        for run_index in range(5):
+            rows.append({
+                "task_id": "C-T10-15",
+                "mode": mode,
+                "model": "claude-haiku-4-5-20251001",
+                "runner": "claude-cli",
+                "run_index": run_index,
+                "correct": mode == "hybrid",
+                "verdict": "pass" if mode == "hybrid" else "fail",
+                "tool_calls": run_index + 1,
+            })
+    return rows
+
+
 class BenchV3RetractionTests(unittest.TestCase):
     def test_results_canon_renders_archived_v2_banner(self) -> None:
         doc = results_canon.render("2026-07-01")
@@ -49,19 +89,7 @@ class BenchV3RetractionTests(unittest.TestCase):
                 "prompt_template_sha256": manifest["prompt_template_sha256"],
                 "scorer_version": manifest["scorer_version"],
             }))
-            rows = []
-            for task_id in ["T1", "T2", "C-T10-15"]:
-                for mode in ["unix", "hybrid"]:
-                    for run_index in range(5):
-                        rows.append({
-                            "task_id": task_id,
-                            "mode": mode,
-                            "model": "claude-haiku-4-5-20251001",
-                            "run_index": run_index,
-                            "correct": mode == "hybrid" or run_index < 2,
-                            "verdict": "pass" if mode == "hybrid" or run_index < 2 else "fail",
-                            "tool_calls": run_index + 1,
-                        })
+            rows = _complete_haiku_shell_rows()
             (bundle / "results.json").write_text(json.dumps(rows))
 
             doc = results_canon.render_v3("2026-07-01", [bundle])
@@ -142,6 +170,38 @@ class BenchV3RetractionTests(unittest.TestCase):
         self.assertIn("## Exploratory Bundles", doc)
         self.assertIn("wrong N", doc)
 
+    def test_v3_renderer_routes_incomplete_headline_bundle_to_exploratory(self) -> None:
+        manifest = load_manifest()
+        with tempfile.TemporaryDirectory(prefix="bench_v3_partial_") as tmpdir:
+            bundle = Path(tmpdir) / "bundle"
+            bundle.mkdir()
+            (bundle / "run.json").write_text(json.dumps({
+                "runner": "claude-cli",
+                "model": "claude-haiku-4-5-20251001",
+                "modes": ["unix", "hybrid", "hybrid-no-md"],
+                "trials_per_cell": 5,
+                "task_file_sha256": manifest["task_file_sha256"],
+                "prompt_template_sha256": manifest["prompt_template_sha256"],
+                "scorer_version": manifest["scorer_version"],
+            }))
+            (bundle / "results.json").write_text(json.dumps([
+                {
+                    "task_id": "T1",
+                    "mode": "unix",
+                    "model": "claude-haiku-4-5-20251001",
+                    "runner": "claude-cli",
+                    "run_index": 0,
+                    "correct": True,
+                    "verdict": "pass",
+                }
+            ]))
+            doc = results_canon.render_v3("2026-07-01", [bundle])
+
+        self.assertIn("No headline-eligible v3 run bundles", doc)
+        self.assertIn("## Exploratory Bundles", doc)
+        self.assertIn("incomplete results", doc)
+        self.assertIn("missing 359 required core trials", doc)
+
     def test_v3_renderer_renders_interpretation_notes(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bench_v3_notes_") as tmpdir:
             root = Path(tmpdir)
@@ -157,19 +217,7 @@ class BenchV3RetractionTests(unittest.TestCase):
                 "prompt_template_sha256": manifest["prompt_template_sha256"],
                 "scorer_version": manifest["scorer_version"],
             }))
-            rows = []
-            for task_id in ["T1", "T2"]:
-                for mode in ["unix", "hybrid", "hybrid-no-md"]:
-                    for run_index in range(5):
-                        rows.append({
-                            "task_id": task_id,
-                            "mode": mode,
-                            "model": "claude-haiku-4-5-20251001",
-                            "runner": "claude-cli",
-                            "run_index": run_index,
-                            "correct": mode == "hybrid",
-                            "verdict": "pass" if mode == "hybrid" else "fail",
-                        })
+            rows = _complete_haiku_shell_rows()
             (bundle / "results.json").write_text(json.dumps(rows))
             notes = root / "adjudications.json"
             notes.write_text(json.dumps([

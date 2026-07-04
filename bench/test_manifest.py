@@ -9,6 +9,7 @@ from bench.v3_manifest import (
     ManifestConformanceError,
     bundle_conformance,
     evaluate_success_threshold,
+    headline_completeness_reasons,
     load_manifest,
     sha256_file,
     validate_headline_run_request,
@@ -46,6 +47,53 @@ class BenchV3ManifestTests(unittest.TestCase):
         self.assertIn("wrong N", exploratory.reasons[0])
         local = dict(run, runner="oai-loop", model="Qwen3.6-35B-A3B-8bit")
         self.assertEqual(bundle_conformance(local, manifest).status, "exploratory")
+
+    def test_headline_completeness_detects_missing_duplicate_and_invalid_rows(self) -> None:
+        manifest = {
+            "primary_comparisons": [
+                {
+                    "runner": "runner",
+                    "model": "model",
+                    "comparison": "left -> right",
+                    "ablation": "right-no-md",
+                }
+            ],
+            "primary_metric": {"trials_per_task": 2},
+        }
+        run = {
+            "runner": "runner",
+            "model": "model",
+            "modes": ["left", "right", "right-no-md"],
+        }
+
+        def row(mode: str, run_index: int) -> dict:
+            return {
+                "task_id": "T1",
+                "mode": mode,
+                "run_index": run_index,
+                "runner": "runner",
+                "model": "model",
+            }
+
+        rows = [
+            row("left", 0),
+            row("left", 0),
+            row("left", 5),
+            row("right", 0),
+            row("right", 1),
+            row("right-no-md", 0),
+        ]
+
+        reasons = headline_completeness_reasons(
+            run,
+            rows,
+            manifest,
+            core_task_ids=["T1"],
+        )
+
+        self.assertTrue(any("missing" in reason and "required core trials" in reason for reason in reasons))
+        self.assertTrue(any("duplicate required core trials" in reason for reason in reasons))
+        self.assertTrue(any("invalid run_index" in reason for reason in reasons))
 
     def test_success_threshold_confirm_and_downgrade(self) -> None:
         manifest = load_manifest()
