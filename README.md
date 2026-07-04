@@ -214,17 +214,13 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 ### Bench v3 status
 
-**BENCH_V3_RETRACTION:** the pre-v3 headline benchmark numbers are retracted and should not be cited as current evidence. The old runs were useful engineering provenance, but the public claims were not publishable because they used one trial per task/mode, shared scorer authority with the tool under test, prompt-coached several tasks, and mixed gap-selected generated tasks into headline tables.
+**BENCH_V3_RETRACTION:** the pre-v3 headline benchmark numbers are retracted and should not be cited as current evidence.
 
-The generated v3 canon lives at [`bench/RESULTS.md`](bench/RESULTS.md). It renders the current v3 verdict first and keeps the v2 tables underneath as an explicitly archived appendix. The replacement protocol is [`bench/V3.md`](bench/V3.md): neutral task prompts, machine-readable task provenance, independent scorer authority, N>=5 trials per cell, confidence intervals on every published number, pass@1 and pass^k reporting, cost-vs-success reporting, and a preregistered analysis manifest before paid runs.
+Current v3 result: `md` shows large directional weak-model lifts with clean no-md ablations, but the preregistered broad headline **failed** certification. The paired lift estimates are +28.3pp, +27.5pp, and +30.8pp; their 95% CI lower bounds are +10.0pp, +9.2pp, and +10.8pp, below the frozen +15pp floor. Treat the broad result as **directional/exploratory rather than confirmed**.
 
-Current v3 result: `md` shows a large directional lift for the tested weak models, and the no-md ablations fall back to their baselines, which supports the interpretation that the lift comes from structural Markdown access rather than prompt wording. The preregistered broad headline still **failed** the certification gate: the paired lift estimates are +28.3pp, +27.5pp, and +30.8pp, but their 95% CI lower bounds are only +10.0pp, +9.2pp, and +10.8pp, below the frozen +15pp floor. Treat the result as **directional/exploratory rather than confirmed**.
+Supported claim: `md` helps weak/tool-poor agents read and target Markdown structure more reliably, mainly reducing wrong-target, format, quoting, and incomplete-multistep failures. Not supported: a certified broad benchmark headline, a frontier-native-tool edge, a >10k-line document edge, or a proven agent advantage from `--expect-etag`.
 
-The failure is about scope, not absence of effect. The flip table shows a concentrated regime: a minority of core tasks flip strongly with `md`, while most tasks do not move. The variance decomposition says task variance dominates trial variance, so more repeats are not the next lever; a confirmed broad claim needs more gap-blind core tasks, while a narrower family-scoped claim should stay tied to the task families that actually flip.
-
-Mechanism evidence is exploratory but now explicit: the v3 failure taxonomy labels 224 failed baseline/treatment trials and reports 44/44 double-label agreement. The measured reductions are mostly wrong-target, format-noncompliance, quoting/escaping, and incomplete-multistep failures in weak/tool-poor cells. Duplicate-heading collision is not the load-bearing explanation in v3; the supported claim is that `md` helps weak agents read and target Markdown structure that they otherwise reconstruct unreliably.
-
-The frontier boundary is also explicit. Sonnet-class native-tool agents have not shown a robust `md` edge, and the two residual regimes from the June falsification record are closed as benchmark claims: the >10k-line document probe showed no correctness or byte-cost advantage for `native+md`, and the transactional multifile drift probe did not demonstrate a reliable agent-behavior edge from `--expect-etag`. `--expect-etag` remains useful scripting/API safety, not a certified agent benchmark advantage.
+See [`bench/RESULTS.md`](bench/RESULTS.md) for the generated tables, [`bench/V3.md`](bench/V3.md) for the protocol, and [`docs/decisions/2026-07-04-md-positioning-after-probes.md`](docs/decisions/2026-07-04-md-positioning-after-probes.md) for the positioning decision.
 
 ### Corpus
 
