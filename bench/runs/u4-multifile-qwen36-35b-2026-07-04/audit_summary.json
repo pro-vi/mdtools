@@ -1,0 +1,27 @@
+{
+  "groups": {
+    "MF-ETAG-01|native": {
+      "clobber": 3,
+      "log_dirs": 3,
+      "md_before_mutation": 3
+    },
+    "MF-ETAG-01|native+md": {
+      "clobber": 2,
+      "log_dirs": 3,
+      "md_before_mutation": 1,
+      "proof_ok": 1
+    },
+    "MF-ETAG-02|native": {
+      "clobber": 2,
+      "log_dirs": 3,
+      "md_before_mutation": 1,
+      "proof_ok": 1
+    },
+    "MF-ETAG-02|native+md": {
+      "log_dirs": 3,
+      "md_before_mutation": 3,
+      "proof_ok": 3
+    }
+  },
+  "schema": "multifile-drift-audit-summary.v1"
+}

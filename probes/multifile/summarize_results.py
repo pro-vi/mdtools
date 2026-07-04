@@ -20,6 +20,7 @@ from bench.pi_audit_adapter import load_pi_audit_events  # noqa: E402
 MATCHED_RE = re.compile(r"multi_file_contents_any: matched ([^\s]+)")
 MD_COMMAND_RE = re.compile(r"(^|[;&|()\s./])md(\s|$)")
 DRIFT_SPECS = load_drift_specs(REPO_ROOT / "probes/multifile/drift_specs.json")
+AUDIT_SUMMARY_SCHEMA = "multifile-drift-audit-summary.v1"
 
 
 def _load_json(path: Path) -> Any:
@@ -80,6 +81,7 @@ def _clobbered(log_dir: Path, task_id: str) -> bool | None:
 
 def _audit_stats(log_dirs: list[Path], task_id: str) -> dict[str, int]:
     stats = Counter()
+    stats["log_dirs"] = len(log_dirs)
     for log_dir in log_dirs:
         audit_path = log_dir / "pi-audit.jsonl"
         if not audit_path.exists():
@@ -97,6 +99,49 @@ def _audit_stats(log_dirs: list[Path], task_id: str) -> dict[str, int]:
         elif clobbered is None:
             stats["missing_final"] += 1
     return dict(stats)
+
+
+def _audit_summary_key(task_id: str, mode: str) -> str:
+    return f"{task_id}|{mode}"
+
+
+def _saved_audit_summary(bundle: Path) -> dict[str, dict[str, int]]:
+    path = bundle / "audit_summary.json"
+    if not path.exists():
+        return {}
+    payload = _load_json(path)
+    if not isinstance(payload, dict) or payload.get("schema") != AUDIT_SUMMARY_SCHEMA:
+        raise ValueError(f"{path}: unsupported audit summary schema")
+    groups = payload.get("groups")
+    if not isinstance(groups, dict):
+        raise ValueError(f"{path}: missing groups object")
+    out: dict[str, dict[str, int]] = {}
+    for key, value in groups.items():
+        if not isinstance(key, str) or not isinstance(value, dict):
+            continue
+        out[key] = {str(metric): int(count) for metric, count in value.items()}
+    return out
+
+
+def _audit_stats_for_group(bundle: Path, task_id: str, mode: str) -> dict[str, int]:
+    saved = _saved_audit_summary(bundle).get(_audit_summary_key(task_id, mode))
+    if saved is not None:
+        return saved
+    return _audit_stats(_log_dirs(bundle, task_id, mode), task_id)
+
+
+def write_audit_summaries(bundles: list[Path]) -> None:
+    for bundle in bundles:
+        _run, rows = _bundle_rows(bundle)
+        groups: dict[str, dict[str, int]] = {}
+        for row in rows:
+            task_id = str(row.get("task_id"))
+            mode = str(row.get("mode"))
+            key = _audit_summary_key(task_id, mode)
+            if key not in groups:
+                groups[key] = _audit_stats(_log_dirs(bundle, task_id, mode), task_id)
+        payload = {"schema": AUDIT_SUMMARY_SCHEMA, "groups": groups}
+        (bundle / "audit_summary.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
 def summarize_bundles(bundles: list[Path]) -> str:
@@ -131,12 +176,11 @@ def summarize_bundles(bundles: list[Path]) -> str:
 
         alt_counts = Counter(_matched_alternative(row) for row in rows)
         diff_proofs = sum(1 for row in rows if _proof_valid_from_diff(row))
-        log_dirs = _log_dirs(bundle_by_group[key], task_id, mode)
-        audit_stats = _audit_stats(log_dirs, task_id)
+        audit_stats = _audit_stats_for_group(bundle_by_group[key], task_id, mode)
         proof_ok = max(diff_proofs, audit_stats.get("proof_ok", 0))
         notes: list[str] = []
-        if len(log_dirs) != n:
-            notes.append(f"log_dirs={len(log_dirs)}")
+        if audit_stats.get("log_dirs", 0) != n:
+            notes.append(f"log_dirs={audit_stats.get('log_dirs', 0)}")
         if audit_stats.get("missing_audit"):
             notes.append(f"missing_audit={audit_stats['missing_audit']}")
         if audit_stats.get("missing_final"):
@@ -187,7 +231,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize committed multifile drift probe bundles.")
     parser.add_argument("bundles", nargs="+", type=Path, help="bench/runs bundle directories")
     parser.add_argument("--output", type=Path, help="Write markdown readout to this path")
+    parser.add_argument(
+        "--write-audit-summary",
+        action="store_true",
+        help="Persist compact per-bundle audit summaries derived from ignored run logs",
+    )
     args = parser.parse_args()
+
+    if args.write_audit_summary:
+        write_audit_summaries(args.bundles)
 
     readout = summarize_bundles(args.bundles)
     if args.output:

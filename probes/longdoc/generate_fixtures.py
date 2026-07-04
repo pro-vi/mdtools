@@ -117,7 +117,8 @@ def build_changelog() -> tuple[str, dict[str, Any], dict[str, int]]:
                         "open_checks": _count_open(checks),
                     }
 
-    assert expected is not None
+    if expected is None:
+        raise RuntimeError("LD-CHANGELOG-01 target was not generated")
     text = "\n".join(lines) + "\n"
     counts = {
         "lines": len(text.splitlines()),
@@ -193,7 +194,8 @@ def build_runbook() -> tuple[str, dict[str, Any], dict[str, int]]:
                         "backup": backup,
                     }
 
-    assert expected is not None
+    if expected is None:
+        raise RuntimeError("LD-RUNBOOK-02 target was not generated")
     text = "\n".join(lines) + "\n"
     counts = {
         "lines": len(text.splitlines()),
@@ -264,7 +266,8 @@ def build_spec() -> tuple[str, dict[str, Any], dict[str, int]]:
                         "must_exceptions": must_count,
                     }
 
-    assert expected is not None
+    if expected is None:
+        raise RuntimeError("LD-SPEC-03 target was not generated")
     text = "\n".join(lines) + "\n"
     counts = {
         "lines": len(text.splitlines()),
