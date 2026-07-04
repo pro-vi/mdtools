@@ -49,6 +49,7 @@ RUNS = Path(__file__).resolve().parent / "runs"
 OUT = Path(__file__).resolve().parent / "RESULTS.md"
 TASKS = Path(__file__).resolve().parent / "tasks" / "tasks.json"
 ADJUDICATIONS = Path(__file__).resolve().parent / "v3" / "adjudications.json"
+FAILURE_TAXONOMY = Path(__file__).resolve().parent / "v3" / "failure_taxonomy.json"
 SCORER_VERSION = "v3-neutral-primary"
 
 V3_CANON: list[str] = [
@@ -168,6 +169,12 @@ def _load_interpretation_notes(path: Path = ADJUDICATIONS) -> list[dict]:
         return []
     raw = json.loads(path.read_text())
     return [item for item in raw if item.get("type") == "interpretation_note"]
+
+
+def _load_failure_taxonomy(path: Path = FAILURE_TAXONOMY) -> dict | None:
+    if not path.exists():
+        return None
+    return json.loads(path.read_text())
 
 
 def _blocked_quarantines(rows: list[dict], adjudicated: set[tuple[str, str, int | None]]) -> list[dict]:
@@ -436,6 +443,104 @@ def _render_variance_decomposition(rows: list[dict], provenance: dict[str, str])
     return "\n".join(lines) + "\n"
 
 
+def _signed_int(value: int) -> str:
+    sign = "+" if value > 0 else ""
+    return f"{sign}{value}"
+
+
+def _render_failure_taxonomy(taxonomy: dict | None) -> str:
+    if not taxonomy:
+        return "_No failure taxonomy has been registered yet._\n"
+    classes = list(taxonomy.get("classes") or [])
+    counts = list(taxonomy.get("counts") or [])
+    active_classes = classes
+    double = taxonomy.get("double_label") or {}
+    population = int(double.get("population_size") or len(taxonomy.get("labels") or []))
+    sample_size = int(double.get("sample_size") or 0)
+    agreements = int(double.get("agreements") or 0)
+    agreement_rate = float(double.get("agreement_rate") or 0.0)
+    target = float(double.get("target_agreement_rate") or 0.8)
+    lines = [
+        (
+            "Exploratory closed-set labels over failed baseline/treatment trials only; "
+            "no-md ablation controls stay in the headline gate but are not part of this mechanism table."
+        ),
+        (
+            f"Labels: {population} failed trials. Double-label agreement: "
+            f"{agreements}/{sample_size} = {_fmt_pct(agreement_rate)} "
+            f"(target >= {_fmt_pct(target)})."
+        ),
+        "",
+        "### Failure Class Counts",
+        "| Model | Runner | Mode | Failed | " + " | ".join(active_classes) + " |",
+        "|---|---|---|---:|" + "|".join(["---:"] * len(active_classes)) + "|",
+    ]
+    for item in sorted(counts, key=lambda row: (row.get("model") or "", row.get("runner") or "", row.get("mode") or "")):
+        class_counts = item.get("classes") or {}
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    MODEL_LABELS.get(item.get("model"), item.get("model") or ""),
+                    f"`{item.get('runner') or ''}`",
+                    f"`{item.get('mode') or ''}`",
+                    str(item.get("failed_trials") or 0),
+                    *[str(class_counts.get(name, 0)) for name in active_classes],
+                ]
+            )
+            + " |"
+        )
+
+    by_cell = {
+        (item.get("model"), item.get("runner"), item.get("mode")): item
+        for item in counts
+    }
+    pair_specs = [
+        ("claude-haiku-4-5-20251001", "claude-cli", "unix", "hybrid"),
+        ("claude-haiku-4-5-20251001", "claude-cli", "native", "native+md"),
+        ("openai-codex/gpt-5.4-mini", "pi-json", "native", "native+md"),
+    ]
+    lines.extend(
+        [
+            "",
+            "### Treated Delta vs Baseline",
+            "Negative numbers mean fewer failures under md; `eliminated` means baseline had at least one failure in that class and the treated cell had zero.",
+            "| Comparison | Failed delta | "
+            + " | ".join(active_classes)
+            + " | Eliminated classes |",
+            "|---|---:|" + "|".join(["---:"] * len(active_classes)) + "|---|",
+        ]
+    )
+    for model, runner, baseline_mode, treated_mode in pair_specs:
+        baseline = by_cell.get((model, runner, baseline_mode))
+        treated = by_cell.get((model, runner, treated_mode))
+        if not baseline or not treated:
+            continue
+        baseline_counts = baseline.get("classes") or {}
+        treated_counts = treated.get("classes") or {}
+        eliminated = [
+            name
+            for name in active_classes
+            if baseline_counts.get(name, 0) > 0 and treated_counts.get(name, 0) == 0
+        ]
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"{MODEL_LABELS.get(model, model)} `{baseline_mode}` -> `{treated_mode}`",
+                    _signed_int(int(treated.get("failed_trials") or 0) - int(baseline.get("failed_trials") or 0)),
+                    *[
+                        _signed_int(int(treated_counts.get(name, 0)) - int(baseline_counts.get(name, 0)))
+                        for name in active_classes
+                    ],
+                    ", ".join(eliminated) if eliminated else "-",
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _render_harness_card(run_meta: list[dict]) -> str:
     if not run_meta:
         return "_No v3 run bundles are registered yet._\n"
@@ -469,11 +574,13 @@ def render_v3(
     tasks_path: Path = TASKS,
     adjudications_path: Path = ADJUDICATIONS,
     manifest_path: Path = MANIFEST_PATH,
+    failure_taxonomy_path: Path = FAILURE_TAXONOMY,
 ) -> str:
     bundles = V3_CANON if bundles is None else bundles
     provenance = _task_provenance(tasks_path)
     adjudicated = _load_adjudications(adjudications_path)
     notes = _load_interpretation_notes(adjudications_path)
+    failure_taxonomy = _load_failure_taxonomy(failure_taxonomy_path)
     manifest = load_manifest(manifest_path)
     run_meta: list[dict] = []
     rows: list[dict] = []
@@ -539,6 +646,8 @@ def render_v3(
                 "## Variance Decomposition\n",
                 "Approximate contribution to mean pass-rate variance; high task share means more corpus breadth buys more certainty than more repeats.\n",
                 _render_variance_decomposition(rows, provenance),
+                "## Mechanism Evidence (Exploratory)\n",
+                _render_failure_taxonomy(failure_taxonomy),
                 "## Adversarially Mined Tasks\n",
                 "Adversarially filtered tasks are reported separately and are not generalized as headline evidence.\n",
                 _render_cell_table(rows, provenance, "adversarially-mined"),

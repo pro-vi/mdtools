@@ -48,6 +48,29 @@ Approximate contribution to mean pass-rate variance; high task share means more 
 | openai-codex/gpt-5.4-mini | `pi-json` | `native+md` | 24 | 5.0 | 0.002823 | 0.000472 | 85.7% |
 | openai-codex/gpt-5.4-mini | `pi-json` | `native+md-no-md` | 24 | 5.0 | 0.009417 | 0.000250 | 97.4% |
 
+## Mechanism Evidence (Exploratory)
+
+Exploratory closed-set labels over failed baseline/treatment trials only; no-md ablation controls stay in the headline gate but are not part of this mechanism table.
+Labels: 224 failed trials. Double-label agreement: 44/44 = 100.0% (target >= 80.0%).
+
+### Failure Class Counts
+| Model | Runner | Mode | Failed | wrong-target | structure-corruption | quoting-escaping | duplicate-collision | format-noncompliance | incomplete-multistep | gave-up | infra | other |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Haiku 4.5 | `claude-cli` | `hybrid` | 19 | 10 | 5 | 0 | 0 | 4 | 0 | 0 | 0 | 0 |
+| Haiku 4.5 | `claude-cli` | `native` | 52 | 25 | 0 | 5 | 0 | 22 | 0 | 0 | 0 | 0 |
+| Haiku 4.5 | `claude-cli` | `native+md` | 15 | 9 | 1 | 0 | 0 | 5 | 0 | 0 | 0 | 0 |
+| Haiku 4.5 | `claude-cli` | `unix` | 55 | 23 | 3 | 2 | 0 | 25 | 2 | 0 | 0 | 0 |
+| GPT 5.4 mini | `pi-json` | `native` | 63 | 35 | 2 | 5 | 0 | 16 | 0 | 0 | 5 | 0 |
+| GPT 5.4 mini | `pi-json` | `native+md` | 20 | 10 | 3 | 3 | 0 | 0 | 4 | 0 | 0 | 0 |
+
+### Treated Delta vs Baseline
+Negative numbers mean fewer failures under md; `eliminated` means baseline had at least one failure in that class and the treated cell had zero.
+| Comparison | Failed delta | wrong-target | structure-corruption | quoting-escaping | duplicate-collision | format-noncompliance | incomplete-multistep | gave-up | infra | other | Eliminated classes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Haiku 4.5 `unix` -> `hybrid` | -36 | -13 | +2 | -2 | 0 | -21 | -2 | 0 | 0 | 0 | quoting-escaping, incomplete-multistep |
+| Haiku 4.5 `native` -> `native+md` | -37 | -16 | +1 | -5 | 0 | -17 | 0 | 0 | 0 | 0 | quoting-escaping |
+| GPT 5.4 mini `native` -> `native+md` | -43 | -25 | +1 | -2 | 0 | -16 | +4 | 0 | -5 | 0 | format-noncompliance, infra |
+
 ## Adversarially Mined Tasks
 
 Adversarially filtered tasks are reported separately and are not generalized as headline evidence.

@@ -239,6 +239,62 @@ class BenchV3RetractionTests(unittest.TestCase):
         self.assertIn("tool_error rows are scored model behavior", doc)
         self.assertIn("bundle: native 1", doc)
 
+    def test_v3_renderer_renders_failure_taxonomy(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="bench_v3_taxonomy_") as tmpdir:
+            root = Path(tmpdir)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            manifest = load_manifest()
+            (bundle / "run.json").write_text(json.dumps({
+                "runner": "claude-cli",
+                "model": "claude-haiku-4-5-20251001",
+                "modes": ["unix", "hybrid", "hybrid-no-md"],
+                "trials_per_cell": 5,
+                "task_file_sha256": manifest["task_file_sha256"],
+                "prompt_template_sha256": manifest["prompt_template_sha256"],
+                "scorer_version": manifest["scorer_version"],
+            }))
+            (bundle / "results.json").write_text(json.dumps(_complete_haiku_shell_rows()))
+            taxonomy = root / "failure_taxonomy.json"
+            taxonomy.write_text(json.dumps({
+                "classes": ["wrong-target", "format-noncompliance"],
+                "double_label": {
+                    "population_size": 15,
+                    "sample_size": 3,
+                    "agreements": 3,
+                    "agreement_rate": 1.0,
+                    "target_agreement_rate": 0.8,
+                },
+                "counts": [
+                    {
+                        "model": "claude-haiku-4-5-20251001",
+                        "runner": "claude-cli",
+                        "mode": "unix",
+                        "failed_trials": 10,
+                        "classes": {"wrong-target": 7, "format-noncompliance": 3},
+                    },
+                    {
+                        "model": "claude-haiku-4-5-20251001",
+                        "runner": "claude-cli",
+                        "mode": "hybrid",
+                        "failed_trials": 5,
+                        "classes": {"wrong-target": 5, "format-noncompliance": 0},
+                    },
+                ],
+            }))
+
+            doc = results_canon.render_v3(
+                "2026-07-03",
+                [bundle],
+                failure_taxonomy_path=taxonomy,
+            )
+
+        self.assertIn("## Mechanism Evidence (Exploratory)", doc)
+        self.assertIn("Double-label agreement: 3/3 = 100.0%", doc)
+        self.assertIn("### Failure Class Counts", doc)
+        self.assertIn("Haiku 4.5 `unix` -> `hybrid`", doc)
+        self.assertIn("format-noncompliance", doc)
+
 
 if __name__ == "__main__":
     unittest.main()
