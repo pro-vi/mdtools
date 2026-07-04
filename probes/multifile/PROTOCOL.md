@@ -34,6 +34,7 @@ Hard cap: $40 equivalent subscription spend. Abort and report rather than exceed
 ## Drift Injection
 
 The committed injector is `probes/multifile/drift_injector.py`.
+The shared drift target spec is `probes/multifile/drift_specs.json`.
 
 Required measured-run hook:
 
@@ -44,6 +45,23 @@ Required measured-run hook:
 Sleep-only timing is not allowed for measured runs because it can fire before the model's
 first read and would not test stale-write handling. A paid run is valid only if the run
 log proves the observed-read -> drift -> target-mutation order.
+
+Locked hook implementation for measured runs:
+
+- Runner: `pi-json` only, because Pi extension hooks expose live native `read`/`edit`/`write`
+  and `bash` tool lifecycle events. `claude-cli` remains invalid for this probe because its
+  transcript is only available after the subprocess exits.
+- Extension: `probes/multifile/pi_drift_audit_extension/index.ts`, selected with
+  `BENCH_PI_AUDIT_EXTENSION` for measured runs.
+- Trigger: after the first successful target-file query result (`read` target, or a bash
+  query such as `cat`/`md block` mentioning the target), the extension applies the
+  deterministic one-shot drift immediately and writes `multifile_drift_observed_read` and
+  `multifile_drift_fired` events to `PI_AUDIT_LOG`.
+- Proof gate: `bench/harness.py` requires `multifile_drift_config`,
+  `multifile_drift_observed_read`, `multifile_drift_fired`, and a later
+  `multifile_drift_target_mutation` with `afterObservedRead=true` and `afterDrift=true`.
+  Rows without this proof are scored failure even if the final files happen to match an
+  expected alternative.
 
 Drift targets:
 
@@ -86,5 +104,6 @@ Report, per task/model/mode:
 
 ## Current Execution Status
 
-Protocol and fixtures are locked. Paid measured runs are blocked until the harness has a
-boundary hook that can prove and enforce observed-read -> drift -> target-mutation order.
+Protocol, fixtures, and the live Pi drift hook are locked. Paid measured runs must use the
+hook and pass the proof gate above; rows lacking proof are invalid failures, not evidence
+for either arm.

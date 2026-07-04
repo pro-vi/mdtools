@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from bench.harness import BenchTask, StructuralDiffPolicy, score_multifile_any
+from bench.multifile_drift import format_drift_proof, summarize_drift_proof
 
 
 REPO = Path(__file__).resolve().parent.parent
@@ -161,6 +162,41 @@ class HarnessMultifileTests(unittest.TestCase):
                 self.assertEqual(second.stdout.strip(), "already-fired")
                 self.assertEqual(after_first, expected)
                 self.assertEqual(after_second, expected)
+
+    def test_multifile_drift_proof_requires_read_drift_mutation_order(self) -> None:
+        proof = summarize_drift_proof(
+            [
+                {"event": "multifile_drift_config", "details": {"enabled": True}},
+                {"event": "tool_result", "toolName": "read"},
+                {"event": "multifile_drift_observed_read"},
+                {"event": "multifile_drift_fired", "details": {"outcome": "fired"}},
+                {
+                    "event": "multifile_drift_target_mutation",
+                    "details": {"afterObservedRead": True, "afterDrift": True},
+                },
+            ]
+        )
+
+        self.assertTrue(proof.valid, format_drift_proof(proof))
+        self.assertIn("multifile_drift_proof: OK", format_drift_proof(proof))
+
+    def test_multifile_drift_proof_rejects_mutation_before_read(self) -> None:
+        proof = summarize_drift_proof(
+            [
+                {"event": "multifile_drift_config", "details": {"enabled": True}},
+                {
+                    "event": "multifile_drift_target_mutation",
+                    "details": {"afterObservedRead": False, "afterDrift": False},
+                },
+                {
+                    "event": "multifile_drift_invalid",
+                    "reason": "target mutation before observed target read",
+                },
+            ]
+        )
+
+        self.assertFalse(proof.valid)
+        self.assertIn("target mutation before observed target read", format_drift_proof(proof))
 
 
 if __name__ == "__main__":

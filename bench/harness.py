@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
 try:
     from bench.command_policy import (
         _md_ablation_stub,
@@ -39,6 +41,12 @@ try:
         md_workdir_must_be_stub,
     )
     from bench.neutral_scorer import neutral_block_texts, neutral_heading_tree
+    from bench.multifile_drift import (
+        DRIFT_SPECS_PATH,
+        drift_task_from_input_files,
+        format_drift_proof,
+        summarize_drift_proof,
+    )
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
@@ -63,6 +71,12 @@ except ModuleNotFoundError:
         md_workdir_must_be_stub,
     )
     from bench.neutral_scorer import neutral_block_texts, neutral_heading_tree
+    from bench.multifile_drift import (
+        DRIFT_SPECS_PATH,
+        drift_task_from_input_files,
+        format_drift_proof,
+        summarize_drift_proof,
+    )
     from bench.oai_loop import LoopError, resolve_oai_model, run_oai_loop
     from bench.pi_audit_adapter import load_pi_audit_events, summarize_pi_audit_events
     from bench.pi_runner import build_pi_json_command, default_audit_extension_path, parse_pi_json_output
@@ -425,6 +439,19 @@ def copied_input_relpath(input_path: str) -> Path:
     if inp_parent and inp_parent != "inputs":
         return Path(inp_parent) / os.path.basename(input_path)
     return Path(os.path.basename(input_path))
+
+
+def copy_final_input_snapshot(task: BenchTask, actual_root: Path, run_log_dir: Path) -> None:
+    """Preserve final benchmark input files before the temp workdir is removed."""
+    final_dir = run_log_dir / "final"
+    for input_path in task.input_files:
+        rel = copied_input_relpath(input_path)
+        actual_path = actual_root / rel
+        if not actual_path.exists():
+            continue
+        dest = final_dir / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(actual_path, dest)
 
 
 # ── Dual scorer ───────────────────────────────────────────────
@@ -1800,6 +1827,12 @@ def run_agent(
         pi_env = child_env.copy()
         pi_env["PI_AUDIT_LOG"] = str(pi_audit_log_path)
         pi_env.setdefault("PI_SKIP_VERSION_CHECK", "1")
+        if task.expected_artifact == "multi_file_contents_any":
+            drift_task = drift_task_from_input_files(task.input_files)
+            if drift_task:
+                pi_env["BENCH_MULTIFILE_DRIFT_ENABLED"] = "1"
+                pi_env["BENCH_MULTIFILE_DRIFT_TASK"] = drift_task
+                pi_env["BENCH_MULTIFILE_DRIFT_SPECS"] = str((REPO_ROOT / DRIFT_SPECS_PATH).resolve())
         try:
             result = subprocess.run(
                 [*cmd, prompt],
@@ -1961,6 +1994,17 @@ def run_agent(
             expected_output=task.expected_output,
             md_binary=md_binary,
         )
+        if pi_audit_log_path is None:
+            proof_report = "multifile_drift_proof: INVALID no live pi audit log"
+            ok_primary = False
+            ok_diagnostic = False
+        else:
+            proof = summarize_drift_proof(load_pi_audit_events(pi_audit_log_path))
+            proof_report = format_drift_proof(proof)
+            if not proof.valid:
+                ok_primary = False
+                ok_diagnostic = False
+        report = f"{report}\n{proof_report}"
     elif task.expected_artifact == "json_envelope":
         actual = select_json_envelope_actual(
             all_tool_outputs, all_text_outputs, stdout, expected_content
@@ -1992,6 +2036,8 @@ def run_agent(
             shutil.copy2(guard_log_path, run_log_dir / "guard.log")
         if pi_audit_log_path is not None and pi_audit_log_path.exists():
             shutil.copy2(pi_audit_log_path, run_log_dir / "pi-audit.jsonl")
+        if task.expected_artifact == "multi_file_contents_any":
+            copy_final_input_snapshot(task, workdir_path, run_log_dir)
         pi_session_root = workdir_path / ".pi-sessions"
         if pi_session_root.exists():
             shutil.copytree(pi_session_root, run_log_dir / "pi-sessions", dirs_exist_ok=True)

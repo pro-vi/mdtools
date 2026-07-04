@@ -1,0 +1,12 @@
+{
+  "mf01": {
+    "target": "mf01/runbook.md",
+    "old": "Pager owner: Alex\n",
+    "new": "Pager owner: Riley\n"
+  },
+  "mf02": {
+    "target": "mf02/backend.md",
+    "old": "Owner: Blake\n",
+    "new": "Owner: Casey\n"
+  }
+}

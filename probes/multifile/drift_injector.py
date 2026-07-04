@@ -2,25 +2,27 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 
-SPECS = {
-    "mf01": {
-        "target": Path("mf01/runbook.md"),
-        "old": "Pager owner: Alex\n",
-        "new": "Pager owner: Riley\n",
-    },
-    "mf02": {
-        "target": Path("mf02/backend.md"),
-        "old": "Owner: Blake\n",
-        "new": "Owner: Casey\n",
-    },
-}
+SPECS_PATH = Path(__file__).with_name("drift_specs.json")
+
+
+def load_specs() -> dict[str, dict[str, object]]:
+    raw = json.loads(SPECS_PATH.read_text())
+    return {
+        task: {
+            "target": Path(spec["target"]),
+            "old": spec["old"],
+            "new": spec["new"],
+        }
+        for task, spec in raw.items()
+    }
 
 
 def inject_once(root: Path, task: str) -> str:
-    spec = SPECS[task]
+    spec = load_specs()[task]
     state = root / f".{task}.drift-fired"
     target = root / spec["target"]
     if state.exists():
@@ -37,9 +39,10 @@ def inject_once(root: Path, task: str) -> str:
 
 
 def main() -> None:
+    specs = load_specs()
     parser = argparse.ArgumentParser(description="Apply a deterministic one-shot multifile drift.")
     parser.add_argument("--root", required=True, type=Path, help="Workdir root containing mf01/ or mf02/")
-    parser.add_argument("--task", required=True, choices=sorted(SPECS), help="Drift fixture id")
+    parser.add_argument("--task", required=True, choices=sorted(specs), help="Drift fixture id")
     args = parser.parse_args()
     print(inject_once(args.root, args.task))
 
