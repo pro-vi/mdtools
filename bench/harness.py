@@ -397,6 +397,9 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
             f"If you cannot make a safe change, print exactly AMBIGUOUS (nothing else) and do not modify the file."
         )
         completion_instruction = "print your result and stop."
+    elif task.expected_artifact == "multi_file_contents_any":
+        output_instruction = f"Modify the provided files under {input_file} in place."
+        completion_instruction = "confirm the files have been handled and stop."
     else:
         output_instruction = "Print the result to stdout."
         completion_instruction = "print the result and stop."
@@ -412,11 +415,16 @@ def build_prompt(task: BenchTask, mode: BenchMode, workdir: str) -> str:
 
 def copied_input_path(input_path: str, workdir: str) -> str:
     """Return the path where run_agent copies an input file inside workdir."""
+    return os.path.join(workdir, copied_input_relpath(input_path))
+
+
+def copied_input_relpath(input_path: str) -> Path:
+    """Return the relative path used when an input file is copied into the workdir."""
     inp_dir = os.path.dirname(input_path)
     inp_parent = os.path.basename(inp_dir) if inp_dir else ""
     if inp_parent and inp_parent != "inputs":
-        return os.path.join(workdir, inp_parent, os.path.basename(input_path))
-    return os.path.join(workdir, os.path.basename(input_path))
+        return Path(inp_parent) / os.path.basename(input_path)
+    return Path(os.path.basename(input_path))
 
 
 # ── Dual scorer ───────────────────────────────────────────────
@@ -481,6 +489,76 @@ def score_task(
 
     ok = a.strip() == e.strip()
     return ok, ok, "\n".join(report)
+
+
+def _multifile_expected_alternatives(expected_output: str) -> list[Path]:
+    root = Path(expected_output)
+    if not root.exists():
+        return [root]
+    children = sorted(path for path in root.iterdir() if path.is_dir())
+    return children if children else [root]
+
+
+def _score_multifile_against_dir(
+    task: BenchTask,
+    *,
+    actual_root: Path,
+    expected_root: Path,
+    md_binary: str,
+) -> tuple[bool | None, bool | None, str]:
+    report_parts: list[str] = []
+    primary_results: list[bool | None] = []
+    diagnostic_results: list[bool | None] = []
+    for input_path in task.input_files:
+        rel = copied_input_relpath(input_path)
+        actual_path = actual_root / rel
+        expected_path = expected_root / rel
+        if not expected_path.exists():
+            report_parts.append(f"{rel}: expected file missing in {expected_root}")
+            primary_results.append(False)
+            diagnostic_results.append(False)
+            continue
+        try:
+            actual = actual_path.read_text()
+        except FileNotFoundError:
+            actual = ""
+        expected = expected_path.read_text()
+        ok_primary, ok_diagnostic, file_report = score_task(task, actual, expected, md_binary)
+        primary_results.append(ok_primary)
+        diagnostic_results.append(ok_diagnostic)
+        if ok_primary and ok_diagnostic:
+            report_parts.append(f"{rel}: OK")
+        else:
+            report_parts.append(f"{rel}: {file_report}")
+    primary = all(result is True for result in primary_results)
+    diagnostic = all(result is True for result in diagnostic_results)
+    return primary, diagnostic, "\n".join(report_parts)
+
+
+def score_multifile_any(
+    task: BenchTask,
+    *,
+    actual_root: Path,
+    expected_output: str,
+    md_binary: str,
+) -> tuple[bool | None, bool | None, str]:
+    """Pass when all input files match any expected alternative directory."""
+    reports: list[str] = []
+    for alternative in _multifile_expected_alternatives(expected_output):
+        ok_primary, ok_diagnostic, report = _score_multifile_against_dir(
+            task,
+            actual_root=actual_root,
+            expected_root=alternative,
+            md_binary=md_binary,
+        )
+        if ok_primary and ok_diagnostic:
+            return True, True, f"multi_file_contents_any: matched {alternative.name}"
+        reports.append(f"[{alternative.name}]\n{report}")
+    return (
+        False,
+        False,
+        "multi_file_contents_any: no alternative matched\n" + "\n".join(reports),
+    )
 
 
 def _canonicalize_json(obj):
@@ -1216,7 +1294,11 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
     """Validate scorer authority: expected vs itself should pass primary and diagnostic paths."""
     results = []
     for task in tasks:
-        expected = Path(task.expected_output).read_text()
+        expected = (
+            ""
+            if task.expected_artifact == "multi_file_contents_any"
+            else Path(task.expected_output).read_text()
+        )
 
         if task.expected_artifact == "stdout_and_file":
             # For safe-fail tasks: expected_output is the unchanged input file,
@@ -1229,6 +1311,14 @@ def dry_run(tasks: list[BenchTask], md_binary: str) -> list[BenchResult]:
                 report += "\nstdout_check: OK (dry-run)"
             ok_primary = bool(ok_file_primary and ok_stdout)
             ok_diagnostic = bool(ok_file_diagnostic and ok_stdout)
+        elif task.expected_artifact == "multi_file_contents_any":
+            alternatives = _multifile_expected_alternatives(task.expected_output)
+            ok_primary, ok_diagnostic, report = _score_multifile_against_dir(
+                task,
+                actual_root=alternatives[0],
+                expected_root=alternatives[0],
+                md_binary=md_binary,
+            )
         else:
             ok_primary, ok_diagnostic, report = score_task(task, expected, expected, md_binary)
 
@@ -1827,7 +1917,11 @@ def run_agent(
 
     requeried = requeried or _requeried_from_sequence(call_sequence)
 
-    expected_content = Path(task.expected_output).read_text()
+    expected_content = (
+        ""
+        if task.expected_artifact == "multi_file_contents_any"
+        else Path(task.expected_output).read_text()
+    )
 
     if task.expected_artifact == "stdout_and_file":
         # Score both stdout text and file contents
@@ -1860,6 +1954,13 @@ def run_agent(
         except FileNotFoundError:
             actual = ""
         ok_primary, ok_diagnostic, report = score_task(task, actual, expected_content, md_binary)
+    elif task.expected_artifact == "multi_file_contents_any":
+        ok_primary, ok_diagnostic, report = score_multifile_any(
+            task,
+            actual_root=workdir_path,
+            expected_output=task.expected_output,
+            md_binary=md_binary,
+        )
     elif task.expected_artifact == "json_envelope":
         actual = select_json_envelope_actual(
             all_tool_outputs, all_text_outputs, stdout, expected_content

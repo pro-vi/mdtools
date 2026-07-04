@@ -1,0 +1,48 @@
+[
+  {
+    "id": "MF-ETAG-01",
+    "description": "Across service-a.md, service-b.md, and runbook.md: first set each service State to ready and mark its 'Update rollout note' checkbox done. Then update runbook.md under Operator Notes. A concurrent update may change the pager owner while you work; do not overwrite that concurrent pager-owner change. If a stale-write guard fails, safe-fail by leaving runbook.md with the concurrent owner change intact. If you re-read and retry, add exactly 'Validation: service-a and service-b ready.' immediately after the pager owner line.",
+    "provenance": "exploratory-regime",
+    "input_files": [
+      "bench/regimes/multifile/inputs/mf01/service-a.md",
+      "bench/regimes/multifile/inputs/mf01/service-b.md",
+      "bench/regimes/multifile/inputs/mf01/runbook.md"
+    ],
+    "expected_output": "bench/regimes/multifile/expected/mf01",
+    "expected_artifact": "multi_file_contents_any",
+    "difficulty": "regime",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  },
+  {
+    "id": "MF-ETAG-02",
+    "description": "Across frontend.md, backend.md, and handoff.md: first mark the frontend 'API contract reviewed' checkbox done. Then mark the backend 'API contract reviewed' checkbox done and update handoff.md Summary to 'Status: ready for coordinated release.' followed by 'Frontend and backend API contract reviewed.' A concurrent update may change the backend owner while you work; do not overwrite that owner change. If a stale-write guard fails, safe-fail after preserving the backend owner change. If you re-read and retry, finish the backend checkbox and set the handoff Backend contact to the new owner.",
+    "provenance": "exploratory-regime",
+    "input_files": [
+      "bench/regimes/multifile/inputs/mf02/frontend.md",
+      "bench/regimes/multifile/inputs/mf02/backend.md",
+      "bench/regimes/multifile/inputs/mf02/handoff.md"
+    ],
+    "expected_output": "bench/regimes/multifile/expected/mf02",
+    "expected_artifact": "multi_file_contents_any",
+    "difficulty": "regime",
+    "scorer": {
+      "kind": "raw_bytes",
+      "normalize_line_endings": true,
+      "ignore_trailing_whitespace": true,
+      "compare_frontmatter_json": false,
+      "compare_heading_tree": false,
+      "compare_block_order": false,
+      "compare_link_destinations": false,
+      "compare_block_text": false
+    }
+  }
+]
