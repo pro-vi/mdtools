@@ -222,6 +222,10 @@ Current v3 result: `md` shows a large directional lift for the tested weak model
 
 The failure is about scope, not absence of effect. The flip table shows a concentrated regime: a minority of core tasks flip strongly with `md`, while most tasks do not move. The variance decomposition says task variance dominates trial variance, so more repeats are not the next lever; a confirmed broad claim needs more gap-blind core tasks, while a narrower family-scoped claim should stay tied to the task families that actually flip.
 
+Mechanism evidence is exploratory but now explicit: the v3 failure taxonomy labels 224 failed baseline/treatment trials and reports 44/44 double-label agreement. The measured reductions are mostly wrong-target, format-noncompliance, quoting/escaping, and incomplete-multistep failures in weak/tool-poor cells. Duplicate-heading collision is not the load-bearing explanation in v3; the supported claim is that `md` helps weak agents read and target Markdown structure that they otherwise reconstruct unreliably.
+
+The frontier boundary is also explicit. Sonnet-class native-tool agents have not shown a robust `md` edge, and the two residual regimes from the June falsification record are closed as benchmark claims: the >10k-line document probe showed no correctness or byte-cost advantage for `native+md`, and the transactional multifile drift probe did not demonstrate a reliable agent-behavior edge from `--expect-etag`. `--expect-etag` remains useful scripting/API safety, not a certified agent benchmark advantage.
+
 ### Corpus
 
 The default corpus is 28 tasks in `bench/tasks/tasks.json`: T1-T24 plus four candidate-derived relocation tasks. Search and holdout splits live in `bench/search/task_ids.json` and `bench/holdout/task_ids.json`; v3 additionally labels tasks as `core` or `adversarially-mined` so gap-selected tasks cannot enter the headline aggregate silently.
