@@ -83,7 +83,23 @@ python bench/harness.py --md-binary target/release/md  # validate 20 benchmark s
 
 ## Benchmark
 
-20 tasks across 3 modes (unix/mdtools/hybrid). Dual scoring: md binary + markdown-it-py.
+**Do not cite pre-v3 benchmark headlines.** The old Haiku/Sonnet/Opus numbers are
+retracted. Current v3 result: `md` shows large directional weak-model lifts with clean
+no-md ablations, but the preregistered broad headline failed certification. The paired
+lift estimates are +28.3pp (Haiku shell), +27.5pp (Haiku native), and +30.8pp
+(GPT-5.4-mini native); their 95% CI lower bounds are +10.0pp, +9.2pp, and +10.8pp,
+below the frozen +15pp floor. Treat the broad result as directional/exploratory.
+
+Supported claim: `md` helps weak/tool-poor agents read and target Markdown structure
+more reliably, mainly reducing wrong-target, format, and quoting failures. Not
+supported: a certified broad benchmark headline, a frontier-native-tool edge, a
+>10k-line document edge, or a proven agent advantage from `--expect-etag`. Sources:
+`bench/RESULTS.md`, `bench/V3.md`, and
+`docs/decisions/2026-07-04-md-positioning-after-probes.md`.
+
+Default corpus: 28 tasks in `bench/tasks/tasks.json`; v3 headline aggregation uses the
+24 core tasks and reports adversarially mined tasks separately. Dual scoring:
+v3-neutral primary plus diagnostic scorer.
 
 ```bash
 # Run single task
@@ -103,8 +119,6 @@ done
 python bench/analyze.py /tmp/bench_*.txt
 python bench/report.py /tmp/bench_*.txt --markdown
 ```
-
-Headline: Haiku unix 50% → hybrid 87% (+37pp). Sonnet: +5pp correctness, 3-5x speed. Opus: efficiency only. Tool benefit inversely proportional to model capability.
 
 ## Auto-research (candidate pipeline)
 

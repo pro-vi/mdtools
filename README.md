@@ -216,9 +216,9 @@ Mutation commands emit a structured result describing what changed, what was pre
 
 **BENCH_V3_RETRACTION:** the pre-v3 headline benchmark numbers are retracted and should not be cited as current evidence.
 
-Current v3 result: `md` shows large directional weak-model lifts with clean no-md ablations, but the preregistered broad headline **failed** certification. The paired lift estimates are +28.3pp, +27.5pp, and +30.8pp; their 95% CI lower bounds are +10.0pp, +9.2pp, and +10.8pp, below the frozen +15pp floor. Treat the broad result as **directional/exploratory rather than confirmed**.
+Current v3 result: `md` shows large directional weak-model lifts with clean no-md ablations, but the preregistered broad headline **failed** certification. The paired lift estimates are +28.3pp (Haiku shell), +27.5pp (Haiku native), and +30.8pp (GPT-5.4-mini native); their 95% CI lower bounds are +10.0pp, +9.2pp, and +10.8pp, below the frozen +15pp floor. Treat the broad result as **directional/exploratory rather than confirmed**.
 
-Supported claim: `md` helps weak/tool-poor agents read and target Markdown structure more reliably, mainly reducing wrong-target, format, quoting, and incomplete-multistep failures. Not supported: a certified broad benchmark headline, a frontier-native-tool edge, a >10k-line document edge, or a proven agent advantage from `--expect-etag`.
+Supported claim: `md` helps weak/tool-poor agents read and target Markdown structure more reliably, mainly reducing wrong-target, format, and quoting failures; effects on multistep failures are mixed. Not supported: a certified broad benchmark headline, a frontier-native-tool edge, a >10k-line document edge, or a proven agent advantage from `--expect-etag`.
 
 See [`bench/RESULTS.md`](bench/RESULTS.md) for the generated tables, [`bench/V3.md`](bench/V3.md) for the protocol, and [`docs/decisions/2026-07-04-md-positioning-after-probes.md`](docs/decisions/2026-07-04-md-positioning-after-probes.md) for the positioning decision.
 

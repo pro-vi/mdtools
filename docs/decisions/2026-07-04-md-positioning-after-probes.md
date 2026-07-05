@@ -19,9 +19,10 @@ frozen +15pp certification floor (`bench/RESULTS.md` Headline Status). The READM
 say directional/exploratory broad lift, not certified broad lift.
 
 The public positive claim should be scoped to weak/tool-poor models and structure-reading
-failure modes: md reduces wrong-target, quoting/escaping, incomplete-multistep, and
-format/infra-like tool-use failures in the measured weak-model cells (`bench/RESULTS.md`
-Mechanism Evidence). That claim is mechanism evidence, not a new headline threshold.
+failure modes: md reduces wrong-target, quoting/escaping, and format/infra-like
+tool-use failures in the measured weak-model cells; incomplete-multistep is mixed
+across comparisons (`bench/RESULTS.md` Mechanism Evidence). That claim is mechanism
+evidence, not a new headline threshold.
 
 ## What Changed Since The June Falsification
 
