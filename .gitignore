@@ -20,6 +20,9 @@ bench/runs/*smoke*/
 # Machine-specific / private agent instructions (the public CLAUDE.md is shipped)
 CLAUDE.local.md
 
+# Agent-authored marketing/social drafts — local-only, not repo artifacts
+publish/
+
 # Private planning docs — architect/provision plans are local-only by convention
 # (untracked 2026-06-02; the leaked 2026-06-01-001 plan also removed from HEAD)
 docs/plans/
