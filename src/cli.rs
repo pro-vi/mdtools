@@ -9,7 +9,9 @@ const SECTION_EXPECT_ETAG_HELP: &str =
 const TASK_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
      differs — guards against a stale loc after intervening edits.";
-const SECTION_CONTAINS_HELP: &str = "Literal substring matching for the section selector";
+const SECTION_CONTAINS_HELP: &str =
+    "Match parsed plaintext top-level heading text by literal substring; \
+     exact matching remains the default";
 
 #[derive(Parser)]
 #[command(name = "md", about = "Markdown-aware CLI for agent operations")]
