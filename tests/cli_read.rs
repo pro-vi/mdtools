@@ -1,7 +1,16 @@
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 fn md() -> Command {
     Command::new(env!("CARGO_BIN_EXE_md"))
+}
+
+fn tempfile(content: &str) -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+    let path = format!("/tmp/mdtools_cli_read_{}_{}.md", std::process::id(), id);
+    std::fs::write(&path, content).unwrap();
+    path
 }
 
 #[test]
@@ -160,6 +169,15 @@ fn section_ignore_case() {
 }
 
 #[test]
+fn section_defaults_to_exact_matching() {
+    let output = md()
+        .args(["section", "method", "tests/fixtures/basic.md"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
 fn section_contains_duplicate_conflict_without_occurrence() {
     let output = md()
         .args([
@@ -200,6 +218,25 @@ fn section_contains_ignore_case_json_roundtrips_match_mode() {
     assert_eq!(json["section"]["selector"]["match_mode"], "ContainsIgnoreCase");
     assert_eq!(json["section"]["heading"]["text"], "Sub-methods");
     assert!(json["content"].as_str().unwrap().starts_with("### Sub-methods"));
+}
+
+#[test]
+fn section_contains_ignores_nested_non_top_level_headings() {
+    let path = tempfile(
+        "# Top Methods\nbody\n\n> ## Hidden Methods\n> quoted body\n\n```md\n## Code Methods\n```\n",
+    );
+    let output = md()
+        .args(["section", "method", &path, "--contains", "--ignore-case"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("# Top Methods"));
+    std::fs::remove_file(&path).unwrap();
 }
 
 #[test]

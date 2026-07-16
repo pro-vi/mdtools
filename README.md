@@ -73,7 +73,13 @@ $ md section "method" doc.md --contains --ignore-case --occurrence 2
 ### Sub-methods
 Some additional detail.
 
-# `:preamble` is reserved and cannot be combined with `--contains`
+# Selectors operate on plaintext top-level heading text. Exact match is the
+# default; `--contains` switches to literal substring mode, and headings nested
+# inside lists, block quotes, tables, footnotes, or code blocks do not create
+# selectable sections.
+
+# `:preamble` is reserved for root content before the first top-level heading
+# and cannot be combined with `--contains`
 $ md section :preamble doc.md
 
 # Full-text search with block-kind filtering
@@ -172,7 +178,9 @@ md delete-section "Draft Notes" doc.md -i
 etag=$(md section "Draft Notes" doc.md --json | jq -r '.section.etag')
 md delete-section "Draft Notes" doc.md -i --expect-etag "$etag"
 
-# Move a section using the same selector policy for source and destination
+# Move a section using the same exact-default / contains selector policy for
+# both source and destination; `--source-occurrence` and `--dest-occurrence`
+# disambiguate duplicate matches, and `:preamble` still rejects `--contains`
 md move-section "api" doc.md --after "front" --contains --ignore-case --keep-level
 
 # Set frontmatter fields (dot-path, type-inferred)

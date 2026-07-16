@@ -373,6 +373,38 @@ fn t15_occurrence_disambiguation() {
 }
 
 #[test]
+fn t15b_contains_dest_occurrence_disambiguation() {
+    let tmp = tempfile(
+        "# Doc\n\n## Backend API\nsource\n\n## Frontend One\none\n\n## Frontend Two\ntwo\n",
+    );
+    let output = md()
+        .args([
+            "move-section",
+            "api",
+            &tmp,
+            "--after",
+            "front",
+            "--contains",
+            "--ignore-case",
+            "--dest-occurrence",
+            "2",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let frontend_two = stdout.find("## Frontend Two").unwrap();
+    let source = stdout.find("## Backend API").unwrap();
+    assert!(source > frontend_two, "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn t16_ignore_case() {
     let tmp = tempfile("# Doc\n\n## Alpha\nbody a\n\n## Beta\nbody b\n");
     let output = md()

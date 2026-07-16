@@ -219,6 +219,41 @@ fn replace_section_contains_with_occurrence() {
 }
 
 #[test]
+fn replace_section_contains_expect_etag_roundtrips_occurrence() {
+    let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(
+        &path,
+        "method",
+        &["--contains", "--ignore-case", "--occurrence", "2"],
+    );
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "method",
+            &path,
+            "--contains",
+            "--ignore-case",
+            "--occurrence",
+            "2",
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "### Sub-methods\n\nContains-selected replacement.\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("Contains-selected replacement."));
+    assert!(updated.contains("## Methods"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn delete_section_contains_rejects_preamble_selector() {
     let output = md()
         .args([
