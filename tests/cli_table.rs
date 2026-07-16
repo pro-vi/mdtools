@@ -768,6 +768,61 @@ fn replace_table_row_accepts_formatted_cells_and_escaped_pipes() {
 }
 
 #[test]
+fn replace_table_row_accepts_one_column_rows_without_pipes() {
+    let source = "| Value |\n|---|\nold\n";
+    let tmp = tempfile(source);
+    let out = md_with_stdin(&["replace-table-row", "0", "0", &tmp], "new\n");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        "| Value |\n|---|\nnew\n"
+    );
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn replace_table_row_accepts_escaped_pipe_at_physical_line_end() {
+    let source = "| Name | Value |\n|---|---|\n| old | value |\n";
+    let tmp = tempfile(source);
+    let out = md_with_stdin(
+        &["replace-table-row", "0", "0", &tmp],
+        "| new | value \\|\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        "| Name | Value |\n|---|---|\n| new | value \\|\n"
+    );
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn replace_table_row_rejects_unescaped_pipe_inside_code_markup() {
+    let source = "| Name | Value |\n|---|---|\n| old | value |\n";
+    let tmp = tempfile(source);
+    let out = md_with_stdin(
+        &["replace-table-row", "0", "0", &tmp, "-i"],
+        "| `a|b` | value |\n",
+    );
+    assert_eq!(out.status.code(), Some(3));
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("column count 3 does not match table column count 2"));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn replace_table_row_out_of_range_is_not_found() {
     let tmp = tempfile(include_str!("fixtures/table.md"));
     let out = md_with_stdin(

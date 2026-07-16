@@ -73,7 +73,7 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 
 /// Stable, dependency-free shared exact-byte target fingerprint helper
 /// (FNV-1a, 64-bit) rendered as 16 hex chars. Used by block, section, and
-/// task-item read surfaces so an agent can guard a later command invocation
+/// table, and task-item read surfaces so an agent can guard a later command invocation
 /// (`--expect-etag`) against target-content drift between the earlier read and
 /// mutation attempt. Content-addressed fingerprint only, not durable target
 /// identity. Deterministic across runs and platforms.

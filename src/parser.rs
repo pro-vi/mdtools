@@ -764,35 +764,33 @@ pub struct TableProjection {
     pub rows: Vec<ProjectedTableRow>,
 }
 
-fn count_table_row_columns(payload: &str) -> Option<usize> {
+fn count_table_row_columns(payload: &str) -> (usize, bool) {
     let trimmed = payload.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let mut pipe_count = 0usize;
+    let mut unescaped_pipes = Vec::new();
     let mut escaped = false;
-    let mut in_code = false;
-    for ch in trimmed.chars() {
+    for (byte_index, ch) in trimmed.char_indices() {
         if escaped {
             escaped = false;
             continue;
         }
         match ch {
             '\\' => escaped = true,
-            '`' => in_code = !in_code,
-            '|' if !in_code => pipe_count += 1,
+            // GFM table parsing treats an unescaped pipe as a column delimiter
+            // even when it appears between backticks. Callers must write `\|`
+            // when a literal pipe belongs to inline content.
+            '|' => unescaped_pipes.push(byte_index),
             _ => {}
         }
     }
 
-    if pipe_count == 0 {
-        return None;
-    }
-
-    let leading = trimmed.starts_with('|') as usize;
-    let trailing = trimmed.ends_with('|') as usize;
-    Some(pipe_count + 1 - leading - trailing)
+    let leading = (unescaped_pipes.first() == Some(&0)) as usize;
+    let trailing = unescaped_pipes
+        .last()
+        .is_some_and(|index| *index + 1 == trimmed.len()) as usize;
+    (
+        unescaped_pipes.len() + 1 - leading - trailing,
+        !unescaped_pipes.is_empty(),
+    )
 }
 
 fn offset_span(span: SourceSpan, block_span: SourceSpan) -> SourceSpan {
@@ -887,16 +885,12 @@ pub fn validate_table_row_payload(
             "replacement row payload must contain exactly one line",
         ));
     }
-    if !payload.contains('|') {
+    let (lexical_columns, has_unescaped_pipe) = count_table_row_columns(payload);
+    if expected_columns > 1 && !has_unescaped_pipe {
         return Err(CommandError::invalid_table_row(
             "replacement row payload must parse as exactly one GFM table data row",
         ));
     }
-    let lexical_columns = count_table_row_columns(payload).ok_or_else(|| {
-        CommandError::invalid_table_row(
-            "replacement row payload must parse as exactly one GFM table data row",
-        )
-    })?;
     if lexical_columns != expected_columns {
         return Err(CommandError::invalid_table_row(format!(
             "replacement row column count {} does not match table column count {}",
