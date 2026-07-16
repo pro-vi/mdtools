@@ -9,6 +9,7 @@ const SECTION_EXPECT_ETAG_HELP: &str =
 const TASK_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
      differs — guards against a stale loc after intervening edits.";
+const SECTION_CONTAINS_HELP: &str = "Literal substring matching for the section selector";
 
 #[derive(Parser)]
 #[command(name = "md", about = "Markdown-aware CLI for agent operations")]
@@ -55,7 +56,7 @@ pub struct SectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
-    #[arg(long = "contains")]
+    #[arg(long = "contains", help = SECTION_CONTAINS_HELP)]
     pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
@@ -79,7 +80,7 @@ pub struct ReplaceSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
-    #[arg(long = "contains")]
+    #[arg(long = "contains", help = SECTION_CONTAINS_HELP)]
     pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
@@ -99,7 +100,7 @@ pub struct DeleteSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
-    #[arg(long = "contains")]
+    #[arg(long = "contains", help = SECTION_CONTAINS_HELP)]
     pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
