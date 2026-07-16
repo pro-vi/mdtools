@@ -26,6 +26,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install benchmark test dependency
+        run: python3 -m pip install markdown-it-py
+
       - name: Install stable Rust toolchain
         run: |
           rustup toolchain install stable --component rustfmt --component clippy
