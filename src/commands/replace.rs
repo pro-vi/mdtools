@@ -368,6 +368,21 @@ pub(crate) fn strip_one_trailing_newline(mut s: String) -> String {
     s
 }
 
+/// Compute the replaced span using half-open byte coverage.
+pub(crate) fn replacement_span_after(span_before: SourceSpan, replacement: &str) -> SourceSpan {
+    let byte_start = span_before.byte_start;
+    let byte_end = byte_start + replacement.len() as u32;
+    let newline_count = replacement.bytes().filter(|&b| b == b'\n').count() as u32;
+    let trailing_newline = u32::from(replacement.as_bytes().last() == Some(&b'\n'));
+
+    SourceSpan {
+        line_start: span_before.line_start,
+        line_end: span_before.line_start + newline_count.saturating_sub(trailing_newline),
+        byte_start,
+        byte_end,
+    }
+}
+
 /// Compute target_span_after based on disposition and replacement content.
 fn compute_span_after(
     disposition: MutationDisposition,
@@ -379,16 +394,7 @@ fn compute_span_after(
         MutationDisposition::NoChange => span_before,
         MutationDisposition::Replaced => {
             if let Some(before) = span_before {
-                let byte_start = before.byte_start;
-                let byte_end = byte_start + replacement.len() as u32;
-                // Count lines in replacement to get line_end
-                let line_count = replacement.matches('\n').count() as u32;
-                Some(SourceSpan {
-                    line_start: before.line_start,
-                    line_end: before.line_start + line_count,
-                    byte_start,
-                    byte_end,
-                })
+                Some(replacement_span_after(before, replacement))
             } else {
                 None
             }

@@ -1,5 +1,5 @@
 use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
-use crate::commands::replace::verify_expected_etag;
+use crate::commands::replace::{replacement_span_after, verify_expected_etag};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -445,16 +445,7 @@ fn build_section_mutation_result(
     let span_after = match disposition {
         MutationDisposition::Deleted => None,
         MutationDisposition::NoChange => Some(span_before),
-        MutationDisposition::Replaced => {
-            let byte_end = span_before.byte_start + replacement.len() as u32;
-            let line_count = replacement.matches('\n').count() as u32;
-            Some(SourceSpan {
-                line_start: span_before.line_start,
-                line_end: span_before.line_start + line_count,
-                byte_start: span_before.byte_start,
-                byte_end,
-            })
-        }
+        MutationDisposition::Replaced => Some(replacement_span_after(span_before, replacement)),
         _ => Some(span_before),
     };
 

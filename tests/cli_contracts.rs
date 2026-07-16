@@ -503,6 +503,31 @@ fn replace_section_boundary_target_span_after_matches_effective_inserted_bytes()
     let bs = after["byte_start"].as_u64().unwrap() as usize;
     let be = after["byte_end"].as_u64().unwrap() as usize;
     assert_eq!(&content[bs..be], "## One\nnew\n\n");
+    assert_eq!(after["line_start"], 3);
+    assert_eq!(after["line_end"], 5);
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn replace_section_boundary_target_span_after_stops_at_boundary_floor_in_crlf_docs() {
+    let path = tempfile_bytes(b"# Doc\r\n\r\n## One\r\nold\r\n\r\n## Two\r\nkeep\r\n");
+    let output = md_with_stdin(
+        &["replace-section", "One", &path, "--json"],
+        "## One\nnew\n",
+    );
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "Replaced");
+    assert_eq!(json["changed"], true);
+
+    let content = json["content"].as_str().unwrap();
+    let after = &json["invariant"]["target_span_after"];
+    let bs = after["byte_start"].as_u64().unwrap() as usize;
+    let be = after["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&content[bs..be], "## One\r\nnew\r\n\r\n");
+    assert_eq!(after["line_start"], 3);
+    assert_eq!(after["line_end"], 5);
 
     std::fs::remove_file(&path).ok();
 }
