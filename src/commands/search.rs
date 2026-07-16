@@ -7,7 +7,19 @@ use crate::multifile;
 use crate::output;
 use crate::parser::ParsedDocument;
 
-type SourceScalarRange = (usize, usize);
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+struct SparseLowercaseProvenance {
+    irregular_segments: Vec<IrregularLowercaseSegment>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct IrregularLowercaseSegment {
+    folded_start: usize,
+    folded_end: usize,
+    original_start: usize,
+    original_end: usize,
+    cumulative_byte_delta_after: isize,
+}
 
 pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
@@ -232,20 +244,38 @@ fn next_char_boundary(s: &str, pos: usize) -> usize {
     p
 }
 
-/// Lowercase content while recording, for each emitted byte, the original
-/// source-scalar byte range that produced it.
-fn lowercase_with_provenance(original: &str) -> (String, Vec<SourceScalarRange>) {
+/// Lowercase content while recording only irregular source-scalars whose folded
+/// projection expands or changes UTF-8 byte width.
+fn lowercase_with_provenance(original: &str) -> (String, SparseLowercaseProvenance) {
     let mut lowered = String::new();
-    let mut provenance = Vec::new();
+    let mut provenance = SparseLowercaseProvenance::default();
+    let mut cumulative_byte_delta_after = 0isize;
 
-    for (orig_start, ch) in original.char_indices() {
-        let orig_end = orig_start + ch.len_utf8();
+    for (original_start, ch) in original.char_indices() {
+        let original_end = original_start + ch.len_utf8();
+        let folded_start = lowered.len();
+        let original_len = ch.len_utf8();
+        let mut lowered_scalar_count = 0usize;
+
         for lowered_ch in ch.to_lowercase() {
-            let mut buf = [0; 4];
-            let lowered_fragment = lowered_ch.encode_utf8(&mut buf);
-            lowered.push_str(lowered_fragment);
+            lowered.push(lowered_ch);
+            lowered_scalar_count += 1;
+        }
+
+        let folded_end = lowered.len();
+        let folded_len = folded_end - folded_start;
+
+        if lowered_scalar_count != 1 || folded_len != original_len {
+            cumulative_byte_delta_after += folded_len as isize - original_len as isize;
             provenance
-                .extend(std::iter::repeat((orig_start, orig_end)).take(lowered_fragment.len()));
+                .irregular_segments
+                .push(IrregularLowercaseSegment {
+                    folded_start,
+                    folded_end,
+                    original_start,
+                    original_end,
+                    cumulative_byte_delta_after,
+                });
         }
     }
 
@@ -253,12 +283,91 @@ fn lowercase_with_provenance(original: &str) -> (String, Vec<SourceScalarRange>)
 }
 
 fn map_lowercase_match_to_original(
-    provenance: &[SourceScalarRange],
+    provenance: &SparseLowercaseProvenance,
     match_start: usize,
     match_end: usize,
 ) -> (usize, usize) {
-    debug_assert!(match_start < match_end);
-    let orig_start = provenance[match_start].0;
-    let orig_end = provenance[match_end - 1].1;
-    (orig_start, orig_end)
+    provenance.map_match_to_original(match_start, match_end)
+}
+
+impl SparseLowercaseProvenance {
+    fn map_match_to_original(&self, match_start: usize, match_end: usize) -> (usize, usize) {
+        debug_assert!(match_start < match_end);
+        let original_start = self
+            .segment_covering_start_boundary(match_start)
+            .map(|segment| segment.original_start)
+            .unwrap_or_else(|| {
+                adjust_folded_offset(match_start, self.cumulative_byte_delta_before(match_start))
+            });
+        let original_end = self
+            .segment_covering_end_boundary(match_end)
+            .map(|segment| segment.original_end)
+            .unwrap_or_else(|| {
+                adjust_folded_offset(match_end, self.cumulative_byte_delta_before(match_end))
+            });
+        (original_start, original_end)
+    }
+
+    fn cumulative_byte_delta_before(&self, folded_offset: usize) -> isize {
+        let next_segment = self
+            .irregular_segments
+            .partition_point(|segment| segment.folded_end <= folded_offset);
+        if next_segment == 0 {
+            0
+        } else {
+            self.irregular_segments[next_segment - 1].cumulative_byte_delta_after
+        }
+    }
+
+    fn segment_covering_start_boundary(
+        &self,
+        folded_offset: usize,
+    ) -> Option<&IrregularLowercaseSegment> {
+        let next_segment = self
+            .irregular_segments
+            .partition_point(|segment| segment.folded_end <= folded_offset);
+        self.irregular_segments.get(next_segment).filter(|segment| {
+            segment.folded_start <= folded_offset && folded_offset < segment.folded_end
+        })
+    }
+
+    fn segment_covering_end_boundary(
+        &self,
+        folded_offset: usize,
+    ) -> Option<&IrregularLowercaseSegment> {
+        let next_segment = self
+            .irregular_segments
+            .partition_point(|segment| segment.folded_end < folded_offset);
+        self.irregular_segments.get(next_segment).filter(|segment| {
+            segment.folded_start < folded_offset && folded_offset <= segment.folded_end
+        })
+    }
+}
+
+fn adjust_folded_offset(folded_offset: usize, cumulative_byte_delta: isize) -> usize {
+    if cumulative_byte_delta >= 0 {
+        debug_assert!(folded_offset >= cumulative_byte_delta as usize);
+        folded_offset - cumulative_byte_delta as usize
+    } else {
+        folded_offset + cumulative_byte_delta.unsigned_abs()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_sparse_provenance_large_ascii_records_zero_irregular_segments_and_maps_match_exactly()
+    {
+        let original = "ABCD".repeat(1_024);
+        let (lowered, provenance) = lowercase_with_provenance(&original);
+
+        assert_eq!(lowered.len(), original.len());
+        assert!(provenance.irregular_segments.is_empty());
+        assert_eq!(
+            map_lowercase_match_to_original(&provenance, 1_024, 2_048),
+            (1_024, 2_048)
+        );
+    }
 }
