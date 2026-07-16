@@ -93,7 +93,7 @@ fn run_field_projection(
     Ok(())
 }
 
-fn extract_field(data: &serde_json::Value, field: &str) -> serde_json::Value {
+pub(crate) fn extract_field(data: &serde_json::Value, field: &str) -> serde_json::Value {
     let mut current = data;
     for segment in field.split('.') {
         match current.get(segment) {
@@ -104,7 +104,7 @@ fn extract_field(data: &serde_json::Value, field: &str) -> serde_json::Value {
     current.clone()
 }
 
-fn format_field_value(val: &serde_json::Value) -> String {
+pub(crate) fn format_field_value(val: &serde_json::Value) -> String {
     match val {
         serde_json::Value::Null => String::new(),
         serde_json::Value::String(s) => s.clone(),
@@ -114,7 +114,7 @@ fn format_field_value(val: &serde_json::Value) -> String {
     }
 }
 
-fn parse_frontmatter_data(
+pub(crate) fn parse_frontmatter_data(
     raw: &str,
     format: FrontmatterFormat,
 ) -> Result<serde_json::Value, CommandError> {

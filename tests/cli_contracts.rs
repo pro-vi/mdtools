@@ -773,6 +773,7 @@ fn all_json_commands_have_schema_version() {
         vec!["search", "method", "tests/fixtures/basic.md", "--json"],
         vec!["links", "tests/fixtures/basic.md", "--json"],
         vec!["frontmatter", "tests/fixtures/basic.md"],
+        vec!["collect", "tests/fixtures/collect_vault", "-r", "--json"],
         vec!["stats", "tests/fixtures/basic.md", "--json"],
     ];
 

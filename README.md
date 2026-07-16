@@ -94,6 +94,12 @@ vault/alpha.md    Alpha Doc
 vault/beta.md     Beta Doc
 vault/sub/delta.md    Delta Doc
 vault/sub/gamma.md    Gamma Doc
+
+# Aggregate one vault-shaped dataset from frontmatter
+$ md collect vault/ -r --field title,status
+path    title    status
+vault/alpha.md    Alpha Doc    published
+vault/beta.md     Beta Doc     review
 ```
 
 ### Extract tables
@@ -251,6 +257,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 | `search` | Full-text search with block-kind filtering |
 | `links` | Extract all links with kind, destination, span |
 | `frontmatter` | Read/project YAML or TOML frontmatter |
+| `collect` | Aggregate frontmatter across files/directories into one table |
 | `stats` | Word, heading, block, link, section, line counts |
 | `table` | List, read, and project Markdown tables |
 | `replace-table-row` | Replace one GFM table data row by table block index + row index |

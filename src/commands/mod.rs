@@ -1,4 +1,5 @@
 pub mod blocks;
+pub mod collect;
 pub mod frontmatter;
 pub mod links;
 pub mod move_section;

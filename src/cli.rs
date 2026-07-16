@@ -40,6 +40,7 @@ pub enum Command {
     Search(SearchArgs),
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
+    Collect(CollectArgs),
     Stats(StatsArgs),
     Set(SetArgs),
     Table(TableArgs),
@@ -191,6 +192,17 @@ pub struct LinksArgs {
 
 #[derive(Args)]
 pub struct FrontmatterArgs {
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
+    /// Extract specific fields (repeatable or comma-separated)
+    #[arg(long = "field", value_delimiter = ',')]
+    pub fields: Vec<String>,
+}
+
+#[derive(Args)]
+pub struct CollectArgs {
     #[arg(required = true, num_args = 1..)]
     pub files: Vec<PathBuf>,
     #[arg(long, short = 'r')]

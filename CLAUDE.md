@@ -176,4 +176,4 @@ OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
 2. Instrument real deployment (track tool choice, re-query rate)
 3. T6 is the roadmap signal — transactional multi-edit gap, not a bug to fix
 4. `md batch` is NOT on the roadmap (Pro review: prove planning vs execution gap first)
-5. Table row mutations shipped (`replace-table-row`, `delete-table-row`). Roadmap order stays row mutations, then `md collect` (vault-as-table).
+5. Table row mutations shipped (`replace-table-row`, `delete-table-row`). `md collect` now covers the narrow vault-as-table read path; keep follow-on work out of mutation/query-engine territory.
