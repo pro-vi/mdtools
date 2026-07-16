@@ -1058,7 +1058,8 @@ Mode inventory contracts:
 Implemented CLI inventory details:
 
 - `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
-- `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations. In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
+- `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
+- In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
 
 Benchmark validation rules:
