@@ -7,6 +7,20 @@ use crate::multifile;
 use crate::output;
 use crate::parser::ParsedDocument;
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+struct SparseLowercaseProvenance {
+    irregular_segments: Vec<IrregularLowercaseSegment>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct IrregularLowercaseSegment {
+    folded_start: usize,
+    folded_end: usize,
+    original_start: usize,
+    original_end: usize,
+    cumulative_byte_delta_after: isize,
+}
+
 pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
     let multi = file_set.is_multi();
@@ -119,15 +133,8 @@ fn find_matches_in_content(
         return results;
     }
 
-    // For case-insensitive search, we search the lowercased content but report
-    // positions in the original content. This works because to_lowercase() preserves
-    // char count for the scripts we care about (Latin, CJK, etc.), and we use
-    // char-based iteration to map between the two.
-    //
-    // For case-sensitive search, haystack IS content, so positions map directly.
-
     if ignore_case {
-        let haystack = content.to_lowercase();
+        let (haystack, provenance) = lowercase_with_provenance(content);
         let needle = query.to_lowercase();
         let mut search_start = 0usize;
         while search_start < haystack.len() {
@@ -135,10 +142,8 @@ fn find_matches_in_content(
                 let match_start = search_start + pos;
                 let match_end = match_start + needle.len();
 
-                // Map lowercased positions back to original content positions
-                // Since to_lowercase can change byte lengths, we map via char indices
-                let orig_start = map_lowercase_pos_to_original(content, &haystack, match_start);
-                let orig_end = map_lowercase_pos_to_original(content, &haystack, match_end);
+                let (orig_start, orig_end) =
+                    map_lowercase_match_to_original(&provenance, match_start, match_end);
 
                 push_match(
                     &mut results,
@@ -239,25 +244,141 @@ fn next_char_boundary(s: &str, pos: usize) -> usize {
     p
 }
 
-/// Map a byte position in the lowercased string back to the corresponding
-/// byte position in the original string, using char-by-char alignment.
-fn map_lowercase_pos_to_original(original: &str, lowered: &str, lowered_pos: usize) -> usize {
-    let mut orig_byte = 0;
-    let mut low_byte = 0;
+/// Lowercase content while recording only irregular source-scalars whose folded
+/// projection expands or changes UTF-8 byte width.
+fn lowercase_with_provenance(original: &str) -> (String, SparseLowercaseProvenance) {
+    let mut lowered = String::new();
+    let mut provenance = SparseLowercaseProvenance::default();
+    let mut cumulative_byte_delta_after = 0isize;
 
-    let mut orig_chars = original.chars();
-    let mut low_chars = lowered.chars();
+    for (original_start, ch) in original.char_indices() {
+        let original_end = original_start + ch.len_utf8();
+        let folded_start = lowered.len();
+        let original_len = ch.len_utf8();
+        let mut lowered_scalar_count = 0usize;
 
-    loop {
-        if low_byte >= lowered_pos {
-            return orig_byte;
+        for lowered_ch in ch.to_lowercase() {
+            lowered.push(lowered_ch);
+            lowered_scalar_count += 1;
         }
-        match (orig_chars.next(), low_chars.next()) {
-            (Some(oc), Some(lc)) => {
-                orig_byte += oc.len_utf8();
-                low_byte += lc.len_utf8();
-            }
-            _ => return orig_byte,
+
+        let folded_end = lowered.len();
+        let folded_len = folded_end - folded_start;
+
+        if lowered_scalar_count != 1 || folded_len != original_len {
+            cumulative_byte_delta_after += folded_len as isize - original_len as isize;
+            provenance
+                .irregular_segments
+                .push(IrregularLowercaseSegment {
+                    folded_start,
+                    folded_end,
+                    original_start,
+                    original_end,
+                    cumulative_byte_delta_after,
+                });
         }
+    }
+
+    (lowered, provenance)
+}
+
+fn map_lowercase_match_to_original(
+    provenance: &SparseLowercaseProvenance,
+    match_start: usize,
+    match_end: usize,
+) -> (usize, usize) {
+    provenance.map_match_to_original(match_start, match_end)
+}
+
+impl SparseLowercaseProvenance {
+    fn map_match_to_original(&self, match_start: usize, match_end: usize) -> (usize, usize) {
+        debug_assert!(match_start < match_end);
+        let original_start = self
+            .segment_covering_start_boundary(match_start)
+            .map(|segment| segment.original_start)
+            .unwrap_or_else(|| {
+                adjust_folded_offset(match_start, self.cumulative_byte_delta_before(match_start))
+            });
+        let original_end = self
+            .segment_covering_end_boundary(match_end)
+            .map(|segment| segment.original_end)
+            .unwrap_or_else(|| {
+                adjust_folded_offset(match_end, self.cumulative_byte_delta_before(match_end))
+            });
+        (original_start, original_end)
+    }
+
+    fn cumulative_byte_delta_before(&self, folded_offset: usize) -> isize {
+        let next_segment = self
+            .irregular_segments
+            .partition_point(|segment| segment.folded_end <= folded_offset);
+        if next_segment == 0 {
+            0
+        } else {
+            self.irregular_segments[next_segment - 1].cumulative_byte_delta_after
+        }
+    }
+
+    fn segment_covering_start_boundary(
+        &self,
+        folded_offset: usize,
+    ) -> Option<&IrregularLowercaseSegment> {
+        let next_segment = self
+            .irregular_segments
+            .partition_point(|segment| segment.folded_end <= folded_offset);
+        self.irregular_segments.get(next_segment).filter(|segment| {
+            segment.folded_start <= folded_offset && folded_offset < segment.folded_end
+        })
+    }
+
+    fn segment_covering_end_boundary(
+        &self,
+        folded_offset: usize,
+    ) -> Option<&IrregularLowercaseSegment> {
+        let next_segment = self
+            .irregular_segments
+            .partition_point(|segment| segment.folded_end < folded_offset);
+        self.irregular_segments.get(next_segment).filter(|segment| {
+            segment.folded_start < folded_offset && folded_offset <= segment.folded_end
+        })
+    }
+}
+
+fn adjust_folded_offset(folded_offset: usize, cumulative_byte_delta: isize) -> usize {
+    if cumulative_byte_delta >= 0 {
+        debug_assert!(folded_offset >= cumulative_byte_delta as usize);
+        folded_offset - cumulative_byte_delta as usize
+    } else {
+        folded_offset + cumulative_byte_delta.unsigned_abs()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_sparse_provenance_large_ascii_records_zero_irregular_segments_and_maps_match_exactly()
+    {
+        let original = "ABCD".repeat(1_024);
+        let (lowered, provenance) = lowercase_with_provenance(&original);
+
+        assert_eq!(lowered.len(), original.len());
+        assert!(provenance.irregular_segments.is_empty());
+        assert_eq!(
+            map_lowercase_match_to_original(&provenance, 1_024, 2_048),
+            (1_024, 2_048)
+        );
+    }
+
+    #[test]
+    fn search_sparse_provenance_maps_contraction_and_mixed_deltas() {
+        let (lowered, provenance) = lowercase_with_provenance("AKİXZ");
+
+        assert_eq!(lowered, "aki\u{307}xz");
+        assert_eq!(provenance.irregular_segments.len(), 2);
+        assert_eq!(map_lowercase_match_to_original(&provenance, 1, 2), (1, 4));
+        assert_eq!(map_lowercase_match_to_original(&provenance, 2, 5), (4, 6));
+        assert_eq!(map_lowercase_match_to_original(&provenance, 5, 6), (6, 7));
     }
 }
