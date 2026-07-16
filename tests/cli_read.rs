@@ -195,6 +195,30 @@ fn section_contains_duplicate_conflict_without_occurrence() {
 }
 
 #[test]
+fn section_contains_case_sensitive_success() {
+    let output = md()
+        .args(["section", "Method", "tests/fixtures/basic.md", "--contains"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("## Methods"));
+    assert!(stdout.contains("Method A"));
+    assert!(stdout.contains("### Sub-methods"));
+}
+
+#[test]
+fn section_contains_case_sensitive_zero_match_exits_one() {
+    let output = md()
+        .args(["section", "METHOD", "tests/fixtures/basic.md", "--contains"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("METHOD"));
+}
+
+#[test]
 fn section_contains_ignore_case_json_roundtrips_match_mode() {
     let output = md()
         .args([
