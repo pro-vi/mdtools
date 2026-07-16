@@ -319,8 +319,8 @@ Benchmark runs default to a guarded executor that constrains Bash to the mode-sp
 
 GitHub Actions is configured to run [`.github/workflows/quality.yml`](.github/workflows/quality.yml) on pull requests and pushes to `master`. The hosted workflow definition enforces:
 
-Historical hosted evidence exists from [PR #19](https://github.com/pro-vi/mdtools/pull/19), which triggered [quality run #29519636950 on July 16, 2026](https://github.com/pro-vi/mdtools/actions/runs/29519636950) and proved GitHub parsed this workflow, scheduled the serial Ubuntu job, and exposed the clean-runner `markdown_it` dependency gap in the Python test step.
-No durable hosted pull-request or `master` run yet proves the current workflow revision, which now installs `markdown-it-py` before the Python bench checks, can complete the full serial Ubuntu job; each hosted run appends its canonical run URL to the GitHub Actions step summary for direct citation.
+[PR #19 quality run #29521711298 on July 16, 2026](https://github.com/pro-vi/mdtools/actions/runs/29521711298) is durable hosted evidence for the current workflow: GitHub parsed and scheduled it, and the serial Ubuntu job completed all six quality steps after installing `markdown-it-py`.
+An earlier [PR #19 quality run #29519636950](https://github.com/pro-vi/mdtools/actions/runs/29519636950) exposed that clean-runner dependency gap before the install step was added; each hosted run appends its canonical run URL to the GitHub Actions step summary for direct citation.
 
 ```sh
 cargo fmt --check
