@@ -28,6 +28,7 @@ QUERY_MD_COMMANDS = {
     "search",
     "links",
     "frontmatter",
+    "collect",
     "stats",
     "table",
     "tasks",

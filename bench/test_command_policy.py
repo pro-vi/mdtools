@@ -83,6 +83,12 @@ class CommandPolicyGuardTests(unittest.TestCase):
             "mutation",
         )
 
+    def test_collect_is_classified_as_a_query(self) -> None:
+        self.assertEqual(
+            classify_command_kind("md collect --field title docs/ -r --json", "md"),
+            "query",
+        )
+
     def test_mdtools_mode_denies_absolute_path_md(self) -> None:
         # Regression guard for the magnum-v4-123b-4bit failure mode observed on
         # the extraction pilot: the model invoked md via an absolute workdir

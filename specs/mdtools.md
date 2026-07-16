@@ -26,14 +26,18 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `src/commands/search.rs` | `md search` contract implementation |
 | `src/commands/links.rs` | `md links` contract implementation |
 | `src/commands/frontmatter.rs` | `md frontmatter` contract implementation |
+| `src/commands/collect.rs` | `md collect` contract implementation |
 | `src/commands/stats.rs` | `md stats` contract implementation |
+| `src/multifile.rs` | Shared multi-file path resolution and partial-failure reporting |
 | `src/output.rs` | Text and JSON output adapters |
 | `src/errors.rs` | Error and diagnostic types |
 | `tests/fixtures/` | Markdown fixtures and golden outputs |
 | `tests/cli_read.rs` | Integration tests for read-only commands |
 | `tests/cli_write.rs` | Integration tests for section and block mutation commands |
+| `tests/cli_multifile.rs` | Integration tests for multi-file read commands, including `md collect` |
 | `tests/cli_move_section.rs` | Integration tests for `md move-section` |
 | `tests/cli_search.rs` | Integration tests for `md search` filters and match envelopes |
+| `tests/cli_contracts.rs` | Contract-level CLI tests, including `md collect` JSON/schema regressions |
 | `bench/tasks/` | Benchmark task definitions and expected outputs |
 | `bench/harness.py` | Phase 2 benchmark runner and scorer |
 
@@ -323,6 +327,12 @@ pub struct FrontmatterReadResult { // [id:contract-frontmatter-read-result]
     pub frontmatter: Option<FrontmatterEnvelope>,
 }
 
+pub struct CollectResult { // [id:contract-collect-result]
+    pub schema_version: &'static str,
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+}
+
 pub struct DocumentStats { // [id:contract-document-stats]
     pub word_count: u32,
     pub heading_count: u32,
@@ -553,6 +563,7 @@ pub enum Command {
     Search(SearchArgs),
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
+    Collect(CollectArgs),
     Stats(StatsArgs),
     Table(TableArgs),
     MoveSection(MoveSectionArgs),
@@ -719,6 +730,15 @@ pub struct StatsArgs { // [id:cli-stats]
     pub file: std::path::PathBuf,
 }
 
+pub struct CollectArgs { // [id:cli-collect]
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<std::path::PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
+    #[arg(long = "field", value_delimiter = ',')]
+    pub fields: Vec<String>,
+}
+
 pub struct TableArgs { // [id:cli-table]
     pub file: std::path::PathBuf,
     #[arg(long)]
@@ -778,6 +798,8 @@ CLI I/O rules:
 - `md delete-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping and empty-`--contains` rejection as `md section`. [id:rule-cli-delete-section-selector-map]
 - `md move-section <SOURCE> [FILE] (--after <DEST> | --before <DEST> | --into <DEST>) [--contains] [--ignore-case] [--source-occurrence <N>] [--dest-occurrence <N>]` applies that same shared selector policy symmetrically to both source and destination selectors, including the empty-`--contains` rejection; `:preamble` remains reserved and rejects `--contains` anywhere in the move selector surface. [id:rule-cli-move-section-selector-map]
 - `md replace-section`, `md delete-section`, `md replace-table-row`, `md delete-table-row`, and `md set-task` accept `--expect-etag <ETAG>`; when supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. [id:rule-cli-expect-etag]
+- `md collect <FILE|DIR>... [-r] [--field <FIELD[,FIELD...]>...]` resolves one or more explicit file or directory operands into Markdown files, adds a required leading `path` column, and projects the requested frontmatter fields in the order supplied. Repeating `--field` appends columns; comma-separated values within one flag are expanded left-to-right. [id:rule-cli-collect]
+- `md collect` accepts both `.md` and `.markdown` inputs. Directory operands are read non-recursively by default, including only immediate Markdown files sorted by filename; `-r` recurses into subdirectories using the walk order from `src/multifile.rs`, and `md collect` sorts the final resolved path list lexicographically before aggregation. [id:rule-cli-collect-discovery]
 - `md table <FILE> [--index <BLOCK_INDEX>] [--select <COLS>] [--where <FILTER>]` lists top-level tables when no selector flags are present, reads a selected table when `--index` is supplied, and on single-table documents allows `--select`/`--where` without `--index`. `--json` list mode returns `TablesResult`; `--json` read mode returns `TableReadResult`, and both surfaces expose the same whole-table `etag` for a given table block. [id:rule-cli-table]
 - `md insert-block --before <INDEX> <FILE>`, `md insert-block --after <INDEX> <FILE>`, `md insert-block --at-start <FILE>`, and `md insert-block --at-end <FILE>` map to `InsertLocation::Before`, `InsertLocation::After`, `InsertLocation::Start`, and `InsertLocation::End` respectively. [id:rule-cli-insert-location-map]
 - `md search <QUERY> <FILE> --kind <BLOCK_KIND>... --ignore-case` performs content search over the selected top-level block kinds; omitting `--kind` searches every Phase 1 block kind. `<BLOCK_KIND>` values use the kebab-case CLI tokens defined under `contract-block-kind-cli-tokens` (e.g. `--kind code-fence --kind paragraph`). [id:rule-cli-search-map]
@@ -794,6 +816,7 @@ The default stdout contract is optimized for shell composition. `--json` switche
 | `md block` | Raw block bytes | `BlockReadResult` |
 | `md table` | Table list summary or TSV rows, depending on selection mode | `TablesResult` or `TableReadResult` |
 | `md tasks` | Canonical task listing grammar | `TasksResult` |
+| `md collect` | TSV table with a path-first header row | `CollectResult` |
 | `md replace-section` | Full updated document bytes | `MutationResult` |
 | `md replace-block` | Full updated document bytes | `MutationResult` |
 | `md replace-table-row` | Full updated document bytes | `MutationResult` |
@@ -830,6 +853,11 @@ User-derived text fields (`heading_text`, `preview`, `destination`, `query` echo
 - `md links` text format: one line per link. [id:text-grammar-links]
   `{kind}\t{destination}\tblock:{source_block_index}\t{line_start}-{line_end}`
   where `kind` is the PascalCase `LinkKind` variant name and `destination` is the raw URL or empty string if absent.
+
+- `md collect` text format: a header row followed by one row per resolved file. [id:text-grammar-collect]
+  Header: `path(\t{field_name})*`
+  Row: `{path}(\t{field_value})*`
+  where `path` is always the first column, rows are emitted in lexicographic resolved-path order, missing projected fields render as empty text cells, booleans and numbers render with their JSON scalar spelling, and arrays/objects render as compact JSON text before tab/newline escaping.
 
 - `md stats` text format: one line per stat. [id:text-grammar-stats]
   `{key}={value}` where keys are: `words`, `headings`, `blocks`, `links`, `sections`, `lines`.
@@ -890,6 +918,17 @@ Example JSON payloads:
 ```json
 {
   "schema_version": "mdtools.v1",
+  "headers": ["path", "title", "status"],
+  "rows": [
+    ["tests/fixtures/collect_vault/plain.md", null, null],
+    ["tests/fixtures/collect_vault/root_yaml.md", "Root YAML", "published"]
+  ]
+}
+``` [id:json-example-collect]
+
+```json
+{
+  "schema_version": "mdtools.v1",
   "file": "doc.md",
   "command": "ReplaceBlock",
   "target": {
@@ -945,6 +984,8 @@ Document model rules:
 - Headings that appear inside block quotes, lists, tables, footnotes, or code blocks do not create top-level sections. [id:sem-nested-heading-exclusion]
 - Multiple selector matches are a conflict unless the applicable occurrence flag is supplied; `--occurrence 1`, `--source-occurrence 1`, and `--dest-occurrence 1` select the first match in document order for their respective selector. [id:sem-duplicate-headings]
 - The selector string `:preamble` is reserved for addressing the preamble section. A heading whose plaintext is literally `:preamble` cannot be selected by text match in Phase 1; this collision is documented as an accepted limitation. [id:sem-preamble-reserved]
+- `CollectResult.headers[0]` is always `"path"`, even when no `--field` flags are supplied; every `CollectResult.rows[i][0]` cell is the corresponding resolved file path string. [id:sem-collect-path-first]
+- `md collect` projects frontmatter field values from parsed YAML/TOML into `serde_json::Value` cells. Missing fields become `null` in `CollectResult.rows` and empty strings in text-mode TSV; documents without frontmatter contribute empty objects rather than failing. [id:sem-collect-projection]
 - `search` matches content spans inside block bodies, not structural node names; heading text participates only when `BlockKind::Heading` is included in the filter set. [id:sem-search-content]
 - `SearchMatch.match_span` identifies the exact matched content occurrence inside the document source, not the containing block span. [id:sem-search-match-span]
 - `preview` is a single-line human-readable summary and is not a stable identifier. [id:sem-preview-nonidentity]
@@ -988,6 +1029,8 @@ Error mapping rules:
 - `search` over `CodeFence` or `IndentedCode` is valid and returns content matches inside those blocks when those kinds are explicitly requested. [id:edge-search-code-blocks]
 - Malformed frontmatter: when a document begins with `---` or `+++` delimiters but the enclosed content is not valid YAML or TOML, the `md frontmatter` command exits with `FrontmatterParseFailed` and `MdExitCode::ParseError`. All other commands (outline, blocks, section, search, links, stats, and mutation commands) fall back to treating the malformed frontmatter block as plain markdown content — the delimiters and body become one or more top-level blocks (typically `ThematicBreak` and `Paragraph`), frontmatter is reported as not present, and the command proceeds without error. [id:edge-malformed-frontmatter]
 - Unclosed frontmatter: when a document begins with `---` or `+++` but no matching closing delimiter is found, the entire document is treated as plain markdown content; frontmatter is reported as not present. This applies to all commands including `md frontmatter`, which returns `FrontmatterReadResult { present: false, frontmatter: None }` rather than erroring. [id:edge-unclosed-frontmatter]
+- `md collect` shares the parsed-frontmatter behavior of `md frontmatter`: malformed YAML/TOML in a single resolved file fails closed with the underlying parse error and emits no aggregate output, while multi-file aggregation continues past that file, reports `path: <error>` on stderr, still emits rows for successful files, and exits non-zero with a final summary line `{N} file(s) failed`. [id:edge-collect-partial-failure]
+- When `md collect` or other multi-file readers are given a directory operand without `-r`, nested Markdown files are excluded; if a directory tree yields no `.md` or `.markdown` files after applying the recursive flag, path resolution fails with `no .md files found`. [id:edge-multifile-no-md]
 - `insert-block --at-start` on a document with frontmatter inserts after the frontmatter span and before the first Phase 1 block. [id:edge-insert-after-frontmatter]
 - Last-block replacement or deletion: valid for both block and section mutations; the resulting document trailing newline is determined by the replacement payload after line-ending normalization. [id:edge-last-block]
 
@@ -1065,12 +1108,12 @@ class BenchResult:  # [id:bench-result]
 Mode inventory contracts:
 
 - `unix` mode inventory is exactly: `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, `tee`, `mv`, `cp`. The agent shell environment supports standard POSIX redirection operators (`>`, `>>`, `<`, `|`) and temp-file creation via `mktemp`. This enables `file_contents` tasks: agents may use `sed` or shell redirection to write modified files in place. [id:bench-unix-inventory]
-- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
+- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
 - `hybrid` mode inventory is the union of `mdtools` and `unix`. It exists to measure whether agents benefit from mixing structural Markdown commands with conventional shell text tools. [id:bench-hybrid-inventory]
 
 Implemented CLI inventory details:
 
-- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
+- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
 - `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
 - In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
