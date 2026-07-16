@@ -130,7 +130,12 @@ fn collect_directory_recursive_tsv() {
 #[test]
 fn collect_directory_non_recursive_excludes_subdirs() {
     let out = md()
-        .args(["collect", "--field", "title", "tests/fixtures/collect_vault"])
+        .args([
+            "collect",
+            "--field",
+            "title",
+            "tests/fixtures/collect_vault",
+        ])
         .output()
         .unwrap();
     assert!(
@@ -177,10 +182,7 @@ fn collect_explicit_files_are_sorted_without_recursive_walk() {
 
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let rows = json["rows"].as_array().unwrap();
-    let paths: Vec<&str> = rows
-        .iter()
-        .map(|row| row[0].as_str().unwrap())
-        .collect();
+    let paths: Vec<&str> = rows.iter().map(|row| row[0].as_str().unwrap()).collect();
     assert_eq!(
         paths,
         vec![
@@ -195,12 +197,21 @@ fn collect_explicit_files_are_sorted_without_recursive_walk() {
 #[test]
 fn collect_accepts_explicit_non_markdown_file_operands() {
     let unique = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let path =
-        std::env::temp_dir().join(format!("mdtools-collect-noext-{}-{}", std::process::id(), unique));
+    let path = std::env::temp_dir().join(format!(
+        "mdtools-collect-noext-{}-{}",
+        std::process::id(),
+        unique
+    ));
     std::fs::write(&path, "---\ntitle: No Extension\n---\n# Body\n").unwrap();
 
     let out = md()
-        .args(["collect", "--field", "title", path.to_str().unwrap(), "--json"])
+        .args([
+            "collect",
+            "--field",
+            "title",
+            path.to_str().unwrap(),
+            "--json",
+        ])
         .output()
         .unwrap();
 
@@ -214,7 +225,10 @@ fn collect_accepts_explicit_non_markdown_file_operands() {
 
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["headers"], serde_json::json!(["path", "title"]));
-    assert_eq!(json["rows"], serde_json::json!([[path.to_str().unwrap(), "No Extension"]]));
+    assert_eq!(
+        json["rows"],
+        serde_json::json!([[path.to_str().unwrap(), "No Extension"]])
+    );
 }
 
 #[test]
@@ -312,10 +326,7 @@ fn collect_json_continues_on_partial_failure() {
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["schema_version"], "mdtools.v1");
     let rows = json["rows"].as_array().unwrap();
-    let paths: Vec<&str> = rows
-        .iter()
-        .map(|row| row[0].as_str().unwrap())
-        .collect();
+    let paths: Vec<&str> = rows.iter().map(|row| row[0].as_str().unwrap()).collect();
     assert_eq!(
         paths,
         vec![
