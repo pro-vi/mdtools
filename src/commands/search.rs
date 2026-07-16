@@ -244,9 +244,8 @@ fn lowercase_with_provenance(original: &str) -> (String, Vec<SourceScalarRange>)
             let mut buf = [0; 4];
             let lowered_fragment = lowered_ch.encode_utf8(&mut buf);
             lowered.push_str(lowered_fragment);
-            provenance.extend(
-                std::iter::repeat((orig_start, orig_end)).take(lowered_fragment.len()),
-            );
+            provenance
+                .extend(std::iter::repeat((orig_start, orig_end)).take(lowered_fragment.len()));
         }
     }
 

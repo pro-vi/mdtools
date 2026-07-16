@@ -28,7 +28,11 @@ fn run_search_json(query: &str, file: &std::path::Path, extra_args: &[&str]) -> 
         .arg("--json")
         .args(extra_args);
     let output = cmd.output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     serde_json::from_slice(&output.stdout).unwrap()
 }
 
