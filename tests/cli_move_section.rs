@@ -465,6 +465,83 @@ fn t16_ignore_case() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn unicode_section_ignore_case_resolves_unicode_source_and_destination() {
+    let tmp = tempfile("# Doc\n\n## RÉSUMÉ\nsource body\n\n## CAFÉ\ndest body\n");
+    let output = md()
+        .args([
+            "move-section",
+            "résumé",
+            &tmp,
+            "--after",
+            "café",
+            "--keep-level",
+            "--ignore-case",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let source = stdout.find("## RÉSUMÉ").unwrap();
+    let dest = stdout.find("## CAFÉ").unwrap();
+    assert!(source > dest, "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn unicode_section_ignore_case_duplicate_destination_conflict_after_fold() {
+    let tmp = tempfile("# Doc\n\n## RÉSUMÉ\nsource body\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    let output = md()
+        .args([
+            "move-section",
+            "résumé",
+            &tmp,
+            "--after",
+            "café",
+            "--keep-level",
+            "--ignore-case",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--occurrence"));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn unicode_section_ignore_case_destination_occurrence_selects_folded_duplicate() {
+    let tmp = tempfile("# Doc\n\n## RÉSUMÉ\nsource body\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    let output = md()
+        .args([
+            "move-section",
+            "résumé",
+            &tmp,
+            "--after",
+            "café",
+            "--keep-level",
+            "--ignore-case",
+            "--dest-occurrence",
+            "2",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let second_dest = stdout.rfind("## Café").unwrap();
+    let source = stdout.find("## RÉSUMÉ").unwrap();
+    assert!(source > second_dest, "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // === Heading representation (3) ===
 
 #[test]

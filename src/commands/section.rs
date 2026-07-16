@@ -449,11 +449,11 @@ fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
 fn heading_matches(text: &str, selector_text: &str, match_mode: HeadingMatchMode) -> bool {
     match match_mode {
         HeadingMatchMode::Exact => text == selector_text,
-        HeadingMatchMode::ExactIgnoreCase => text.eq_ignore_ascii_case(selector_text),
+        HeadingMatchMode::ExactIgnoreCase => text.to_lowercase() == selector_text.to_lowercase(),
         HeadingMatchMode::Contains => text.contains(selector_text),
-        HeadingMatchMode::ContainsIgnoreCase => text
-            .to_ascii_lowercase()
-            .contains(&selector_text.to_ascii_lowercase()),
+        HeadingMatchMode::ContainsIgnoreCase => {
+            text.to_lowercase().contains(&selector_text.to_lowercase())
+        }
     }
 }
 

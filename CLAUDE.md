@@ -48,7 +48,7 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 ## Known limitations
 
-- `section --ignore-case` is ASCII-only (`eq_ignore_ascii_case`)
+- `section --ignore-case` uses Rust lowercase projection, not Unicode normalization or full case folding; composed and decomposed spellings still differ unless lowercase alone makes them equal
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
 - `--expect-etag` is **content-addressed, not identity-addressed**: it verifies the
   selected block, section, table, or task item still has the expected content fingerprint from
