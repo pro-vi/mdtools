@@ -370,4 +370,15 @@ mod tests {
             (1_024, 2_048)
         );
     }
+
+    #[test]
+    fn search_sparse_provenance_maps_contraction_and_mixed_deltas() {
+        let (lowered, provenance) = lowercase_with_provenance("AKİXZ");
+
+        assert_eq!(lowered, "aki\u{307}xz");
+        assert_eq!(provenance.irregular_segments.len(), 2);
+        assert_eq!(map_lowercase_match_to_original(&provenance, 1, 2), (1, 4));
+        assert_eq!(map_lowercase_match_to_original(&provenance, 2, 5), (4, 6));
+        assert_eq!(map_lowercase_match_to_original(&provenance, 5, 6), (6, 7));
+    }
 }
