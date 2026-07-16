@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import tempfile
 import unittest
@@ -8,6 +9,8 @@ from pathlib import Path
 import typing
 
 from bench.command_policy import (
+    MD_COMMANDS,
+    MD_DISPLAY_COMMANDS,
     MD_REAL_MODES,
     MUTATION_MD_COMMANDS,
     QUERY_MD_COMMANDS,
@@ -15,9 +18,89 @@ from bench.command_policy import (
     allowed_commands_for_mode,
     classify_command_kind,
     create_restricted_shell_env,
+    load_md_inventory,
     load_guard_events,
     md_workdir_must_be_stub,
 )
+
+
+class MdInventoryValidationTests(unittest.TestCase):
+    def _write_inventory(self, payload: object) -> Path:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="bench_md_inventory_",
+            suffix=".json",
+            delete=False,
+        )
+        self.addCleanup(lambda: Path(tmp.name).unlink(missing_ok=True))
+        with tmp:
+            json.dump(payload, tmp)
+        return Path(tmp.name)
+
+    def test_inventory_derives_command_sets_and_display_list(self) -> None:
+        inventory = load_md_inventory()
+        self.assertEqual(inventory.commands, MD_COMMANDS)
+        self.assertEqual(inventory.display_commands, MD_DISPLAY_COMMANDS)
+        self.assertEqual(inventory.query_commands, QUERY_MD_COMMANDS)
+        self.assertEqual(inventory.mutation_commands, MUTATION_MD_COMMANDS)
+        self.assertIn("move-section", inventory.mutation_commands)
+        self.assertNotIn("move-section", inventory.query_commands)
+
+    def test_inventory_rejects_wrong_schema_version(self) -> None:
+        path = self._write_inventory({"schema_version": 2, "commands": []})
+        with self.assertRaisesRegex(ValueError, "schema_version"):
+            load_md_inventory(path)
+
+    def test_inventory_rejects_boolean_schema_version(self) -> None:
+        path = self._write_inventory({"schema_version": True, "commands": []})
+        with self.assertRaisesRegex(ValueError, "schema_version"):
+            load_md_inventory(path)
+
+    def test_inventory_rejects_malformed_entries(self) -> None:
+        path = self._write_inventory({"schema_version": 1, "commands": ["outline"]})
+        with self.assertRaisesRegex(ValueError, "entry 0 must be an object"):
+            load_md_inventory(path)
+
+    def test_inventory_rejects_empty_names(self) -> None:
+        path = self._write_inventory(
+            {"schema_version": 1, "commands": [{"name": "", "kind": "query"}]}
+        )
+        with self.assertRaisesRegex(ValueError, "empty name"):
+            load_md_inventory(path)
+
+    def test_inventory_rejects_duplicate_names(self) -> None:
+        path = self._write_inventory(
+            {
+                "schema_version": 1,
+                "commands": [
+                    {"name": "outline", "kind": "query"},
+                    {"name": "outline", "kind": "query"},
+                ],
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "appears more than once"):
+            load_md_inventory(path)
+
+    def test_inventory_rejects_unknown_kind(self) -> None:
+        path = self._write_inventory(
+            {"schema_version": 1, "commands": [{"name": "outline", "kind": "read"}]}
+        )
+        with self.assertRaisesRegex(ValueError, "unknown kind"):
+            load_md_inventory(path)
+
+    def test_inventory_rejects_overlap_between_query_and_mutation(self) -> None:
+        path = self._write_inventory(
+            {
+                "schema_version": 1,
+                "commands": [
+                    {"name": "outline", "kind": "query"},
+                    {"name": "outline", "kind": "mutation"},
+                ],
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "more than one class"):
+            load_md_inventory(path)
 
 
 class CommandPolicyGuardTests(unittest.TestCase):

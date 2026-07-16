@@ -1,6 +1,7 @@
 //! Contract-level tests: verify byte spans, mutation invariants, and spec rules.
 //! These tests slice source documents at reported byte offsets and assert exact content.
 
+use serde::Deserialize;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -31,6 +32,58 @@ fn md_help(subcommand: &str) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
+#[derive(Deserialize)]
+struct MdInventoryFile {
+    schema_version: u32,
+    commands: Vec<MdInventoryEntry>,
+}
+
+#[derive(Deserialize)]
+struct MdInventoryEntry {
+    name: String,
+}
+
+fn inventory_commands() -> Vec<String> {
+    let inventory: MdInventoryFile =
+        serde_json::from_str(&std::fs::read_to_string("bench/md_inventory_v1.json").unwrap())
+            .unwrap();
+    assert_eq!(inventory.schema_version, 1);
+    inventory
+        .commands
+        .into_iter()
+        .map(|entry| entry.name)
+        .collect()
+}
+
+fn top_level_help_commands(help: &str) -> Vec<String> {
+    let mut commands = Vec::new();
+    let mut in_commands = false;
+
+    for line in help.lines() {
+        let trimmed = line.trim();
+        if trimmed == "Commands:" {
+            in_commands = true;
+            continue;
+        }
+        if !in_commands {
+            continue;
+        }
+        if trimmed == "Options:" {
+            break;
+        }
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let command = trimmed.split_whitespace().next().unwrap();
+        if command != "help" {
+            commands.push(command.to_string());
+        }
+    }
+
+    commands
+}
+
 #[test]
 fn top_level_help_lists_collect_command() {
     let output = md().arg("--help").output().unwrap();
@@ -45,6 +98,14 @@ fn top_level_help_lists_collect_command() {
         "top-level help changed unexpectedly:\n{}",
         help
     );
+}
+
+#[test]
+fn top_level_help_matches_shared_inventory() {
+    let output = md().arg("--help").output().unwrap();
+    assert!(output.status.success(), "md --help failed");
+    let help = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(top_level_help_commands(&help), inventory_commands());
 }
 
 // ============================================================

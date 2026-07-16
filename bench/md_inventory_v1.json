@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "commands": [
+    { "name": "outline", "kind": "query" },
+    { "name": "section", "kind": "query" },
+    { "name": "blocks", "kind": "query" },
+    { "name": "block", "kind": "query" },
+    { "name": "replace-section", "kind": "mutation" },
+    { "name": "delete-section", "kind": "mutation" },
+    { "name": "replace-block", "kind": "mutation" },
+    { "name": "insert-block", "kind": "mutation" },
+    { "name": "delete-block", "kind": "mutation" },
+    { "name": "search", "kind": "query" },
+    { "name": "links", "kind": "query" },
+    { "name": "frontmatter", "kind": "query" },
+    { "name": "collect", "kind": "query" },
+    { "name": "stats", "kind": "query" },
+    { "name": "set", "kind": "mutation" },
+    { "name": "table", "kind": "query" },
+    { "name": "replace-table-row", "kind": "mutation" },
+    { "name": "delete-table-row", "kind": "mutation" },
+    { "name": "tasks", "kind": "query" },
+    { "name": "set-task", "kind": "mutation" },
+    { "name": "move-section", "kind": "mutation" }
+  ]
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import shutil
@@ -20,31 +21,90 @@ BenchMode = Literal[
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp"]
 MDTOOLS_TOOLS = ["md", "cat", "jq"]
 
-QUERY_MD_COMMANDS = {
-    "outline",
-    "blocks",
-    "block",
-    "section",
-    "search",
-    "links",
-    "frontmatter",
-    "collect",
-    "stats",
-    "table",
-    "tasks",
-}
-MUTATION_MD_COMMANDS = {
-    "replace-section",
-    "delete-section",
-    "replace-block",
-    "replace-table-row",
-    "delete-table-row",
-    "insert-block",
-    "delete-block",
-    "set",
-    "set-task",
-    "move-section",
-}
+MD_INVENTORY_PATH = Path(__file__).with_name("md_inventory_v1.json")
+MD_INVENTORY_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True)
+class MdCommandInventory:
+    commands: tuple[str, ...]
+    query_commands: frozenset[str]
+    mutation_commands: frozenset[str]
+
+    @property
+    def display_commands(self) -> tuple[str, ...]:
+        return tuple(f"md {command}" for command in self.commands)
+
+
+def load_md_inventory(path: Path = MD_INVENTORY_PATH) -> MdCommandInventory:
+    try:
+        raw = json.loads(path.read_text())
+    except FileNotFoundError as exc:
+        raise ValueError(f"md inventory file not found: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"md inventory is not valid JSON: {path}") from exc
+
+    if not isinstance(raw, dict):
+        raise ValueError("md inventory root must be a JSON object")
+
+    schema_version = raw.get("schema_version")
+    if type(schema_version) is not int or schema_version != MD_INVENTORY_SCHEMA_VERSION:
+        raise ValueError(
+            f"md inventory schema_version must be {MD_INVENTORY_SCHEMA_VERSION}, got {schema_version!r}"
+        )
+
+    entries = raw.get("commands")
+    if not isinstance(entries, list):
+        raise ValueError("md inventory commands must be a JSON array")
+
+    commands: list[str] = []
+    query_commands: set[str] = set()
+    mutation_commands: set[str] = set()
+    seen_kinds: dict[str, str] = {}
+    allowed_kinds = {"query", "mutation"}
+
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(f"md inventory entry {index} must be an object")
+
+        name = entry.get("name")
+        kind = entry.get("kind")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"md inventory entry {index} has an empty name")
+        if not isinstance(kind, str) or kind not in allowed_kinds:
+            raise ValueError(f"md inventory entry {index} has unknown kind {kind!r}")
+
+        previous_kind = seen_kinds.get(name)
+        if previous_kind is not None:
+            if previous_kind != kind:
+                raise ValueError(f"md inventory command {name!r} is assigned to more than one class")
+            raise ValueError(f"md inventory command {name!r} appears more than once")
+        seen_kinds[name] = kind
+        commands.append(name)
+
+        if kind == "query":
+            query_commands.add(name)
+        else:
+            mutation_commands.add(name)
+
+    overlap = query_commands & mutation_commands
+    if overlap:
+        raise ValueError(
+            f"md inventory commands assigned to more than one class: {sorted(overlap)!r}"
+        )
+
+    return MdCommandInventory(
+        commands=tuple(commands),
+        query_commands=frozenset(query_commands),
+        mutation_commands=frozenset(mutation_commands),
+    )
+
+
+MD_INVENTORY = load_md_inventory()
+MD_COMMANDS = MD_INVENTORY.commands
+MD_DISPLAY_COMMANDS = MD_INVENTORY.display_commands
+QUERY_MD_COMMANDS = MD_INVENTORY.query_commands
+MUTATION_MD_COMMANDS = MD_INVENTORY.mutation_commands
 
 
 @dataclass

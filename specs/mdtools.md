@@ -39,6 +39,7 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `tests/cli_search.rs` | Integration tests for `md search` filters and match envelopes |
 | `tests/cli_contracts.rs` | Contract-level CLI tests, including `md collect` JSON/schema regressions |
 | `bench/tasks/` | Benchmark task definitions and expected outputs |
+| `bench/md_inventory_v1.json` | Versioned benchmark-side mirror of the real `md` product subcommand surface and query/mutation classification, including `move-section` |
 | `bench/harness.py` | Phase 2 benchmark runner and scorer |
 
 ## Decisions [id:sec-decisions]
@@ -174,7 +175,7 @@ Phase 1 does NOT enable: [id:rule-parser-disabled-extensions]
 - `description_lists` — no corresponding `BlockKind`; description list syntax is parsed as plain paragraphs.
 - `multiline_block_quotes` — no corresponding block kind; `>>>` syntax is parsed as a regular `BlockQuote`.
 - `math_dollars`, `math_code` — no corresponding block or inline kind; `$` and `$$` are treated as literal text.
-- `wikilinks_title_after_pipe`, `wikilinks_title_before_pipe` — `LinkKind::Wiki` is reserved in the read model but wiki link detection is deferred to Phase 2. Documents containing `[[...]]` syntax will not produce `Wiki` link entries in Phase 1.
+- `wikilinks_title_after_pipe`, `wikilinks_title_before_pipe` — wiki link detection is disabled in Phase 1. Documents containing `[[...]]` syntax remain plain text and do not produce link entries.
 
 Unsupported syntax fallback: any markdown syntax that requires a disabled extension is parsed as its CommonMark fallback (typically `Paragraph` or inline literal text). The CLI does not error on documents containing unsupported syntax. [id:rule-parser-unsupported-fallback]
 
@@ -274,7 +275,6 @@ pub enum LinkKind { // [id:contract-link-kind]
     Inline,
     Reference,
     Autolink,
-    Wiki,
 }
 
 pub struct LinkEntry { // [id:contract-link-entry]
@@ -1109,13 +1109,13 @@ class BenchResult:  # [id:bench-result]
 Mode inventory contracts:
 
 - `unix` mode inventory is exactly: `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, `tee`, `mv`, `cp`. The agent shell environment supports standard POSIX redirection operators (`>`, `>>`, `<`, `|`) and temp-file creation via `mktemp`. This enables `file_contents` tasks: agents may use `sed` or shell redirection to write modified files in place. [id:bench-unix-inventory]
-- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
+- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `move-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
 - `hybrid` mode inventory is the union of `mdtools` and `unix`. It exists to measure whether agents benefit from mixing structural Markdown commands with conventional shell text tools. [id:bench-hybrid-inventory]
 
 Implemented CLI inventory details:
 
 - `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
-- `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
+- `replace-section`, `delete-section`, `move-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
 - In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
 
