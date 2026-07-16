@@ -410,6 +410,76 @@ fn replace_section_expect_etag_roundtrips_duplicate_occurrence() {
 }
 
 #[test]
+fn unicode_section_ignore_case_contains_replace_preserves_neighboring_bytes() {
+    let path = tempfile(
+        "# Doc\n\n## Setup\nkeep setup\n\n## API CAFÉ rollout\nold body\n\n### Nested\nold nested\n\n## Logging\nkeep logging\n",
+    );
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "café",
+            &path,
+            "--contains",
+            "--ignore-case",
+            "-i",
+        ],
+        "## API CAFÉ rollout\nnew body\n\n### Nested\nnew nested\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        updated,
+        "# Doc\n\n## Setup\nkeep setup\n\n## API CAFÉ rollout\nnew body\n\n### Nested\nnew nested\n## Logging\nkeep logging\n"
+    );
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn unicode_section_ignore_case_duplicate_conflict_after_fold() {
+    let path = tempfile("# Doc\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    let output = md_with_stdin(
+        &["replace-section", "café", &path, "--ignore-case", "-i"],
+        "## CAFÉ\nreplaced\n",
+    );
+    assert_eq!(output.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--occurrence"));
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(updated, "# Doc\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn unicode_section_ignore_case_occurrence_selects_folded_duplicate() {
+    let path = tempfile("# Doc\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "café",
+            &path,
+            "--ignore-case",
+            "--occurrence",
+            "2",
+            "-i",
+        ],
+        "## Café\nsecond replaced\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("## CAFÉ\nfirst"));
+    assert!(updated.contains("## Café\nsecond replaced\n"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn delete_section_expect_etag_match_succeeds_for_preamble() {
     let content = std::fs::read_to_string("tests/fixtures/preamble.md").unwrap();
     let path = tempfile(&content);

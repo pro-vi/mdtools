@@ -169,6 +169,73 @@ fn section_ignore_case() {
 }
 
 #[test]
+fn unicode_section_ignore_case_exact_non_ascii_read() {
+    let path = tempfile("# Doc\n\n## CAFÉ\nbody\n");
+    let output = md()
+        .args(["section", "café", &path, "--ignore-case"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("## CAFÉ"));
+    assert!(stdout.contains("body"));
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn unicode_section_ignore_case_duplicate_conflict_after_fold() {
+    let path = tempfile("# Doc\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    let output = md()
+        .args(["section", "café", &path, "--ignore-case"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--occurrence"));
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn unicode_section_ignore_case_occurrence_selects_folded_duplicate() {
+    let path = tempfile("# Doc\n\n## CAFÉ\nfirst\n\n## Café\nsecond\n");
+    let output = md()
+        .args([
+            "section",
+            "café",
+            &path,
+            "--ignore-case",
+            "--occurrence",
+            "2",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("second"));
+    assert!(!stdout.contains("first"));
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn unicode_section_ignore_case_preserves_no_normalization_boundary() {
+    let path = tempfile("# Doc\n\n## Café\nbody\n");
+    let output = md()
+        .args(["section", "Cafe\u{301}", &path, "--ignore-case"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
 fn section_defaults_to_exact_matching() {
     let output = md()
         .args(["section", "method", "tests/fixtures/basic.md"])
