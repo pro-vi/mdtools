@@ -291,6 +291,55 @@ fn t14_multibyte_utf8_in_heading() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn t14b_contains_applies_to_source_and_destination() {
+    let tmp = tempfile("# Doc\n\n## Backend API\nbody a\n\n## Frontend App\nbody b\n");
+    let output = md()
+        .args([
+            "move-section",
+            "api",
+            &tmp,
+            "--after",
+            "front",
+            "--contains",
+            "--ignore-case",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let source = stdout.find("## Backend API").unwrap();
+    let dest = stdout.find("## Frontend App").unwrap();
+    assert!(source > dest, "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t14c_contains_rejects_preamble_selector() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+    let output = md()
+        .args([
+            "move-section",
+            ":preamble",
+            &tmp,
+            "--after",
+            "A",
+            "--contains",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--contains"));
+    assert!(stderr.contains(":preamble"));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // === Selectors (2) ===
 
 #[test]

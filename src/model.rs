@@ -23,6 +23,8 @@ pub enum LineEndingStyle {
 pub enum HeadingMatchMode {
     Exact,
     ExactIgnoreCase,
+    Contains,
+    ContainsIgnoreCase,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

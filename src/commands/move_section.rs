@@ -30,11 +30,21 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     let doc = ParsedDocument::parse(source)?;
 
     // --- Resolve source + destination selectors ---
-    let source_selector = build_selector(&args.source, args.source_occurrence, args.ignore_case)?;
+    let source_selector = build_selector(
+        &args.source,
+        args.source_occurrence,
+        args.contains,
+        args.ignore_case,
+    )?;
     let source_section = find_section(&doc, &source_selector)?;
 
     let (dest_text, dest_mode) = pick_destination(args)?;
-    let dest_selector = build_selector(dest_text, args.dest_occurrence, args.ignore_case)?;
+    let dest_selector = build_selector(
+        dest_text,
+        args.dest_occurrence,
+        args.contains,
+        args.ignore_case,
+    )?;
     let dest_section = find_section(&doc, &dest_selector)?;
 
     let src_span = source_section.span;

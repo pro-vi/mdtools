@@ -55,6 +55,8 @@ pub struct SectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
+    #[arg(long = "contains")]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -77,6 +79,8 @@ pub struct ReplaceSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
+    #[arg(long = "contains")]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -95,6 +99,8 @@ pub struct DeleteSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
+    #[arg(long = "contains")]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -278,6 +284,10 @@ pub struct MoveSectionArgs {
     /// Case-insensitive matching for both source and destination selectors
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
+
+    /// Literal substring matching for both source and destination selectors
+    #[arg(long = "contains")]
+    pub contains: bool,
 
     /// 1-indexed occurrence to disambiguate same-text source headings
     #[arg(long = "source-occurrence")]

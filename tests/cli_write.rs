@@ -194,6 +194,48 @@ fn replace_section_with_occurrence() {
 }
 
 #[test]
+fn replace_section_contains_with_occurrence() {
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "method",
+            "tests/fixtures/basic.md",
+            "--contains",
+            "--ignore-case",
+            "--occurrence",
+            "2",
+        ],
+        "### Sub-methods\n\nReplaced nested section.\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("## Methods"));
+    assert!(stdout.contains("Replaced nested section."));
+    assert!(!stdout.contains("Some additional detail."));
+}
+
+#[test]
+fn delete_section_contains_rejects_preamble_selector() {
+    let output = md()
+        .args([
+            "delete-section",
+            ":preamble",
+            "tests/fixtures/preamble.md",
+            "--contains",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--contains"));
+    assert!(stderr.contains(":preamble"));
+}
+
+#[test]
 fn replace_section_expect_etag_match_succeeds() {
     let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
     let path = tempfile(&content);

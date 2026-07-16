@@ -160,6 +160,66 @@ fn section_ignore_case() {
 }
 
 #[test]
+fn section_contains_duplicate_conflict_without_occurrence() {
+    let output = md()
+        .args([
+            "section",
+            "method",
+            "tests/fixtures/basic.md",
+            "--contains",
+            "--ignore-case",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--occurrence"));
+}
+
+#[test]
+fn section_contains_ignore_case_json_roundtrips_match_mode() {
+    let output = md()
+        .args([
+            "section",
+            "method",
+            "tests/fixtures/basic.md",
+            "--contains",
+            "--ignore-case",
+            "--occurrence",
+            "2",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["section"]["selector"]["match_mode"], "ContainsIgnoreCase");
+    assert_eq!(json["section"]["heading"]["text"], "Sub-methods");
+    assert!(json["content"].as_str().unwrap().starts_with("### Sub-methods"));
+}
+
+#[test]
+fn section_contains_rejects_preamble_selector() {
+    let output = md()
+        .args([
+            "section",
+            ":preamble",
+            "tests/fixtures/preamble.md",
+            "--contains",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--contains"));
+    assert!(stderr.contains(":preamble"));
+}
+
+#[test]
 fn search_basic() {
     let output = md()
         .args(["search", "method", "tests/fixtures/basic.md"])
