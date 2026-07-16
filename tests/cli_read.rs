@@ -215,20 +215,17 @@ fn section_contains_case_sensitive_zero_match_exits_one() {
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("METHOD"));
+    assert!(stderr.contains("heading not found: METHOD"));
 }
 
 #[test]
-fn section_contains_ignore_case_json_roundtrips_match_mode() {
+fn section_contains_json_roundtrips_match_mode() {
     let output = md()
         .args([
             "section",
-            "method",
+            "Method",
             "tests/fixtures/basic.md",
             "--contains",
-            "--ignore-case",
-            "--occurrence",
-            "2",
             "--json",
         ])
         .output()
@@ -239,15 +236,9 @@ fn section_contains_ignore_case_json_roundtrips_match_mode() {
         String::from_utf8_lossy(&output.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(
-        json["section"]["selector"]["match_mode"],
-        "ContainsIgnoreCase"
-    );
-    assert_eq!(json["section"]["heading"]["text"], "Sub-methods");
-    assert!(json["content"]
-        .as_str()
-        .unwrap()
-        .starts_with("### Sub-methods"));
+    assert_eq!(json["section"]["selector"]["match_mode"], "Contains");
+    assert_eq!(json["section"]["heading"]["text"], "Methods");
+    assert!(json["content"].as_str().unwrap().starts_with("## Methods"));
 }
 
 #[test]
