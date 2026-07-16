@@ -1,0 +1,50 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install stable Rust toolchain
+        run: |
+          rustup toolchain install stable --component rustfmt --component clippy
+          rustup default stable
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run Rust tests
+        run: cargo test --package mdtools
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Run Python unit tests
+        run: python3 -m unittest discover -s bench -p 'test_*.py'
+
+      - name: Run benchmark harness smoke test
+        run: python3 bench/harness.py --md-binary target/release/md

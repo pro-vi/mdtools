@@ -315,6 +315,19 @@ Benchmark runs default to a guarded executor that constrains Bash to the mode-sp
 
 ### Running benchmarks
 
+### GitHub Actions
+
+GitHub Actions runs [`.github/workflows/quality.yml`](.github/workflows/quality.yml) on pull requests and pushes to `master`. The hosted quality gate enforces:
+
+```sh
+cargo fmt --check
+cargo test --package mdtools
+cargo clippy --all-targets --all-features
+cargo build --release
+python3 -m unittest discover -s bench -p 'test_*.py'
+python3 bench/harness.py --md-binary target/release/md
+```
+
 ```sh
 python3 -m pip install markdown-it-py
 
