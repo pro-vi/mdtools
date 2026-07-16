@@ -18,6 +18,7 @@ MD_SUBCOMMANDS = {
     "delete-block",
     "delete-section",
     "replace-block",
+    "replace-table-row",
 }
 FORBIDDEN_LITERALS = {
     "block index",
