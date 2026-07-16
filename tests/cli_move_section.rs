@@ -340,6 +340,40 @@ fn t14c_contains_rejects_preamble_selector() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn t14d_contains_validates_destination_before_resolving_source() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+
+    for (destination, expected_message) in [
+        (":preamble", "--contains cannot be used with :preamble"),
+        ("", "empty selector cannot be used with --contains"),
+    ] {
+        let output = md()
+            .args([
+                "move-section",
+                "missing-source",
+                &tmp,
+                "--after",
+                destination,
+                "--contains",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(3));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(expected_message),
+            "unexpected error for destination {destination:?}: {stderr}"
+        );
+        assert!(
+            !stderr.contains("heading not found"),
+            "source resolution masked invalid destination {destination:?}: {stderr}"
+        );
+    }
+
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // === Selectors (2) ===
 
 #[test]

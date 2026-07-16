@@ -36,8 +36,6 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.contains,
         args.ignore_case,
     )?;
-    let source_section = find_section(&doc, &source_selector)?;
-
     let (dest_text, dest_mode) = pick_destination(args)?;
     let dest_selector = build_selector(
         dest_text,
@@ -45,6 +43,8 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.contains,
         args.ignore_case,
     )?;
+
+    let source_section = find_section(&doc, &source_selector)?;
     let dest_section = find_section(&doc, &dest_selector)?;
 
     let src_span = source_section.span;
