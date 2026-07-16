@@ -102,6 +102,12 @@ vault/alpha.md    Alpha Doc    published
 vault/beta.md     Beta Doc     review
 ```
 
+`md collect` always emits one aggregate table with a leading `path` column. Text mode
+is TSV with headers in the requested field order; rows stay present even when
+frontmatter is missing or a requested field is absent. JSON mode returns the same
+ordered contract as `{ "schema_version": "mdtools.v1", "headers": [...], "rows": [...] }`,
+preserving scalar/array/object types for parsed YAML or TOML values.
+
 ### Extract tables
 
 ```sh

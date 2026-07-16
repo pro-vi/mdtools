@@ -256,7 +256,7 @@ TOOL REFERENCE — md (markdown-aware CLI):
       --source-occurrence N / --dest-occurrence N: disambiguate duplicate heading names.
   md links <FILE> [--json]             List all links with kind, destination, source block
   md frontmatter <FILE> [--json]       Read YAML/TOML frontmatter as JSON
-  md collect <FILE|DIR>... [--json]    Aggregate frontmatter across files/directories into one table
+  md collect <FILE|DIR>... [--json]    Aggregate frontmatter into one ordered table; missing fields stay blank/null
   md stats <FILE> [--json]             Word/heading/block/link/section/line counts
   md table <FILE> [--json] [--index N] [--select COLS] [--where FILTER]
                                        List tables or read/project a specific table.
@@ -283,7 +283,7 @@ EXAMPLES:
   md delete-section "Notes" doc.md -i                       # delete entire section
   md search "method" doc.md --kind paragraph --json # find "method" in paragraphs only
   md table report.md --select Feature,Status         # project table columns as TSV
-  md collect vault/ -r --field title,status         # aggregate frontmatter rows as TSV/JSON
+  md collect vault/ -r --field title,status         # aggregate frontmatter rows as TSV/JSON with path-first headers
   md set release.channel doc.md stable -i            # set YAML/TOML frontmatter field
   md tasks doc.md --status pending --json           # list pending task items
   md set-task 5.1 doc.md -i --status done           # mark task at loc 5.1 as done
@@ -313,7 +313,7 @@ TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
   md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
   md set-task LOC F -i --status done|pending      toggle a checkbox by loc
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
-  md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs
+  md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs into one table
   md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
   md replace-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
   md delete-table-row TABLE ROW F -i [--expect-etag ETAG]
@@ -360,7 +360,7 @@ TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-
   md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
   md set-task LOC F -i --status done|pending      toggle a checkbox by loc
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
-  md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs
+  md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs into one table
   md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
   md replace-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
   md delete-table-row TABLE ROW F -i [--expect-etag ETAG]

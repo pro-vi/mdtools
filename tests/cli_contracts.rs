@@ -990,3 +990,17 @@ fn contains_help_text_is_shared_without_changing_move_section_wording() {
         move_help
     );
 }
+
+#[test]
+fn collect_help_mentions_recursive_and_field_projection() {
+    let help = md_help("collect");
+    let normalized_help = help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        normalized_help.contains("Usage: md collect [OPTIONS] <FILES>...")
+            && normalized_help.contains("--recursive")
+            && normalized_help.contains("--field <FIELDS>")
+            && normalized_help.contains("Extract specific fields (repeatable or comma-separated)"),
+        "collect --help changed unexpectedly:\n{}",
+        help
+    );
+}
