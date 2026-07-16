@@ -241,6 +241,13 @@ pub struct FrontmatterReadResult {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct CollectResult {
+    pub schema_version: String,
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct DocumentStats {
     pub word_count: u32,
     pub heading_count: u32,

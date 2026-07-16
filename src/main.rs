@@ -38,6 +38,7 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::Search(args) => commands::search::run(args, cli.json),
         Command::Links(args) => commands::links::run(args, cli.json),
         Command::Frontmatter(args) => commands::frontmatter::run(args, cli.json),
+        Command::Collect(args) => commands::collect::run(args, cli.json),
         Command::Stats(args) => commands::stats::run(args, cli.json),
         Command::Set(args) => commands::set::run(args, cli.json),
         Command::Table(args) => commands::table::run(args, cli.json),

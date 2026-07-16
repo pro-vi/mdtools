@@ -9,6 +9,8 @@ import typing
 
 from bench.command_policy import (
     MD_REAL_MODES,
+    MUTATION_MD_COMMANDS,
+    QUERY_MD_COMMANDS,
     UNIX_TOOLS,
     allowed_commands_for_mode,
     classify_command_kind,
@@ -82,6 +84,16 @@ class CommandPolicyGuardTests(unittest.TestCase):
             classify_command_kind("md delete-table-row 3 1 doc.md -i", "md"),
             "mutation",
         )
+
+    def test_collect_is_classified_as_a_query(self) -> None:
+        self.assertEqual(
+            classify_command_kind("md collect --field title docs/ -r --json", "md"),
+            "query",
+        )
+
+    def test_collect_remains_a_query_subcommand_registration(self) -> None:
+        self.assertIn("collect", QUERY_MD_COMMANDS)
+        self.assertNotIn("collect", MUTATION_MD_COMMANDS)
 
     def test_mdtools_mode_denies_absolute_path_md(self) -> None:
         # Regression guard for the magnum-v4-123b-4bit failure mode observed on

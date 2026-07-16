@@ -18,6 +18,8 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 - Read commands: parse → extract → emit JSON or TSV
 - Mutation commands: parse → find target → read content via `output::read_content(args.from.as_deref())` → splice at byte offsets → emit `MutationResult`
 - Multifile: `multifile::resolve_paths()` → `for_each_file()` with error aggregation
+- Metadata aggregation: `md frontmatter` stays per-file/JSONL; `md collect` is the
+  read-only vault-as-table surface with ordered `headers`/`rows` output.
 
 **Key files:**
 - `src/cli.rs` — all command args (clap derive)
@@ -29,6 +31,10 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 ## Design rules
 
 - **Markdown primitives only.** If it's in the GFM spec or comrak AST, it's our domain. Task IDs (`0.1`), phase headings, metadata patterns — consumer's job via `jq`.
+- **Keep `collect` narrow.** `md collect` is frontmatter aggregation only: one row per
+  discovered Markdown file, requested-field order preserved, missing metadata kept as
+  blank/null cells, and partial per-file parse failures reported without turning it
+  into a mutation/query engine.
 - **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint), and `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`/`delete-table-row`, and `set-task` accept `--expect-etag <hash>` to fail-closed (exit 4, `EtagMismatch`) when the target's current fingerprint differs. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
 - **Re-query pattern is the moat.** Agents query `md tasks --json`, mutate, re-query for fresh locs. Design new commands to support this cycle. Locs must be cheap to re-derive.
 - **Payload-bearing vs payload-free mutations.** `replace-section`, `replace-block`, `replace-table-row`, and `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `delete-table-row` is intentionally payload-free: selector only, no stdin or `--from`. `replace-block` and `replace-table-row` strip one trailing line-ending from the content (matching the newline-excluded target-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code), while table-row replacement preserves the row's existing line ending by keeping it outside the replaced span.
@@ -176,4 +182,4 @@ OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
 2. Instrument real deployment (track tool choice, re-query rate)
 3. T6 is the roadmap signal — transactional multi-edit gap, not a bug to fix
 4. `md batch` is NOT on the roadmap (Pro review: prove planning vs execution gap first)
-5. Table row mutations shipped (`replace-table-row`, `delete-table-row`). Roadmap order stays row mutations, then `md collect` (vault-as-table).
+5. Table row mutations shipped (`replace-table-row`, `delete-table-row`). `md collect` now covers the narrow vault-as-table read path; keep follow-on work out of mutation/query-engine territory.

@@ -1,4 +1,7 @@
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static TMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 fn md() -> Command {
     Command::new(env!("CARGO_BIN_EXE_md"))
@@ -83,6 +86,355 @@ fn frontmatter_explicit_multi_file() {
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("Alpha Doc"));
     assert!(stdout.contains("Beta Doc"));
+}
+
+// --- Collect multi-file ---
+
+#[test]
+fn collect_directory_recursive_tsv() {
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title,owner.name,status,count",
+            "tests/fixtures/collect_vault",
+            "-r",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 5);
+    assert_eq!(lines[0], "path\ttitle\towner.name\tstatus\tcount");
+    assert_eq!(lines[1], "tests/fixtures/collect_vault/plain.md\t\t\t\t");
+    assert_eq!(
+        lines[2],
+        "tests/fixtures/collect_vault/root_toml.md\tRoot TOML\tLin\tdraft\t7"
+    );
+    assert_eq!(
+        lines[3],
+        "tests/fixtures/collect_vault/root_yaml.md\tRoot YAML\tAda\tpublished\t3"
+    );
+    assert_eq!(
+        lines[4],
+        "tests/fixtures/collect_vault/sub/nested.md\tNested Doc\tKai\tfalse\t"
+    );
+}
+
+#[test]
+fn collect_directory_non_recursive_excludes_subdirs() {
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            "tests/fixtures/collect_vault",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0], "path\ttitle");
+    assert_eq!(lines[1], "tests/fixtures/collect_vault/plain.md\t");
+    assert_eq!(
+        lines[2],
+        "tests/fixtures/collect_vault/root_toml.md\tRoot TOML"
+    );
+    assert_eq!(
+        lines[3],
+        "tests/fixtures/collect_vault/root_yaml.md\tRoot YAML"
+    );
+    assert!(!stdout.contains("nested.md"));
+}
+
+#[test]
+fn collect_explicit_files_are_sorted_without_recursive_walk() {
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            "tests/fixtures/collect_vault/sub/nested.md",
+            "tests/fixtures/collect_vault/root_yaml.md",
+            "tests/fixtures/collect_vault/plain.md",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let rows = json["rows"].as_array().unwrap();
+    let paths: Vec<&str> = rows.iter().map(|row| row[0].as_str().unwrap()).collect();
+    assert_eq!(
+        paths,
+        vec![
+            "tests/fixtures/collect_vault/plain.md",
+            "tests/fixtures/collect_vault/root_yaml.md",
+            "tests/fixtures/collect_vault/sub/nested.md",
+        ]
+    );
+    assert!(rows.iter().any(|row| row[1] == "Nested Doc"));
+}
+
+#[test]
+fn collect_accepts_explicit_non_markdown_file_operands() {
+    let unique = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!(
+        "mdtools-collect-noext-{}-{}",
+        std::process::id(),
+        unique
+    ));
+    std::fs::write(&path, "---\ntitle: No Extension\n---\n# Body\n").unwrap();
+
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            path.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    std::fs::remove_file(&path).unwrap();
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["headers"], serde_json::json!(["path", "title"]));
+    assert_eq!(
+        json["rows"],
+        serde_json::json!([[path.to_str().unwrap(), "No Extension"]])
+    );
+}
+
+#[test]
+fn collect_json_preserves_types_and_missing_rows() {
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title,owner.name,status,count,tags,meta",
+            "tests/fixtures/collect_vault",
+            "-r",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["schema_version"], "mdtools.v1");
+    assert_eq!(
+        json["headers"],
+        serde_json::json!([
+            "path",
+            "title",
+            "owner.name",
+            "status",
+            "count",
+            "tags",
+            "meta"
+        ])
+    );
+
+    let rows = json["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 4);
+
+    let plain = rows
+        .iter()
+        .find(|row| row[0] == "tests/fixtures/collect_vault/plain.md")
+        .unwrap();
+    assert!(plain[1].is_null());
+    assert!(plain[5].is_null());
+
+    let yaml = rows
+        .iter()
+        .find(|row| row[0] == "tests/fixtures/collect_vault/root_yaml.md")
+        .unwrap();
+    assert_eq!(yaml[1], "Root YAML");
+    assert_eq!(yaml[3], "published");
+    assert_eq!(yaml[4], 3);
+    assert_eq!(yaml[5], serde_json::json!(["alpha", "beta"]));
+
+    let toml = rows
+        .iter()
+        .find(|row| row[0] == "tests/fixtures/collect_vault/root_toml.md")
+        .unwrap();
+    assert_eq!(toml[2], "Lin");
+    assert_eq!(toml[4], 7);
+    assert_eq!(toml[6], serde_json::json!({"reviewed": true}));
+
+    let nested = rows
+        .iter()
+        .find(|row| row[0] == "tests/fixtures/collect_vault/sub/nested.md")
+        .unwrap();
+    assert_eq!(nested[3], false);
+    assert_eq!(nested[6], serde_json::json!({"score": 9.5}));
+}
+
+#[test]
+fn collect_json_continues_on_partial_failure() {
+    let vault_dir = make_temp_collect_vault();
+    let bad_path = vault_dir.join("broken.md");
+    std::fs::write(
+        &bad_path,
+        "---\ntitle: valid\nnested: [broken\n---\n# Broken\n",
+    )
+    .unwrap();
+
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title,count",
+            vault_dir.to_str().unwrap(),
+            "-r",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["schema_version"], "mdtools.v1");
+    let rows = json["rows"].as_array().unwrap();
+    let paths: Vec<&str> = rows.iter().map(|row| row[0].as_str().unwrap()).collect();
+    assert_eq!(
+        paths,
+        vec![
+            vault_dir.join("plain.md").to_str().unwrap(),
+            vault_dir.join("root_toml.md").to_str().unwrap(),
+            vault_dir.join("root_yaml.md").to_str().unwrap(),
+            vault_dir.join("sub/nested.md").to_str().unwrap(),
+        ]
+    );
+    assert!(rows.iter().all(|row| row[0] != bad_path.to_str().unwrap()));
+
+    let yaml = rows
+        .iter()
+        .find(|row| row[0] == vault_dir.join("root_yaml.md").to_str().unwrap())
+        .unwrap();
+    assert_eq!(yaml[1], "Root YAML");
+    assert_eq!(yaml[2], 3);
+
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("broken.md"));
+    assert!(stderr.contains("1 file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
+}
+
+#[test]
+fn collect_continues_on_partial_failure() {
+    let vault_dir = make_temp_collect_vault();
+    let bad_path = vault_dir.join("broken.md");
+    std::fs::write(
+        &bad_path,
+        "---\ntitle: valid\nnested: [broken\n---\n# Broken\n",
+    )
+    .unwrap();
+
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            vault_dir.to_str().unwrap(),
+            "-r",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.starts_with("path\ttitle\n"));
+    assert!(stdout.contains("plain.md\t"));
+    assert!(stdout.contains("root_yaml.md\tRoot YAML"));
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("broken.md"));
+    assert!(stderr.contains("1 file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
+}
+
+#[test]
+fn collect_directory_with_one_malformed_file_emits_no_tsv_output() {
+    let vault_dir = make_temp_single_bad_collect_dir();
+
+    let out = md()
+        .args(["collect", "--field", "title", vault_dir.to_str().unwrap()])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    assert!(
+        out.stdout.is_empty(),
+        "stdout: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("invalid YAML frontmatter"));
+    assert!(!stderr.contains("file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
+}
+
+#[test]
+fn collect_directory_with_one_malformed_file_emits_no_json_output() {
+    let vault_dir = make_temp_single_bad_collect_dir();
+
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            vault_dir.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    assert!(
+        out.stdout.is_empty(),
+        "stdout: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("invalid YAML frontmatter"));
+    assert!(!stderr.contains("file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
 }
 
 // --- Search multi-file ---
@@ -220,4 +572,48 @@ fn multi_file_continues_on_error() {
     // And stderr should mention the failed file
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("nonexistent"));
+}
+
+fn make_temp_collect_vault() -> std::path::PathBuf {
+    let unique = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir =
+        std::env::temp_dir().join(format!("mdtools-collect-{}-{}", std::process::id(), unique));
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    copy_fixture(
+        "tests/fixtures/collect_vault/plain.md",
+        &dir.join("plain.md"),
+    );
+    copy_fixture(
+        "tests/fixtures/collect_vault/root_toml.md",
+        &dir.join("root_toml.md"),
+    );
+    copy_fixture(
+        "tests/fixtures/collect_vault/root_yaml.md",
+        &dir.join("root_yaml.md"),
+    );
+    copy_fixture(
+        "tests/fixtures/collect_vault/sub/nested.md",
+        &dir.join("sub/nested.md"),
+    );
+    dir
+}
+
+fn make_temp_single_bad_collect_dir() -> std::path::PathBuf {
+    let unique = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "mdtools-collect-single-bad-{}-{}",
+        std::process::id(),
+        unique
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("broken.md"),
+        "---\ntitle: valid\nnested: [broken\n---\n# Broken\n",
+    )
+    .unwrap();
+    dir
+}
+
+fn copy_fixture(from: &str, to: &std::path::Path) {
+    std::fs::write(to, std::fs::read(from).unwrap()).unwrap();
 }
