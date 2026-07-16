@@ -1,16 +1,15 @@
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 fn md() -> Command {
     Command::new(env!("CARGO_BIN_EXE_md"))
 }
 
 fn write_temp_markdown(contents: &str) -> PathBuf {
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    static TEMPFILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    let unique = TEMPFILE_COUNTER.fetch_add(1, Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(
         "mdtools-cli-search-{}-{}.md",
         std::process::id(),
