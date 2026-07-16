@@ -48,7 +48,7 @@ def load_md_inventory(path: Path = MD_INVENTORY_PATH) -> MdCommandInventory:
         raise ValueError("md inventory root must be a JSON object")
 
     schema_version = raw.get("schema_version")
-    if schema_version != MD_INVENTORY_SCHEMA_VERSION:
+    if type(schema_version) is not int or schema_version != MD_INVENTORY_SCHEMA_VERSION:
         raise ValueError(
             f"md inventory schema_version must be {MD_INVENTORY_SCHEMA_VERSION}, got {schema_version!r}"
         )

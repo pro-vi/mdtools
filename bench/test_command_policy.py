@@ -52,6 +52,11 @@ class MdInventoryValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "schema_version"):
             load_md_inventory(path)
 
+    def test_inventory_rejects_boolean_schema_version(self) -> None:
+        path = self._write_inventory({"schema_version": True, "commands": []})
+        with self.assertRaisesRegex(ValueError, "schema_version"):
+            load_md_inventory(path)
+
     def test_inventory_rejects_malformed_entries(self) -> None:
         path = self._write_inventory({"schema_version": 1, "commands": ["outline"]})
         with self.assertRaisesRegex(ValueError, "entry 0 must be an object"):

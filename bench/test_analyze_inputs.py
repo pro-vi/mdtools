@@ -506,9 +506,13 @@ class PromptSyncTests(unittest.TestCase):
 
     def test_mdtools_tool_list_matches_shared_inventory(self) -> None:
         from bench.command_policy import MD_DISPLAY_COMMANDS
-        from bench.harness import MDTOOLS_TOOLS
+        from bench.harness import MDTOOLS_AUXILIARY_TOOLS, MDTOOLS_TOOLS
 
-        self.assertEqual(MDTOOLS_TOOLS, list(MD_DISPLAY_COMMANDS))
+        expected = [*MD_DISPLAY_COMMANDS, *MDTOOLS_AUXILIARY_TOOLS]
+        self.assertEqual(MDTOOLS_TOOLS, expected)
+        self.assertEqual(len(MDTOOLS_TOOLS), len(set(MDTOOLS_TOOLS)))
+        for auxiliary in ("cat", "jq"):
+            self.assertEqual(MDTOOLS_TOOLS.count(auxiliary), 1)
 
     def test_analyze_includes_hybrid_no_md_mode(self) -> None:
         # PR#10 Codex P2: analyze must not hardcode modes to [unix, mdtools, hybrid] —

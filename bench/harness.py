@@ -189,7 +189,8 @@ class ParsedAgentOutput:
 # ── Tool inventories ──────────────────────────────────────────
 
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp"]
-MDTOOLS_TOOLS = list(MD_DISPLAY_COMMANDS)
+MDTOOLS_AUXILIARY_TOOLS = ["cat", "jq"]
+MDTOOLS_TOOLS = [*MD_DISPLAY_COMMANDS, *MDTOOLS_AUXILIARY_TOOLS]
 
 
 # ── System prompts ────────────────────────────────────────────
