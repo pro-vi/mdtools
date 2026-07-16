@@ -315,6 +315,22 @@ Benchmark runs default to a guarded executor that constrains Bash to the mode-sp
 
 ### Running benchmarks
 
+### GitHub Actions
+
+GitHub Actions is configured to run [`.github/workflows/quality.yml`](.github/workflows/quality.yml) on pull requests and pushes to `master`. The hosted workflow definition enforces:
+
+[PR #19 quality run #29521711298 on July 16, 2026](https://github.com/pro-vi/mdtools/actions/runs/29521711298) is durable hosted evidence for the current workflow: GitHub parsed and scheduled it, and the serial Ubuntu job completed all six quality steps after installing `markdown-it-py`.
+An earlier [PR #19 quality run #29519636950](https://github.com/pro-vi/mdtools/actions/runs/29519636950) exposed that clean-runner dependency gap before the install step was added; each hosted run appends its canonical run URL to the GitHub Actions step summary for direct citation.
+
+```sh
+cargo fmt --check
+cargo test --package mdtools
+cargo clippy --all-targets --all-features
+cargo build --release
+python3 -m unittest discover -s bench -p 'test_*.py'
+python3 bench/harness.py --md-binary target/release/md
+```
+
 ```sh
 python3 -m pip install markdown-it-py
 
