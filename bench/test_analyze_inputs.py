@@ -480,42 +480,35 @@ SCORER ISSUES DETECTED.
 
 
 class PromptSyncTests(unittest.TestCase):
-    """Guard that every md command in command_policy.py appears in MDTOOLS_DOCS."""
+    """Guard that every inventory command stays in sync across md-enabled prompts."""
 
-    def test_all_policy_commands_documented_in_mdtools_docs(self) -> None:
-        from bench.command_policy import MUTATION_MD_COMMANDS, QUERY_MD_COMMANDS
-        from bench.harness import MDTOOLS_DOCS
-
-        all_commands = MUTATION_MD_COMMANDS | QUERY_MD_COMMANDS
-        missing = [cmd for cmd in sorted(all_commands) if f"md {cmd}" not in MDTOOLS_DOCS]
-        self.assertEqual(
-            missing,
-            [],
-            f"Commands in command_policy.py but missing from MDTOOLS_DOCS: {missing}\n"
-            "Add them to MDTOOLS_DOCS in bench/harness.py so agents can discover them.",
-        )
-
-    def test_table_row_mutation_is_advertised_on_every_md_enabled_prompt(self) -> None:
+    def test_inventory_commands_are_advertised_on_every_md_enabled_prompt(self) -> None:
+        from bench.command_policy import MD_DISPLAY_COMMANDS
         from bench.harness import HYBRID_DOCS, MDTOOLS_DOCS, NATIVE_MD_DOCS
 
-        for name, prompt in {
+        prompts = {
             "mdtools": MDTOOLS_DOCS,
             "hybrid": HYBRID_DOCS,
             "native+md": NATIVE_MD_DOCS,
-        }.items():
-            self.assertIn("md replace-table-row", prompt, name)
-            self.assertIn("md delete-table-row", prompt, name)
+        }
 
-    def test_collect_is_advertised_on_every_md_enabled_prompt_and_inventory(self) -> None:
-        from bench.harness import HYBRID_DOCS, MDTOOLS_DOCS, MDTOOLS_TOOLS, NATIVE_MD_DOCS
+        for prompt_name, prompt in prompts.items():
+            missing = [
+                command
+                for command in MD_DISPLAY_COMMANDS
+                if not re.search(rf"(?<!\S){re.escape(command)}(?:\s|$)", prompt)
+            ]
+            self.assertEqual(
+                missing,
+                [],
+                f"Commands missing from {prompt_name} prompt: {missing}",
+            )
 
-        self.assertIn("md collect", MDTOOLS_TOOLS)
-        for name, prompt in {
-            "mdtools": MDTOOLS_DOCS,
-            "hybrid": HYBRID_DOCS,
-            "native+md": NATIVE_MD_DOCS,
-        }.items():
-            self.assertIn("md collect", prompt, name)
+    def test_mdtools_tool_list_matches_shared_inventory(self) -> None:
+        from bench.command_policy import MD_DISPLAY_COMMANDS
+        from bench.harness import MDTOOLS_TOOLS
+
+        self.assertEqual(MDTOOLS_TOOLS, list(MD_DISPLAY_COMMANDS))
 
     def test_analyze_includes_hybrid_no_md_mode(self) -> None:
         # PR#10 Codex P2: analyze must not hardcode modes to [unix, mdtools, hybrid] —

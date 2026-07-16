@@ -33,6 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 try:
     from bench.command_policy import (
+        MD_DISPLAY_COMMANDS,
         _md_ablation_stub,
         classify_command_kind,
         classify_command_verb,
@@ -63,6 +64,7 @@ try:
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bench.command_policy import (
+        MD_DISPLAY_COMMANDS,
         _md_ablation_stub,
         classify_command_kind,
         classify_command_verb,
@@ -187,14 +189,7 @@ class ParsedAgentOutput:
 # ── Tool inventories ──────────────────────────────────────────
 
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp"]
-MDTOOLS_TOOLS = [
-    "md outline", "md blocks", "md block", "md section",
-    "md replace-section", "md delete-section", "md replace-block",
-    "md replace-table-row", "md delete-table-row",
-    "md insert-block", "md delete-block",
-    "md search", "md links", "md frontmatter", "md collect", "md stats",
-    "md table", "md set", "md tasks", "md set-task", "cat", "jq",
-]
+MDTOOLS_TOOLS = list(MD_DISPLAY_COMMANDS)
 
 
 # ── System prompts ────────────────────────────────────────────

@@ -39,6 +39,7 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `tests/cli_search.rs` | Integration tests for `md search` filters and match envelopes |
 | `tests/cli_contracts.rs` | Contract-level CLI tests, including `md collect` JSON/schema regressions |
 | `bench/tasks/` | Benchmark task definitions and expected outputs |
+| `bench/md_inventory_v1.json` | Versioned benchmark-side mirror of the real `md` product subcommand surface and query/mutation classification, including `move-section` |
 | `bench/harness.py` | Phase 2 benchmark runner and scorer |
 
 ## Decisions [id:sec-decisions]
@@ -174,7 +175,7 @@ Phase 1 does NOT enable: [id:rule-parser-disabled-extensions]
 - `description_lists` — no corresponding `BlockKind`; description list syntax is parsed as plain paragraphs.
 - `multiline_block_quotes` — no corresponding block kind; `>>>` syntax is parsed as a regular `BlockQuote`.
 - `math_dollars`, `math_code` — no corresponding block or inline kind; `$` and `$$` are treated as literal text.
-- `wikilinks_title_after_pipe`, `wikilinks_title_before_pipe` — `LinkKind::Wiki` is reserved in the read model but wiki link detection is deferred to Phase 2. Documents containing `[[...]]` syntax will not produce `Wiki` link entries in Phase 1.
+- `wikilinks_title_after_pipe`, `wikilinks_title_before_pipe` — wiki link detection is disabled in Phase 1. Documents containing `[[...]]` syntax remain plain text and do not produce link entries.
 
 Unsupported syntax fallback: any markdown syntax that requires a disabled extension is parsed as its CommonMark fallback (typically `Paragraph` or inline literal text). The CLI does not error on documents containing unsupported syntax. [id:rule-parser-unsupported-fallback]
 
@@ -274,7 +275,6 @@ pub enum LinkKind { // [id:contract-link-kind]
     Inline,
     Reference,
     Autolink,
-    Wiki,
 }
 
 pub struct LinkEntry { // [id:contract-link-entry]
