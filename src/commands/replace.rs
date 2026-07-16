@@ -4,6 +4,20 @@ use crate::model::*;
 use crate::output;
 use crate::parser::ParsedDocument;
 
+pub(crate) struct MutationEmission<'a> {
+    pub in_place: bool,
+    pub json: bool,
+    pub file: &'a std::path::Path,
+    pub command: MutationCommandKind,
+    pub target: MutationTargetRef,
+    pub disposition: MutationDisposition,
+    pub changed: bool,
+    pub line_endings: LineEndingStyle,
+    pub span_before: Option<SourceSpan>,
+    pub replacement: &'a str,
+    pub output_doc: &'a str,
+}
+
 pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
@@ -65,19 +79,19 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
         span: block_span,
     });
 
-    emit_mutation(
-        args.in_place,
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
         json,
-        &args.file,
-        MutationCommandKind::ReplaceBlock,
+        file: &args.file,
+        command: MutationCommandKind::ReplaceBlock,
         target,
         disposition,
         changed,
         line_endings,
-        Some(block_span),
-        &replacement,
-        &output_doc,
-    )
+        span_before: Some(block_span),
+        replacement: &replacement,
+        output_doc: &output_doc,
+    })
 }
 
 pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), CommandError> {
@@ -145,19 +159,19 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         (MutationDisposition::Inserted, true)
     };
 
-    emit_mutation(
-        args.in_place,
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
         json,
-        &args.file,
-        MutationCommandKind::InsertBlock,
+        file: &args.file,
+        command: MutationCommandKind::InsertBlock,
         target,
         disposition,
         changed,
         line_endings,
-        None,
-        &content,
-        &output_doc,
-    )
+        span_before: None,
+        replacement: &content,
+        output_doc: &output_doc,
+    })
 }
 
 pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), CommandError> {
@@ -190,19 +204,19 @@ pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), Comman
         span: block_span,
     });
 
-    emit_mutation(
-        args.in_place,
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
         json,
-        &args.file,
-        MutationCommandKind::DeleteBlock,
+        file: &args.file,
+        command: MutationCommandKind::DeleteBlock,
         target,
-        MutationDisposition::Deleted,
-        true,
+        disposition: MutationDisposition::Deleted,
+        changed: true,
         line_endings,
-        Some(block_span),
-        "",
-        &output_doc,
-    )
+        span_before: Some(block_span),
+        replacement: "",
+        output_doc: &output_doc,
+    })
 }
 
 fn parse_insert_location(args: &InsertBlockArgs) -> Result<InsertLocation, CommandError> {
@@ -387,19 +401,21 @@ fn compute_span_after(
     }
 }
 
-pub(crate) fn emit_mutation(
-    in_place: bool,
-    json: bool,
-    file: &std::path::Path,
-    command: MutationCommandKind,
-    target: MutationTargetRef,
-    disposition: MutationDisposition,
-    changed: bool,
-    line_endings: LineEndingStyle,
-    span_before: Option<SourceSpan>,
-    replacement: &str,
-    output_doc: &str,
-) -> Result<(), CommandError> {
+pub(crate) fn emit_mutation(emission: MutationEmission<'_>) -> Result<(), CommandError> {
+    let MutationEmission {
+        in_place,
+        json,
+        file,
+        command,
+        target,
+        disposition,
+        changed,
+        line_endings,
+        span_before,
+        replacement,
+        output_doc,
+    } = emission;
+
     let span_after = compute_span_after(disposition, span_before, replacement);
 
     let build_result = |content: Option<String>| MutationResult {

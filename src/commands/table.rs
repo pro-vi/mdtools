@@ -1,5 +1,7 @@
 use crate::cli::{DeleteTableRowArgs, ReplaceTableRowArgs, TableArgs};
-use crate::commands::replace::{emit_mutation, strip_one_trailing_newline, verify_expected_etag};
+use crate::commands::replace::{
+    emit_mutation, strip_one_trailing_newline, verify_expected_etag, MutationEmission,
+};
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::output;
@@ -104,19 +106,19 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
         span: row.span,
     });
 
-    emit_mutation(
-        args.in_place,
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
         json,
-        &args.file,
-        MutationCommandKind::ReplaceTableRow,
+        file: &args.file,
+        command: MutationCommandKind::ReplaceTableRow,
         target,
         disposition,
         changed,
-        doc.line_ending_style(),
-        Some(row.span),
-        &replacement,
-        &output_doc,
-    )
+        line_endings: doc.line_ending_style(),
+        span_before: Some(row.span),
+        replacement: &replacement,
+        output_doc: &output_doc,
+    })
 }
 
 pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(), CommandError> {
@@ -163,19 +165,19 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
         span: row.span,
     });
 
-    emit_mutation(
-        args.in_place,
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
         json,
-        &args.file,
-        MutationCommandKind::DeleteTableRow,
+        file: &args.file,
+        command: MutationCommandKind::DeleteTableRow,
         target,
-        MutationDisposition::Deleted,
-        true,
-        doc.line_ending_style(),
-        Some(deletion_span),
-        "",
-        &output_doc,
-    )
+        disposition: MutationDisposition::Deleted,
+        changed: true,
+        line_endings: doc.line_ending_style(),
+        span_before: Some(deletion_span),
+        replacement: "",
+        output_doc: &output_doc,
+    })
 }
 
 fn resolve_table_row_deletion_span(doc: &ParsedDocument, row_span: SourceSpan) -> SourceSpan {
