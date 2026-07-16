@@ -23,12 +23,44 @@ fn md_with_stdin(args: &[&str], stdin_content: &str) -> std::process::Output {
     child.wait_with_output().unwrap()
 }
 
+fn md_with_stdin_bytes(args: &[&str], stdin_content: &[u8]) -> std::process::Output {
+    let mut child = md()
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(stdin_content)
+        .unwrap();
+    child.wait_with_output().unwrap()
+}
+
 fn tempfile(content: &str) -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
     let path = format!("/tmp/mdtools_table_test_{}_{}.md", std::process::id(), id);
     std::fs::write(&path, content).unwrap();
     path
+}
+
+fn table_json(file: &str, index: u32) -> serde_json::Value {
+    let out = md()
+        .args(["table", file, "--index"])
+        .arg(index.to_string())
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
 }
 
 fn has_bare_lf(content: &str) -> bool {
@@ -973,6 +1005,334 @@ fn replace_table_row_preserves_no_final_newline() {
     assert!(updated.ends_with("| Gamma | 300 |"));
     assert!(!updated.ends_with('\n'));
     std::fs::remove_file(&tmp).unwrap();
+}
+
+// --- delete-table-row ---
+
+#[test]
+fn delete_table_row_stdout_preserves_non_target_bytes() {
+    let out = md()
+        .args(["delete-table-row", "1", "1", "tests/fixtures/table.md"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n\nSummary paragraph.\n"
+    );
+}
+
+#[test]
+fn delete_table_row_can_target_first_middle_last_and_only_rows() {
+    let multi_row_source =
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n";
+    let multi_row_cases = [
+        (
+            "0",
+            "| Name | Value |\n|---|---|\n| Beta | 200 |\n| Gamma | 300 |\n",
+            serde_json::json!([["Beta", "200"], ["Gamma", "300"]]),
+        ),
+        (
+            "1",
+            "| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Gamma | 300 |\n",
+            serde_json::json!([["Alpha", "100"], ["Gamma", "300"]]),
+        ),
+        (
+            "2",
+            "| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Beta | 200 |\n",
+            serde_json::json!([["Alpha", "100"], ["Beta", "200"]]),
+        ),
+    ];
+
+    for (row_index, expected, expected_rows) in multi_row_cases {
+        let tmp = tempfile(multi_row_source);
+        let out = md()
+            .args(["delete-table-row", "0", row_index, &tmp, "-i"])
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "row {} stderr: {}",
+            row_index,
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), expected);
+        assert_eq!(table_json(&tmp, 0)["rows"], expected_rows);
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    let tmp = tempfile("| Name | Value |\n|---|---|\n| Alpha | 100 |\n");
+    let out = md()
+        .args(["delete-table-row", "0", "0", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n"
+    );
+    assert_eq!(table_json(&tmp, 0)["rows"], serde_json::json!([]));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_json_reports_typed_target_and_deletion_extent() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let out = md()
+        .args(["delete-table-row", "1", "0", &tmp, "-i", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["command"], "DeleteTableRow");
+    assert_eq!(json["disposition"], "Deleted");
+    assert_eq!(json["changed"], true);
+    assert_eq!(json["target"]["TableRow"]["kind"], "TableRow");
+    assert_eq!(json["target"]["TableRow"]["table_block_index"], 1);
+    assert_eq!(json["target"]["TableRow"]["row_index"], 0);
+    assert_eq!(json["target"]["TableRow"]["span"]["line_start"], 5);
+    assert_eq!(
+        json["target"]["TableRow"]["span"]["byte_start"],
+        json["invariant"]["target_span_before"]["byte_start"]
+    );
+    assert!(
+        json["invariant"]["target_span_before"]["byte_end"]
+            .as_u64()
+            .unwrap()
+            > json["target"]["TableRow"]["span"]["byte_end"]
+                .as_u64()
+                .unwrap()
+    );
+    assert!(json["invariant"]["target_span_after"].is_null());
+    assert!(json["content"].is_null());
+    assert_eq!(
+        table_json(&tmp, 1)["rows"],
+        serde_json::json!([["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_reparses_later_rows_after_prior_deletion() {
+    let tmp =
+        tempfile("| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n");
+
+    let first = md()
+        .args(["delete-table-row", "0", "0", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert!(first.status.success());
+
+    let second = md()
+        .args(["delete-table-row", "0", "1", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert!(second.status.success());
+
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Beta | 200 |\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_preserves_heading_paragraph_adjacency_and_blank_lines() {
+    let source = "# Data\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Beta | 200 |\n\nSummary paragraph.\n\nFollow-up paragraph.\n";
+    let tmp = tempfile(source);
+    let out = md()
+        .args(["delete-table-row", "1", "0", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "# Data\n\n| Name | Value |\n|---|---|\n| Beta | 200 |\n\nSummary paragraph.\n\nFollow-up paragraph.\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 1)["rows"],
+        serde_json::json!([["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_preserves_crlf_line_endings() {
+    let tmp = tempfile("| Name | Value |\r\n|---|---|\r\n| Alpha | 100 |\r\n| Beta | 200 |\r\n");
+    let out = md()
+        .args(["delete-table-row", "0", "0", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(
+        updated,
+        "| Name | Value |\r\n|---|---|\r\n| Beta | 200 |\r\n"
+    );
+    assert!(!has_bare_lf(&updated));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_preserves_mixed_local_boundaries() {
+    let tmp = tempfile(
+        "| Name | Value |\n|---|---|\r\n| Alpha | 100 |\r\n| Beta | 200 |\n\nSummary paragraph.\r\n",
+    );
+    let out = md()
+        .args(["delete-table-row", "0", "0", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\r\n| Beta | 200 |\n\nSummary paragraph.\r\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_last_at_eof_owns_preceding_newline() {
+    let tmp = tempfile("| Name | Value |\n|---|---|\n| Alpha | 100 |");
+    let out = md()
+        .args(["delete-table-row", "0", "0", &tmp, "-i", "--json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|"
+    );
+    assert!(
+        json["invariant"]["target_span_before"]["byte_start"]
+            .as_u64()
+            .unwrap()
+            < json["target"]["TableRow"]["span"]["byte_start"]
+                .as_u64()
+                .unwrap()
+    );
+    assert_eq!(
+        json["invariant"]["target_span_before"]["byte_end"],
+        json["target"]["TableRow"]["span"]["byte_end"]
+    );
+    assert_eq!(table_json(&tmp, 0)["rows"], serde_json::json!([]));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_out_of_range_is_not_found() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let out = md()
+        .args(["delete-table-row", "1", "9", &tmp, "-i"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("table row 9 out of range"));
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        include_str!("fixtures/table.md")
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_expect_etag_conflict_leaves_bytes_unchanged() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let read = md()
+        .args(["table", &tmp, "--index", "1", "--json"])
+        .output()
+        .unwrap();
+    assert!(read.status.success());
+    let read_json: serde_json::Value = serde_json::from_slice(&read.stdout).unwrap();
+    let etag = read_json["etag"].as_str().unwrap().to_string();
+
+    let drifted =
+        include_str!("fixtures/table.md").replace("| Beta | 200 |\n", "| Beta2 | 250 |\n");
+    std::fs::write(&tmp, &drifted).unwrap();
+
+    let out = md()
+        .args([
+            "delete-table-row",
+            "1",
+            "0",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("etag mismatch"));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), drifted);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_non_table_target_is_not_found() {
+    let out = md()
+        .args(["delete-table-row", "0", "0", "tests/fixtures/table.md"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("not a table"));
+}
+
+#[test]
+fn delete_table_row_stdin_is_not_consumed() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let out = md_with_stdin_bytes(&["delete-table-row", "1", "0", &tmp, "-i"], &[0xff]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        table_json(&tmp, 1)["rows"],
+        serde_json::json!([["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_does_not_accept_from_argument() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let payload = tempfile("ignored\n");
+    let out = md()
+        .args(["delete-table-row", "1", "0", &tmp, "--from", &payload])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("--from"));
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        include_str!("fixtures/table.md")
+    );
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&payload).unwrap();
 }
 
 // --- Error cases ---

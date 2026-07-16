@@ -368,6 +368,7 @@ pub enum MutationCommandKind {
     ReplaceBlock,
     ReplaceSection,
     ReplaceTableRow,
+    DeleteTableRow,
     InsertBlock,
     DeleteBlock,
     DeleteSection,

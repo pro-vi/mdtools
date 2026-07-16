@@ -420,6 +420,21 @@ impl ParsedDocument {
         self.line_index.byte_to_line(byte_offset as usize) as u32
     }
 
+    pub fn span_for_byte_range(&self, byte_start: u32, byte_end: u32) -> SourceSpan {
+        let line_start = self.byte_to_line(byte_start);
+        let line_end = if byte_end > byte_start {
+            self.byte_to_line(byte_end - 1)
+        } else {
+            line_start
+        };
+        SourceSpan {
+            line_start,
+            line_end,
+            byte_start,
+            byte_end,
+        }
+    }
+
     /// Extract the source text for a given span.
     pub fn slice(&self, span: &SourceSpan) -> &str {
         &self.source[span.byte_start as usize..span.byte_end as usize]
