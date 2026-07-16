@@ -68,6 +68,14 @@ We used several methods:
 ### Sub-methods
 Some additional detail.
 
+# Literal substring selection over plaintext heading text
+$ md section "method" doc.md --contains --ignore-case --occurrence 2
+### Sub-methods
+Some additional detail.
+
+# `:preamble` is reserved and cannot be combined with `--contains`
+$ md section :preamble doc.md
+
 # Full-text search with block-kind filtering
 $ md search "TODO" notes/ -r --kind paragraph --kind list
 
@@ -142,6 +150,10 @@ md replace-section "Methods" doc.md -i --from revised_methods.md
 # Replace a section from stdin
 echo "## Methods\n\nRevised methodology." | md replace-section "Methods" doc.md -i
 
+# Replace by literal substring match over heading text
+echo "### Sub-methods\n\nRevised nested methodology." \
+  | md replace-section "method" doc.md -i --contains --ignore-case --occurrence 2
+
 # Guard a section mutation against stale reads
 etag=$(md section "Methods" doc.md --json | jq -r '.section.etag')
 md replace-section "Methods" doc.md -i --from revised_methods.md --expect-etag "$etag"
@@ -159,6 +171,9 @@ md delete-section "Draft Notes" doc.md -i
 # Guard a section delete against stale reads
 etag=$(md section "Draft Notes" doc.md --json | jq -r '.section.etag')
 md delete-section "Draft Notes" doc.md -i --expect-etag "$etag"
+
+# Move a section using the same selector policy for source and destination
+md move-section "api" doc.md --after "front" --contains --ignore-case --keep-level
 
 # Set frontmatter fields (dot-path, type-inferred)
 md set tags doc.md '["rust", "cli"]' -i
