@@ -10,7 +10,8 @@ TASKS_PATH = Path("bench/tasks/tasks.json")
 ADVERSARIALLY_MINED = {"C-T10-15", "C-T10-28", "C-AR-040", "C-AR-041"}
 PROVENANCE_VALUES = {"core", "adversarially-mined"}
 
-MD_SUBCOMMANDS = {
+MD_COMMAND_SUBCOMMANDS = {
+    "collect",
     "replace-section",
     "set-task",
     "move-section",
@@ -20,6 +21,9 @@ MD_SUBCOMMANDS = {
     "replace-block",
     "replace-table-row",
     "delete-table-row",
+}
+FORBIDDEN_SUBCOMMAND_LITERALS = {
+    command for command in MD_COMMAND_SUBCOMMANDS if command != "collect"
 }
 FORBIDDEN_LITERALS = {
     "block index",
@@ -37,7 +41,7 @@ def _load_tasks() -> list[dict]:
 def prompt_neutrality_violations(tasks: list[dict]) -> list[str]:
     violations: list[str] = []
     md_command = re.compile(
-        r"\bmd\s+(?:" + "|".join(re.escape(cmd) for cmd in sorted(MD_SUBCOMMANDS)) + r")\b"
+        r"\bmd\s+(?:" + "|".join(re.escape(cmd) for cmd in sorted(MD_COMMAND_SUBCOMMANDS)) + r")\b"
     )
     for task in tasks:
         task_id = task.get("id", "<unknown>")
@@ -45,7 +49,7 @@ def prompt_neutrality_violations(tasks: list[dict]) -> list[str]:
         lower = description.lower()
         if md_command.search(lower):
             violations.append(f"{task_id}: md command named in prompt")
-        for literal in sorted(FORBIDDEN_LITERALS | MD_SUBCOMMANDS):
+        for literal in sorted(FORBIDDEN_LITERALS | FORBIDDEN_SUBCOMMAND_LITERALS):
             if literal in lower:
                 violations.append(f"{task_id}: forbidden prompt token {literal!r}")
     return violations
@@ -63,6 +67,20 @@ class PromptNeutralityTests(unittest.TestCase):
             }
         ]
         self.assertIn("BAD: md command named in prompt", prompt_neutrality_violations(fixture))
+
+    def test_lint_catches_md_collect_without_banning_plain_collect_word(self) -> None:
+        self.assertIn(
+            "BAD: md command named in prompt",
+            prompt_neutrality_violations(
+                [{"id": "BAD", "description": "Use md collect docs/ -r --json to inspect the vault."}]
+            ),
+        )
+        self.assertEqual(
+            prompt_neutrality_violations(
+                [{"id": "OK", "description": "Collect the release notes evidence before editing the file."}]
+            ),
+            [],
+        )
 
     def test_every_task_has_v3_provenance(self) -> None:
         wrong = []

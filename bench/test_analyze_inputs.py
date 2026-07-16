@@ -506,6 +506,17 @@ class PromptSyncTests(unittest.TestCase):
             self.assertIn("md replace-table-row", prompt, name)
             self.assertIn("md delete-table-row", prompt, name)
 
+    def test_collect_is_advertised_on_every_md_enabled_prompt_and_inventory(self) -> None:
+        from bench.harness import HYBRID_DOCS, MDTOOLS_DOCS, MDTOOLS_TOOLS, NATIVE_MD_DOCS
+
+        self.assertIn("md collect", MDTOOLS_TOOLS)
+        for name, prompt in {
+            "mdtools": MDTOOLS_DOCS,
+            "hybrid": HYBRID_DOCS,
+            "native+md": NATIVE_MD_DOCS,
+        }.items():
+            self.assertIn("md collect", prompt, name)
+
     def test_analyze_includes_hybrid_no_md_mode(self) -> None:
         # PR#10 Codex P2: analyze must not hardcode modes to [unix, mdtools, hybrid] —
         # the clean-ablation hybrid-no-md baseline must show up in the summary, not be
