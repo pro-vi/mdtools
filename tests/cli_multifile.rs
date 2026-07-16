@@ -193,6 +193,31 @@ fn collect_explicit_files_are_sorted_without_recursive_walk() {
 }
 
 #[test]
+fn collect_accepts_explicit_non_markdown_file_operands() {
+    let unique = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path =
+        std::env::temp_dir().join(format!("mdtools-collect-noext-{}-{}", std::process::id(), unique));
+    std::fs::write(&path, "---\ntitle: No Extension\n---\n# Body\n").unwrap();
+
+    let out = md()
+        .args(["collect", "--field", "title", path.to_str().unwrap(), "--json"])
+        .output()
+        .unwrap();
+
+    std::fs::remove_file(&path).unwrap();
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["headers"], serde_json::json!(["path", "title"]));
+    assert_eq!(json["rows"], serde_json::json!([[path.to_str().unwrap(), "No Extension"]]));
+}
+
+#[test]
 fn collect_json_preserves_types_and_missing_rows() {
     let out = md()
         .args([
