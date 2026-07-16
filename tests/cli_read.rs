@@ -215,9 +215,15 @@ fn section_contains_ignore_case_json_roundtrips_match_mode() {
         String::from_utf8_lossy(&output.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["section"]["selector"]["match_mode"], "ContainsIgnoreCase");
+    assert_eq!(
+        json["section"]["selector"]["match_mode"],
+        "ContainsIgnoreCase"
+    );
     assert_eq!(json["section"]["heading"]["text"], "Sub-methods");
-    assert!(json["content"].as_str().unwrap().starts_with("### Sub-methods"));
+    assert!(json["content"]
+        .as_str()
+        .unwrap()
+        .starts_with("### Sub-methods"));
 }
 
 #[test]
@@ -254,6 +260,18 @@ fn section_contains_rejects_preamble_selector() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("--contains"));
     assert!(stderr.contains(":preamble"));
+}
+
+#[test]
+fn section_contains_rejects_empty_selector() {
+    let output = md()
+        .args(["section", "", "tests/fixtures/table.md", "--contains"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("empty selector"));
+    assert!(stderr.contains("--contains"));
 }
 
 #[test]

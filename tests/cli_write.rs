@@ -271,6 +271,27 @@ fn delete_section_contains_rejects_preamble_selector() {
 }
 
 #[test]
+fn replace_section_contains_rejects_empty_selector_without_mutating_file() {
+    let original = std::fs::read_to_string("tests/fixtures/table.md").unwrap();
+    let path = tempfile(&original);
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md_with_stdin(
+        &["replace-section", "", &path, "--contains", "-i"],
+        "## Replacement\n\nshould not apply\n",
+    );
+    assert_eq!(output.status.code(), Some(3));
+    let after = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        before, after,
+        "file must stay byte-identical on invalid empty --contains selector"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("empty selector"));
+    assert!(stderr.contains("--contains"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn replace_section_expect_etag_match_succeeds() {
     let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
     let path = tempfile(&content);

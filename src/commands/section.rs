@@ -182,6 +182,13 @@ pub fn build_selector(
     contains: bool,
     ignore_case: bool,
 ) -> Result<SectionSelector, CommandError> {
+    if contains && selector.is_empty() {
+        return Err(CommandError::new(
+            DiagnosticCode::InvalidSelector,
+            "empty selector cannot be used with --contains",
+        ));
+    }
+
     if selector == ":preamble" {
         if contains {
             Err(CommandError::new(
