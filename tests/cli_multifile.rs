@@ -128,6 +128,71 @@ fn collect_directory_recursive_tsv() {
 }
 
 #[test]
+fn collect_directory_non_recursive_excludes_subdirs() {
+    let out = md()
+        .args(["collect", "--field", "title", "tests/fixtures/collect_vault"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0], "path\ttitle");
+    assert_eq!(lines[1], "tests/fixtures/collect_vault/plain.md\t");
+    assert_eq!(
+        lines[2],
+        "tests/fixtures/collect_vault/root_toml.md\tRoot TOML"
+    );
+    assert_eq!(
+        lines[3],
+        "tests/fixtures/collect_vault/root_yaml.md\tRoot YAML"
+    );
+    assert!(!stdout.contains("nested.md"));
+}
+
+#[test]
+fn collect_explicit_files_are_sorted_without_recursive_walk() {
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            "tests/fixtures/collect_vault/sub/nested.md",
+            "tests/fixtures/collect_vault/root_yaml.md",
+            "tests/fixtures/collect_vault/plain.md",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let rows = json["rows"].as_array().unwrap();
+    let paths: Vec<&str> = rows
+        .iter()
+        .map(|row| row[0].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            "tests/fixtures/collect_vault/plain.md",
+            "tests/fixtures/collect_vault/root_yaml.md",
+            "tests/fixtures/collect_vault/sub/nested.md",
+        ]
+    );
+    assert!(rows.iter().any(|row| row[1] == "Nested Doc"));
+}
+
+#[test]
 fn collect_json_preserves_types_and_missing_rows() {
     let out = md()
         .args([
@@ -194,6 +259,61 @@ fn collect_json_preserves_types_and_missing_rows() {
         .unwrap();
     assert_eq!(nested[3], false);
     assert_eq!(nested[6], serde_json::json!({"score": 9.5}));
+}
+
+#[test]
+fn collect_json_continues_on_partial_failure() {
+    let vault_dir = make_temp_collect_vault();
+    let bad_path = vault_dir.join("broken.md");
+    std::fs::write(
+        &bad_path,
+        "---\ntitle: valid\nnested: [broken\n---\n# Broken\n",
+    )
+    .unwrap();
+
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title,count",
+            vault_dir.to_str().unwrap(),
+            "-r",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["schema_version"], "mdtools.v1");
+    let rows = json["rows"].as_array().unwrap();
+    let paths: Vec<&str> = rows
+        .iter()
+        .map(|row| row[0].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            vault_dir.join("plain.md").to_str().unwrap(),
+            vault_dir.join("root_toml.md").to_str().unwrap(),
+            vault_dir.join("root_yaml.md").to_str().unwrap(),
+            vault_dir.join("sub/nested.md").to_str().unwrap(),
+        ]
+    );
+    assert!(rows.iter().all(|row| row[0] != bad_path.to_str().unwrap()));
+
+    let yaml = rows
+        .iter()
+        .find(|row| row[0] == vault_dir.join("root_yaml.md").to_str().unwrap())
+        .unwrap();
+    assert_eq!(yaml[1], "Root YAML");
+    assert_eq!(yaml[2], 3);
+
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("broken.md"));
+    assert!(stderr.contains("1 file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
 }
 
 #[test]

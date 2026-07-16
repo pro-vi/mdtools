@@ -31,6 +31,22 @@ fn md_help(subcommand: &str) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
+#[test]
+fn top_level_help_lists_collect_command() {
+    let output = md().arg("--help").output().unwrap();
+    assert!(output.status.success(), "md --help failed");
+    let help = String::from_utf8(output.stdout).unwrap();
+    let normalized_help = help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        normalized_help.contains("Commands: outline")
+            && normalized_help.contains("frontmatter")
+            && normalized_help.contains("collect")
+            && normalized_help.contains("stats"),
+        "top-level help changed unexpectedly:\n{}",
+        help
+    );
+}
+
 // ============================================================
 // BYTE-SPAN ACCURACY: slice source at reported spans, verify content
 // ============================================================
