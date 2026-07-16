@@ -254,6 +254,38 @@ fn replace_section_contains_expect_etag_roundtrips_occurrence() {
 }
 
 #[test]
+fn delete_section_contains_deletes_decorated_heading_and_preserves_neighbors() {
+    let path = tempfile(
+        "# API Reference\n\n## Setup\n\nKeep setup instructions.\n\n## `DELETE /users/:id`\n\nRemove this endpoint.\n\n### Edge Cases\n\nNested details to remove.\n\n## Logging\n\nKeep logging instructions.\n",
+    );
+    let output = md()
+        .args([
+            "delete-section",
+            "DELETE /users",
+            &path,
+            "--contains",
+            "-i",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("## Setup"));
+    assert!(updated.contains("Keep setup instructions."));
+    assert!(updated.contains("## Logging"));
+    assert!(updated.contains("Keep logging instructions."));
+    assert!(!updated.contains("## `DELETE /users/:id`"));
+    assert!(!updated.contains("Remove this endpoint."));
+    assert!(!updated.contains("### Edge Cases"));
+    assert!(!updated.contains("Nested details to remove."));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn delete_section_contains_rejects_preamble_selector() {
     let output = md()
         .args([
