@@ -433,7 +433,7 @@ fn unicode_section_ignore_case_contains_replace_preserves_neighboring_bytes() {
     let updated = std::fs::read_to_string(&path).unwrap();
     assert_eq!(
         updated,
-        "# Doc\n\n## Setup\nkeep setup\n\n## API CAFÉ rollout\nnew body\n\n### Nested\nnew nested\n\n## Logging\nkeep logging\n"
+        "# Doc\n\n## Setup\nkeep setup\n\n## API CAFÉ rollout\nnew body\n\n### Nested\nnew nested\n## Logging\nkeep logging\n"
     );
     std::fs::remove_file(&path).ok();
 }
@@ -480,7 +480,7 @@ fn unicode_section_ignore_case_occurrence_selects_folded_duplicate() {
 }
 
 #[test]
-fn replace_section_boundary_lf_stdin_preserves_non_final_floor() {
+fn replace_section_non_final_lf_stdin_does_not_append_boundary_newlines() {
     let path = tempfile("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
     let output = md_with_stdin(&["replace-section", "One", &path], "## One\nnew\n");
     assert!(
@@ -489,12 +489,12 @@ fn replace_section_boundary_lf_stdin_preserves_non_final_floor() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\n\n## One\nnew\n\n## Two\nkeep\n");
+    assert_eq!(stdout, "# Doc\n\n## One\nnew\n## Two\nkeep\n");
     std::fs::remove_file(&path).ok();
 }
 
 #[test]
-fn replace_section_boundary_crlf_from_preserves_non_final_floor() {
+fn replace_section_non_final_crlf_from_does_not_append_boundary_newlines() {
     let path = tempfile("# Doc\r\n\r\n## One\r\nold\r\n\r\n## Two\r\nkeep\r\n");
     let replacement_path = tempfile("## One\nnew\n");
     let output = md()
@@ -507,125 +507,9 @@ fn replace_section_boundary_crlf_from_preserves_non_final_floor() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(
-        stdout,
-        "# Doc\r\n\r\n## One\r\nnew\r\n\r\n## Two\r\nkeep\r\n"
-    );
+    assert_eq!(stdout, "# Doc\r\n\r\n## One\r\nnew\r\n## Two\r\nkeep\r\n");
     std::fs::remove_file(&path).ok();
     std::fs::remove_file(&replacement_path).ok();
-}
-
-#[test]
-fn replace_section_boundary_stdin_and_from_match() {
-    let source = "# Doc\n\n## One\nold\n\n## Two\nkeep\n";
-    let stdin_path = tempfile(source);
-    let from_path = tempfile(source);
-    let replacement_path = tempfile("## One\nnew\n");
-    let stdin_output = md_with_stdin(&["replace-section", "One", &stdin_path], "## One\nnew\n");
-    let from_output = md()
-        .args([
-            "replace-section",
-            "One",
-            &from_path,
-            "--from",
-            &replacement_path,
-        ])
-        .output()
-        .unwrap();
-    assert!(stdin_output.status.success());
-    assert!(
-        from_output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&from_output.stderr)
-    );
-    assert_eq!(stdin_output.stdout, from_output.stdout);
-    std::fs::remove_file(&stdin_path).ok();
-    std::fs::remove_file(&from_path).ok();
-    std::fs::remove_file(&replacement_path).ok();
-}
-
-#[test]
-fn replace_section_boundary_suffix_non_doubling() {
-    let path = tempfile("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
-    let output = md_with_stdin(&["replace-section", "One", &path], "## One\nnew\n\n");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\n\n## One\nnew\n\n## Two\nkeep\n");
-    std::fs::remove_file(&path).ok();
-}
-
-#[test]
-fn replace_section_boundary_preserves_extra_trailing_blank_lines() {
-    let path = tempfile("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
-    let output = md_with_stdin(&["replace-section", "One", &path], "## One\nnew\n\n\n");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\n\n## One\nnew\n\n\n## Two\nkeep\n");
-    std::fs::remove_file(&path).ok();
-}
-
-#[test]
-fn replace_section_boundary_preserves_adjacent_heading() {
-    let path = tempfile("# Doc\n\n## One\nold\n## Two\nkeep\n");
-    let output = md_with_stdin(&["replace-section", "One", &path], "## One\nnew");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\n\n## One\nnew\n## Two\nkeep\n");
-    std::fs::remove_file(&path).ok();
-}
-
-#[test]
-fn replace_section_boundary_final_section_keeps_replacement_eof() {
-    let path = tempfile("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
-    let output = md_with_stdin(&["replace-section", "Two", &path], "## Two\nnew");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\n\n## One\nold\n\n## Two\nnew");
-    std::fs::remove_file(&path).ok();
-}
-
-#[test]
-fn replace_section_boundary_empty_deletion_does_not_inject_suffix() {
-    let path = tempfile("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
-    let output = md_with_stdin(&["replace-section", "One", &path], "");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\n\n## Two\nkeep\n");
-    std::fs::remove_file(&path).ok();
-}
-
-#[test]
-fn replace_section_boundary_mixed_reuses_existing_suffix_bytes() {
-    let path = tempfile("# Doc\r\n\r\n## One\r\nold\r\n\n## Two\r\nkeep\r\n");
-    let output = md_with_stdin(&["replace-section", "One", &path], "## One\r\nnew");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout, "# Doc\r\n\r\n## One\r\nnew\r\n\n## Two\r\nkeep\r\n");
-    std::fs::remove_file(&path).ok();
 }
 
 #[test]

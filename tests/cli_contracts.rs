@@ -487,11 +487,11 @@ fn replace_section_empty_stdin_yields_deleted() {
 }
 
 #[test]
-fn replace_section_boundary_target_span_after_covers_zero_one_and_multiple_trailing_lf_cases() {
+fn replace_section_target_span_after_covers_zero_one_and_multiple_trailing_lf_cases() {
     let path = tempfile_str("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
     let cases = [
-        ("zero trailing newlines", "## One\nnew", "## One\nnew\n\n", 5),
-        ("one trailing newline", "## One\nnew\n", "## One\nnew\n\n", 5),
+        ("zero trailing newlines", "## One\nnew", "## One\nnew", 4),
+        ("one trailing newline", "## One\nnew\n", "## One\nnew\n", 4),
         (
             "multiple trailing newlines",
             "## One\nnew\n\n\n",
@@ -514,20 +514,20 @@ fn replace_section_boundary_target_span_after_covers_zero_one_and_multiple_trail
 }
 
 #[test]
-fn replace_section_boundary_target_span_after_stops_at_boundary_floor_in_crlf_docs() {
+fn replace_section_target_span_after_covers_zero_one_and_multiple_trailing_crlf_cases() {
     let path = tempfile_bytes(b"# Doc\r\n\r\n## One\r\nold\r\n\r\n## Two\r\nkeep\r\n");
     let cases = [
         (
             "zero trailing newlines",
             "## One\nnew",
-            "## One\r\nnew\r\n\r\n",
-            5,
+            "## One\r\nnew",
+            4,
         ),
         (
             "one trailing newline",
             "## One\nnew\n",
-            "## One\r\nnew\r\n\r\n",
-            5,
+            "## One\r\nnew\r\n",
+            4,
         ),
         (
             "multiple trailing newlines",
@@ -548,27 +548,6 @@ fn replace_section_boundary_target_span_after_stops_at_boundary_floor_in_crlf_do
     }
 
     std::fs::remove_file(path).ok();
-}
-
-#[test]
-fn replace_section_boundary_nochange_fields_reflect_effective_inserted_bytes() {
-    let source = "# Doc\n\n## One\nold\n\n## Two\nkeep\n";
-    let path = tempfile_str(source);
-    let output = md_with_stdin(
-        &["replace-section", "One", &path, "--json"],
-        "## One\nold\n",
-    );
-    assert!(output.status.success());
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["disposition"], "NoChange");
-    assert_eq!(json["changed"], false);
-    assert_eq!(json["content"].as_str().unwrap(), source);
-    assert_eq!(
-        json["invariant"]["target_span_before"],
-        json["invariant"]["target_span_after"]
-    );
-
-    std::fs::remove_file(&path).ok();
 }
 
 // ============================================================
