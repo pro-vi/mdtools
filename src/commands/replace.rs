@@ -345,7 +345,7 @@ fn verify_insert_etag(
 /// content. Block spans exclude the trailing newline, so the trailing `\n` that
 /// `cat <<'EOF' > f`, editors, and `echo` universally append would otherwise
 /// inject a spurious blank line and defeat the no-op check on round-trips.
-fn strip_one_trailing_newline(mut s: String) -> String {
+pub(crate) fn strip_one_trailing_newline(mut s: String) -> String {
     if s.ends_with("\r\n") {
         s.truncate(s.len() - 2);
     } else if s.ends_with('\n') {
@@ -387,7 +387,7 @@ fn compute_span_after(
     }
 }
 
-fn emit_mutation(
+pub(crate) fn emit_mutation(
     in_place: bool,
     json: bool,
     file: &std::path::Path,

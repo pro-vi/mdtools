@@ -751,12 +751,61 @@ fn find_link_text_close(src: &str) -> Option<usize> {
 
 // --- Table extraction ---
 
-/// Extract structured table data from a markdown source fragment
-/// containing a single table. The source should be the sliced text
-/// of a Table block (obtained via ParsedDocument::slice()).
-pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError> {
+#[derive(Clone, Debug)]
+pub struct ProjectedTableRow {
+    pub cells: Vec<String>,
+    pub span: SourceSpan,
+}
+
+#[derive(Clone, Debug)]
+pub struct TableProjection {
+    pub headers: Vec<String>,
+    pub alignments: Vec<ColumnAlignment>,
+    pub rows: Vec<ProjectedTableRow>,
+}
+
+fn count_table_row_columns(payload: &str) -> (usize, bool) {
+    // Comrak's first-nonspace/table scanner trims ASCII space and tab here,
+    // not arbitrary Unicode whitespace. A non-breaking space adjacent to an
+    // outer pipe is cell content and must not turn that pipe into a boundary.
+    let trimmed = payload.trim_matches(|ch| ch == ' ' || ch == '\t');
+    let mut unescaped_pipes = Vec::new();
+    for (byte_index, ch) in trimmed.char_indices() {
+        // Match comrak 0.51's table-cell scanner: an ASCII pipe is literal
+        // whenever its immediately preceding byte is a backslash. This is not
+        // odd/even Markdown escape parity; a run of backslashes keeps the pipe
+        // inside the cell. Backticks do not suppress table delimiters.
+        if ch == '|' && (byte_index == 0 || trimmed.as_bytes()[byte_index - 1] != b'\\') {
+            unescaped_pipes.push(byte_index);
+        }
+    }
+
+    let leading = (unescaped_pipes.first() == Some(&0)) as usize;
+    let trailing = unescaped_pipes
+        .last()
+        .is_some_and(|index| *index + 1 == trimmed.len()) as usize;
+    (
+        unescaped_pipes.len() + 1 - leading - trailing,
+        !unescaped_pipes.is_empty(),
+    )
+}
+
+fn offset_span(span: SourceSpan, block_span: SourceSpan) -> SourceSpan {
+    SourceSpan {
+        line_start: block_span.line_start + span.line_start - 1,
+        line_end: block_span.line_start + span.line_end - 1,
+        byte_start: block_span.byte_start + span.byte_start,
+        byte_end: block_span.byte_start + span.byte_end,
+    }
+}
+
+pub fn extract_table_projection(
+    table_source: &str,
+    block_span: SourceSpan,
+) -> Result<TableProjection, CommandError> {
     use comrak::nodes::TableAlignment;
 
+    let line_index = LineIndex::new(table_source);
     let arena = Arena::new();
     let opts = comrak_opts(None);
     let root = parse_document(&arena, table_source, &opts);
@@ -783,7 +832,8 @@ pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError>
             for row_node in node.children() {
                 let row_data = row_node.data.borrow();
                 if let NodeValue::TableRow(is_header) = row_data.value {
-                    let is_header = is_header;
+                    let row_span =
+                        offset_span(line_index.sourcepos_to_span(row_data.sourcepos), block_span);
                     drop(row_data);
 
                     let mut cells = Vec::new();
@@ -796,12 +846,15 @@ pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError>
                     if is_header {
                         headers = cells;
                     } else {
-                        rows.push(cells);
+                        rows.push(ProjectedTableRow {
+                            cells,
+                            span: row_span,
+                        });
                     }
                 }
             }
 
-            return Ok(TableData {
+            return Ok(TableProjection {
                 headers,
                 alignments,
                 rows,
@@ -813,4 +866,79 @@ pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError>
         crate::errors::DiagnosticCode::ParseFailed,
         "source does not contain a table",
     ))
+}
+
+pub fn validate_table_row_payload(
+    payload: &str,
+    expected_columns: usize,
+) -> Result<(), CommandError> {
+    if payload.is_empty() {
+        return Err(CommandError::invalid_table_row(
+            "replacement row payload must not be empty",
+        ));
+    }
+    if payload.contains('\n') || payload.contains('\r') {
+        return Err(CommandError::invalid_table_row(
+            "replacement row payload must contain exactly one line",
+        ));
+    }
+    let (lexical_columns, has_unescaped_pipe) = count_table_row_columns(payload);
+    if expected_columns > 1 && !has_unescaped_pipe {
+        return Err(CommandError::invalid_table_row(
+            "replacement row payload must parse as exactly one GFM table data row",
+        ));
+    }
+    if lexical_columns != expected_columns {
+        return Err(CommandError::invalid_table_row(format!(
+            "replacement row column count {} does not match table column count {}",
+            lexical_columns, expected_columns
+        )));
+    }
+
+    let headers = (0..expected_columns)
+        .map(|idx| format!("c{}", idx))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let delimiter = std::iter::repeat_n("---", expected_columns)
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let synthetic_table = format!("| {} |\n| {} |\n{}\n", headers, delimiter, payload);
+    let projection = extract_table_data(&synthetic_table)?;
+
+    if projection.rows.len() != 1 {
+        return Err(CommandError::invalid_table_row(
+            "replacement row payload must parse as exactly one GFM table data row",
+        ));
+    }
+
+    let actual_columns = projection.rows[0].len();
+    if actual_columns != expected_columns {
+        return Err(CommandError::invalid_table_row(format!(
+            "replacement row column count {} does not match table column count {}",
+            actual_columns, expected_columns
+        )));
+    }
+
+    Ok(())
+}
+
+/// Extract structured table data from a markdown source fragment
+/// containing a single table. The source should be the sliced text
+/// of a Table block (obtained via ParsedDocument::slice()).
+pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError> {
+    let projection = extract_table_projection(
+        table_source,
+        SourceSpan {
+            line_start: 1,
+            line_end: 1,
+            byte_start: 0,
+            byte_end: 0,
+        },
+    )?;
+
+    Ok(TableData {
+        headers: projection.headers,
+        alignments: projection.alignments,
+        rows: projection.rows.into_iter().map(|row| row.cells).collect(),
+    })
 }

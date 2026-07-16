@@ -31,6 +31,8 @@ pub enum DiagnosticCode {
     NoTablesInDocument,
     TableNotATable,
     ColumnNotFound,
+    TableRowNotFound,
+    InvalidTableRow,
     TaskItemNotFound,
     NotATaskList,
     InvalidTaskLoc,
@@ -46,9 +48,12 @@ impl DiagnosticCode {
             Self::InvalidSelector
             | Self::InvalidUtf8OnStdin
             | Self::InvalidKeyPath
-            | Self::ColumnNotFound => MdExitCode::InvalidInput,
+            | Self::ColumnNotFound
+            | Self::InvalidTableRow => MdExitCode::InvalidInput,
             Self::DuplicateHeadingMatch | Self::FrontmatterFieldConflict => MdExitCode::Conflict,
-            Self::NoTablesInDocument | Self::TableNotATable => MdExitCode::NotFound,
+            Self::NoTablesInDocument | Self::TableNotATable | Self::TableRowNotFound => {
+                MdExitCode::NotFound
+            }
             Self::TaskItemNotFound | Self::NotATaskList => MdExitCode::NotFound,
             Self::InvalidTaskLoc => MdExitCode::InvalidInput,
             Self::EtagMismatch => MdExitCode::Conflict,
@@ -133,6 +138,20 @@ impl CommandError {
         )
     }
 
+    pub fn table_row_not_found(block_index: u32, row_index: u32, row_count: u32) -> Self {
+        Self::new(
+            DiagnosticCode::TableRowNotFound,
+            format!(
+                "table row {} out of range for block {} (table has {} data rows)",
+                row_index, block_index, row_count
+            ),
+        )
+    }
+
+    pub fn invalid_table_row(message: impl Into<String>) -> Self {
+        Self::new(DiagnosticCode::InvalidTableRow, message)
+    }
+
     pub fn task_item_not_found(loc: &str) -> Self {
         Self::new(
             DiagnosticCode::TaskItemNotFound,
@@ -186,6 +205,18 @@ impl CommandError {
                  (task content changed since you read it; re-run `md tasks <FILE> --json` \
                  for current locs and etags, then retry)",
                 loc, expected, actual
+            ),
+        )
+    }
+
+    pub fn table_etag_mismatch(index: u32, expected: &str, actual: &str) -> Self {
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "table {} etag mismatch: expected {:?}, found {:?} \
+                 (table content changed since you read it; re-run `md table <FILE> --json` \
+                 or `md table --index {} <FILE> --json` for current indices and etags, then retry)",
+                index, expected, actual, index
             ),
         )
     }

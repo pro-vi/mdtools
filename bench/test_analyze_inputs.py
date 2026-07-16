@@ -495,6 +495,16 @@ class PromptSyncTests(unittest.TestCase):
             "Add them to MDTOOLS_DOCS in bench/harness.py so agents can discover them.",
         )
 
+    def test_table_row_mutation_is_advertised_on_every_md_enabled_prompt(self) -> None:
+        from bench.harness import HYBRID_DOCS, MDTOOLS_DOCS, NATIVE_MD_DOCS
+
+        for name, prompt in {
+            "mdtools": MDTOOLS_DOCS,
+            "hybrid": HYBRID_DOCS,
+            "native+md": NATIVE_MD_DOCS,
+        }.items():
+            self.assertIn("md replace-table-row", prompt, name)
+
     def test_analyze_includes_hybrid_no_md_mode(self) -> None:
         # PR#10 Codex P2: analyze must not hardcode modes to [unix, mdtools, hybrid] —
         # the clean-ablation hybrid-no-md baseline must show up in the summary, not be
