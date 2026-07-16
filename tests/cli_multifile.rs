@@ -374,6 +374,58 @@ fn collect_continues_on_partial_failure() {
     std::fs::remove_dir_all(vault_dir).unwrap();
 }
 
+#[test]
+fn collect_directory_with_one_malformed_file_emits_no_tsv_output() {
+    let vault_dir = make_temp_single_bad_collect_dir();
+
+    let out = md()
+        .args(["collect", "--field", "title", vault_dir.to_str().unwrap()])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    assert!(
+        out.stdout.is_empty(),
+        "stdout: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("invalid YAML frontmatter"));
+    assert!(!stderr.contains("file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
+}
+
+#[test]
+fn collect_directory_with_one_malformed_file_emits_no_json_output() {
+    let vault_dir = make_temp_single_bad_collect_dir();
+
+    let out = md()
+        .args([
+            "collect",
+            "--field",
+            "title",
+            vault_dir.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(2));
+    assert!(
+        out.stdout.is_empty(),
+        "stdout: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("invalid YAML frontmatter"));
+    assert!(!stderr.contains("file(s) failed"));
+
+    std::fs::remove_dir_all(vault_dir).unwrap();
+}
+
 // --- Search multi-file ---
 
 #[test]
@@ -532,6 +584,22 @@ fn make_temp_collect_vault() -> std::path::PathBuf {
         "tests/fixtures/collect_vault/sub/nested.md",
         &dir.join("sub/nested.md"),
     );
+    dir
+}
+
+fn make_temp_single_bad_collect_dir() -> std::path::PathBuf {
+    let unique = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "mdtools-collect-single-bad-{}-{}",
+        std::process::id(),
+        unique
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("broken.md"),
+        "---\ntitle: valid\nnested: [broken\n---\n# Broken\n",
+    )
+    .unwrap();
     dir
 }
 

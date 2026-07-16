@@ -10,6 +10,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
     let mut paths = file_set.paths.clone();
     paths.sort();
+    let aggregate_partial_failures = paths.len() > 1;
 
     let mut rows = Vec::new();
     let mut error_count = 0u32;
@@ -19,7 +20,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
         match collect_row(path, &args.fields) {
             Ok(row) => rows.push(row),
             Err(err) => {
-                if !file_set.is_multi() {
+                if !aggregate_partial_failures {
                     return Err(err);
                 }
                 multifile::report_file_error(path, &err);
