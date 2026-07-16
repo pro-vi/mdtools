@@ -604,6 +604,42 @@ fn replace_table_row_stdout_preserves_non_target_bytes() {
 }
 
 #[test]
+fn replace_table_row_can_target_first_middle_and_last_rows() {
+    let source = "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n";
+    let cases = [
+        (
+            "0",
+            "| Alpha2 | 101 |\n",
+            "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha2 | 101 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n",
+        ),
+        (
+            "1",
+            "| Beta2 | 202 |\n",
+            "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta2 | 202 |\n| Gamma | 300 |\n\nSummary paragraph.\n",
+        ),
+        (
+            "2",
+            "| Gamma2 | 303 |\n",
+            "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma2 | 303 |\n\nSummary paragraph.\n",
+        ),
+    ];
+
+    for (row_index, payload, expected) in cases {
+        let tmp = tempfile(source);
+        let out = md_with_stdin(&["replace-table-row", "1", row_index, &tmp], payload);
+        assert!(
+            out.status.success(),
+            "row {} stderr: {}",
+            row_index,
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(String::from_utf8(out.stdout).unwrap(), expected);
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+        std::fs::remove_file(&tmp).unwrap();
+    }
+}
+
+#[test]
 fn replace_table_row_json_reports_typed_target() {
     let tmp = tempfile(include_str!("fixtures/table.md"));
     let out = md_with_stdin(
@@ -629,6 +665,36 @@ fn replace_table_row_json_reports_typed_target() {
     assert!(updated.contains("| Gamma | 300 |"));
     assert!(updated.contains("Summary paragraph."));
     std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn replace_table_row_from_file_replaces_middle_row_in_place() {
+    let source = "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n";
+    let tmp = tempfile(source);
+    let payload = tempfile("| BetaX | 250 |\n");
+    let out = md()
+        .args([
+            "replace-table-row",
+            "1",
+            "1",
+            &tmp,
+            "-i",
+            "--from",
+            &payload,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| BetaX | 250 |\n| Gamma | 300 |\n\nSummary paragraph.\n"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&payload).unwrap();
 }
 
 #[test]
@@ -681,6 +747,27 @@ fn replace_table_row_invalid_payloads_exit_3_without_writing() {
 }
 
 #[test]
+fn replace_table_row_accepts_formatted_cells_and_escaped_pipes() {
+    let source = "# Data\n\n| Expr | Notes |\n|------|-------|\n| old | keep |\n| stay | still |\n";
+    let tmp = tempfile(source);
+    let out = md_with_stdin(
+        &["replace-table-row", "1", "0", &tmp],
+        "| `a\\|b` | left \\| right and **bold** |\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        "# Data\n\n| Expr | Notes |\n|------|-------|\n| `a\\|b` | left \\| right and **bold** |\n| stay | still |\n"
+    );
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn replace_table_row_out_of_range_is_not_found() {
     let tmp = tempfile(include_str!("fixtures/table.md"));
     let out = md_with_stdin(
@@ -723,6 +810,40 @@ fn replace_table_row_expect_etag_conflict_leaves_bytes_unchanged() {
             &etag,
         ],
         "| Gamma | 300 |\n",
+    );
+    assert_eq!(out.status.code(), Some(4));
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("etag mismatch"));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), drifted);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn replace_table_row_stale_etag_conflicts_before_no_change_short_circuit() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let read = md()
+        .args(["table", &tmp, "--index", "1", "--json"])
+        .output()
+        .unwrap();
+    assert!(read.status.success());
+    let read_json: serde_json::Value = serde_json::from_slice(&read.stdout).unwrap();
+    let etag = read_json["etag"].as_str().unwrap().to_string();
+
+    let drifted =
+        include_str!("fixtures/table.md").replace("| Beta | 200 |\n", "| Beta2 | 250 |\n");
+    std::fs::write(&tmp, &drifted).unwrap();
+
+    let out = md_with_stdin(
+        &[
+            "replace-table-row",
+            "1",
+            "0",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "| Alpha | 100 |\n",
     );
     assert_eq!(out.status.code(), Some(4));
     let stderr = String::from_utf8(out.stderr).unwrap();
