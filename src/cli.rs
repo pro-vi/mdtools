@@ -9,6 +9,9 @@ const SECTION_EXPECT_ETAG_HELP: &str =
 const TASK_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
      differs — guards against a stale loc after intervening edits.";
+const SECTION_CONTAINS_HELP: &str =
+    "Match parsed plaintext top-level heading text by literal substring; \
+     exact matching remains the default";
 
 #[derive(Parser)]
 #[command(name = "md", about = "Markdown-aware CLI for agent operations")]
@@ -55,6 +58,8 @@ pub struct SectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
+    #[arg(long = "contains", help = SECTION_CONTAINS_HELP)]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -77,6 +82,8 @@ pub struct ReplaceSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
+    #[arg(long = "contains", help = SECTION_CONTAINS_HELP)]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -95,6 +102,8 @@ pub struct DeleteSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: PathBuf,
+    #[arg(long = "contains", help = SECTION_CONTAINS_HELP)]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -278,6 +287,10 @@ pub struct MoveSectionArgs {
     /// Case-insensitive matching for both source and destination selectors
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
+
+    /// Literal substring matching for both source and destination selectors
+    #[arg(long = "contains")]
+    pub contains: bool,
 
     /// 1-indexed occurrence to disambiguate same-text source headings
     #[arg(long = "source-occurrence")]

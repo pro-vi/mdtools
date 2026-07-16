@@ -291,6 +291,89 @@ fn t14_multibyte_utf8_in_heading() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn t14b_contains_applies_to_source_and_destination() {
+    let tmp = tempfile("# Doc\n\n## Backend API\nbody a\n\n## Frontend App\nbody b\n");
+    let output = md()
+        .args([
+            "move-section",
+            "api",
+            &tmp,
+            "--after",
+            "front",
+            "--contains",
+            "--ignore-case",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let source = stdout.find("## Backend API").unwrap();
+    let dest = stdout.find("## Frontend App").unwrap();
+    assert!(source > dest, "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t14c_contains_rejects_preamble_selector() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+    let output = md()
+        .args([
+            "move-section",
+            ":preamble",
+            &tmp,
+            "--after",
+            "A",
+            "--contains",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--contains"));
+    assert!(stderr.contains(":preamble"));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t14d_contains_validates_destination_before_resolving_source() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+
+    for (destination, expected_message) in [
+        (":preamble", "--contains cannot be used with :preamble"),
+        ("", "empty selector cannot be used with --contains"),
+    ] {
+        let output = md()
+            .args([
+                "move-section",
+                "missing-source",
+                &tmp,
+                "--after",
+                destination,
+                "--contains",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(3));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(expected_message),
+            "unexpected error for destination {destination:?}: {stderr}"
+        );
+        assert!(
+            !stderr.contains("heading not found"),
+            "source resolution masked invalid destination {destination:?}: {stderr}"
+        );
+    }
+
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // === Selectors (2) ===
 
 #[test]
@@ -320,6 +403,38 @@ fn t15_occurrence_disambiguation() {
     let other = stdout.find("## Other").unwrap();
     let first_notes = stdout.find("first notes").unwrap();
     assert!(first_notes > other);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t15b_contains_dest_occurrence_disambiguation() {
+    let tmp = tempfile(
+        "# Doc\n\n## Backend API\nsource\n\n## Frontend One\none\n\n## Frontend Two\ntwo\n",
+    );
+    let output = md()
+        .args([
+            "move-section",
+            "api",
+            &tmp,
+            "--after",
+            "front",
+            "--contains",
+            "--ignore-case",
+            "--dest-occurrence",
+            "2",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let frontend_two = stdout.find("## Frontend Two").unwrap();
+    let source = stdout.find("## Backend API").unwrap();
+    assert!(source > frontend_two, "got:\n{}", stdout);
     std::fs::remove_file(&tmp).unwrap();
 }
 

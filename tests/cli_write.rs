@@ -194,6 +194,136 @@ fn replace_section_with_occurrence() {
 }
 
 #[test]
+fn replace_section_contains_with_occurrence() {
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "method",
+            "tests/fixtures/basic.md",
+            "--contains",
+            "--ignore-case",
+            "--occurrence",
+            "2",
+        ],
+        "### Sub-methods\n\nReplaced nested section.\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("## Methods"));
+    assert!(stdout.contains("Replaced nested section."));
+    assert!(!stdout.contains("Some additional detail."));
+}
+
+#[test]
+fn replace_section_contains_expect_etag_roundtrips_occurrence() {
+    let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(
+        &path,
+        "method",
+        &["--contains", "--ignore-case", "--occurrence", "2"],
+    );
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "method",
+            &path,
+            "--contains",
+            "--ignore-case",
+            "--occurrence",
+            "2",
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "### Sub-methods\n\nContains-selected replacement.\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("Contains-selected replacement."));
+    assert!(updated.contains("## Methods"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn delete_section_contains_deletes_decorated_heading_and_preserves_neighbors() {
+    let path = tempfile(
+        "# API Reference\n\n## Setup\n\nKeep setup instructions.\n\n## `DELETE /users/:id`\n\nRemove this endpoint.\n\n### Edge Cases\n\nNested details to remove.\n\n## Logging\n\nKeep logging instructions.\n",
+    );
+    let output = md()
+        .args([
+            "delete-section",
+            "DELETE /users",
+            &path,
+            "--contains",
+            "-i",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("## Setup"));
+    assert!(updated.contains("Keep setup instructions."));
+    assert!(updated.contains("## Logging"));
+    assert!(updated.contains("Keep logging instructions."));
+    assert!(!updated.contains("## `DELETE /users/:id`"));
+    assert!(!updated.contains("Remove this endpoint."));
+    assert!(!updated.contains("### Edge Cases"));
+    assert!(!updated.contains("Nested details to remove."));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn delete_section_contains_rejects_preamble_selector() {
+    let output = md()
+        .args([
+            "delete-section",
+            ":preamble",
+            "tests/fixtures/preamble.md",
+            "--contains",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--contains"));
+    assert!(stderr.contains(":preamble"));
+}
+
+#[test]
+fn replace_section_contains_rejects_empty_selector_without_mutating_file() {
+    let original = std::fs::read_to_string("tests/fixtures/table.md").unwrap();
+    let path = tempfile(&original);
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md_with_stdin(
+        &["replace-section", "", &path, "--contains", "-i"],
+        "## Replacement\n\nshould not apply\n",
+    );
+    assert_eq!(output.status.code(), Some(3));
+    let after = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        before, after,
+        "file must stay byte-identical on invalid empty --contains selector"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("empty selector"));
+    assert!(stderr.contains("--contains"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn replace_section_expect_etag_match_succeeds() {
     let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
     let path = tempfile(&content);

@@ -1,6 +1,6 @@
 use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
 use crate::commands::replace::verify_expected_etag;
-use crate::errors::CommandError;
+use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
 use crate::parser::ParsedDocument;
@@ -8,7 +8,12 @@ use crate::parser::ParsedDocument;
 pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
-    let selector = build_selector(&args.selector, args.occurrence, args.ignore_case)?;
+    let selector = build_selector(
+        &args.selector,
+        args.occurrence,
+        args.contains,
+        args.ignore_case,
+    )?;
     let section = find_section(&doc, &selector)?;
     let content = doc.slice(&section.span).to_string();
 
@@ -29,7 +34,12 @@ pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
 pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
-    let selector = build_selector(&args.selector, args.occurrence, args.ignore_case)?;
+    let selector = build_selector(
+        &args.selector,
+        args.occurrence,
+        args.contains,
+        args.ignore_case,
+    )?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
     verify_expected_etag(
@@ -103,7 +113,12 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
 pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
-    let selector = build_selector(&args.selector, args.occurrence, args.ignore_case)?;
+    let selector = build_selector(
+        &args.selector,
+        args.occurrence,
+        args.contains,
+        args.ignore_case,
+    )?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
     verify_expected_etag(
@@ -164,24 +179,40 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
 pub fn build_selector(
     selector: &str,
     occurrence: Option<u32>,
+    contains: bool,
     ignore_case: bool,
 ) -> Result<SectionSelector, CommandError> {
+    if contains && selector.is_empty() {
+        return Err(CommandError::new(
+            DiagnosticCode::InvalidSelector,
+            "empty selector cannot be used with --contains",
+        ));
+    }
+
     if selector == ":preamble" {
-        Ok(SectionSelector {
-            kind: SectionSelectorKind::Preamble,
-            heading_text: None,
-            occurrence: None,
-            match_mode: HeadingMatchMode::Exact,
-        })
+        if contains {
+            Err(CommandError::new(
+                DiagnosticCode::InvalidSelector,
+                "--contains cannot be used with :preamble",
+            ))
+        } else {
+            Ok(SectionSelector {
+                kind: SectionSelectorKind::Preamble,
+                heading_text: None,
+                occurrence: None,
+                match_mode: HeadingMatchMode::Exact,
+            })
+        }
     } else {
         Ok(SectionSelector {
             kind: SectionSelectorKind::HeadingText,
             heading_text: Some(selector.to_string()),
             occurrence,
-            match_mode: if ignore_case {
-                HeadingMatchMode::ExactIgnoreCase
-            } else {
-                HeadingMatchMode::Exact
+            match_mode: match (contains, ignore_case) {
+                (false, false) => HeadingMatchMode::Exact,
+                (false, true) => HeadingMatchMode::ExactIgnoreCase,
+                (true, false) => HeadingMatchMode::Contains,
+                (true, true) => HeadingMatchMode::ContainsIgnoreCase,
             },
         })
     }
@@ -263,19 +294,13 @@ fn find_heading_section(
     heading_text: &str,
     selector: &SectionSelector,
 ) -> Result<SectionEntry, CommandError> {
-    let ignore_case = selector.match_mode == HeadingMatchMode::ExactIgnoreCase;
-
     // Find all matching headings
     let matches: Vec<_> = doc
         .blocks
         .iter()
         .filter(|b| {
             b.heading.as_ref().map_or(false, |h| {
-                if ignore_case {
-                    h.text.eq_ignore_ascii_case(heading_text)
-                } else {
-                    h.text == heading_text
-                }
+                heading_matches(&h.text, heading_text, selector.match_mode)
             })
         })
         .collect();
@@ -419,6 +444,17 @@ fn build_section_mutation_result(
 
 fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
     crate::output::normalize_line_endings(content, style)
+}
+
+fn heading_matches(text: &str, selector_text: &str, match_mode: HeadingMatchMode) -> bool {
+    match match_mode {
+        HeadingMatchMode::Exact => text == selector_text,
+        HeadingMatchMode::ExactIgnoreCase => text.eq_ignore_ascii_case(selector_text),
+        HeadingMatchMode::Contains => text.contains(selector_text),
+        HeadingMatchMode::ContainsIgnoreCase => text
+            .to_ascii_lowercase()
+            .contains(&selector_text.to_ascii_lowercase()),
+    }
 }
 
 fn describe_selector(selector: &SectionSelector) -> String {

@@ -20,7 +20,8 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `src/parser.rs` | Markdown parse boundary and source-span extraction surface |
 | `src/commands/outline.rs` | `md outline` contract implementation |
 | `src/commands/blocks.rs` | `md blocks` and `md block` contract implementation |
-| `src/commands/section.rs` | `md section` and `md replace-section` contract implementation |
+| `src/commands/section.rs` | `md section`, `md replace-section`, and `md delete-section` contract implementation |
+| `src/commands/move_section.rs` | `md move-section` contract implementation |
 | `src/commands/replace.rs` | `md replace-block`, `md insert-block`, and `md delete-block` contract implementation |
 | `src/commands/search.rs` | `md search` contract implementation |
 | `src/commands/links.rs` | `md links` contract implementation |
@@ -30,7 +31,8 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `src/errors.rs` | Error and diagnostic types |
 | `tests/fixtures/` | Markdown fixtures and golden outputs |
 | `tests/cli_read.rs` | Integration tests for read-only commands |
-| `tests/cli_write.rs` | Integration tests for replacement commands |
+| `tests/cli_write.rs` | Integration tests for section and block mutation commands |
+| `tests/cli_move_section.rs` | Integration tests for `md move-section` |
 | `tests/cli_search.rs` | Integration tests for `md search` filters and match envelopes |
 | `bench/tasks/` | Benchmark task definitions and expected outputs |
 | `bench/harness.py` | Phase 2 benchmark runner and scorer |
@@ -43,7 +45,7 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | [id:dec-parser] | Markdown parser boundary | `comrak` with source positions enabled and `MarkdownFeatureSet` extensions | Supports CommonMark plus the enumerated Phase 1 extensions while exposing source spans |
 | [id:dec-binary-name] | Executable name | `md` | Minimal command length for repeated agent use |
 | [id:dec-block-model] | Block identity in Phase 1 | Top-level document blocks only; frontmatter excluded from block indexing | Keeps commands stable and avoids hidden synthetic indices |
-| [id:dec-section-selector] | Section addressing | Plaintext heading text plus optional `--occurrence`; reserved selector `:preamble` | Resolves duplicate heading ambiguity without inventing opaque IDs |
+| [id:dec-section-selector] | Section addressing | Plaintext heading text with exact-default matching, optional literal `--contains`, optional ASCII `--ignore-case`, optional `--occurrence`, and reserved selector `:preamble` | Resolves duplicate heading ambiguity without inventing opaque IDs while keeping the selector contract shared across reads and mutations |
 | [id:dec-mutation-contract] | Mutation behavior | Source-preserving replacement contract; renderer rewrites are out of scope | Trust depends on untouched bytes staying untouched |
 | [id:dec-in-place] | In-place write flag | `--in-place` / `-i` on mutation commands writes the result back to the input file instead of stdout | Agent-first UX: avoids temp-file or `sponge` plumbing; restores benchmark parity with function-call mode |
 | [id:dec-surface-alignment] | Phase 1 command surface | Include `insert-block`, `delete-block`, and `search` alongside the original read and replace commands | Brings the CLI surface closer to the benchmark tasks without introducing stronger primitives than the thesis allows |
@@ -75,6 +77,8 @@ pub enum MdExitCode { // [id:contract-exit-code]
 pub enum HeadingMatchMode { // [id:contract-heading-match-mode]
     Exact,
     ExactIgnoreCase,
+    Contains,
+    ContainsIgnoreCase,
 }
 
 pub enum SearchMatchMode { // [id:contract-search-match-mode]
@@ -380,6 +384,7 @@ pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
     InsertBlock,
     DeleteBlock,
     DeleteSection,
+    MoveSection,
     SetTask,
 }
 
@@ -421,6 +426,21 @@ pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     Section(SectionTargetRef),
     Insert(InsertTargetRef),
     TaskItem(TaskItemTargetRef),
+    SectionMove(SectionMoveTargetRef),
+}
+
+pub enum InsertMode { // [id:contract-insert-mode]
+    AfterSibling,
+    BeforeSibling,
+    IntoAsChild,
+}
+
+pub struct SectionMoveTargetRef { // [id:contract-section-move-target-ref]
+    pub kind: MutationTargetKind,
+    pub source: SectionTargetRef,
+    pub destination: SectionTargetRef,
+    pub destination_mode: InsertMode,
+    pub level_shift_applied: i8,
 }
 
 pub struct SourcePreservationInvariant { // [id:contract-source-preservation]
@@ -451,8 +471,8 @@ pub type ReplaceResult = MutationResult; // [id:contract-replace-result]
 
 The mutation contract is defined by interface, not by algorithm. The required invariants are:
 
-- `replace-block`, `replace-section`, `insert-block`, and `delete-block` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
-- `MutationResult.invariant.preserves_non_target_bytes` is `true` for every successful mutation command. [id:rule-replace-preserve-bytes]
+- `replace-block`, `replace-section`, `insert-block`, `delete-block`, and `move-section` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
+- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `replace-block`, `replace-section`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. [id:rule-replace-preserve-bytes]
 - `MutationResult.content` is `Some(updated_document)` when the successful mutation contract emits document bytes to stdout and `None` when the successful mutation contract writes the file in place; function-call mutation tools follow the in-place form and therefore return `content == None`. [id:rule-mutation-result-content]
 - `--in-place` with `--json` returns `MutationResult` with `content == None`; `--in-place` without `--json` keeps stdout silent after the file write succeeds. [id:rule-in-place-content]
 - Empty stdin is valid for `replace-block`, `replace-section`, and `insert-block`; empty stdin on replace commands yields `MutationDisposition::Deleted` when the selected target span becomes empty. [id:rule-replace-empty-stdin]
@@ -487,6 +507,7 @@ pub enum Command {
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
     Stats(StatsArgs),
+    MoveSection(MoveSectionArgs),
     Tasks(TasksArgs),
     SetTask(SetTaskArgs),
 }
@@ -499,6 +520,8 @@ pub struct SectionArgs { // [id:cli-section]
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: std::path::PathBuf,
+    #[arg(long = "contains")]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -518,6 +541,8 @@ pub struct ReplaceSectionArgs { // [id:cli-replace-section]
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: std::path::PathBuf,
+    #[arg(long = "contains")]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -534,6 +559,8 @@ pub struct DeleteSectionArgs {
     #[arg(value_name = "SELECTOR")]
     pub selector: String,
     pub file: std::path::PathBuf,
+    #[arg(long = "contains")]
+    pub contains: bool,
     #[arg(long = "ignore-case")]
     pub ignore_case: bool,
     #[arg(long = "occurrence")]
@@ -542,6 +569,32 @@ pub struct DeleteSectionArgs {
     pub in_place: bool,
     #[command(flatten)]
     pub etag_guard: SectionEtagGuardArgs,
+}
+
+pub struct MoveSectionArgs { // [id:cli-move-section]
+    #[arg(value_name = "SOURCE_HEADING")]
+    pub source: String,
+    pub file: Option<std::path::PathBuf>,
+    #[arg(long, value_name = "DEST_HEADING")]
+    pub after: Option<String>,
+    #[arg(long, value_name = "DEST_HEADING")]
+    pub before: Option<String>,
+    #[arg(long, value_name = "DEST_HEADING")]
+    pub into: Option<String>,
+    #[arg(long = "auto-level")]
+    pub auto_level: bool,
+    #[arg(long = "keep-level")]
+    pub keep_level: bool,
+    #[arg(long = "ignore-case")]
+    pub ignore_case: bool,
+    #[arg(long = "contains")]
+    pub contains: bool,
+    #[arg(long = "source-occurrence")]
+    pub source_occurrence: Option<u32>,
+    #[arg(long = "dest-occurrence")]
+    pub dest_occurrence: Option<u32>,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
 }
 
 pub struct ReplaceBlockArgs { // [id:cli-replace-block]
@@ -629,14 +682,16 @@ pub struct TaskEtagGuardArgs {
 
 CLI I/O rules:
 
-- All commands require a positional file path; Phase 1 does not define whole-document stdin input. [id:rule-cli-file-input]
+- All commands except `move-section` require a positional file path; `move-section` may omit `FILE` to read the source document from stdin and write the spliced document to stdout, while `--in-place` still requires `FILE`. [id:rule-cli-file-input]
 - `replace-block`, `replace-section`, and `insert-block` additionally read replacement content from stdin. [id:rule-cli-stdin-replace]
 - Successful command output is written to stdout only. [id:rule-cli-stdout]
 - Errors are written to stderr as exactly one human-readable line derived from `Diagnostic.message`. [id:rule-cli-stderr]
 - `frontmatter` emits `FrontmatterReadResult` JSON in both default and `--json` modes. [id:rule-cli-frontmatter-json]
 - `md replace-block`, `md replace-section`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
-- `md section <SELECTOR> <FILE> --ignore-case --occurrence <N>` maps directly to `SectionSelector`; `SELECTOR=:preamble` maps to `SectionSelectorKind::Preamble` and ignores `--occurrence`. [id:rule-cli-section-selector-map]
-- `md replace-section <SELECTOR> <FILE> --ignore-case --occurrence <N>` uses the same selector mapping as `md section`. [id:rule-cli-replace-section-selector-map]
+- `md section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` maps directly to `SectionSelector`; without `--contains`, heading selectors stay exact, and an empty heading selector keeps that exact-default behavior. With `--contains`, empty heading selectors are invalid input. `SELECTOR=:preamble` maps to `SectionSelectorKind::Preamble`, ignores `--occurrence`, and rejects `--contains`. [id:rule-cli-section-selector-map]
+- `md replace-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping and empty-`--contains` rejection as `md section`. [id:rule-cli-replace-section-selector-map]
+- `md delete-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping and empty-`--contains` rejection as `md section`. [id:rule-cli-delete-section-selector-map]
+- `md move-section <SOURCE> [FILE] (--after <DEST> | --before <DEST> | --into <DEST>) [--contains] [--ignore-case] [--source-occurrence <N>] [--dest-occurrence <N>]` applies that same shared selector policy symmetrically to both source and destination selectors, including the empty-`--contains` rejection; `:preamble` remains reserved and rejects `--contains` anywhere in the move selector surface. [id:rule-cli-move-section-selector-map]
 - `md replace-section`, `md delete-section`, and `md set-task` accept `--expect-etag <ETAG>`; when supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. [id:rule-cli-expect-etag]
 - `md insert-block --before <INDEX> <FILE>`, `md insert-block --after <INDEX> <FILE>`, `md insert-block --at-start <FILE>`, and `md insert-block --at-end <FILE>` map to `InsertLocation::Before`, `InsertLocation::After`, `InsertLocation::Start`, and `InsertLocation::End` respectively. [id:rule-cli-insert-location-map]
 - `md search <QUERY> <FILE> --kind <BLOCK_KIND>... --ignore-case` performs content search over the selected top-level block kinds; omitting `--kind` searches every Phase 1 block kind. `<BLOCK_KIND>` values use the kebab-case CLI tokens defined under `contract-block-kind-cli-tokens` (e.g. `--kind code-fence --kind paragraph`). [id:rule-cli-search-map]
@@ -657,6 +712,7 @@ The default stdout contract is optimized for shell composition. `--json` switche
 | `md insert-block` | Full updated document bytes | `MutationResult` |
 | `md delete-block` | Full updated document bytes | `MutationResult` |
 | `md delete-section` | Full updated document bytes | `MutationResult` |
+| `md move-section` | Full updated document bytes | `MutationResult` |
 | `md set-task` | Full updated document bytes | `MutationResult` |
 | `md search` | Canonical text grammar (see below) | `SearchResult` |
 | `md links` | Canonical text grammar (see below) | `LinksResult` |
@@ -796,9 +852,9 @@ Document model rules:
 - For a headed section, `SectionEntry.kind == SectionKind::Heading`, `SectionEntry.depth == heading.level` (e.g. an `## H2` section has `depth == 2`), and `SectionEntry.block_indices` always includes the heading block itself as its first element followed by all subsequent root-level blocks that belong to the section. [id:sem-headed-section-entry]
 - A section begins at a top-level heading block and ends immediately before the next top-level heading whose level is less than or equal to the current heading level. [id:sem-section-boundary]
 - `BlockEntry.etag`, `SectionEntry.etag`, and `TaskEntry.etag` are content-addressed fingerprints of the target's exact resolved source bytes. They are optimistic-concurrency guards, not durable identity: identical bytes may still authorize the wrong same-content target. [id:sem-content-etag]
-- Heading text matching uses the plaintext rendering of heading content. ATX and setext headings are equivalent under this matching contract. [id:sem-heading-plaintext]
+- Heading text matching uses the plaintext rendering of top-level heading content only. ATX and setext headings are equivalent under this matching contract; exact text match is the default, `--contains` is a literal substring match over that plaintext, and `--ignore-case` composes with both modes using ASCII-only case folding. [id:sem-heading-plaintext]
 - Headings that appear inside block quotes, lists, tables, footnotes, or code blocks do not create top-level sections. [id:sem-nested-heading-exclusion]
-- Duplicate heading text is a conflict unless `--occurrence` is supplied; `--occurrence 1` selects the first matching heading in document order. [id:sem-duplicate-headings]
+- Multiple selector matches are a conflict unless the applicable occurrence flag is supplied; `--occurrence 1`, `--source-occurrence 1`, and `--dest-occurrence 1` select the first match in document order for their respective selector. [id:sem-duplicate-headings]
 - The selector string `:preamble` is reserved for addressing the preamble section. A heading whose plaintext is literally `:preamble` cannot be selected by text match in Phase 1; this collision is documented as an accepted limitation. [id:sem-preamble-reserved]
 - `search` matches content spans inside block bodies, not structural node names; heading text participates only when `BlockKind::Heading` is included in the filter set. [id:sem-search-content]
 - `SearchMatch.match_span` identifies the exact matched content occurrence inside the document source, not the containing block span. [id:sem-search-match-span]

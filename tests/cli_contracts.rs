@@ -25,6 +25,12 @@ fn md_with_stdin(args: &[&str], stdin_content: &str) -> std::process::Output {
     child.wait_with_output().unwrap()
 }
 
+fn md_help(subcommand: &str) -> String {
+    let output = md().args([subcommand, "--help"]).output().unwrap();
+    assert!(output.status.success(), "{} --help failed", subcommand);
+    String::from_utf8(output.stdout).unwrap()
+}
+
 // ============================================================
 // BYTE-SPAN ACCURACY: slice source at reported spans, verify content
 // ============================================================
@@ -956,4 +962,30 @@ fn tempfile_helpers_produce_disjoint_paths() {
     );
     std::fs::remove_file(&a).ok();
     std::fs::remove_file(&b).ok();
+}
+
+#[test]
+fn contains_help_text_is_shared_without_changing_move_section_wording() {
+    let shared_help =
+        "Match parsed plaintext top-level heading text by literal substring; exact matching remains the default";
+    for subcommand in ["section", "replace-section", "delete-section"] {
+        let help = md_help(subcommand);
+        let normalized_help = help.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized_help.contains("--contains") && normalized_help.contains(shared_help),
+            "{} --help missing shared --contains text:\n{}",
+            subcommand,
+            help
+        );
+    }
+
+    let move_help = md_help("move-section");
+    let normalized_move_help = move_help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        normalized_move_help.contains(
+            "--contains Literal substring matching for both source and destination selectors"
+        ),
+        "move-section --help changed unexpectedly:\n{}",
+        move_help
+    );
 }
