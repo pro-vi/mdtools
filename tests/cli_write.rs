@@ -433,7 +433,7 @@ fn unicode_section_ignore_case_contains_replace_preserves_neighboring_bytes() {
     let updated = std::fs::read_to_string(&path).unwrap();
     assert_eq!(
         updated,
-        "# Doc\n\n## Setup\nkeep setup\n\n## API CAFÉ rollout\nnew body\n\n### Nested\nnew nested\n## Logging\nkeep logging\n"
+        "# Doc\n\n## Setup\nkeep setup\n\n## API CAFÉ rollout\nnew body\n\n### Nested\nnew nested\n\n## Logging\nkeep logging\n"
     );
     std::fs::remove_file(&path).ok();
 }
