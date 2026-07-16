@@ -37,6 +37,7 @@ MUTATION_MD_COMMANDS = {
     "delete-section",
     "replace-block",
     "replace-table-row",
+    "delete-table-row",
     "insert-block",
     "delete-block",
     "set",

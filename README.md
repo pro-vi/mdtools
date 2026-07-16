@@ -171,11 +171,16 @@ md replace-block 3 doc.md -i --from new_content.md
 etag=$(md table doc.md --index 6 --json | jq -r '.etag')
 printf '| Gamma | 300 |\n' | md replace-table-row 6 1 doc.md -i --expect-etag "$etag"
 
+# Delete one table data row by table block index + zero-based row index
+etag=$(md table doc.md --index 6 --json | jq -r '.etag')
+md delete-table-row 6 1 doc.md -i --expect-etag "$etag"
+
 # Insert a block after block 2
 md insert-block --after 2 doc.md -i --from note.md
 
-# Delete a block or section
+# Delete a block, table row, or section
 md delete-block 4 doc.md -i
+md delete-table-row 6 0 doc.md -i
 md delete-section "Draft Notes" doc.md -i
 
 # Guard a section delete against stale reads
@@ -249,6 +254,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 | `stats` | Word, heading, block, link, section, line counts |
 | `table` | List, read, and project Markdown tables |
 | `replace-table-row` | Replace one GFM table data row by table block index + row index |
+| `delete-table-row` | Delete one GFM table data row by table block index + row index |
 | `set` | Set or delete frontmatter fields by dot-path |
 | `tasks` | List GFM checkbox items with loc, status, depth, heading |
 | `set-task` | Set checkbox state by structural loc |
