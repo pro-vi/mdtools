@@ -166,6 +166,30 @@ impl CommandError {
         )
     }
 
+    pub fn section_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "section {} etag mismatch: expected {:?}, found {:?} \
+                 (section content changed since you read it; re-run `md section <SELECTOR> <FILE> --json` \
+                 for the current section span and etag, then retry)",
+                selector, expected, actual
+            ),
+        )
+    }
+
+    pub fn task_etag_mismatch(loc: &str, expected: &str, actual: &str) -> Self {
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "task {} etag mismatch: expected {:?}, found {:?} \
+                 (task content changed since you read it; re-run `md tasks <FILE> --json` \
+                 for current locs and etags, then retry)",
+                loc, expected, actual
+            ),
+        )
+    }
+
     pub fn frontmatter_field_conflict(key: &str, blocker: &str) -> Self {
         Self::new(
             DiagnosticCode::FrontmatterFieldConflict,

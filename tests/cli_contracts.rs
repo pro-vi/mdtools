@@ -845,6 +845,76 @@ fn error_exits_are_correct() {
     assert_eq!(o.status.code(), Some(4));
 }
 
+#[test]
+fn stale_section_and_task_expect_etag_conflicts_exit_four() {
+    let section_path = tempfile_str(&std::fs::read_to_string("tests/fixtures/basic.md").unwrap());
+    let section_read = md()
+        .args(["section", "Discussion", &section_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(section_read.status.success());
+    let section_json: serde_json::Value = serde_json::from_slice(&section_read.stdout).unwrap();
+    let section_etag = section_json["section"]["etag"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let stale_section = std::fs::read_to_string(&section_path).unwrap();
+    let fresh_section = stale_section.replace(
+        "Final thoughts on the approach.",
+        "Final thoughts after an intervening edit.",
+    );
+    std::fs::write(&section_path, fresh_section).unwrap();
+    let o = md_with_stdin(
+        &[
+            "replace-section",
+            "Discussion",
+            &section_path,
+            "-i",
+            "--expect-etag",
+            &section_etag,
+        ],
+        "## Discussion\n\nShould not apply.\n",
+    );
+    assert_eq!(o.status.code(), Some(4));
+    std::fs::remove_file(&section_path).ok();
+
+    let task_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/progress_example.md").unwrap());
+    let tasks_read = md().args(["tasks", &task_path, "--json"]).output().unwrap();
+    assert!(tasks_read.status.success());
+    let tasks_json: serde_json::Value = serde_json::from_slice(&tasks_read.stdout).unwrap();
+    let task_etag = tasks_json["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|task| task["loc"] == "9.3")
+        .unwrap()["etag"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let stale_task = std::fs::read_to_string(&task_path).unwrap();
+    let fresh_task = stale_task.replace(
+        "[ ] 0.4 Remove collation overrides",
+        "[x] 0.4 Remove collation overrides",
+    );
+    std::fs::write(&task_path, fresh_task).unwrap();
+    let o = md()
+        .args([
+            "set-task",
+            "9.3",
+            &task_path,
+            "-i",
+            "--status",
+            "done",
+            "--expect-etag",
+            &task_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(4));
+    std::fs::remove_file(&task_path).ok();
+}
+
 // ============================================================
 // HELPERS
 // ============================================================

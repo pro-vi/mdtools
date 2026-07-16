@@ -118,8 +118,16 @@ $ md tasks progress.md
 $ md tasks progress.md --status pending --json | jq '.results[0].tasks[0].loc'
 "9.3"
 
+# Read a task etag for a guarded write
+$ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'
+2cce4d9d8f0df9f1
+
 # Mark a task done by structural location
 $ md set-task 9.3 progress.md -i --status done
+
+# Guard a task mutation against stale reads
+$ etag=$(md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag')
+$ md set-task 9.3 progress.md -i --status done --expect-etag "$etag"
 
 # Recursive across a vault
 $ md tasks vault/ -r --status pending --json
@@ -134,6 +142,10 @@ md replace-section "Methods" doc.md -i --from revised_methods.md
 # Replace a section from stdin
 echo "## Methods\n\nRevised methodology." | md replace-section "Methods" doc.md -i
 
+# Guard a section mutation against stale reads
+etag=$(md section "Methods" doc.md --json | jq -r '.section.etag')
+md replace-section "Methods" doc.md -i --from revised_methods.md --expect-etag "$etag"
+
 # Replace a specific block
 md replace-block 3 doc.md -i --from new_content.md
 
@@ -144,6 +156,10 @@ md insert-block --after 2 doc.md -i --from note.md
 md delete-block 4 doc.md -i
 md delete-section "Draft Notes" doc.md -i
 
+# Guard a section delete against stale reads
+etag=$(md section "Draft Notes" doc.md --json | jq -r '.section.etag')
+md delete-section "Draft Notes" doc.md -i --expect-etag "$etag"
+
 # Set frontmatter fields (dot-path, type-inferred)
 md set tags doc.md '["rust", "cli"]' -i
 md set author.name doc.md "Jane" -i
@@ -152,7 +168,14 @@ md set draft doc.md --delete -i
 
 ### JSON mode
 
-Every command supports `--json` for structured output with full span information:
+Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later (`blocks`, `section`, and `tasks`) also expose per-target `etag` fingerprints for optimistic concurrency.
+
+Guarded mutations fail closed: if `--expect-etag` does not match the target's current exact-byte content, the mutation exits with `EtagMismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. These fingerprints are optimistic-concurrency guards, not durable identity; identical bytes can still authorize the wrong same-content target after a structural shift.
+
+```sh
+$ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'
+2cce4d9d8f0df9f1
+```
 
 ```sh
 $ md --json outline doc.md

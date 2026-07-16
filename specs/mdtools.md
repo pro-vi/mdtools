@@ -217,6 +217,7 @@ pub struct BlockEntry { // [id:contract-block-entry]
     pub index: u32,
     pub kind: BlockKind,
     pub span: SourceSpan,
+    pub etag: String,
     pub preview: String,
 }
 
@@ -251,6 +252,7 @@ pub struct SectionEntry { // [id:contract-section-entry]
     pub depth: u8,
     pub block_indices: Vec<u32>,
     pub span: SourceSpan,
+    pub etag: String,
 }
 
 pub struct SectionReadResult { // [id:contract-section-read-result]
@@ -331,6 +333,35 @@ pub struct StatsResult { // [id:contract-stats-result]
     pub file: String,
     pub stats: DocumentStats,
 }
+
+pub enum TaskStatus {
+    Pending,
+    Done,
+}
+
+pub struct TaskEntry {
+    pub loc: String,
+    pub block_index: u32,
+    pub child_path: Vec<u32>,
+    pub task_index: u32,
+    pub status: TaskStatus,
+    pub depth: u32,
+    pub nearest_heading: Option<String>,
+    pub nearest_heading_block_index: Option<u32>,
+    pub span: SourceSpan,
+    pub etag: String,
+    pub summary_text: String,
+}
+
+pub struct TaskFileResult {
+    pub file: String,
+    pub tasks: Vec<TaskEntry>,
+}
+
+pub struct TasksResult {
+    pub schema_version: &'static str,
+    pub results: Vec<TaskFileResult>,
+}
 ```
 
 ## Mutation Contracts [id:sec-contracts-write]
@@ -340,6 +371,7 @@ pub enum MutationTargetKind { // [id:contract-mutation-target-kind]
     Block,
     Section,
     InsertLocation,
+    TaskItem,
 }
 
 pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
@@ -347,6 +379,8 @@ pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
     ReplaceSection,
     InsertBlock,
     DeleteBlock,
+    DeleteSection,
+    SetTask,
 }
 
 pub enum MutationDisposition { // [id:contract-mutation-disposition]
@@ -374,10 +408,19 @@ pub struct InsertTargetRef { // [id:contract-insert-target-ref]
     pub anchor_span: Option<SourceSpan>,
 }
 
+pub struct TaskItemTargetRef {
+    pub kind: MutationTargetKind,
+    pub loc: String,
+    pub block_index: u32,
+    pub child_path: Vec<u32>,
+    pub span: SourceSpan,
+}
+
 pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     Block(BlockTargetRef),
     Section(SectionTargetRef),
     Insert(InsertTargetRef),
+    TaskItem(TaskItemTargetRef),
 }
 
 pub struct SourcePreservationInvariant { // [id:contract-source-preservation]
@@ -436,6 +479,7 @@ pub enum Command {
     Blocks(BlocksArgs),
     Block(BlockArgs),
     ReplaceSection(ReplaceSectionArgs),
+    DeleteSection(DeleteSectionArgs),
     ReplaceBlock(ReplaceBlockArgs),
     InsertBlock(InsertBlockArgs),
     DeleteBlock(DeleteBlockArgs),
@@ -443,6 +487,8 @@ pub enum Command {
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
     Stats(StatsArgs),
+    Tasks(TasksArgs),
+    SetTask(SetTaskArgs),
 }
 
 pub struct OutlineArgs { // [id:cli-outline]
@@ -478,6 +524,24 @@ pub struct ReplaceSectionArgs { // [id:cli-replace-section]
     pub occurrence: Option<u32>,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    #[arg(long)]
+    pub from: Option<std::path::PathBuf>,
+    #[command(flatten)]
+    pub etag_guard: SectionEtagGuardArgs,
+}
+
+pub struct DeleteSectionArgs {
+    #[arg(value_name = "SELECTOR")]
+    pub selector: String,
+    pub file: std::path::PathBuf,
+    #[arg(long = "ignore-case")]
+    pub ignore_case: bool,
+    #[arg(long = "occurrence")]
+    pub occurrence: Option<u32>,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    #[command(flatten)]
+    pub etag_guard: SectionEtagGuardArgs,
 }
 
 pub struct ReplaceBlockArgs { // [id:cli-replace-block]
@@ -531,6 +595,36 @@ pub struct FrontmatterArgs { // [id:cli-frontmatter]
 pub struct StatsArgs { // [id:cli-stats]
     pub file: std::path::PathBuf,
 }
+
+pub struct TasksArgs {
+    #[arg(required = true, num_args = 1..)]
+    pub files: Vec<std::path::PathBuf>,
+    #[arg(long, short = 'r')]
+    pub recursive: bool,
+    #[arg(long)]
+    pub status: Option<TaskStatus>,
+}
+
+pub struct SetTaskArgs {
+    pub loc: String,
+    pub file: std::path::PathBuf,
+    #[arg(long)]
+    pub status: TaskStatus,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    #[command(flatten)]
+    pub etag_guard: TaskEtagGuardArgs,
+}
+
+pub struct SectionEtagGuardArgs {
+    #[arg(long = "expect-etag", value_name = "ETAG")]
+    pub expect_etag: Option<String>,
+}
+
+pub struct TaskEtagGuardArgs {
+    #[arg(long = "expect-etag", value_name = "ETAG")]
+    pub expect_etag: Option<String>,
+}
 ```
 
 CLI I/O rules:
@@ -543,6 +637,7 @@ CLI I/O rules:
 - `md replace-block`, `md replace-section`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
 - `md section <SELECTOR> <FILE> --ignore-case --occurrence <N>` maps directly to `SectionSelector`; `SELECTOR=:preamble` maps to `SectionSelectorKind::Preamble` and ignores `--occurrence`. [id:rule-cli-section-selector-map]
 - `md replace-section <SELECTOR> <FILE> --ignore-case --occurrence <N>` uses the same selector mapping as `md section`. [id:rule-cli-replace-section-selector-map]
+- `md replace-section`, `md delete-section`, and `md set-task` accept `--expect-etag <ETAG>`; when supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. [id:rule-cli-expect-etag]
 - `md insert-block --before <INDEX> <FILE>`, `md insert-block --after <INDEX> <FILE>`, `md insert-block --at-start <FILE>`, and `md insert-block --at-end <FILE>` map to `InsertLocation::Before`, `InsertLocation::After`, `InsertLocation::Start`, and `InsertLocation::End` respectively. [id:rule-cli-insert-location-map]
 - `md search <QUERY> <FILE> --kind <BLOCK_KIND>... --ignore-case` performs content search over the selected top-level block kinds; omitting `--kind` searches every Phase 1 block kind. `<BLOCK_KIND>` values use the kebab-case CLI tokens defined under `contract-block-kind-cli-tokens` (e.g. `--kind code-fence --kind paragraph`). [id:rule-cli-search-map]
 
@@ -556,10 +651,13 @@ The default stdout contract is optimized for shell composition. `--json` switche
 | `md section` | Raw section bytes | `SectionReadResult` |
 | `md blocks` | Canonical text grammar (see below) | `BlocksResult` |
 | `md block` | Raw block bytes | `BlockReadResult` |
+| `md tasks` | Canonical task listing grammar | `TasksResult` |
 | `md replace-section` | Full updated document bytes | `MutationResult` |
 | `md replace-block` | Full updated document bytes | `MutationResult` |
 | `md insert-block` | Full updated document bytes | `MutationResult` |
 | `md delete-block` | Full updated document bytes | `MutationResult` |
+| `md delete-section` | Full updated document bytes | `MutationResult` |
+| `md set-task` | Full updated document bytes | `MutationResult` |
 | `md search` | Canonical text grammar (see below) | `SearchResult` |
 | `md links` | Canonical text grammar (see below) | `LinksResult` |
 | `md frontmatter` | `FrontmatterReadResult` JSON | `FrontmatterReadResult` |
@@ -697,6 +795,7 @@ Document model rules:
 - For the preamble section, `SectionEntry.kind == SectionKind::Preamble`, `SectionEntry.heading == None`, `SectionEntry.depth == 0`, and `SectionEntry.block_indices` lists every root-level Phase 1 block before the first top-level heading. [id:sem-preamble-section-entry]
 - For a headed section, `SectionEntry.kind == SectionKind::Heading`, `SectionEntry.depth == heading.level` (e.g. an `## H2` section has `depth == 2`), and `SectionEntry.block_indices` always includes the heading block itself as its first element followed by all subsequent root-level blocks that belong to the section. [id:sem-headed-section-entry]
 - A section begins at a top-level heading block and ends immediately before the next top-level heading whose level is less than or equal to the current heading level. [id:sem-section-boundary]
+- `BlockEntry.etag`, `SectionEntry.etag`, and `TaskEntry.etag` are content-addressed fingerprints of the target's exact resolved source bytes. They are optimistic-concurrency guards, not durable identity: identical bytes may still authorize the wrong same-content target. [id:sem-content-etag]
 - Heading text matching uses the plaintext rendering of heading content. ATX and setext headings are equivalent under this matching contract. [id:sem-heading-plaintext]
 - Headings that appear inside block quotes, lists, tables, footnotes, or code blocks do not create top-level sections. [id:sem-nested-heading-exclusion]
 - Duplicate heading text is a conflict unless `--occurrence` is supplied; `--occurrence 1` selects the first matching heading in document order. [id:sem-duplicate-headings]
@@ -718,6 +817,7 @@ pub enum DiagnosticCode { // [id:contract-diagnostic-code]
     DuplicateHeadingMatch,
     InvalidSelector,
     InvalidUtf8OnStdin,
+    EtagMismatch,
 }
 ```
 
@@ -728,6 +828,7 @@ Error mapping rules:
 - `FrontmatterParseFailed` maps to `MdExitCode::ParseError`. [id:err-map-frontmatter-parse]
 - `InvalidSelector` and `InvalidUtf8OnStdin` map to `MdExitCode::InvalidInput`. [id:err-map-invalid]
 - `DuplicateHeadingMatch` maps to `MdExitCode::Conflict`. [id:err-map-conflict]
+- `EtagMismatch` maps to `MdExitCode::Conflict`. [id:err-map-etag-conflict]
 - Stderr uses `Diagnostic.message` only; machine-readable codes belong to JSON wrappers and tests, not stderr formatting. [id:err-stderr-format]
 
 ## Edge Cases [id:sec-edge-cases]

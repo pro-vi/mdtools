@@ -71,10 +71,12 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
     }
 }
 
-/// Stable, dependency-free content fingerprint (FNV-1a, 64-bit) rendered as
-/// 16 hex chars. Used as a per-block `etag` so an agent can guard a mutation
-/// against a stale index (`--expect-etag`) after the document may have shifted
-/// between the read and the write. Deterministic across runs and platforms.
+/// Stable, dependency-free shared exact-byte target fingerprint helper
+/// (FNV-1a, 64-bit) rendered as 16 hex chars. Used by block, section, and
+/// task-item read surfaces so an agent can guard a later command invocation
+/// (`--expect-etag`) against target-content drift between the earlier read and
+/// mutation attempt. Content-addressed fingerprint only, not durable target
+/// identity. Deterministic across runs and platforms.
 pub fn content_etag(bytes: &[u8]) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325; // FNV offset basis
     for &b in bytes {
