@@ -77,6 +77,12 @@ class CommandPolicyGuardTests(unittest.TestCase):
             "mutation",
         )
 
+    def test_delete_table_row_is_classified_as_a_mutation(self) -> None:
+        self.assertEqual(
+            classify_command_kind("md delete-table-row 3 1 doc.md -i", "md"),
+            "mutation",
+        )
+
     def test_mdtools_mode_denies_absolute_path_md(self) -> None:
         # Regression guard for the magnum-v4-123b-4bit failure mode observed on
         # the extraction pilot: the model invoked md via an absolute workdir

@@ -504,6 +504,7 @@ class PromptSyncTests(unittest.TestCase):
             "native+md": NATIVE_MD_DOCS,
         }.items():
             self.assertIn("md replace-table-row", prompt, name)
+            self.assertIn("md delete-table-row", prompt, name)
 
     def test_analyze_includes_hybrid_no_md_mode(self) -> None:
         # PR#10 Codex P2: analyze must not hardcode modes to [unix, mdtools, hybrid] —

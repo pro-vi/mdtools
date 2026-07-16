@@ -189,7 +189,8 @@ class ParsedAgentOutput:
 UNIX_TOOLS = ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp"]
 MDTOOLS_TOOLS = [
     "md outline", "md blocks", "md block", "md section",
-    "md replace-section", "md delete-section", "md replace-block", "md replace-table-row",
+    "md replace-section", "md delete-section", "md replace-block",
+    "md replace-table-row", "md delete-table-row",
     "md insert-block", "md delete-block",
     "md search", "md links", "md frontmatter", "md stats",
     "md table", "md set", "md tasks", "md set-task", "cat", "jq",
@@ -230,6 +231,8 @@ TOOL REFERENCE — md (markdown-aware CLI):
                                        Replace section. Reads from --from or stdin.
   md replace-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE> [-i] [--json] [--from PATH] [--expect-etag ETAG]
                                        Replace one table data row. Read the table etag with `md table --json` first.
+  md delete-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE> [-i] [--json] [--expect-etag ETAG]
+                                       Delete one table data row. Selector-only mutation; no stdin or --from.
   md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--from PATH]
                                        Insert a new block. Reads from --from or stdin.
   md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
@@ -310,6 +313,7 @@ TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
   md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
   md replace-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
+  md delete-table-row TABLE ROW F -i [--expect-etag ETAG]
   md replace-block N F -i --from PATH              replace block N
   md replace-section "H" F -i --from PATH          replace a section's body
   md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH
@@ -355,6 +359,7 @@ TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
   md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
   md replace-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
+  md delete-table-row TABLE ROW F -i [--expect-etag ETAG]
   md replace-block N F -i --from PATH              replace block N
   md replace-section "H" F -i --from PATH          replace a section's body
   md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH

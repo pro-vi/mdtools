@@ -1,5 +1,7 @@
-use crate::cli::{ReplaceTableRowArgs, TableArgs};
-use crate::commands::replace::{emit_mutation, strip_one_trailing_newline, verify_expected_etag};
+use crate::cli::{DeleteTableRowArgs, ReplaceTableRowArgs, TableArgs};
+use crate::commands::replace::{
+    emit_mutation, strip_one_trailing_newline, verify_expected_etag, MutationEmission,
+};
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::output;
@@ -104,19 +106,101 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
         span: row.span,
     });
 
-    emit_mutation(
-        args.in_place,
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
         json,
-        &args.file,
-        MutationCommandKind::ReplaceTableRow,
+        file: &args.file,
+        command: MutationCommandKind::ReplaceTableRow,
         target,
         disposition,
         changed,
-        doc.line_ending_style(),
-        Some(row.span),
-        &replacement,
-        &output_doc,
-    )
+        line_endings: doc.line_ending_style(),
+        span_before: Some(row.span),
+        replacement: &replacement,
+        output_doc: &output_doc,
+    })
+}
+
+pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(&args.file)?;
+    let doc = ParsedDocument::parse(source)?;
+
+    let block = doc
+        .blocks
+        .get(args.table_block_index as usize)
+        .ok_or_else(|| {
+            CommandError::block_out_of_range(args.table_block_index, doc.blocks.len() as u32)
+        })?;
+    if block.kind != BlockKind::Table {
+        return Err(CommandError::table_not_found(args.table_block_index));
+    }
+
+    let table_source = doc.slice(&block.span);
+    verify_expected_etag(
+        args.etag_guard.expect_etag.as_deref(),
+        table_source,
+        |expected, actual| {
+            CommandError::table_etag_mismatch(args.table_block_index, expected, actual)
+        },
+    )?;
+
+    let table = parser::extract_table_projection(table_source, block.span)?;
+    let row = table.rows.get(args.row_index as usize).ok_or_else(|| {
+        CommandError::table_row_not_found(
+            args.table_block_index,
+            args.row_index,
+            table.rows.len() as u32,
+        )
+    })?;
+    let deletion_span = resolve_table_row_deletion_span(&doc, row.span);
+
+    let before = &doc.source[..deletion_span.byte_start as usize];
+    let after = &doc.source[deletion_span.byte_end as usize..];
+    let output_doc = format!("{}{}", before, after);
+
+    let target = MutationTargetRef::TableRow(TableRowTargetRef {
+        kind: MutationTargetKind::TableRow,
+        table_block_index: args.table_block_index,
+        row_index: args.row_index,
+        span: row.span,
+    });
+
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
+        json,
+        file: &args.file,
+        command: MutationCommandKind::DeleteTableRow,
+        target,
+        disposition: MutationDisposition::Deleted,
+        changed: true,
+        line_endings: doc.line_ending_style(),
+        span_before: Some(deletion_span),
+        replacement: "",
+        output_doc: &output_doc,
+    })
+}
+
+fn resolve_table_row_deletion_span(doc: &ParsedDocument, row_span: SourceSpan) -> SourceSpan {
+    let source = doc.source.as_bytes();
+    let start = row_span.byte_start as usize;
+    let end = row_span.byte_end as usize;
+    let (byte_start, byte_end) = if source[end..].starts_with(b"\r\n") {
+        (start, end + 2)
+    } else if source[end..].starts_with(b"\n") {
+        (start, end + 1)
+    } else if end == source.len() {
+        if start >= 2 && &source[start - 2..start] == b"\r\n" {
+            (start - 2, end)
+        } else if start >= 1 && source[start - 1] == b'\n' {
+            (start - 1, end)
+        } else {
+            (start, end)
+        }
+    } else {
+        (start, end)
+    };
+
+    doc.span_for_byte_range(byte_start as u32, byte_end as u32)
 }
 
 fn run_list_tables(

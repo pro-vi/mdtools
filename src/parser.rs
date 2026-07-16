@@ -273,7 +273,6 @@ impl ParsedDocument {
 
         let mut blocks = Vec::new();
         let mut frontmatter = None;
-        let mut block_index = 0u32;
 
         for node in root.children() {
             let data = node.data.borrow();
@@ -326,14 +325,13 @@ impl ParsedDocument {
                     let task_items = collect_all_task_items(node, &line_index);
 
                     blocks.push(BlockInfo {
-                        index: block_index,
+                        index: blocks.len() as u32,
                         kind,
                         span,
                         heading,
                         links,
                         task_items,
                     });
-                    block_index += 1;
                 }
             }
         }
@@ -353,9 +351,8 @@ impl ParsedDocument {
         let root = parse_document(&arena, &source, &opts);
 
         let mut blocks = Vec::new();
-        let mut block_index = 0u32;
 
-        for node in root.children() {
+        for (block_index, node) in root.children().enumerate() {
             let data = node.data.borrow();
             let sp = data.sourcepos;
             let kind = node_value_to_block_kind(&data.value);
@@ -393,14 +390,13 @@ impl ParsedDocument {
             let task_items = collect_all_task_items(node, &line_index);
 
             blocks.push(BlockInfo {
-                index: block_index,
+                index: block_index as u32,
                 kind,
                 span,
                 heading,
                 links,
                 task_items,
             });
-            block_index += 1;
         }
 
         Ok(ParsedDocument {
@@ -418,6 +414,21 @@ impl ParsedDocument {
     /// Find the line number for a given byte offset.
     pub fn byte_to_line(&self, byte_offset: u32) -> u32 {
         self.line_index.byte_to_line(byte_offset as usize) as u32
+    }
+
+    pub fn span_for_byte_range(&self, byte_start: u32, byte_end: u32) -> SourceSpan {
+        let line_start = self.byte_to_line(byte_start);
+        let line_end = if byte_end > byte_start {
+            self.byte_to_line(byte_end - 1)
+        } else {
+            line_start
+        };
+        SourceSpan {
+            line_start,
+            line_end,
+            byte_start,
+            byte_end,
+        }
     }
 
     /// Extract the source text for a given span.
@@ -486,10 +497,9 @@ fn collect_task_items<'a>(
     depth: u32,
 ) -> Vec<TaskItemInfo> {
     let mut items = Vec::new();
-    let mut child_counter = 0u32;
     let mut task_counter = 0u32;
 
-    for child in node.children() {
+    for (child_counter, child) in node.children().enumerate() {
         let data = child.data.borrow();
         match &data.value {
             NodeValue::TaskItem(task) => {
@@ -509,7 +519,7 @@ fn collect_task_items<'a>(
                 drop(data);
 
                 let mut path = prefix.to_vec();
-                path.push(child_counter);
+                path.push(child_counter as u32);
 
                 let summary_text = collect_task_item_text(child);
 
@@ -538,7 +548,7 @@ fn collect_task_items<'a>(
                 drop(data);
 
                 let mut path = prefix.to_vec();
-                path.push(child_counter);
+                path.push(child_counter as u32);
 
                 // Regular items can contain nested lists with task items
                 for grandchild in child.children() {
@@ -553,7 +563,6 @@ fn collect_task_items<'a>(
                 drop(data);
             }
         }
-        child_counter += 1;
     }
 
     items
