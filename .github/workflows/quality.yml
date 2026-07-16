@@ -48,3 +48,8 @@ jobs:
 
       - name: Run benchmark harness smoke test
         run: python3 bench/harness.py --md-binary target/release/md
+
+      - name: Record hosted run URL
+        if: ${{ always() }}
+        run: |
+          echo "Hosted quality run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_STEP_SUMMARY"

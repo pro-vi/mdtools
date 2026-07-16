@@ -320,6 +320,7 @@ Benchmark runs default to a guarded executor that constrains Bash to the mode-sp
 GitHub Actions is configured to run [`.github/workflows/quality.yml`](.github/workflows/quality.yml) on pull requests and pushes to `master`. The hosted workflow definition enforces:
 
 Hosted proof is still pending: workflow parsing, scheduling, hosted tool availability, and routine runtime viability remain unproven until the first durable pull-request or `master` quality run URL is captured.
+When that first hosted run lands, the workflow appends its canonical run URL to the GitHub Actions step summary so the evidence can be cited directly.
 
 ```sh
 cargo fmt --check
