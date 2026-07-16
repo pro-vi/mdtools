@@ -7,6 +7,8 @@ use crate::multifile;
 use crate::output;
 use crate::parser::ParsedDocument;
 
+type SourceScalarRange = (usize, usize);
+
 pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
     let multi = file_set.is_multi();
@@ -119,15 +121,8 @@ fn find_matches_in_content(
         return results;
     }
 
-    // For case-insensitive search, we search the lowercased content but report
-    // positions in the original content. This works because to_lowercase() preserves
-    // char count for the scripts we care about (Latin, CJK, etc.), and we use
-    // char-based iteration to map between the two.
-    //
-    // For case-sensitive search, haystack IS content, so positions map directly.
-
     if ignore_case {
-        let haystack = content.to_lowercase();
+        let (haystack, provenance) = lowercase_with_provenance(content);
         let needle = query.to_lowercase();
         let mut search_start = 0usize;
         while search_start < haystack.len() {
@@ -135,10 +130,8 @@ fn find_matches_in_content(
                 let match_start = search_start + pos;
                 let match_end = match_start + needle.len();
 
-                // Map lowercased positions back to original content positions
-                // Since to_lowercase can change byte lengths, we map via char indices
-                let orig_start = map_lowercase_pos_to_original(content, &haystack, match_start);
-                let orig_end = map_lowercase_pos_to_original(content, &haystack, match_end);
+                let (orig_start, orig_end) =
+                    map_lowercase_match_to_original(&provenance, match_start, match_end);
 
                 push_match(
                     &mut results,
@@ -239,25 +232,34 @@ fn next_char_boundary(s: &str, pos: usize) -> usize {
     p
 }
 
-/// Map a byte position in the lowercased string back to the corresponding
-/// byte position in the original string, using char-by-char alignment.
-fn map_lowercase_pos_to_original(original: &str, lowered: &str, lowered_pos: usize) -> usize {
-    let mut orig_byte = 0;
-    let mut low_byte = 0;
+/// Lowercase content while recording, for each emitted byte, the original
+/// source-scalar byte range that produced it.
+fn lowercase_with_provenance(original: &str) -> (String, Vec<SourceScalarRange>) {
+    let mut lowered = String::new();
+    let mut provenance = Vec::new();
 
-    let mut orig_chars = original.chars();
-    let mut low_chars = lowered.chars();
-
-    loop {
-        if low_byte >= lowered_pos {
-            return orig_byte;
-        }
-        match (orig_chars.next(), low_chars.next()) {
-            (Some(oc), Some(lc)) => {
-                orig_byte += oc.len_utf8();
-                low_byte += lc.len_utf8();
-            }
-            _ => return orig_byte,
+    for (orig_start, ch) in original.char_indices() {
+        let orig_end = orig_start + ch.len_utf8();
+        for lowered_ch in ch.to_lowercase() {
+            let mut buf = [0; 4];
+            let lowered_fragment = lowered_ch.encode_utf8(&mut buf);
+            lowered.push_str(lowered_fragment);
+            provenance.extend(
+                std::iter::repeat((orig_start, orig_end)).take(lowered_fragment.len()),
+            );
         }
     }
+
+    (lowered, provenance)
+}
+
+fn map_lowercase_match_to_original(
+    provenance: &[SourceScalarRange],
+    match_start: usize,
+    match_end: usize,
+) -> (usize, usize) {
+    debug_assert!(match_start < match_end);
+    let orig_start = provenance[match_start].0;
+    let orig_end = provenance[match_end - 1].1;
+    (orig_start, orig_end)
 }

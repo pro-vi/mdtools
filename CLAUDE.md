@@ -48,7 +48,6 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 ## Known limitations
 
-- `search --ignore-case` spans break on Unicode case expansion (Turkish dotted I)
 - `section --ignore-case` is ASCII-only (`eq_ignore_ascii_case`)
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
 - `--expect-etag` is **content-addressed, not identity-addressed**: it verifies the
