@@ -29,9 +29,9 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 ## Design rules
 
 - **Markdown primitives only.** If it's in the GFM spec or comrak AST, it's our domain. Task IDs (`0.1`), phase headings, metadata patterns — consumer's job via `jq`.
-- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint), and `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, and `set-task` accept `--expect-etag <hash>` to fail-closed (exit 4, `EtagMismatch`) when the target's current fingerprint differs. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
+- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint), and `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`, and `set-task` accept `--expect-etag <hash>` to fail-closed (exit 4, `EtagMismatch`) when the target's current fingerprint differs. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
 - **Re-query pattern is the moat.** Agents query `md tasks --json`, mutate, re-query for fresh locs. Design new commands to support this cycle. Locs must be cheap to re-derive.
-- **`--from` for all mutations.** `replace-section`, `replace-block`, `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `replace-block` strips one trailing line-ending from the content (matching the newline-excluded block-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code).
+- **`--from` for all mutations.** `replace-section`, `replace-block`, `replace-table-row`, and `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `replace-block` and `replace-table-row` strip one trailing line-ending from the content (matching the newline-excluded target-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code), while table-row replacement preserves the row's existing line ending by keeping it outside the replaced span.
 - **Hybrid > pure.** Agents perform best with both `md` and unix tools. Don't try to replace `sed` for simple edits.
 
 ## Comrak pin
@@ -46,7 +46,7 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 - `section --ignore-case` is ASCII-only (`eq_ignore_ascii_case`)
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
 - `--expect-etag` is **content-addressed, not identity-addressed**: it verifies the
-  selected block, section, or task item still has the expected content fingerprint from
+  selected block, section, table, or task item still has the expected content fingerprint from
   the earlier read when a later command invocation mutates it. In a doc with
   **duplicate-content blocks**, an intervening edit can shift indices so the old index
   lands on a *different* same-content block whose fingerprint also matches — the guard
@@ -176,4 +176,4 @@ OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
 2. Instrument real deployment (track tool choice, re-query rate)
 3. T6 is the roadmap signal — transactional multi-edit gap, not a bug to fix
 4. `md batch` is NOT on the roadmap (Pro review: prove planning vs execution gap first)
-5. Table `--where` shipped. Next table features: row mutations, then `md collect` (vault-as-table)
+5. Table row mutation shipped (`replace-table-row`). Next table feature candidate: `md collect` (vault-as-table)

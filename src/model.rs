@@ -271,6 +271,7 @@ pub enum ColumnAlignment {
 pub struct TableEntry {
     pub block_index: u32,
     pub span: SourceSpan,
+    pub etag: String,
     pub headers: Vec<String>,
     pub row_count: u32,
     pub column_count: u32,
@@ -296,6 +297,7 @@ pub struct TableReadResult {
     pub file: String,
     pub block_index: u32,
     pub span: SourceSpan,
+    pub etag: String,
     pub headers: Vec<String>,
     pub alignments: Vec<ColumnAlignment>,
     pub rows: Vec<Vec<String>>,
@@ -358,12 +360,14 @@ pub enum MutationTargetKind {
     InsertLocation,
     FrontmatterField,
     TaskItem,
+    TableRow,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum MutationCommandKind {
     ReplaceBlock,
     ReplaceSection,
+    ReplaceTableRow,
     InsertBlock,
     DeleteBlock,
     DeleteSection,
@@ -415,6 +419,7 @@ pub enum MutationTargetRef {
     Insert(InsertTargetRef),
     FrontmatterField(FrontmatterFieldTargetRef),
     TaskItem(TaskItemTargetRef),
+    TableRow(TableRowTargetRef),
     SectionMove(SectionMoveTargetRef),
 }
 
@@ -441,6 +446,14 @@ pub struct TaskItemTargetRef {
     pub loc: String,
     pub block_index: u32,
     pub child_path: Vec<u32>,
+    pub span: SourceSpan,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TableRowTargetRef {
+    pub kind: MutationTargetKind,
+    pub table_block_index: u32,
+    pub row_index: u32,
     pub span: SourceSpan,
 }
 

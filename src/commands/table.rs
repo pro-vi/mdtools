@@ -1,4 +1,5 @@
-use crate::cli::TableArgs;
+use crate::cli::{ReplaceTableRowArgs, TableArgs};
+use crate::commands::replace::{emit_mutation, strip_one_trailing_newline, verify_expected_etag};
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::output;
@@ -48,6 +49,76 @@ pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
     }
 }
 
+pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(&args.file)?;
+    let doc = ParsedDocument::parse(source)?;
+
+    let block = doc
+        .blocks
+        .get(args.table_block_index as usize)
+        .ok_or_else(|| {
+            CommandError::block_out_of_range(args.table_block_index, doc.blocks.len() as u32)
+        })?;
+    if block.kind != BlockKind::Table {
+        return Err(CommandError::table_not_found(args.table_block_index));
+    }
+
+    let table_source = doc.slice(&block.span);
+    verify_expected_etag(
+        args.etag_guard.expect_etag.as_deref(),
+        table_source,
+        |expected, actual| {
+            CommandError::table_etag_mismatch(args.table_block_index, expected, actual)
+        },
+    )?;
+
+    let table = parser::extract_table_projection(table_source, block.span)?;
+    let row = table.rows.get(args.row_index as usize).ok_or_else(|| {
+        CommandError::table_row_not_found(
+            args.table_block_index,
+            args.row_index,
+            table.rows.len() as u32,
+        )
+    })?;
+
+    let replacement = output::read_content(args.from.as_deref())?;
+    let replacement = strip_one_trailing_newline(replacement);
+    parser::validate_table_row_payload(&replacement, table.headers.len())?;
+
+    let original_row = doc.slice(&row.span);
+    let disposition = if replacement == original_row {
+        MutationDisposition::NoChange
+    } else {
+        MutationDisposition::Replaced
+    };
+    let changed = disposition != MutationDisposition::NoChange;
+
+    let before = &doc.source[..row.span.byte_start as usize];
+    let after = &doc.source[row.span.byte_end as usize..];
+    let output_doc = format!("{}{}{}", before, replacement, after);
+
+    let target = MutationTargetRef::TableRow(TableRowTargetRef {
+        kind: MutationTargetKind::TableRow,
+        table_block_index: args.table_block_index,
+        row_index: args.row_index,
+        span: row.span,
+    });
+
+    emit_mutation(
+        args.in_place,
+        json,
+        &args.file,
+        MutationCommandKind::ReplaceTableRow,
+        target,
+        disposition,
+        changed,
+        doc.line_ending_style(),
+        Some(row.span),
+        &replacement,
+        &output_doc,
+    )
+}
+
 fn run_list_tables(
     doc: &ParsedDocument,
     table_blocks: &[&crate::parser::BlockInfo],
@@ -57,10 +128,11 @@ fn run_list_tables(
     let mut entries = Vec::new();
     for block in table_blocks {
         let table_source = doc.slice(&block.span);
-        let data = parser::extract_table_data(&table_source)?;
+        let data = parser::extract_table_projection(table_source, block.span)?;
         entries.push(TableEntry {
             block_index: block.index,
             span: block.span,
+            etag: output::content_etag(table_source.as_bytes()),
             headers: data.headers,
             row_count: data.rows.len() as u32,
             column_count: data.alignments.len() as u32,
@@ -92,17 +164,18 @@ fn run_read_table(
     json: bool,
 ) -> Result<(), CommandError> {
     let table_source = doc.slice(&block.span);
-    let data = parser::extract_table_data(&table_source)?;
+    let data = parser::extract_table_projection(table_source, block.span)?;
+    let table_etag = output::content_etag(table_source.as_bytes());
 
     // Filter rows (before projection, so --where can reference any column)
-    let filtered_rows = if args.filters.is_empty() {
-        data.rows.clone()
+    let filtered_rows: Vec<Vec<String>> = if args.filters.is_empty() {
+        data.rows.iter().map(|row| row.cells.clone()).collect()
     } else {
         let filters = parse_filters(&data.headers, &args.filters)?;
         data.rows
             .iter()
+            .map(|row| row.cells.clone())
             .filter(|row| row_matches(row, &filters))
-            .cloned()
             .collect()
     };
 
@@ -114,7 +187,7 @@ fn run_read_table(
             indices.iter().map(|&i| data.headers[i].clone()).collect();
         let projected_rows: Vec<Vec<String>> = filtered_rows
             .iter()
-            .map(|row| {
+            .map(|row: &Vec<String>| {
                 indices
                     .iter()
                     .map(|&i| row.get(i).cloned().unwrap_or_default())
@@ -136,6 +209,7 @@ fn run_read_table(
             file: args.file.to_string_lossy().to_string(),
             block_index: block.index,
             span: block.span,
+            etag: table_etag,
             headers,
             alignments,
             rows,
@@ -241,9 +315,9 @@ fn resolve_column(headers: &[String], col: &str) -> Result<usize, CommandError> 
 
 fn row_matches(row: &[String], filters: &[FilterOp]) -> bool {
     filters.iter().all(|f| match f {
-        FilterOp::Eq(idx, val) => row.get(*idx).map_or(false, |c| c == val),
-        FilterOp::NotEq(idx, val) => row.get(*idx).map_or(true, |c| c != val),
-        FilterOp::Contains(idx, val) => row.get(*idx).map_or(false, |c| c.contains(val.as_str())),
+        FilterOp::Eq(idx, val) => row.get(*idx) == Some(val),
+        FilterOp::NotEq(idx, val) => row.get(*idx) != Some(val),
+        FilterOp::Contains(idx, val) => row.get(*idx).is_some_and(|c| c.contains(val.as_str())),
     })
 }
 

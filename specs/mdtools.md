@@ -338,6 +338,39 @@ pub struct StatsResult { // [id:contract-stats-result]
     pub stats: DocumentStats,
 }
 
+pub enum ColumnAlignment {
+    None,
+    Left,
+    Center,
+    Right,
+}
+
+pub struct TableEntry { // [id:contract-table-entry]
+    pub block_index: u32,
+    pub span: SourceSpan,
+    pub etag: String,
+    pub headers: Vec<String>,
+    pub row_count: u32,
+    pub column_count: u32,
+}
+
+pub struct TablesResult { // [id:contract-tables-result]
+    pub schema_version: &'static str,
+    pub file: String,
+    pub tables: Vec<TableEntry>,
+}
+
+pub struct TableReadResult { // [id:contract-table-read-result]
+    pub schema_version: &'static str,
+    pub file: String,
+    pub block_index: u32,
+    pub span: SourceSpan,
+    pub etag: String,
+    pub headers: Vec<String>,
+    pub alignments: Vec<ColumnAlignment>,
+    pub rows: Vec<Vec<String>>,
+}
+
 pub enum TaskStatus {
     Pending,
     Done,
@@ -376,11 +409,13 @@ pub enum MutationTargetKind { // [id:contract-mutation-target-kind]
     Section,
     InsertLocation,
     TaskItem,
+    TableRow,
 }
 
 pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
     ReplaceBlock,
     ReplaceSection,
+    ReplaceTableRow,
     InsertBlock,
     DeleteBlock,
     DeleteSection,
@@ -421,11 +456,19 @@ pub struct TaskItemTargetRef {
     pub span: SourceSpan,
 }
 
+pub struct TableRowTargetRef { // [id:contract-table-row-target-ref]
+    pub kind: MutationTargetKind,
+    pub table_block_index: u32,
+    pub row_index: u32,
+    pub span: SourceSpan,
+}
+
 pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     Block(BlockTargetRef),
     Section(SectionTargetRef),
     Insert(InsertTargetRef),
     TaskItem(TaskItemTargetRef),
+    TableRow(TableRowTargetRef),
     SectionMove(SectionMoveTargetRef),
 }
 
@@ -471,14 +514,15 @@ pub type ReplaceResult = MutationResult; // [id:contract-replace-result]
 
 The mutation contract is defined by interface, not by algorithm. The required invariants are:
 
-- `replace-block`, `replace-section`, `insert-block`, `delete-block`, and `move-section` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
-- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `replace-block`, `replace-section`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. [id:rule-replace-preserve-bytes]
+- `replace-block`, `replace-section`, `replace-table-row`, `insert-block`, `delete-block`, and `move-section` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
+- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `replace-block`, `replace-section`, `replace-table-row`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. [id:rule-replace-preserve-bytes]
 - `MutationResult.content` is `Some(updated_document)` when the successful mutation contract emits document bytes to stdout and `None` when the successful mutation contract writes the file in place; function-call mutation tools follow the in-place form and therefore return `content == None`. [id:rule-mutation-result-content]
 - `--in-place` with `--json` returns `MutationResult` with `content == None`; `--in-place` without `--json` keeps stdout silent after the file write succeeds. [id:rule-in-place-content]
 - Empty stdin is valid for `replace-block`, `replace-section`, and `insert-block`; empty stdin on replace commands yields `MutationDisposition::Deleted` when the selected target span becomes empty. [id:rule-replace-empty-stdin]
 - Replacement content may change block count, heading count, section count, and link count. [id:rule-replace-structure-change]
 - `delete-block` removes exactly the target block's byte span as defined by its `SourceSpan`. Inter-block whitespace outside the span is preserved verbatim; if deletion produces consecutive blank lines, those blank lines are kept as-is and not collapsed. [id:rule-delete-whitespace]
 - When the source document line endings are uniformly `LF` or uniformly `CRLF`, inserted content is normalized to that style before output; when the source style is `Mixed`, inserted content is preserved as provided. [id:rule-replace-line-endings]
+- `md replace-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE>` replaces exactly one top-level table data-row span, using zero-based row indexing within that table's data rows only (header and delimiter excluded). It strips at most one trailing line ending from stdin or `--from`, rejects empty, multi-line, non-row, or wrong-column payloads with `InvalidInput` / exit code `3`, verifies `--expect-etag` against the whole-table exact-byte fingerprint before any no-change shortcut or write, preserves all non-target bytes and the row's existing line ending, and returns `MutationTargetRef::TableRow` with the table block index, row index, and pre-replacement row span. [id:rule-replace-table-row]
 
 ## CLI Contracts [id:sec-cli]
 
@@ -501,12 +545,14 @@ pub enum Command {
     ReplaceSection(ReplaceSectionArgs),
     DeleteSection(DeleteSectionArgs),
     ReplaceBlock(ReplaceBlockArgs),
+    ReplaceTableRow(ReplaceTableRowArgs),
     InsertBlock(InsertBlockArgs),
     DeleteBlock(DeleteBlockArgs),
     Search(SearchArgs),
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
     Stats(StatsArgs),
+    Table(TableArgs),
     MoveSection(MoveSectionArgs),
     Tasks(TasksArgs),
     SetTask(SetTaskArgs),
@@ -628,6 +674,18 @@ pub struct DeleteBlockArgs { // [id:cli-delete-block]
     pub in_place: bool,
 }
 
+pub struct ReplaceTableRowArgs { // [id:cli-replace-table-row]
+    pub table_block_index: u32,
+    pub row_index: u32,
+    pub file: std::path::PathBuf,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    #[arg(long)]
+    pub from: Option<std::path::PathBuf>,
+    #[command(flatten)]
+    pub etag_guard: TableEtagGuardArgs,
+}
+
 pub struct SearchArgs { // [id:cli-search]
     pub query: String,
     pub file: std::path::PathBuf,
@@ -647,6 +705,16 @@ pub struct FrontmatterArgs { // [id:cli-frontmatter]
 
 pub struct StatsArgs { // [id:cli-stats]
     pub file: std::path::PathBuf,
+}
+
+pub struct TableArgs { // [id:cli-table]
+    pub file: std::path::PathBuf,
+    #[arg(long)]
+    pub index: Option<u32>,
+    #[arg(long, value_delimiter = ',')]
+    pub select: Vec<String>,
+    #[arg(long = "where")]
+    pub filters: Vec<String>,
 }
 
 pub struct TasksArgs {
@@ -678,21 +746,27 @@ pub struct TaskEtagGuardArgs {
     #[arg(long = "expect-etag", value_name = "ETAG")]
     pub expect_etag: Option<String>,
 }
+
+pub struct TableEtagGuardArgs {
+    #[arg(long = "expect-etag", value_name = "ETAG")]
+    pub expect_etag: Option<String>,
+}
 ```
 
 CLI I/O rules:
 
 - All commands except `move-section` require a positional file path; `move-section` may omit `FILE` to read the source document from stdin and write the spliced document to stdout, while `--in-place` still requires `FILE`. [id:rule-cli-file-input]
-- `replace-block`, `replace-section`, and `insert-block` additionally read replacement content from stdin. [id:rule-cli-stdin-replace]
+- `replace-block`, `replace-section`, `replace-table-row`, and `insert-block` additionally read replacement content from stdin. [id:rule-cli-stdin-replace]
 - Successful command output is written to stdout only. [id:rule-cli-stdout]
 - Errors are written to stderr as exactly one human-readable line derived from `Diagnostic.message`. [id:rule-cli-stderr]
 - `frontmatter` emits `FrontmatterReadResult` JSON in both default and `--json` modes. [id:rule-cli-frontmatter-json]
-- `md replace-block`, `md replace-section`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
+- `md replace-block`, `md replace-section`, `md replace-table-row`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
 - `md section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` maps directly to `SectionSelector`; without `--contains`, heading selectors stay exact, and an empty heading selector keeps that exact-default behavior. With `--contains`, empty heading selectors are invalid input. `SELECTOR=:preamble` maps to `SectionSelectorKind::Preamble`, ignores `--occurrence`, and rejects `--contains`. [id:rule-cli-section-selector-map]
 - `md replace-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping and empty-`--contains` rejection as `md section`. [id:rule-cli-replace-section-selector-map]
 - `md delete-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping and empty-`--contains` rejection as `md section`. [id:rule-cli-delete-section-selector-map]
 - `md move-section <SOURCE> [FILE] (--after <DEST> | --before <DEST> | --into <DEST>) [--contains] [--ignore-case] [--source-occurrence <N>] [--dest-occurrence <N>]` applies that same shared selector policy symmetrically to both source and destination selectors, including the empty-`--contains` rejection; `:preamble` remains reserved and rejects `--contains` anywhere in the move selector surface. [id:rule-cli-move-section-selector-map]
-- `md replace-section`, `md delete-section`, and `md set-task` accept `--expect-etag <ETAG>`; when supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. [id:rule-cli-expect-etag]
+- `md replace-section`, `md delete-section`, `md replace-table-row`, and `md set-task` accept `--expect-etag <ETAG>`; when supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. [id:rule-cli-expect-etag]
+- `md table <FILE> [--index <BLOCK_INDEX>] [--select <COLS>] [--where <FILTER>]` lists top-level tables when no selector flags are present, reads a selected table when `--index` is supplied, and on single-table documents allows `--select`/`--where` without `--index`. `--json` list mode returns `TablesResult`; `--json` read mode returns `TableReadResult`, and both surfaces expose the same whole-table `etag` for a given table block. [id:rule-cli-table]
 - `md insert-block --before <INDEX> <FILE>`, `md insert-block --after <INDEX> <FILE>`, `md insert-block --at-start <FILE>`, and `md insert-block --at-end <FILE>` map to `InsertLocation::Before`, `InsertLocation::After`, `InsertLocation::Start`, and `InsertLocation::End` respectively. [id:rule-cli-insert-location-map]
 - `md search <QUERY> <FILE> --kind <BLOCK_KIND>... --ignore-case` performs content search over the selected top-level block kinds; omitting `--kind` searches every Phase 1 block kind. `<BLOCK_KIND>` values use the kebab-case CLI tokens defined under `contract-block-kind-cli-tokens` (e.g. `--kind code-fence --kind paragraph`). [id:rule-cli-search-map]
 
@@ -706,9 +780,11 @@ The default stdout contract is optimized for shell composition. `--json` switche
 | `md section` | Raw section bytes | `SectionReadResult` |
 | `md blocks` | Canonical text grammar (see below) | `BlocksResult` |
 | `md block` | Raw block bytes | `BlockReadResult` |
+| `md table` | Table list summary or TSV rows, depending on selection mode | `TablesResult` or `TableReadResult` |
 | `md tasks` | Canonical task listing grammar | `TasksResult` |
 | `md replace-section` | Full updated document bytes | `MutationResult` |
 | `md replace-block` | Full updated document bytes | `MutationResult` |
+| `md replace-table-row` | Full updated document bytes | `MutationResult` |
 | `md insert-block` | Full updated document bytes | `MutationResult` |
 | `md delete-block` | Full updated document bytes | `MutationResult` |
 | `md delete-section` | Full updated document bytes | `MutationResult` |
@@ -851,7 +927,7 @@ Document model rules:
 - For the preamble section, `SectionEntry.kind == SectionKind::Preamble`, `SectionEntry.heading == None`, `SectionEntry.depth == 0`, and `SectionEntry.block_indices` lists every root-level Phase 1 block before the first top-level heading. [id:sem-preamble-section-entry]
 - For a headed section, `SectionEntry.kind == SectionKind::Heading`, `SectionEntry.depth == heading.level` (e.g. an `## H2` section has `depth == 2`), and `SectionEntry.block_indices` always includes the heading block itself as its first element followed by all subsequent root-level blocks that belong to the section. [id:sem-headed-section-entry]
 - A section begins at a top-level heading block and ends immediately before the next top-level heading whose level is less than or equal to the current heading level. [id:sem-section-boundary]
-- `BlockEntry.etag`, `SectionEntry.etag`, and `TaskEntry.etag` are content-addressed fingerprints of the target's exact resolved source bytes. They are optimistic-concurrency guards, not durable identity: identical bytes may still authorize the wrong same-content target. [id:sem-content-etag]
+- `BlockEntry.etag`, `SectionEntry.etag`, `TableEntry.etag`, `TableReadResult.etag`, and `TaskEntry.etag` are content-addressed fingerprints of the target's exact resolved source bytes. They are optimistic-concurrency guards, not durable identity: identical bytes may still authorize the wrong same-content target. [id:sem-content-etag]
 - Heading text matching uses the plaintext rendering of top-level heading content only. ATX and setext headings are equivalent under this matching contract; exact text match is the default, `--contains` is a literal substring match over that plaintext, and `--ignore-case` composes with both modes using ASCII-only case folding. [id:sem-heading-plaintext]
 - Headings that appear inside block quotes, lists, tables, footnotes, or code blocks do not create top-level sections. [id:sem-nested-heading-exclusion]
 - Multiple selector matches are a conflict unless the applicable occurrence flag is supplied; `--occurrence 1`, `--source-occurrence 1`, and `--dest-occurrence 1` select the first match in document order for their respective selector. [id:sem-duplicate-headings]
@@ -976,13 +1052,13 @@ class BenchResult:  # [id:bench-result]
 Mode inventory contracts:
 
 - `unix` mode inventory is exactly: `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, `tee`, `mv`, `cp`. The agent shell environment supports standard POSIX redirection operators (`>`, `>>`, `<`, `|`) and temp-file creation via `mktemp`. This enables `file_contents` tasks: agents may use `sed` or shell redirection to write modified files in place. [id:bench-unix-inventory]
-- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `replace-block`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
+- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
 - `hybrid` mode inventory is the union of `mdtools` and `unix`. It exists to measure whether agents benefit from mixing structural Markdown commands with conventional shell text tools. [id:bench-hybrid-inventory]
 
 Implemented CLI inventory details:
 
 - `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
-- `replace-section`, `delete-section`, `replace-block`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations. In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
+- `replace-section`, `delete-section`, `replace-block`, `replace-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations. In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
 
 Benchmark validation rules:

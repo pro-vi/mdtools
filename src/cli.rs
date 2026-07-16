@@ -9,6 +9,9 @@ const SECTION_EXPECT_ETAG_HELP: &str =
 const TASK_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
      differs — guards against a stale loc after intervening edits.";
+const TABLE_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the table's current etag (from `md table --json`)\n\
+     differs — guards against mutating a stale table after intervening edits.";
 const SECTION_CONTAINS_HELP: &str =
     "Match parsed plaintext top-level heading text by literal substring; \
      exact matching remains the default";
@@ -40,6 +43,7 @@ pub enum Command {
     Stats(StatsArgs),
     Set(SetArgs),
     Table(TableArgs),
+    ReplaceTableRow(ReplaceTableRowArgs),
     Tasks(TasksArgs),
     SetTask(SetTaskArgs),
     MoveSection(MoveSectionArgs),
@@ -244,6 +248,20 @@ pub struct TableArgs {
 }
 
 #[derive(Args)]
+pub struct ReplaceTableRowArgs {
+    pub table_block_index: u32,
+    pub row_index: u32,
+    pub file: PathBuf,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    /// Read content from file instead of stdin (use "-" for stdin)
+    #[arg(long)]
+    pub from: Option<PathBuf>,
+    #[command(flatten)]
+    pub etag_guard: TableEtagGuardArgs,
+}
+
+#[derive(Args)]
 pub struct TasksArgs {
     #[arg(required = true, num_args = 1..)]
     pub files: Vec<PathBuf>,
@@ -334,6 +352,16 @@ pub struct TaskEtagGuardArgs {
         long = "expect-etag",
         value_name = "ETAG",
         long_help = TASK_EXPECT_ETAG_HELP
+    )]
+    pub expect_etag: Option<String>,
+}
+
+#[derive(Args)]
+pub struct TableEtagGuardArgs {
+    #[arg(
+        long = "expect-etag",
+        value_name = "ETAG",
+        long_help = TABLE_EXPECT_ETAG_HELP
     )]
     pub expect_etag: Option<String>,
 }

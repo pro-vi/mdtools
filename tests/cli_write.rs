@@ -259,13 +259,7 @@ fn delete_section_contains_deletes_decorated_heading_and_preserves_neighbors() {
         "# API Reference\n\n## Setup\n\nKeep setup instructions.\n\n## `DELETE /users/:id`\n\nRemove this endpoint.\n\n### Edge Cases\n\nNested details to remove.\n\n## Logging\n\nKeep logging instructions.\n",
     );
     let output = md()
-        .args([
-            "delete-section",
-            "DELETE /users",
-            &path,
-            "--contains",
-            "-i",
-        ])
+        .args(["delete-section", "DELETE /users", &path, "--contains", "-i"])
         .output()
         .unwrap();
     assert!(

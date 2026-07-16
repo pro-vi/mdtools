@@ -43,11 +43,7 @@ fn md_with_stdin(args: &[&str], stdin_content: &str) -> std::process::Output {
 fn tempfile(content: &str) -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let path = format!(
-        "/tmp/mdtools_adoption_{}_{}.md",
-        std::process::id(),
-        id
-    );
+    let path = format!("/tmp/mdtools_adoption_{}_{}.md", std::process::id(), id);
     std::fs::write(&path, content).unwrap();
     path
 }
@@ -126,7 +122,10 @@ fn replace_block_indented_code_preserves_trailing_newline() {
     // Confirm we're actually exercising indented code with a newline-terminated span.
     assert_eq!(json["block"]["kind"], "IndentedCode");
     let content = json["content"].as_str().unwrap().to_string();
-    assert!(content.ends_with('\n'), "indented-code slice should include trailing newline");
+    assert!(
+        content.ends_with('\n'),
+        "indented-code slice should include trailing newline"
+    );
 
     let out = md_with_stdin(&["replace-block", "1", &tmp, "-i", "--json"], &content);
     assert!(out.status.success());
