@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use crate::cli::{SetTaskArgs, TasksArgs};
+use crate::commands::replace::verify_expected_etag;
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
@@ -87,6 +88,7 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
                     nearest_heading: heading_text.clone(),
                     nearest_heading_block_index: heading_idx,
                     span: item.span,
+                    etag: output::content_etag(doc.slice(&item.span).as_bytes()),
                     summary_text: item.summary_text.clone(),
                 });
             }
@@ -190,6 +192,11 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
 
     let line_endings = doc.line_ending_style();
     let task_span = task_item.span;
+    verify_expected_etag(
+        args.etag_guard.expect_etag.as_deref(),
+        doc.slice(&task_span),
+        |expected, actual| CommandError::task_etag_mismatch(&args.loc, expected, actual),
+    )?;
 
     // Check idempotent
     let disposition = if task_item.status == args.status {
@@ -231,12 +238,6 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
         span: task_span,
     });
 
-    let span_after = if changed {
-        Some(task_span)
-    } else {
-        Some(task_span)
-    };
-
     let build_result = |content: Option<String>| MutationResult {
         schema_version: SCHEMA_VERSION.to_string(),
         file: args.file.to_string_lossy().to_string(),
@@ -248,7 +249,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,
             target_span_before: Some(task_span),
-            target_span_after: span_after,
+            target_span_after: Some(task_span),
         },
         content,
     };

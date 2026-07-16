@@ -32,6 +32,19 @@ fn md_text(args: &[&str]) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
 
+fn task_etag(path: &str, loc: &str) -> String {
+    let json = md_json(&["tasks", path]);
+    json["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|task| task["loc"] == loc)
+        .unwrap_or_else(|| panic!("task loc {loc} not found"))["etag"]
+        .as_str()
+        .expect("task JSON should expose an etag")
+        .to_string()
+}
+
 fn tmpfile(content: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static CTR: AtomicU64 = AtomicU64::new(0);
@@ -71,6 +84,7 @@ fn tasks_entry_has_all_fields() {
     assert!(task["status"].is_string());
     assert!(task["depth"].is_u64());
     assert!(task["span"].is_object());
+    assert!(task["etag"].is_string());
     assert!(task["summary_text"].is_string());
     assert!(task["nearest_heading"].is_string());
     assert!(task["nearest_heading_block_index"].is_u64());
@@ -398,6 +412,110 @@ fn set_task_json_envelope() {
     assert_eq!(json["command"], "SetTask");
     assert_eq!(json["target"]["TaskItem"]["loc"], "9.3");
     assert_eq!(json["target"]["TaskItem"]["block_index"], 9);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn set_task_expect_etag_match_succeeds_for_nested_loc() {
+    let content = std::fs::read_to_string(NESTED).unwrap();
+    let path = tmpfile(&content);
+    let etag = task_etag(&path, "2.1.0.0");
+    let output = md()
+        .args([
+            "set-task",
+            "2.1.0.0",
+            &path,
+            "-i",
+            "--json",
+            "--status",
+            "done",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("[x] Grandchild task"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn set_task_expect_etag_mismatch_fails_closed_before_idempotence() {
+    let content = std::fs::read_to_string(PROGRESS).unwrap();
+    let path = tmpfile(&content);
+    let etag = task_etag(&path, "9.3");
+    let stale_source = std::fs::read_to_string(&path).unwrap();
+    let fresh_source = stale_source.replace(
+        "[ ] 0.4 Remove collation overrides",
+        "[x] 0.4 Remove collation overrides",
+    );
+    std::fs::write(&path, &fresh_source).unwrap();
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md()
+        .args([
+            "set-task",
+            "9.3",
+            &path,
+            "-i",
+            "--status",
+            "done",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    let after = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        before, after,
+        "file must stay byte-identical on etag mismatch"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("etag"),
+        "stderr should mention etag: {stderr}"
+    );
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn set_task_expect_etag_mismatch_fails_closed_for_nested_loc() {
+    let content = std::fs::read_to_string(NESTED).unwrap();
+    let path = tmpfile(&content);
+    let etag = task_etag(&path, "2.1.0.0");
+    let stale_source = std::fs::read_to_string(&path).unwrap();
+    let fresh_source = stale_source.replace("[ ] Grandchild task", "[x] Grandchild task");
+    std::fs::write(&path, &fresh_source).unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let output = md()
+        .args([
+            "set-task",
+            "2.1.0.0",
+            &path,
+            "-i",
+            "--status",
+            "done",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    let after = std::fs::read(&path).unwrap();
+    assert_eq!(
+        before, after,
+        "file must stay byte-identical on etag mismatch"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("etag"),
+        "stderr should mention etag: {stderr}"
+    );
     std::fs::remove_file(&path).ok();
 }
 

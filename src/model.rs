@@ -151,6 +151,9 @@ pub struct SectionEntry {
     pub depth: u8,
     pub block_indices: Vec<u32>,
     pub span: SourceSpan,
+    /// Content fingerprint of the section's exact source bytes. Pass back via
+    /// `--expect-etag` on section mutations to fail-closed on stale reads.
+    pub etag: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -326,6 +329,9 @@ pub struct TaskEntry {
     pub nearest_heading: Option<String>,
     pub nearest_heading_block_index: Option<u32>,
     pub span: SourceSpan,
+    /// Content fingerprint of the task item's exact source bytes. Pass back via
+    /// `--expect-etag` on `set-task` to fail-closed on stale reads.
+    pub etag: String,
     pub summary_text: String,
 }
 

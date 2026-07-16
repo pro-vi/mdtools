@@ -22,6 +22,24 @@ fn md_with_stdin(args: &[&str], stdin_content: &str) -> std::process::Output {
     child.wait_with_output().unwrap()
 }
 
+fn section_etag(path: &str, selector: &str, extra_args: &[&str]) -> String {
+    let mut args = vec!["section", selector, path];
+    args.extend_from_slice(extra_args);
+    args.push("--json");
+    let output = md().args(&args).output().unwrap();
+    assert!(
+        output.status.success(),
+        "command {:?} failed: {}",
+        args,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    json["section"]["etag"]
+        .as_str()
+        .expect("section JSON should expose an etag")
+        .to_string()
+}
+
 #[test]
 fn replace_block_stdout() {
     let output = md_with_stdin(
@@ -173,6 +191,162 @@ fn replace_section_with_occurrence() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Replaced first."));
     assert!(stdout.contains("Second methods section"));
+}
+
+#[test]
+fn replace_section_expect_etag_match_succeeds() {
+    let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(&path, "Discussion", &[]);
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "Discussion",
+            &path,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "## Discussion\n\nUpdated discussion.\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("Updated discussion."));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn replace_section_expect_etag_mismatch_fails_closed() {
+    let content = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(&path, "Discussion", &[]);
+    let stale_source = std::fs::read_to_string(&path).unwrap();
+    let fresh_source = stale_source.replace(
+        "Final thoughts on the approach.",
+        "Final thoughts after an intervening edit.",
+    );
+    std::fs::write(&path, &fresh_source).unwrap();
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "Discussion",
+            &path,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "## Discussion\n\nShould not apply.\n",
+    );
+    assert_eq!(output.status.code(), Some(4));
+    let after = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        before, after,
+        "file must stay byte-identical on etag mismatch"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("etag"),
+        "stderr should mention etag: {stderr}"
+    );
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn replace_section_expect_etag_roundtrips_duplicate_occurrence() {
+    let content = std::fs::read_to_string("tests/fixtures/duplicate_headings.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(&path, "Methods", &["--occurrence", "2"]);
+    let output = md_with_stdin(
+        &[
+            "replace-section",
+            "Methods",
+            &path,
+            "--occurrence",
+            "2",
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "## Methods\n\nReplaced second.\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("Replaced second."));
+    assert!(updated.contains("First methods section"));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn delete_section_expect_etag_match_succeeds_for_preamble() {
+    let content = std::fs::read_to_string("tests/fixtures/preamble.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(&path, ":preamble", &[]);
+    let output = md()
+        .args([
+            "delete-section",
+            ":preamble",
+            &path,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&path).unwrap();
+    assert!(updated.contains("# First Heading"));
+    assert!(!updated.contains("This is the preamble content before any headings."));
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn delete_section_expect_etag_mismatch_fails_closed() {
+    let content = std::fs::read_to_string("tests/fixtures/preamble.md").unwrap();
+    let path = tempfile(&content);
+    let etag = section_etag(&path, ":preamble", &[]);
+    let stale_source = std::fs::read_to_string(&path).unwrap();
+    let fresh_source = stale_source.replace(
+        "This is the preamble content before any headings.",
+        "This preamble changed after the original read.",
+    );
+    std::fs::write(&path, &fresh_source).unwrap();
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md()
+        .args([
+            "delete-section",
+            ":preamble",
+            &path,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    let after = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        before, after,
+        "file must stay byte-identical on etag mismatch"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("etag"),
+        "stderr should mention etag: {stderr}"
+    );
+    std::fs::remove_file(&path).ok();
 }
 
 #[test]

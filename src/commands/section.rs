@@ -1,4 +1,5 @@
 use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
+use crate::commands::replace::verify_expected_etag;
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::output;
@@ -31,6 +32,17 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     let selector = build_selector(&args.selector, args.occurrence, args.ignore_case)?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
+    verify_expected_etag(
+        args.etag_guard.expect_etag.as_deref(),
+        doc.slice(&section_span),
+        |expected, actual| {
+            CommandError::section_etag_mismatch(
+                &describe_selector(&section.selector),
+                expected,
+                actual,
+            )
+        },
+    )?;
 
     let replacement = output::read_content(args.from.as_deref())?;
 
@@ -94,6 +106,17 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     let selector = build_selector(&args.selector, args.occurrence, args.ignore_case)?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
+    verify_expected_etag(
+        args.etag_guard.expect_etag.as_deref(),
+        doc.slice(&section_span),
+        |expected, actual| {
+            CommandError::section_etag_mismatch(
+                &describe_selector(&section.selector),
+                expected,
+                actual,
+            )
+        },
+    )?;
     let line_endings = doc.line_ending_style();
 
     let before = &doc.source[..section_span.byte_start as usize];
@@ -231,6 +254,7 @@ fn find_preamble(doc: &ParsedDocument) -> Result<SectionEntry, CommandError> {
         depth: 0,
         block_indices,
         span,
+        etag: output::content_etag(doc.slice(&span).as_bytes()),
     })
 }
 
@@ -326,6 +350,7 @@ fn find_heading_section(
         depth: level,
         block_indices,
         span,
+        etag: output::content_etag(doc.slice(&span).as_bytes()),
     })
 }
 
@@ -394,4 +419,17 @@ fn build_section_mutation_result(
 
 fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
     crate::output::normalize_line_endings(content, style)
+}
+
+fn describe_selector(selector: &SectionSelector) -> String {
+    match selector.kind {
+        SectionSelectorKind::Preamble => ":preamble".to_string(),
+        SectionSelectorKind::HeadingText => {
+            let heading = selector.heading_text.as_deref().unwrap_or("");
+            match selector.occurrence {
+                Some(occurrence) => format!("{:?} occurrence {}", heading, occurrence),
+                None => format!("{:?}", heading),
+            }
+        }
+    }
 }

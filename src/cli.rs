@@ -3,6 +3,13 @@ use std::path::PathBuf;
 
 use crate::model::{BlockKind, TaskStatus};
 
+const SECTION_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the target section's current etag (from `md section --json`)\n\
+     differs — guards against a stale selector after intervening edits.";
+const TASK_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
+     differs — guards against a stale loc after intervening edits.";
+
 #[derive(Parser)]
 #[command(name = "md", about = "Markdown-aware CLI for agent operations")]
 pub struct Cli {
@@ -79,6 +86,8 @@ pub struct ReplaceSectionArgs {
     /// Read content from file instead of stdin (use "-" for stdin)
     #[arg(long)]
     pub from: Option<PathBuf>,
+    #[command(flatten)]
+    pub etag_guard: SectionEtagGuardArgs,
 }
 
 #[derive(Args)]
@@ -92,6 +101,8 @@ pub struct DeleteSectionArgs {
     pub occurrence: Option<u32>,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    #[command(flatten)]
+    pub etag_guard: SectionEtagGuardArgs,
 }
 
 #[derive(Args)]
@@ -290,4 +301,26 @@ pub struct SetTaskArgs {
     pub status: TaskStatus,
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+    #[command(flatten)]
+    pub etag_guard: TaskEtagGuardArgs,
+}
+
+#[derive(Args)]
+pub struct SectionEtagGuardArgs {
+    #[arg(
+        long = "expect-etag",
+        value_name = "ETAG",
+        long_help = SECTION_EXPECT_ETAG_HELP
+    )]
+    pub expect_etag: Option<String>,
+}
+
+#[derive(Args)]
+pub struct TaskEtagGuardArgs {
+    #[arg(
+        long = "expect-etag",
+        value_name = "ETAG",
+        long_help = TASK_EXPECT_ETAG_HELP
+    )]
+    pub expect_etag: Option<String>,
 }

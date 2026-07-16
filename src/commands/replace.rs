@@ -15,7 +15,11 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
 
     let block_span = block.span;
 
-    verify_etag(args.expect_etag.as_deref(), args.index, doc.slice(&block_span))?;
+    verify_etag(
+        args.expect_etag.as_deref(),
+        args.index,
+        doc.slice(&block_span),
+    )?;
 
     let replacement = output::read_content(args.from.as_deref())?;
 
@@ -167,7 +171,11 @@ pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), Comman
 
     let block_span = block.span;
 
-    verify_etag(args.expect_etag.as_deref(), args.index, doc.slice(&block_span))?;
+    verify_etag(
+        args.expect_etag.as_deref(),
+        args.index,
+        doc.slice(&block_span),
+    )?;
 
     let line_endings = doc.line_ending_style();
 
@@ -284,10 +292,23 @@ fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
 /// `--expect-etag`. Fails-closed (Conflict) on mismatch, so a stale index never
 /// silently mutates the wrong block. No-op when no etag was supplied.
 fn verify_etag(expect: Option<&str>, index: u32, current: &str) -> Result<(), CommandError> {
+    verify_expected_etag(expect, current, |expected, actual| {
+        CommandError::etag_mismatch(index, expected, actual)
+    })
+}
+
+pub(crate) fn verify_expected_etag<F>(
+    expect: Option<&str>,
+    current: &str,
+    mismatch: F,
+) -> Result<(), CommandError>
+where
+    F: FnOnce(&str, &str) -> CommandError,
+{
     if let Some(expected) = expect {
         let actual = output::content_etag(current.as_bytes());
         if expected != actual {
-            return Err(CommandError::etag_mismatch(index, expected, &actual));
+            return Err(mismatch(expected, &actual));
         }
     }
     Ok(())
