@@ -486,6 +486,48 @@ fn replace_section_empty_stdin_yields_deleted() {
     assert_eq!(json["disposition"], "Deleted");
 }
 
+#[test]
+fn replace_section_boundary_target_span_after_matches_effective_inserted_bytes() {
+    let path = tempfile_str("# Doc\n\n## One\nold\n\n## Two\nkeep\n");
+    let output = md_with_stdin(
+        &["replace-section", "One", &path, "--json"],
+        "## One\nnew\n",
+    );
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "Replaced");
+    assert_eq!(json["changed"], true);
+
+    let content = json["content"].as_str().unwrap();
+    let after = &json["invariant"]["target_span_after"];
+    let bs = after["byte_start"].as_u64().unwrap() as usize;
+    let be = after["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&content[bs..be], "## One\nnew\n\n");
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn replace_section_boundary_nochange_fields_reflect_effective_inserted_bytes() {
+    let source = "# Doc\n\n## One\nold\n\n## Two\nkeep\n";
+    let path = tempfile_str(source);
+    let output = md_with_stdin(
+        &["replace-section", "One", &path, "--json"],
+        "## One\nold\n",
+    );
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "NoChange");
+    assert_eq!(json["changed"], false);
+    assert_eq!(json["content"].as_str().unwrap(), source);
+    assert_eq!(
+        json["invariant"]["target_span_before"],
+        json["invariant"]["target_span_after"]
+    );
+
+    std::fs::remove_file(&path).ok();
+}
+
 // ============================================================
 // CRLF MUTATIONS: line ending normalization
 // ============================================================
