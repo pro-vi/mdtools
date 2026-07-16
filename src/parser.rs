@@ -765,21 +765,18 @@ pub struct TableProjection {
 }
 
 fn count_table_row_columns(payload: &str) -> (usize, bool) {
-    let trimmed = payload.trim();
+    // Comrak's first-nonspace/table scanner trims ASCII space and tab here,
+    // not arbitrary Unicode whitespace. A non-breaking space adjacent to an
+    // outer pipe is cell content and must not turn that pipe into a boundary.
+    let trimmed = payload.trim_matches(|ch| ch == ' ' || ch == '\t');
     let mut unescaped_pipes = Vec::new();
-    let mut escaped = false;
     for (byte_index, ch) in trimmed.char_indices() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        match ch {
-            '\\' => escaped = true,
-            // GFM table parsing treats an unescaped pipe as a column delimiter
-            // even when it appears between backticks. Callers must write `\|`
-            // when a literal pipe belongs to inline content.
-            '|' => unescaped_pipes.push(byte_index),
-            _ => {}
+        // Match comrak 0.51's table-cell scanner: an ASCII pipe is literal
+        // whenever its immediately preceding byte is a backslash. This is not
+        // odd/even Markdown escape parity; a run of backslashes keeps the pipe
+        // inside the cell. Backticks do not suppress table delimiters.
+        if ch == '|' && (byte_index == 0 || trimmed.as_bytes()[byte_index - 1] != b'\\') {
+            unescaped_pipes.push(byte_index);
         }
     }
 

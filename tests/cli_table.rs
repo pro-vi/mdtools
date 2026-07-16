@@ -807,6 +807,43 @@ fn replace_table_row_accepts_escaped_pipe_at_physical_line_end() {
 }
 
 #[test]
+fn replace_table_row_matches_comrak_for_pipe_after_backslash_run() {
+    let source = "| Name | Value |\n|---|---|\n| old | value |\n";
+    let tmp = tempfile(source);
+    let out = md_with_stdin(
+        &["replace-table-row", "0", "0", &tmp],
+        "| a\\\\|b | value |\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        "| Name | Value |\n|---|---|\n| a\\\\|b | value |\n"
+    );
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn replace_table_row_does_not_trim_unicode_cell_content_into_a_boundary() {
+    let source = "| Name | Value |\n|---|---|\n| old | value |\n";
+    let tmp = tempfile(source);
+    let out = md_with_stdin(
+        &["replace-table-row", "0", "0", &tmp, "-i"],
+        "\u{00a0}| a | b |\n",
+    );
+    assert_eq!(out.status.code(), Some(3));
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("column count 3 does not match table column count 2"));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn replace_table_row_rejects_unescaped_pipe_inside_code_markup() {
     let source = "| Name | Value |\n|---|---|\n| old | value |\n";
     let tmp = tempfile(source);
