@@ -986,6 +986,67 @@ fn stats_word_count_excludes_code() {
 }
 
 #[test]
+fn stats_heading_word_count_uses_parser_plaintext_for_lf_inputs() {
+    let cases = [
+        ("# Alpha Beta\n", 2_u64),
+        ("  ## Alpha Beta\n", 2_u64),
+        ("## Alpha Beta ##\n", 2_u64),
+        ("Alpha Beta\n----------\n", 2_u64),
+        ("  Alpha Beta\n  ----------\n", 2_u64),
+        (
+            "# Alpha *Beta* [Gamma](https://example.com) `delta`\n",
+            4_u64,
+        ),
+    ];
+
+    for (source, expected) in cases {
+        let path = tempfile_str(source);
+        let output = md().args(["stats", &path, "--json"]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            json["stats"]["word_count"], expected,
+            "heading plaintext stats mismatch for source {:?}",
+            source
+        );
+        std::fs::remove_file(&path).unwrap();
+    }
+}
+
+#[test]
+fn stats_heading_word_count_uses_parser_plaintext_for_crlf_inputs() {
+    let cases: [(&[u8], u64); 2] = [
+        (b"  ## Alpha Beta\r\n", 2_u64),
+        (
+            b"Alpha *Beta* [Gamma](https://example.com) `delta`\r\n----------\r\n",
+            4_u64,
+        ),
+    ];
+
+    for (source, expected) in cases {
+        let path = tempfile_bytes(source);
+        let output = md().args(["stats", &path, "--json"]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            json["stats"]["word_count"],
+            expected,
+            "heading plaintext stats mismatch for source {:?}",
+            String::from_utf8_lossy(source)
+        );
+        std::fs::remove_file(&path).unwrap();
+    }
+}
+
+#[test]
 fn stats_line_count_no_trailing_newline() {
     // A file with no trailing newline: last line still counts
     let tmp = tempfile_str("line1\nline2\nline3");
