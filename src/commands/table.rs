@@ -116,7 +116,13 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
         changed,
         line_endings: doc.line_ending_style(),
         span_before: Some(row.span),
-        replacement: &replacement,
+        span_after: match disposition {
+            MutationDisposition::NoChange => Some(row.span),
+            MutationDisposition::Replaced => Some(
+                crate::commands::replace::replacement_span_after(row.span, &replacement),
+            ),
+            MutationDisposition::Deleted | MutationDisposition::Inserted => None,
+        },
         output_doc: &output_doc,
     })
 }
@@ -175,7 +181,7 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
         changed: true,
         line_endings: doc.line_ending_style(),
         span_before: Some(deletion_span),
-        replacement: "",
+        span_after: None,
         output_doc: &output_doc,
     })
 }

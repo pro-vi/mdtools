@@ -275,6 +275,10 @@ fn insert_block_after_expect_etag_mismatch_fails_closed() {
         "Inserted.",
     );
     assert_eq!(out.status.code(), Some(4));
+    assert!(
+        out.stdout.is_empty(),
+        "etag mismatch must fail before emitting mutation payload"
+    );
     let after = std::fs::read_to_string(&tmp).unwrap();
     assert_eq!(before, after, "file must be untouched on etag mismatch");
     cleanup(&tmp);
@@ -319,6 +323,10 @@ fn insert_block_at_end_with_expect_etag_is_usage_error() {
         out.status.code(),
         Some(3),
         "--expect-etag without --before/--after must be an InvalidInput usage error"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "usage error must fail before emitting mutation payload"
     );
     cleanup(&tmp);
 }
@@ -402,6 +410,10 @@ fn insert_block_before_expect_etag_mismatch_fails_closed() {
         "Inserted.",
     );
     assert_eq!(out.status.code(), Some(4));
+    assert!(
+        out.stdout.is_empty(),
+        "etag mismatch must fail before emitting mutation payload"
+    );
     let after = std::fs::read_to_string(&tmp).unwrap();
     assert_eq!(before, after, "file must be untouched on etag mismatch");
     cleanup(&tmp);
