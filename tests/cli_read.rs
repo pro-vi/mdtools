@@ -799,6 +799,16 @@ fn malformed_frontmatter_blocks_fallback() {
 }
 
 #[test]
+fn malformed_toml_frontmatter_exit_code() {
+    let path = tempfile("+++\ntitle = \"unterminated\n+++\n# Broken\n");
+    let output = md().args(["frontmatter", &path]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("invalid TOML frontmatter"));
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
 fn unclosed_frontmatter_not_present() {
     let output = md()
         .args(["frontmatter", "tests/fixtures/unclosed_frontmatter.md"])

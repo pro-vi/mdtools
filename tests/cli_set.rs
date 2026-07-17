@@ -36,6 +36,32 @@ fn frontmatter_etag(path: &std::path::Path) -> String {
     json["etag"].as_str().unwrap().to_string()
 }
 
+fn raw_frontmatter_etag(raw: Option<&str>) -> String {
+    const ABSENT_DOMAIN: &[u8] = b"mdtools.frontmatter.absent";
+    const PRESENT_DOMAIN: &[u8] = b"mdtools.frontmatter.present\0";
+
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let bytes = raw.map(str::as_bytes);
+    let domain = if bytes.is_some() {
+        PRESENT_DOMAIN
+    } else {
+        ABSENT_DOMAIN
+    };
+
+    for &b in domain {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    if let Some(bytes) = bytes {
+        for &b in bytes {
+            hash ^= b as u64;
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    format!("{:016x}", hash)
+}
+
 fn assert_stale_missing_delete_conflict_preserves_bytes(
     label: &str,
     original: &str,
@@ -1132,6 +1158,47 @@ fn set_expect_etag_current_scalar_and_sequence_retain_mapping_errors() {
         assert!(
             stderr.contains("mapping/object"),
             "{label}: mapping-root validation"
+        );
+        std::fs::remove_file(&tmp).ok();
+    }
+}
+
+#[test]
+fn set_expect_etag_current_malformed_yaml_and_toml_retain_parse_errors() {
+    let cases = [
+        (
+            "malformed YAML",
+            "---\ntitle: [unterminated\n---\n",
+            "---\ntitle: [unterminated\n---\n# Main\n",
+            "invalid YAML frontmatter",
+        ),
+        (
+            "malformed TOML",
+            "+++\ntitle = \"unterminated\n+++\n",
+            "+++\ntitle = \"unterminated\n+++\n# Main\n",
+            "invalid TOML frontmatter",
+        ),
+    ];
+
+    for (label, raw_frontmatter, content, expected_message) in cases {
+        let tmp = temp_file(content);
+        let etag = raw_frontmatter_etag(Some(raw_frontmatter));
+        let out = md()
+            .args([
+                "set",
+                "title",
+                &tmp.to_string_lossy(),
+                "New",
+                "--expect-etag",
+                &etag,
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(2), "{label}: parse error exit code");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            stderr.contains(expected_message),
+            "{label}: semantic parse error"
         );
         std::fs::remove_file(&tmp).ok();
     }

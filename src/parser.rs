@@ -312,26 +312,15 @@ impl ParsedDocument {
             }
         }
 
-        // If frontmatter exists, validate it
-        if has_frontmatter_node {
-            if let Some(ref raw) = frontmatter_raw {
-                let content = strip_frontmatter_delimiters(raw);
-                let valid = if content.trim().is_empty() {
-                    true
-                } else {
-                    match frontmatter_format {
-                        FrontmatterFormat::Yaml => {
-                            serde_yaml::from_str::<serde_json::Value>(&content).is_ok()
-                        }
-                        FrontmatterFormat::Toml => content.parse::<toml::Value>().is_ok(),
-                    }
-                };
-                if !valid && matches!(mode, FrontmatterParseMode::Lenient) {
-                    // Re-parse without frontmatter delimiter — treat as plain content
-                    let _ = root;
-                    return Self::parse_without_frontmatter(source);
-                }
-            }
+        if matches!(mode, FrontmatterParseMode::Lenient)
+            && has_frontmatter_node
+            && frontmatter_raw.as_ref().is_some_and(|raw| {
+                !frontmatter_content_is_semantically_valid(raw, frontmatter_format)
+            })
+        {
+            // Re-parse without frontmatter delimiter — treat malformed frontmatter as plain content.
+            let _ = root;
+            return Self::parse_without_frontmatter(source);
         }
 
         let mut blocks = Vec::new();
@@ -534,6 +523,18 @@ impl ParsedDocument {
             (false, true) | (false, false) => LineEndingStyle::Lf,
             (true, true) => LineEndingStyle::Mixed,
         }
+    }
+}
+
+fn frontmatter_content_is_semantically_valid(raw: &str, format: FrontmatterFormat) -> bool {
+    let content = strip_frontmatter_delimiters(raw);
+    if content.trim().is_empty() {
+        return true;
+    }
+
+    match format {
+        FrontmatterFormat::Yaml => serde_yaml::from_str::<serde_json::Value>(&content).is_ok(),
+        FrontmatterFormat::Toml => content.parse::<toml::Value>().is_ok(),
     }
 }
 
