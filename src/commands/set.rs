@@ -40,16 +40,18 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
 
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse_for_frontmatter_mutation(source.clone())?;
-    let existing = parse_existing_frontmatter(&doc)?;
+    let state = doc.frontmatter_state();
 
     if let Some(expected) = args.expect_etag.as_deref() {
-        if expected != existing.state.etag {
+        if expected != state.etag {
             return Err(CommandError::frontmatter_etag_mismatch(
                 expected,
-                &existing.state.etag,
+                &state.etag,
             ));
         }
     }
+
+    let existing = parse_existing_frontmatter(state)?;
 
     let ExistingFrontmatter {
         mut data,
@@ -111,10 +113,8 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
 }
 
 fn parse_existing_frontmatter(
-    doc: &ParsedDocument,
+    state: FrontmatterState<'_>,
 ) -> Result<ExistingFrontmatter<'_>, CommandError> {
-    let state = doc.frontmatter_state();
-
     let Some(raw) = state.raw else {
         return Ok(ExistingFrontmatter {
             data: serde_json::Value::Object(serde_json::Map::new()),

@@ -1007,6 +1007,70 @@ fn set_expect_etag_stale_delete_of_missing_key_conflict_preserves_bytes_for_name
 }
 
 #[test]
+fn set_expect_etag_stale_semantic_validation_conflicts_before_parsing() {
+    let cases = [
+        (
+            "malformed YAML",
+            "---\ntitle: Stable\n---\n# Body\n",
+            "---\ntitle: [unterminated\n---\n# Body\n",
+        ),
+        (
+            "malformed TOML",
+            "+++\ntitle = \"Stable\"\n+++\n# Body\n",
+            "+++\ntitle = \"unterminated\n+++\n# Body\n",
+        ),
+        (
+            "scalar YAML",
+            "---\ntitle: Stable\n---\n# Body\n",
+            "---\nhello\n---\n# Body\n",
+        ),
+        (
+            "sequence YAML",
+            "---\ntitle: Stable\n---\n# Body\n",
+            "---\n- one\n- two\n---\n# Body\n",
+        ),
+    ];
+
+    for (label, original, drifted) in cases {
+        let tmp = temp_file(original);
+        let etag = frontmatter_etag(&tmp);
+        std::fs::write(&tmp, drifted).unwrap();
+
+        let out = md()
+            .args([
+                "set",
+                "title",
+                &tmp.to_string_lossy(),
+                "Guarded",
+                "-i",
+                "--json",
+                "--expect-etag",
+                &etag,
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(
+            out.status.code(),
+            Some(4),
+            "{label}: EtagMismatch exit code"
+        );
+        assert!(out.stdout.is_empty(), "{label}: stdout must stay empty");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            stderr.contains("frontmatter etag mismatch"),
+            "{label}: EtagMismatch diagnostic"
+        );
+        assert_eq!(
+            std::fs::read(&tmp).unwrap(),
+            drifted.as_bytes(),
+            "{label}: file must stay byte-identical on EtagMismatch"
+        );
+
+        std::fs::remove_file(&tmp).ok();
+    }
+}
+
+#[test]
 fn set_expect_etag_absent_guard_turns_stale_after_intervening_creation() {
     let tmp = temp_copy("no_frontmatter.md");
     let absent_etag = frontmatter_etag(&tmp);
@@ -1041,6 +1105,37 @@ fn set_expect_etag_absent_guard_turns_stale_after_intervening_creation() {
 }
 
 // --- Error paths ---
+
+#[test]
+fn set_expect_etag_current_scalar_and_sequence_retain_mapping_errors() {
+    let cases = [
+        ("scalar YAML", "---\nhello\n---\n# Main\n"),
+        ("sequence YAML", "---\n- one\n- two\n---\n# Main\n"),
+    ];
+
+    for (label, content) in cases {
+        let tmp = temp_file(content);
+        let etag = frontmatter_etag(&tmp);
+        let out = md()
+            .args([
+                "set",
+                "title",
+                &tmp.to_string_lossy(),
+                "New",
+                "--expect-etag",
+                &etag,
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(2), "{label}: parse error exit code");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            stderr.contains("mapping/object"),
+            "{label}: mapping-root validation"
+        );
+        std::fs::remove_file(&tmp).ok();
+    }
+}
 
 #[test]
 fn set_empty_key_error() {
