@@ -36,6 +36,48 @@ fn frontmatter_etag(path: &std::path::Path) -> String {
     json["etag"].as_str().unwrap().to_string()
 }
 
+fn assert_stale_missing_delete_conflict_preserves_bytes(
+    label: &str,
+    original: &str,
+    drifted: &str,
+) {
+    let tmp = temp_file(original);
+    let etag = frontmatter_etag(&tmp);
+    std::fs::write(&tmp, drifted).unwrap();
+
+    let out = md()
+        .args([
+            "set",
+            "--delete",
+            "missing",
+            &tmp.to_string_lossy(),
+            "-i",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "{label}: EtagMismatch exit code"
+    );
+    assert!(out.stdout.is_empty(), "{label}: stdout must stay empty");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("frontmatter etag mismatch"),
+        "{label}: EtagMismatch diagnostic"
+    );
+    assert_eq!(
+        std::fs::read(&tmp).unwrap(),
+        drifted.as_bytes(),
+        "{label}: file must stay byte-identical on EtagMismatch"
+    );
+
+    std::fs::remove_file(&tmp).ok();
+}
+
 // CLI arg order: md set <key> <file> [value]
 
 // --- Core set operations ---
@@ -773,9 +815,49 @@ fn set_expect_etag_changed_frontmatter_replaces_exact_owned_boundary_without_ext
     let crlf_json: serde_json::Value = serde_json::from_slice(&crlf_out.stdout).unwrap();
     assert_eq!(crlf_json["content"], "---\ntitle: New\n---\n# Body\r\n");
 
+    let yaml_with_blank_line = temp_file("---\ntitle: Old\n---\n\n# Body\n");
+    let yaml_with_blank_line_etag = frontmatter_etag(&yaml_with_blank_line);
+    let yaml_with_blank_line_out = md()
+        .args([
+            "set",
+            "title",
+            &yaml_with_blank_line.to_string_lossy(),
+            "New",
+            "--json",
+            "--expect-etag",
+            &yaml_with_blank_line_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        yaml_with_blank_line_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&yaml_with_blank_line_out.stderr)
+    );
+    let yaml_with_blank_line_json: serde_json::Value =
+        serde_json::from_slice(&yaml_with_blank_line_out.stdout).unwrap();
+    let content = yaml_with_blank_line_json["content"].as_str().unwrap();
+    let serialized_frontmatter = "---\ntitle: New\n---\n";
+    let suffix_after_owned_terminator = "\n# Body\n";
+    assert_eq!(
+        content,
+        format!("{serialized_frontmatter}{suffix_after_owned_terminator}"),
+        "intentional blank line after the closing delimiter terminator"
+    );
+    assert!(
+        content.starts_with(serialized_frontmatter),
+        "intentional blank line after the closing delimiter terminator"
+    );
+    assert_eq!(
+        &content[serialized_frontmatter.len()..],
+        suffix_after_owned_terminator,
+        "intentional blank line after the closing delimiter terminator"
+    );
+
     std::fs::remove_file(&yaml).ok();
     std::fs::remove_file(&toml).ok();
     std::fs::remove_file(&crlf).ok();
+    std::fs::remove_file(&yaml_with_blank_line).ok();
 }
 
 #[test]
@@ -882,6 +964,46 @@ fn set_expect_etag_stale_delete_of_missing_key_conflict_preserves_bytes() {
     assert!(out.stdout.is_empty());
     assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
     std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_stale_delete_of_missing_key_conflict_preserves_bytes_for_named_sources() {
+    let cases = [
+        (
+            "YAML LF with body",
+            "---\ntitle: Same\nauthor: Jane\n---\n# Body\n",
+            "---\ntitle: Same\nauthor: Janet\n---\n# Body\n",
+        ),
+        (
+            "YAML CRLF with body",
+            "---\r\ntitle: Same\r\nauthor: Jane\r\n---\r\n# Body\r\n",
+            "---\r\ntitle: Same\r\nauthor: Janet\r\n---\r\n# Body\r\n",
+        ),
+        (
+            "YAML mixed frontmatter/body line endings",
+            "---\r\ntitle: Same\r\nauthor: Jane\r\n---\r\n# Body\n",
+            "---\r\ntitle: Same\r\nauthor: Janet\r\n---\r\n# Body\n",
+        ),
+        (
+            "frontmatter-only with a final delimiter newline",
+            "---\ntitle: Same\n---\n",
+            "---\ntitle: Drifted\n---\n",
+        ),
+        (
+            "frontmatter-only with the closing delimiter as the final byte",
+            "---\ntitle: Same\n---",
+            "---\ntitle: Drifted\n---",
+        ),
+        (
+            "TOML with a final delimiter newline",
+            "+++\ntitle = \"Same\"\n+++\n",
+            "+++\ntitle = \"Drifted\"\n+++\n",
+        ),
+    ];
+
+    for (label, original, drifted) in cases {
+        assert_stale_missing_delete_conflict_preserves_bytes(label, original, drifted);
+    }
 }
 
 #[test]

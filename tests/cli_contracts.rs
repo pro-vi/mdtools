@@ -1348,6 +1348,97 @@ fn frontmatter_present_state_raw_span_and_etag_match_owned_boundary_bytes() {
     std::fs::remove_file(&crlf).ok();
 }
 
+#[test]
+fn frontmatter_state_etag_detects_comment_drift() {
+    let base = tempfile_str("---\ntitle: Same\n---\n");
+    let with_comment = tempfile_str("---\n# retained comment\ntitle: Same\n---\n");
+    assert_ne!(
+        frontmatter_etag(&base),
+        frontmatter_etag(&with_comment),
+        "comment drift"
+    );
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&with_comment).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_key_order_drift() {
+    let base = tempfile_str("---\ntitle: Same\nauthor: Jane\n---\n");
+    let reordered = tempfile_str("---\nauthor: Jane\ntitle: Same\n---\n");
+    assert_ne!(
+        frontmatter_etag(&base),
+        frontmatter_etag(&reordered),
+        "key order drift"
+    );
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&reordered).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_whitespace_drift() {
+    let base = tempfile_str("---\ntitle: Same\n---\n");
+    let extra_blank_line = tempfile_str("---\ntitle: Same\n\n---\n");
+    assert_ne!(
+        frontmatter_etag(&base),
+        frontmatter_etag(&extra_blank_line),
+        "whitespace drift"
+    );
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&extra_blank_line).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_lf_versus_crlf_drift() {
+    let lf = tempfile_str("---\ntitle: Same\n---\n# Body\n");
+    let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+    assert_ne!(
+        frontmatter_etag(&lf),
+        frontmatter_etag(&crlf),
+        "LF versus CRLF"
+    );
+    std::fs::remove_file(&lf).ok();
+    std::fs::remove_file(&crlf).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_yaml_versus_toml_delimiter_family_drift() {
+    let yaml = tempfile_str("---\ntitle: Same\n---\n");
+    let toml = tempfile_str("+++\ntitle = \"Same\"\n+++\n");
+    assert_ne!(
+        frontmatter_etag(&yaml),
+        frontmatter_etag(&toml),
+        "YAML versus TOML delimiter family"
+    );
+    std::fs::remove_file(&yaml).ok();
+    std::fs::remove_file(&toml).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_closing_delimiter_at_eof_versus_followed_by_lf() {
+    let eof = tempfile_str("---\ntitle: Same\n---");
+    let with_lf = tempfile_str("---\ntitle: Same\n---\n");
+    assert_ne!(
+        frontmatter_etag(&eof),
+        frontmatter_etag(&with_lf),
+        "closing delimiter at EOF versus followed by LF"
+    );
+    std::fs::remove_file(&eof).ok();
+    std::fs::remove_file(&with_lf).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_distinguishes_absent_versus_present_empty_state() {
+    let empty_present = tempfile_str("---\n\n---\n# Body\n");
+    let absent = tempfile_str("# Body\n");
+    assert_ne!(
+        frontmatter_etag(&empty_present),
+        frontmatter_etag(&absent),
+        "absent versus present empty state"
+    );
+    std::fs::remove_file(&empty_present).ok();
+    std::fs::remove_file(&absent).ok();
+}
+
 // ============================================================
 // ERROR PATH COVERAGE
 // ============================================================
