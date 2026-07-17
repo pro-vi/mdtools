@@ -700,6 +700,85 @@ fn mutation_preserves_non_target_bytes() {
     );
 }
 
+#[test]
+fn set_frontmatter_span_nullability_uses_whole_state_ownership_exception() {
+    let existing_insert_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/set_basic.md").unwrap());
+    let existing_insert_source = std::fs::read_to_string(&existing_insert_path).unwrap();
+    let existing_insert = md()
+        .args(["set", "meta.version", &existing_insert_path, "2", "--json"])
+        .output()
+        .unwrap();
+    assert!(existing_insert.status.success());
+    let existing_insert_json: serde_json::Value =
+        serde_json::from_slice(&existing_insert.stdout).unwrap();
+    assert_eq!(existing_insert_json["command"], "SetFrontmatter");
+    assert_eq!(existing_insert_json["disposition"], "Inserted");
+    assert!(existing_insert_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_insert_json["invariant"]["target_span_after"].is_object());
+    let existing_before_end = existing_insert_json["invariant"]["target_span_before"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let existing_after_end = existing_insert_json["invariant"]["target_span_after"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let existing_insert_content = existing_insert_json["content"].as_str().unwrap();
+    assert_eq!(
+        &existing_insert_content[existing_after_end..],
+        &existing_insert_source[existing_before_end..],
+        "existing-state insert must preserve bytes after the owned frontmatter span"
+    );
+    std::fs::remove_file(&existing_insert_path).ok();
+
+    let existing_delete_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/set_basic.md").unwrap());
+    let existing_delete_source = std::fs::read_to_string(&existing_delete_path).unwrap();
+    let existing_delete = md()
+        .args(["set", "--delete", "author", &existing_delete_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(existing_delete.status.success());
+    let existing_delete_json: serde_json::Value =
+        serde_json::from_slice(&existing_delete.stdout).unwrap();
+    assert_eq!(existing_delete_json["command"], "SetFrontmatter");
+    assert_eq!(existing_delete_json["disposition"], "Deleted");
+    assert!(existing_delete_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_delete_json["invariant"]["target_span_after"].is_object());
+    let deleted_before_end = existing_delete_json["invariant"]["target_span_before"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let deleted_after_end = existing_delete_json["invariant"]["target_span_after"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let existing_delete_content = existing_delete_json["content"].as_str().unwrap();
+    assert_eq!(
+        &existing_delete_content[deleted_after_end..],
+        &existing_delete_source[deleted_before_end..],
+        "existing-state delete must preserve bytes after the owned frontmatter span"
+    );
+    std::fs::remove_file(&existing_delete_path).ok();
+
+    let absent_delete_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/no_frontmatter.md").unwrap());
+    let absent_delete_source = std::fs::read_to_string(&absent_delete_path).unwrap();
+    let absent_delete = md()
+        .args(["set", "--delete", "missing", &absent_delete_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(absent_delete.status.success());
+    let absent_delete_json: serde_json::Value =
+        serde_json::from_slice(&absent_delete.stdout).unwrap();
+    assert_eq!(absent_delete_json["command"], "SetFrontmatter");
+    assert_eq!(absent_delete_json["disposition"], "NoChange");
+    assert!(absent_delete_json["invariant"]["target_span_before"].is_null());
+    assert!(absent_delete_json["invariant"]["target_span_after"].is_null());
+    assert_eq!(
+        absent_delete_json["content"].as_str().unwrap(),
+        absent_delete_source
+    );
+    std::fs::remove_file(&absent_delete_path).ok();
+}
+
 // ============================================================
 // EMPTY STDIN: replace with empty → Deleted disposition
 // ============================================================

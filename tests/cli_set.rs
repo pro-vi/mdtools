@@ -104,6 +104,43 @@ fn assert_stale_missing_delete_conflict_preserves_bytes(
     std::fs::remove_file(&tmp).ok();
 }
 
+fn span_value(span: &serde_json::Value) -> Option<(u64, u64, u64, u64)> {
+    if span.is_null() {
+        None
+    } else {
+        Some((
+            span["line_start"].as_u64().unwrap(),
+            span["line_end"].as_u64().unwrap(),
+            span["byte_start"].as_u64().unwrap(),
+            span["byte_end"].as_u64().unwrap(),
+        ))
+    }
+}
+
+fn assert_set_frontmatter_suffix_preserved(label: &str, json: &serde_json::Value, original: &str) {
+    let content = json["content"].as_str().unwrap();
+    let before = span_value(&json["invariant"]["target_span_before"]);
+    let after = span_value(&json["invariant"]["target_span_after"]);
+
+    match (before, after) {
+        (Some((_, _, _, before_end)), Some((_, _, _, after_end))) => assert_eq!(
+            &content[after_end as usize..],
+            &original[before_end as usize..],
+            "{label}: bytes after the owned frontmatter span must stay identical"
+        ),
+        (None, Some((_, _, _, after_end))) => assert_eq!(
+            &content[after_end as usize..],
+            &format!("\n{original}"),
+            "{label}: inserting absent frontmatter must preserve the original document bytes after the inserted state"
+        ),
+        (None, None) => assert_eq!(
+            content, original,
+            "{label}: absent-state no-op must preserve the full document"
+        ),
+        (Some(_), None) => panic!("{label}: unexpected present-before / absent-after span state"),
+    }
+}
+
 // CLI arg order: md set <key> <file> [value]
 
 // --- Core set operations ---
@@ -717,6 +754,215 @@ fn set_preserves_body_bytes() {
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("\n# Content\n\nBody text here.\n"));
+}
+
+#[test]
+fn set_frontmatter_whole_state_span_matrix_rows() {
+    let existing_insert = temp_copy("set_basic.md");
+    let existing_insert_path = existing_insert.to_string_lossy().to_string();
+    let existing_insert_source = std::fs::read_to_string(&existing_insert).unwrap();
+    let existing_insert_out = md()
+        .args(["set", "meta.version", &existing_insert_path, "2", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        existing_insert_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&existing_insert_out.stderr)
+    );
+    let existing_insert_json: serde_json::Value =
+        serde_json::from_slice(&existing_insert_out.stdout).unwrap();
+    assert_eq!(existing_insert_json["disposition"], "Inserted");
+    assert_eq!(existing_insert_json["changed"], true);
+    assert!(existing_insert_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_insert_json["invariant"]["target_span_after"].is_object());
+    assert_ne!(
+        existing_insert_json["invariant"]["target_span_before"],
+        existing_insert_json["invariant"]["target_span_after"]
+    );
+    assert_eq!(
+        existing_insert_json["invariant"]["preserves_non_target_bytes"],
+        true
+    );
+    assert_set_frontmatter_suffix_preserved(
+        "existing state + insert field",
+        &existing_insert_json,
+        &existing_insert_source,
+    );
+    std::fs::remove_file(&existing_insert).ok();
+
+    let existing_replace = temp_copy("set_basic.md");
+    let existing_replace_path = existing_replace.to_string_lossy().to_string();
+    let existing_replace_source = std::fs::read_to_string(&existing_replace).unwrap();
+    let existing_replace_out = md()
+        .args([
+            "set",
+            "title",
+            &existing_replace_path,
+            "Updated Longer Title",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        existing_replace_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&existing_replace_out.stderr)
+    );
+    let existing_replace_json: serde_json::Value =
+        serde_json::from_slice(&existing_replace_out.stdout).unwrap();
+    assert_eq!(existing_replace_json["disposition"], "Replaced");
+    assert_eq!(existing_replace_json["changed"], true);
+    assert!(existing_replace_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_replace_json["invariant"]["target_span_after"].is_object());
+    assert_ne!(
+        existing_replace_json["invariant"]["target_span_before"],
+        existing_replace_json["invariant"]["target_span_after"]
+    );
+    assert_eq!(
+        existing_replace_json["invariant"]["preserves_non_target_bytes"],
+        true
+    );
+    assert_set_frontmatter_suffix_preserved(
+        "existing state + replace field",
+        &existing_replace_json,
+        &existing_replace_source,
+    );
+    std::fs::remove_file(&existing_replace).ok();
+
+    let existing_delete = temp_copy("set_basic.md");
+    let existing_delete_path = existing_delete.to_string_lossy().to_string();
+    let existing_delete_source = std::fs::read_to_string(&existing_delete).unwrap();
+    let existing_delete_out = md()
+        .args(["set", "--delete", "author", &existing_delete_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        existing_delete_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&existing_delete_out.stderr)
+    );
+    let existing_delete_json: serde_json::Value =
+        serde_json::from_slice(&existing_delete_out.stdout).unwrap();
+    assert_eq!(existing_delete_json["disposition"], "Deleted");
+    assert_eq!(existing_delete_json["changed"], true);
+    assert!(existing_delete_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_delete_json["invariant"]["target_span_after"].is_object());
+    assert_ne!(
+        existing_delete_json["invariant"]["target_span_before"],
+        existing_delete_json["invariant"]["target_span_after"]
+    );
+    assert_eq!(
+        existing_delete_json["invariant"]["preserves_non_target_bytes"],
+        true
+    );
+    assert_set_frontmatter_suffix_preserved(
+        "existing state + delete field",
+        &existing_delete_json,
+        &existing_delete_source,
+    );
+    std::fs::remove_file(&existing_delete).ok();
+
+    let existing_no_change = temp_copy("set_basic.md");
+    let existing_no_change_path = existing_no_change.to_string_lossy().to_string();
+    let existing_no_change_source = std::fs::read_to_string(&existing_no_change).unwrap();
+    let existing_no_change_out = md()
+        .args([
+            "set",
+            "title",
+            &existing_no_change_path,
+            "Original",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        existing_no_change_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&existing_no_change_out.stderr)
+    );
+    let existing_no_change_json: serde_json::Value =
+        serde_json::from_slice(&existing_no_change_out.stdout).unwrap();
+    assert_eq!(existing_no_change_json["disposition"], "NoChange");
+    assert_eq!(existing_no_change_json["changed"], false);
+    assert_eq!(
+        existing_no_change_json["invariant"]["target_span_before"],
+        existing_no_change_json["invariant"]["target_span_after"]
+    );
+    assert_eq!(
+        existing_no_change_json["invariant"]["preserves_non_target_bytes"],
+        true
+    );
+    assert_set_frontmatter_suffix_preserved(
+        "existing state + no-change field",
+        &existing_no_change_json,
+        &existing_no_change_source,
+    );
+    std::fs::remove_file(&existing_no_change).ok();
+
+    let absent_insert = temp_copy("no_frontmatter.md");
+    let absent_insert_path = absent_insert.to_string_lossy().to_string();
+    let absent_insert_source = std::fs::read_to_string(&absent_insert).unwrap();
+    let absent_insert_out = md()
+        .args(["set", "title", &absent_insert_path, "Hello", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        absent_insert_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&absent_insert_out.stderr)
+    );
+    let absent_insert_json: serde_json::Value =
+        serde_json::from_slice(&absent_insert_out.stdout).unwrap();
+    assert_eq!(absent_insert_json["disposition"], "Inserted");
+    assert_eq!(absent_insert_json["changed"], true);
+    assert!(absent_insert_json["invariant"]["target_span_before"].is_null());
+    assert!(absent_insert_json["invariant"]["target_span_after"].is_object());
+    assert_eq!(
+        absent_insert_json["invariant"]["preserves_non_target_bytes"],
+        true
+    );
+    assert_set_frontmatter_suffix_preserved(
+        "absent state + insert field",
+        &absent_insert_json,
+        &absent_insert_source,
+    );
+    std::fs::remove_file(&absent_insert).ok();
+
+    let absent_delete_missing = temp_copy("no_frontmatter.md");
+    let absent_delete_missing_path = absent_delete_missing.to_string_lossy().to_string();
+    let absent_delete_missing_source = std::fs::read_to_string(&absent_delete_missing).unwrap();
+    let absent_delete_missing_out = md()
+        .args([
+            "set",
+            "--delete",
+            "missing",
+            &absent_delete_missing_path,
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        absent_delete_missing_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&absent_delete_missing_out.stderr)
+    );
+    let absent_delete_missing_json: serde_json::Value =
+        serde_json::from_slice(&absent_delete_missing_out.stdout).unwrap();
+    assert_eq!(absent_delete_missing_json["disposition"], "NoChange");
+    assert_eq!(absent_delete_missing_json["changed"], false);
+    assert!(absent_delete_missing_json["invariant"]["target_span_before"].is_null());
+    assert!(absent_delete_missing_json["invariant"]["target_span_after"].is_null());
+    assert_eq!(
+        absent_delete_missing_json["invariant"]["preserves_non_target_bytes"],
+        true
+    );
+    assert_set_frontmatter_suffix_preserved(
+        "absent state + delete missing field",
+        &absent_delete_missing_json,
+        &absent_delete_missing_source,
+    );
+    std::fs::remove_file(&absent_delete_missing).ok();
 }
 
 #[test]

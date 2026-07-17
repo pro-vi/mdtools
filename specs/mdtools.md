@@ -520,10 +520,21 @@ pub struct SourcePreservationInvariant { // [id:contract-source-preservation]
     pub target_span_after: Option<SourceSpan>,
 }
 // Span nullability tied to MutationDisposition: [id:rule-span-nullability]
+// This generic mapping applies only when MutationDisposition describes the
+// owned target span.
 // - Inserted  => target_span_before = None,         target_span_after = Some(inserted span)
 // - Deleted   => target_span_before = Some(deleted span), target_span_after = None
 // - Replaced  => target_span_before = Some(old span),     target_span_after = Some(new span)
 // - NoChange  => target_span_before = Some(span),         target_span_after = Some(span) (identical)
+// `SetFrontmatter` is the exception: its disposition is field-scoped, but its
+// invariant spans are whole-frontmatter-state scoped because Phase 1 does not
+// expose field-local source maps.
+// - existing state + insert field => target_span_before = Some(existing frontmatter span), target_span_after = Some(updated frontmatter span)
+// - existing state + replace field => target_span_before = Some(existing frontmatter span), target_span_after = Some(updated frontmatter span)
+// - existing state + delete field => target_span_before = Some(existing frontmatter span), target_span_after = Some(updated frontmatter span)
+// - existing state + no-change field => target_span_before = Some(span), target_span_after = Some(span) (identical)
+// - absent state + insert field => target_span_before = None, target_span_after = Some(inserted frontmatter span)
+// - absent state + delete missing field => target_span_before = None, target_span_after = None
 
 pub struct MutationResult { // [id:contract-mutation-result]
     pub schema_version: &'static str,
@@ -543,7 +554,7 @@ pub type ReplaceResult = MutationResult; // [id:contract-replace-result]
 The mutation contract is defined by interface, not by algorithm. The required invariants are:
 
 - `replace-block`, `replace-section`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, and `move-section` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
-- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `replace-block`, `replace-section`, `replace-table-row`, `delete-table-row`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. [id:rule-replace-preserve-bytes]
+- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `set`, `replace-block`, `replace-section`, `replace-table-row`, `delete-table-row`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. For `SetFrontmatter`, `preserves_non_target_bytes = true` means exact preservation outside the owned whole-frontmatter span when present, or outside the owned whole-frontmatter state when absent; it does not promise byte identity inside the reserialized frontmatter block. [id:rule-replace-preserve-bytes]
 - `MutationResult.content` is `Some(updated_document)` when the successful mutation contract emits document bytes to stdout and `None` when the successful mutation contract writes the file in place; function-call mutation tools follow the in-place form and therefore return `content == None`. [id:rule-mutation-result-content]
 - `--in-place` with `--json` returns `MutationResult` with `content == None`; `--in-place` without `--json` keeps stdout silent after the file write succeeds. [id:rule-in-place-content]
 - `md move-section` resolves source and destination using the existing selector/occurrence policy, then verifies `--expect-source-etag` first and `--expect-dest-etag` second against each selected section's exact-byte content before any no-change shortcut, heading releveling, splice construction, stdout emission, or in-place write. Any mismatch fails closed as `EtagMismatch` / `MdExitCode::Conflict`, emits one stale-source or stale-destination diagnostic line, and performs no successful output or file mutation. [id:rule-move-section-etag-ordering]
