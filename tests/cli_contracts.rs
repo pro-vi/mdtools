@@ -1439,6 +1439,15 @@ fn frontmatter_state_etag_distinguishes_absent_versus_present_empty_state() {
     std::fs::remove_file(&absent).ok();
 }
 
+#[test]
+fn frontmatter_state_etag_ignores_non_frontmatter_body_bytes() {
+    let first = tempfile_str("---\ntitle: Same\n---\n# Body\nalpha\n");
+    let second = tempfile_str("---\ntitle: Same\n---\n# Different\nbeta\n");
+    assert_eq!(frontmatter_etag(&first), frontmatter_etag(&second));
+    std::fs::remove_file(&first).ok();
+    std::fs::remove_file(&second).ok();
+}
+
 // ============================================================
 // ERROR PATH COVERAGE
 // ============================================================

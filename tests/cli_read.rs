@@ -513,6 +513,39 @@ fn frontmatter_field_json_reuses_present_state_metadata() {
 }
 
 #[test]
+fn frontmatter_field_json_preserves_distinct_request_order_and_collapses_duplicates() {
+    let output = md()
+        .args([
+            "frontmatter",
+            "tests/fixtures/frontmatter.md",
+            "--field",
+            "title",
+            "--field",
+            "missing",
+            "--field",
+            "title",
+            "--field",
+            "author",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let keys: Vec<&str> = json["fields"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(|key| key.as_str())
+        .collect();
+
+    assert_eq!(keys, vec!["title", "missing", "author"]);
+    assert_eq!(json["fields"]["title"], "Test Document");
+    assert!(json["fields"]["missing"].is_null());
+    assert!(json["fields"]["author"].is_null());
+}
+
+#[test]
 fn frontmatter_field_json_reuses_absent_state_metadata() {
     let full = md()
         .args(["frontmatter", "tests/fixtures/basic.md"])

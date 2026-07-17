@@ -303,15 +303,13 @@ impl ParsedDocument {
             }
         }
 
-        if matches!(mode, FrontmatterParseMode::Mutation)
-            && delimiter.is_some()
-            && !has_frontmatter_node
-        {
-            let delimiter = delimiter.expect("checked is_some above");
-            return Err(CommandError::new(
-                DiagnosticCode::FrontmatterParseFailed,
-                format!("unclosed frontmatter (no closing '{}')", delimiter),
-            ));
+        if matches!(mode, FrontmatterParseMode::Mutation) && !has_frontmatter_node {
+            if let Some(delimiter) = delimiter {
+                return Err(CommandError::new(
+                    DiagnosticCode::FrontmatterParseFailed,
+                    format!("unclosed frontmatter (no closing '{}')", delimiter),
+                ));
+            }
         }
 
         // If frontmatter exists, validate it
