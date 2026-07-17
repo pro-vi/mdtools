@@ -430,12 +430,15 @@ pub enum MutationTargetKind { // [id:contract-mutation-target-kind]
     FrontmatterField,
     TaskItem,
     TableRow,
+    TableRowInsertion,
 }
 
 pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
     ReplaceBlock,
     ReplaceSection,
     ReplaceTableRow,
+    InsertTableRow,
+    DeleteTableRow,
     InsertBlock,
     DeleteBlock,
     DeleteSection,
@@ -490,6 +493,12 @@ pub struct TableRowTargetRef { // [id:contract-table-row-target-ref]
     pub span: SourceSpan,
 }
 
+pub struct TableRowInsertionTargetRef { // [id:contract-table-row-insertion-target-ref]
+    pub kind: MutationTargetKind,
+    pub table_block_index: u32,
+    pub row_index: u32,
+}
+
 pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     Block(BlockTargetRef),
     Section(SectionTargetRef),
@@ -497,6 +506,7 @@ pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     FrontmatterField(FrontmatterFieldTargetRef),
     TaskItem(TaskItemTargetRef),
     TableRow(TableRowTargetRef),
+    TableRowInsertion(TableRowInsertionTargetRef),
     SectionMove(SectionMoveTargetRef),
 }
 
@@ -560,8 +570,8 @@ pub type ReplaceResult = MutationResult; // [id:contract-replace-result]
 
 The mutation contract is defined by interface, not by algorithm. The required invariants are:
 
-- `replace-block`, `replace-section`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, and `move-section` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
-- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `set`, `replace-block`, `replace-section`, `replace-table-row`, `delete-table-row`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. For `SetFrontmatter`, `preserves_non_target_bytes = true` means exact preservation outside the owned whole-frontmatter span when present, or outside the owned whole-frontmatter state when absent; it does not promise byte identity inside the reserialized frontmatter block. [id:rule-replace-preserve-bytes]
+- `replace-block`, `replace-section`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, and `move-section` emit the full updated document to stdout on success; when `--in-place` is set on a mutation command, the output is written back to the input file and stdout is silent in text mode or emits `MutationResult` in `--json` mode. [id:rule-replace-stdout]
+- `MutationResult.invariant.preserves_non_target_bytes` is `true` for successful `set`, `replace-block`, `replace-section`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, and `delete-block`; `move-section` may report `false` because relocation can reserialize surrounding bytes while still succeeding. For `SetFrontmatter`, `preserves_non_target_bytes = true` means exact preservation outside the owned whole-frontmatter span when present, or outside the owned whole-frontmatter state when absent; it does not promise byte identity inside the reserialized frontmatter block. [id:rule-replace-preserve-bytes]
 - `MutationResult.content` is `Some(updated_document)` when the successful mutation contract emits document bytes to stdout and `None` when the successful mutation contract writes the file in place; function-call mutation tools follow the in-place form and therefore return `content == None`. [id:rule-mutation-result-content]
 - `--in-place` with `--json` returns `MutationResult` with `content == None`; `--in-place` without `--json` keeps stdout silent after the file write succeeds. [id:rule-in-place-content]
 - `md move-section` resolves source and destination using the existing selector/occurrence policy, then verifies `--expect-source-etag` first and `--expect-dest-etag` second against each selected section's exact-byte content before any no-change shortcut, heading releveling, splice construction, stdout emission, or in-place write. Any mismatch fails closed as `EtagMismatch` / `MdExitCode::Conflict`, emits one stale-source or stale-destination diagnostic line, and performs no successful output or file mutation. [id:rule-move-section-etag-ordering]
@@ -571,7 +581,8 @@ The mutation contract is defined by interface, not by algorithm. The required in
 - When the source document line endings are uniformly `LF` or uniformly `CRLF`, inserted content is normalized to that style before output; when the source style is `Mixed`, inserted content is preserved as provided. [id:rule-replace-line-endings]
 - `md replace-section` preserves a non-final section boundary floor for non-empty replacements. It derives the selected section's trailing following section boundary suffix from the exact section bytes, counts its logical line endings, and appends only the missing trailing line endings when the normalized replacement has fewer. This boundary floor never doubles an already-satisfied suffix, never truncates extra user-supplied trailing blank lines, preserves an adjacent following section as a one-newline boundary, and in mixed-ending documents reuses the exact existing boundary suffix bytes for any injected completion. Final sections have no following section boundary floor and therefore end exactly at the normalized replacement EOF; empty replacement remains deletion and receives no injected boundary suffix. [id:rule-replace-section-boundary-floor]
 - `md replace-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE>` replaces exactly one top-level table data-row span, using zero-based row indexing within that table's data rows only (header and delimiter excluded). It strips at most one trailing line ending from stdin or `--from`, rejects empty, multi-line, non-row, or wrong-column payloads with `InvalidInput` / exit code `3`, verifies `--expect-etag` against the whole-table exact-byte fingerprint before any no-change shortcut or write, preserves all non-target bytes and the row's existing line ending, and returns `MutationTargetRef::TableRow` with the table block index, row index, and pre-replacement row span. [id:rule-replace-table-row]
-- `md delete-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE>` deletes exactly one top-level table data row, using the same zero-based row indexing and whole-table `--expect-etag` guard as `replace-table-row`. It is payload-free: no stdin, no `--from`, and no no-op success path once the row resolves. The typed target remains the parser-projected row span (`MutationTargetRef::TableRow`), while `MutationResult.invariant.target_span_before` may widen to include the row-owned trailing newline or, for a last row at EOF, the preceding newline needed to preserve surrounding bytes exactly. [id:rule-delete-table-row]
+- `md insert-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE>` inserts exactly one top-level table data row at the resulting zero-based row position: `0` prepends, values below `row_count` insert before the existing row at that position, `row_count` appends, and values above `row_count` fail. It strips at most one trailing line ending from stdin or `--from`, rejects empty, multi-line, non-row, or wrong-column payloads with `InvalidInput` / exit code `3`, verifies `--expect-etag` against the whole-table exact-byte fingerprint before row-index validation, payload reads, payload validation, or write, preserves all non-target bytes, copies exactly one adjacent local line boundary outside the inserted payload span, and returns `MutationTargetRef::TableRowInsertion` with the table block index and resulting row index. Successful results report `MutationDisposition::Inserted`, `changed = true`, `target_span_before = None`, and `target_span_after` equal to the inserted payload bytes only. [id:rule-insert-table-row]
+- `md delete-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE>` deletes exactly one top-level table data row, using the same zero-based row indexing and whole-table `--expect-etag` guard as `replace-table-row` and `insert-table-row`. It is payload-free: no stdin, no `--from`, and no no-op success path once the row resolves. The typed target remains the parser-projected row span (`MutationTargetRef::TableRow`), while `MutationResult.invariant.target_span_before` may widen to include the row-owned trailing newline or, for a last row at EOF, the preceding newline needed to preserve surrounding bytes exactly. [id:rule-delete-table-row]
 
 ## CLI Contracts [id:sec-cli]
 
@@ -595,6 +606,7 @@ pub enum Command {
     DeleteSection(DeleteSectionArgs),
     ReplaceBlock(ReplaceBlockArgs),
     ReplaceTableRow(ReplaceTableRowArgs),
+    InsertTableRow(InsertTableRowArgs),
     DeleteTableRow(DeleteTableRowArgs),
     InsertBlock(InsertBlockArgs),
     DeleteBlock(DeleteBlockArgs),
@@ -741,6 +753,18 @@ pub struct ReplaceTableRowArgs { // [id:cli-replace-table-row]
     pub etag_guard: TableEtagGuardArgs,
 }
 
+pub struct InsertTableRowArgs { // [id:cli-insert-table-row]
+    pub table_block_index: u32,
+    pub row_index: u32,
+    pub file: std::path::PathBuf,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    #[arg(long)]
+    pub from: Option<std::path::PathBuf>,
+    #[command(flatten)]
+    pub etag_guard: TableEtagGuardArgs,
+}
+
 pub struct DeleteTableRowArgs { // [id:cli-delete-table-row]
     pub table_block_index: u32,
     pub row_index: u32,
@@ -830,17 +854,17 @@ pub struct TableEtagGuardArgs {
 CLI I/O rules:
 
 - All commands except `move-section` require a positional file path; `move-section` may omit `FILE` to read the source document from stdin and write the spliced document to stdout, while `--in-place` still requires `FILE`. [id:rule-cli-file-input]
-- `replace-block`, `replace-section`, `replace-table-row`, and `insert-block` additionally read replacement content from stdin. `delete-table-row` is selector-only and does not read stdin. [id:rule-cli-stdin-replace]
+- `replace-block`, `replace-section`, `replace-table-row`, `insert-table-row`, and `insert-block` additionally read replacement content from stdin. `delete-table-row` is selector-only and does not read stdin. [id:rule-cli-stdin-replace]
 - Successful command output is written to stdout only. [id:rule-cli-stdout]
 - For single-diagnostic command failures, stderr is exactly one human-readable line derived from `Diagnostic.message`. The preserved `md collect` multi-file aggregation exception is documented at `[id:edge-collect-partial-failure]` and remains grounded by the existing assertions in `tests/cli_multifile.rs`. [id:rule-cli-stderr]
 - `frontmatter` emits `FrontmatterReadResult` JSON in both default and `--json` modes; full reads expose top-level `present` and whole-frontmatter-state `etag` metadata plus `frontmatter`, and `--field ... --json` emits `FrontmatterFieldProjectionResult` with the same top-level `present`/`etag` metadata and a `fields` map. Distinct projected field keys are emitted in requested order; repeated requests for the same key overwrite the earlier object entry rather than coexisting as duplicate JSON keys. [id:rule-cli-frontmatter-json]
-- `md replace-block`, `md replace-section`, `md replace-table-row`, `md delete-table-row`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
+- `md replace-block`, `md replace-section`, `md replace-table-row`, `md insert-table-row`, `md delete-table-row`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
 - `md set <KEY_PATH> <FILE> [VALUE] [--delete] [--in-place] [--expect-etag <ETAG>]` mutates a frontmatter mapping field selected by dot-path. It preserves the existing mapping-root requirement, creates YAML frontmatter when absent, and when `--expect-etag` is supplied compares the current whole-frontmatter exact-byte fingerprint from `md frontmatter --json` after closed parser-state projection but before semantic frontmatter parsing, mapping-root validation, any mutation, no-change shortcut, stdout emission, or in-place write; stale mismatches fail closed with `EtagMismatch` / exit code `Conflict`, while unguarded or current malformed frontmatter still fails as `FrontmatterParseFailed`. [id:rule-cli-set]
 - `md section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` maps directly to `SectionSelector`; without `--contains`, heading selectors stay exact, and an empty heading selector keeps that exact-default behavior. With `--contains`, empty heading selectors are invalid input. `SELECTOR=:preamble` maps to `SectionSelectorKind::Preamble`, ignores `--occurrence`, and rejects `--contains`. When `--ignore-case` is present, selector resolution uses Rust lowercase projection on both the heading plaintext and selector text, without normalization. [id:rule-cli-section-selector-map]
 - `md replace-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping, Rust lowercase ignore-case behavior without normalization, and empty-`--contains` rejection as `md section`. [id:rule-cli-replace-section-selector-map]
 - `md delete-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping, Rust lowercase ignore-case behavior without normalization, and empty-`--contains` rejection as `md section`. [id:rule-cli-delete-section-selector-map]
 - `md move-section <SOURCE> [FILE] (--after <DEST> | --before <DEST> | --into <DEST>) [--contains] [--ignore-case] [--source-occurrence <N>] [--dest-occurrence <N>] [--expect-source-etag <ETAG>] [--expect-dest-etag <ETAG>]` applies that same shared selector policy symmetrically to both source and destination selectors, including the same Rust lowercase ignore-case behavior without normalization and the empty-`--contains` rejection; `:preamble` remains reserved and rejects `--contains` anywhere in the move selector surface. [id:rule-cli-move-section-selector-map]
-- `md set`, `md replace-section`, `md delete-section`, `md replace-table-row`, `md delete-table-row`, and `md set-task` accept `--expect-etag <ETAG>`; `md move-section` accepts `--expect-source-etag <ETAG>` and `--expect-dest-etag <ETAG>`. When supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. For `set`, the guarded target is the whole frontmatter state rather than a field-local token, and unclosed frontmatter still fails before guard evaluation because no closed parser-owned state exists. [id:rule-cli-expect-etag]
+- `md set`, `md replace-section`, `md delete-section`, `md replace-table-row`, `md insert-table-row`, `md delete-table-row`, and `md set-task` accept `--expect-etag <ETAG>`; `md move-section` accepts `--expect-source-etag <ETAG>` and `--expect-dest-etag <ETAG>`. When supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. For `set`, the guarded target is the whole frontmatter state rather than a field-local token, and unclosed frontmatter still fails before guard evaluation because no closed parser-owned state exists. [id:rule-cli-expect-etag]
 - `md collect <FILE|DIR>... [-r] [--field <FIELD[,FIELD...]>...]` resolves one or more explicit file or directory operands into a file list, adds a required leading `path` column, and projects the requested frontmatter fields in the order supplied. Explicit file operands are included as given, regardless of extension; repeating `--field` appends columns, and comma-separated values within one flag are expanded left-to-right. [id:rule-cli-collect]
 - `md collect` accepts explicit file operands with any filename or extension. Directory operands discover both `.md` and `.markdown` files: without `-r`, only immediate Markdown files are included and sorted by filename; with `-r`, discovery recurses into subdirectories using the walk order from `src/multifile.rs`. After operand resolution, `md collect` sorts the final path list lexicographically before aggregation. [id:rule-cli-collect-discovery]
 - `md table <FILE> [--index <BLOCK_INDEX>] [--select <COLS>] [--where <FILTER>]` lists top-level tables when no selector flags are present, reads a selected table when `--index` is supplied, and on single-table documents allows `--select`/`--where` without `--index`. `--json` list mode returns `TablesResult`; `--json` read mode returns `TableReadResult`, and both surfaces expose the same whole-table `etag` for a given table block. [id:rule-cli-table]
@@ -863,6 +887,7 @@ The default stdout contract is optimized for shell composition. `--json` switche
 | `md replace-section` | Full updated document bytes | `MutationResult` |
 | `md replace-block` | Full updated document bytes | `MutationResult` |
 | `md replace-table-row` | Full updated document bytes | `MutationResult` |
+| `md insert-table-row` | Full updated document bytes | `MutationResult` |
 | `md delete-table-row` | Full updated document bytes | `MutationResult` |
 | `md insert-block` | Full updated document bytes | `MutationResult` |
 | `md delete-block` | Full updated document bytes | `MutationResult` |
@@ -1155,13 +1180,13 @@ class BenchResult:  # [id:bench-result]
 Mode inventory contracts:
 
 - `unix` mode inventory is exactly: `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, `tee`, `mv`, `cp`. The agent shell environment supports standard POSIX redirection operators (`>`, `>>`, `<`, `|`) and temp-file creation via `mktemp`. This enables `file_contents` tasks: agents may use `sed` or shell redirection to write modified files in place. [id:bench-unix-inventory]
-- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `move-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
+- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `move-section`, `replace-block`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
 - `hybrid` mode inventory is the union of `mdtools` and `unix`. It exists to measure whether agents benefit from mixing structural Markdown commands with conventional shell text tools. [id:bench-hybrid-inventory]
 
 Implemented CLI inventory details:
 
 - `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
-- `replace-section`, `delete-section`, `move-section`, `replace-block`, `replace-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
+- `replace-section`, `delete-section`, `move-section`, `replace-block`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
 - In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
 

@@ -1455,6 +1455,42 @@ fn set_help_mentions_frontmatter_expect_etag() {
 }
 
 #[test]
+fn insert_table_row_help_and_json_surface_match_contract() {
+    let help = md_help("insert-table-row");
+    let normalized = help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(normalized.contains("--expect-etag"));
+    assert!(normalized.contains("--from"));
+    assert!(normalized.contains("in-place"));
+
+    let path = tempfile_str("| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Beta | 200 |\n");
+    let output = md_with_stdin(
+        &["insert-table-row", "0", "1", &path, "-i", "--json"],
+        "| Gamma | 300 |\n",
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["command"], "InsertTableRow");
+    assert_eq!(
+        json["target"]["TableRowInsertion"]["kind"],
+        "TableRowInsertion"
+    );
+    assert_eq!(json["target"]["TableRowInsertion"]["table_block_index"], 0);
+    assert_eq!(json["target"]["TableRowInsertion"]["row_index"], 1);
+    assert!(json["invariant"]["target_span_before"].is_null());
+    assert_eq!(
+        &std::fs::read_to_string(&path).unwrap()
+            [json["invariant"]["target_span_after"]["byte_start"].as_u64().unwrap() as usize
+                ..json["invariant"]["target_span_after"]["byte_end"].as_u64().unwrap() as usize],
+        "| Gamma | 300 |"
+    );
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn frontmatter_state_etag_tracks_exact_owned_bytes() {
     let base = tempfile_str("---\ntitle: Same\n---");
     let with_lf = tempfile_str("---\ntitle: Same\n---\n");

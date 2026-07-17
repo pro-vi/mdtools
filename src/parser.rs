@@ -995,23 +995,23 @@ pub fn validate_table_row_payload(
 ) -> Result<(), CommandError> {
     if payload.is_empty() {
         return Err(CommandError::invalid_table_row(
-            "replacement row payload must not be empty",
+            "table row payload must not be empty",
         ));
     }
     if payload.contains('\n') || payload.contains('\r') {
         return Err(CommandError::invalid_table_row(
-            "replacement row payload must contain exactly one line",
+            "table row payload must contain exactly one line",
         ));
     }
     let (lexical_columns, has_unescaped_pipe) = count_table_row_columns(payload);
     if expected_columns > 1 && !has_unescaped_pipe {
         return Err(CommandError::invalid_table_row(
-            "replacement row payload must parse as exactly one GFM table data row",
+            "table row payload must parse as exactly one GFM table data row",
         ));
     }
     if lexical_columns != expected_columns {
         return Err(CommandError::invalid_table_row(format!(
-            "replacement row column count {} does not match table column count {}",
+            "table row column count {} does not match table column count {}",
             lexical_columns, expected_columns
         )));
     }
@@ -1028,14 +1028,14 @@ pub fn validate_table_row_payload(
 
     if projection.rows.len() != 1 {
         return Err(CommandError::invalid_table_row(
-            "replacement row payload must parse as exactly one GFM table data row",
+            "table row payload must parse as exactly one GFM table data row",
         ));
     }
 
     let actual_columns = projection.rows[0].len();
     if actual_columns != expected_columns {
         return Err(CommandError::invalid_table_row(format!(
-            "replacement row column count {} does not match table column count {}",
+            "table row column count {} does not match table column count {}",
             actual_columns, expected_columns
         )));
     }

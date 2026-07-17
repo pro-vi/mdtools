@@ -1,6 +1,7 @@
-use crate::cli::{DeleteTableRowArgs, ReplaceTableRowArgs, TableArgs};
+use crate::cli::{DeleteTableRowArgs, InsertTableRowArgs, ReplaceTableRowArgs, TableArgs};
 use crate::commands::replace::{
-    emit_mutation, strip_one_trailing_newline, verify_expected_etag, MutationEmission,
+    emit_mutation, inserted_span_after, strip_one_trailing_newline, verify_expected_etag,
+    MutationEmission,
 };
 use crate::errors::CommandError;
 use crate::model::*;
@@ -127,6 +128,89 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
     })
 }
 
+pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(&args.file)?;
+    let doc = ParsedDocument::parse(source)?;
+
+    let block = doc
+        .blocks
+        .get(args.table_block_index as usize)
+        .ok_or_else(|| {
+            CommandError::block_out_of_range(args.table_block_index, doc.blocks.len() as u32)
+        })?;
+    if block.kind != BlockKind::Table {
+        return Err(CommandError::table_not_found(args.table_block_index));
+    }
+
+    let table_source = doc.slice(&block.span);
+    verify_expected_etag(
+        args.etag_guard.expect_etag.as_deref(),
+        table_source,
+        |expected, actual| {
+            CommandError::table_etag_mismatch(args.table_block_index, expected, actual)
+        },
+    )?;
+
+    let table = parser::extract_table_projection(table_source, block.span)?;
+    let row_count = table.rows.len() as u32;
+    if args.row_index > row_count {
+        return Err(CommandError::table_row_insertion_out_of_range(
+            args.table_block_index,
+            args.row_index,
+            row_count,
+        ));
+    }
+
+    let payload = output::read_content(args.from.as_deref())?;
+    let payload = strip_one_trailing_newline(payload);
+    parser::validate_table_row_payload(&payload, table.headers.len())?;
+
+    let target = MutationTargetRef::TableRowInsertion(TableRowInsertionTargetRef {
+        kind: MutationTargetKind::TableRowInsertion,
+        table_block_index: args.table_block_index,
+        row_index: args.row_index,
+    });
+
+    let insertion = resolve_table_row_insertion(&doc, block.span, &table, args.row_index)?;
+    let before = &doc.source[..insertion.insert_byte];
+    let after = &doc.source[insertion.insert_byte..];
+
+    let mut output_doc =
+        String::with_capacity(doc.source.len() + payload.len() + insertion.separator.len());
+    output_doc.push_str(before);
+    let payload_start = match insertion.separator_placement {
+        SeparatorPlacement::BeforePayload => {
+            output_doc.push_str(insertion.separator);
+            let start = output_doc.len();
+            output_doc.push_str(&payload);
+            start
+        }
+        SeparatorPlacement::AfterPayload => {
+            let start = output_doc.len();
+            output_doc.push_str(&payload);
+            output_doc.push_str(insertion.separator);
+            start
+        }
+    };
+    let payload_end = payload_start + payload.len();
+    output_doc.push_str(after);
+    let span_after = inserted_span_after(&output_doc, payload_start, payload_end)?;
+
+    emit_mutation(MutationEmission {
+        in_place: args.in_place,
+        json,
+        file: &args.file,
+        command: MutationCommandKind::InsertTableRow,
+        target,
+        disposition: MutationDisposition::Inserted,
+        changed: true,
+        line_endings: doc.line_ending_style(),
+        span_before: None,
+        span_after: Some(span_after),
+        output_doc: &output_doc,
+    })
+}
+
 pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
@@ -184,6 +268,95 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
         span_after: None,
         output_doc: &output_doc,
     })
+}
+
+struct TableRowInsertionPlan<'a> {
+    insert_byte: usize,
+    separator: &'a str,
+    separator_placement: SeparatorPlacement,
+}
+
+enum SeparatorPlacement {
+    BeforePayload,
+    AfterPayload,
+}
+
+fn resolve_table_row_insertion<'a>(
+    doc: &'a ParsedDocument,
+    block_span: SourceSpan,
+    table: &parser::TableProjection,
+    row_index: u32,
+) -> Result<TableRowInsertionPlan<'a>, CommandError> {
+    let source = doc.source.as_str();
+    let row_count = table.rows.len() as u32;
+
+    if row_index < row_count {
+        let row = &table.rows[row_index as usize];
+        let separator = line_boundary_after(source, row.span.byte_end as usize)
+            .or_else(|| line_boundary_before(source, row.span.byte_start as usize))
+            .ok_or_else(|| {
+                CommandError::new(
+                    crate::errors::DiagnosticCode::ParseFailed,
+                    "could not resolve line boundary for table row insertion",
+                )
+            })?;
+        return Ok(TableRowInsertionPlan {
+            insert_byte: row.span.byte_start as usize,
+            separator,
+            separator_placement: SeparatorPlacement::AfterPayload,
+        });
+    }
+
+    let separator = line_boundary_after(source, block_span.byte_end as usize)
+        .or_else(|| {
+            table
+                .rows
+                .last()
+                .and_then(|row| line_boundary_before(source, row.span.byte_start as usize))
+        })
+        .or_else(|| last_line_boundary_within(doc.slice(&block_span)))
+        .ok_or_else(|| {
+            CommandError::new(
+                crate::errors::DiagnosticCode::ParseFailed,
+                "could not resolve line boundary for table row insertion",
+            )
+        })?;
+
+    Ok(TableRowInsertionPlan {
+        insert_byte: block_span.byte_end as usize,
+        separator,
+        separator_placement: SeparatorPlacement::BeforePayload,
+    })
+}
+
+fn line_boundary_after(source: &str, byte_index: usize) -> Option<&str> {
+    let tail = source.get(byte_index..)?;
+    if tail.starts_with("\r\n") {
+        Some(&tail[..2])
+    } else if tail.starts_with('\n') {
+        Some(&tail[..1])
+    } else {
+        None
+    }
+}
+
+fn line_boundary_before(source: &str, byte_index: usize) -> Option<&str> {
+    if byte_index >= 2 && &source[byte_index - 2..byte_index] == "\r\n" {
+        Some(&source[byte_index - 2..byte_index])
+    } else if byte_index >= 1 && &source[byte_index - 1..byte_index] == "\n" {
+        Some(&source[byte_index - 1..byte_index])
+    } else {
+        None
+    }
+}
+
+fn last_line_boundary_within(source: &str) -> Option<&str> {
+    let newline = source.rfind('\n')?;
+    if newline > 0 && source.as_bytes()[newline - 1] == b'\r' {
+        Some(&source[newline - 1..newline + 1])
+    } else {
+        Some(&source[newline..newline + 1])
+    }
 }
 
 fn resolve_table_row_deletion_span(doc: &ParsedDocument, row_span: SourceSpan) -> SourceSpan {

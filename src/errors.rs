@@ -148,6 +148,21 @@ impl CommandError {
         )
     }
 
+    pub fn table_row_insertion_out_of_range(
+        block_index: u32,
+        row_index: u32,
+        row_count: u32,
+    ) -> Self {
+        Self::new(
+            DiagnosticCode::TableRowNotFound,
+            format!(
+                "table row insertion index {} out of range for block {} \
+                 (valid resulting row range: 0..={})",
+                row_index, block_index, row_count
+            ),
+        )
+    }
+
     pub fn invalid_table_row(message: impl Into<String>) -> Self {
         Self::new(DiagnosticCode::InvalidTableRow, message)
     }

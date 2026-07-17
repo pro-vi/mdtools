@@ -20,6 +20,7 @@ MD_COMMAND_SUBCOMMANDS = {
     "delete-section",
     "replace-block",
     "replace-table-row",
+    "insert-table-row",
     "delete-table-row",
 }
 FORBIDDEN_SUBCOMMAND_LITERALS = {
