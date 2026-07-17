@@ -671,6 +671,104 @@ fn mutation_nochange_spans_identical() {
 }
 
 #[test]
+fn mutation_insert_block_target_span_after_slices_exact_payload_across_locations() {
+    let after_output = md_with_stdin(
+        &[
+            "insert-block",
+            "--after",
+            "0",
+            "tests/fixtures/basic.md",
+            "--json",
+        ],
+        "Inserted paragraph.",
+    );
+    assert!(after_output.status.success());
+    let after_json: serde_json::Value = serde_json::from_slice(&after_output.stdout).unwrap();
+    let after_content = after_json["content"].as_str().unwrap();
+    let after_span = &after_json["invariant"]["target_span_after"];
+    let after_bs = after_span["byte_start"].as_u64().unwrap() as usize;
+    let after_be = after_span["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(after_json["disposition"], "Inserted");
+    assert!(after_json["invariant"]["target_span_before"].is_null());
+    assert_eq!(&after_content[after_bs..after_be], "Inserted paragraph.");
+    assert_eq!(after_span["line_start"], 2);
+    assert_eq!(after_span["line_end"], 2);
+
+    let before_output = md_with_stdin(
+        &[
+            "insert-block",
+            "--before",
+            "0",
+            "tests/fixtures/basic.md",
+            "--json",
+        ],
+        "Lead one\nLead two",
+    );
+    assert!(before_output.status.success());
+    let before_json: serde_json::Value = serde_json::from_slice(&before_output.stdout).unwrap();
+    let before_content = before_json["content"].as_str().unwrap();
+    let before_span = &before_json["invariant"]["target_span_after"];
+    let before_bs = before_span["byte_start"].as_u64().unwrap() as usize;
+    let before_be = before_span["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&before_content[before_bs..before_be], "Lead one\nLead two");
+    assert_eq!(before_span["line_start"], 1);
+    assert_eq!(before_span["line_end"], 2);
+    assert!(before_content[before_be..].starts_with("\n\n# Introduction"));
+
+    let start_output = md_with_stdin(
+        &[
+            "insert-block",
+            "--at-start",
+            "tests/fixtures/frontmatter.md",
+            "--json",
+        ],
+        "Inserted A\nInserted B",
+    );
+    assert!(start_output.status.success());
+    let start_json: serde_json::Value = serde_json::from_slice(&start_output.stdout).unwrap();
+    let start_content = start_json["content"].as_str().unwrap();
+    let start_span = &start_json["invariant"]["target_span_after"];
+    let start_bs = start_span["byte_start"].as_u64().unwrap() as usize;
+    let start_be = start_span["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&start_content[start_bs..start_be], "Inserted A\nInserted B");
+    assert_eq!(start_span["line_start"], 9);
+    assert_eq!(start_span["line_end"], 10);
+    assert!(start_content[start_be..].starts_with("\n\n# Main Content"));
+
+    let crlf_path = tempfile_str("# T\r\n\r\nBody.");
+    let end_output = md_with_stdin(
+        &["insert-block", "--at-end", &crlf_path, "--json"],
+        "Tail 1\nTail 2",
+    );
+    assert!(end_output.status.success());
+    let end_json: serde_json::Value = serde_json::from_slice(&end_output.stdout).unwrap();
+    let end_content = end_json["content"].as_str().unwrap();
+    let end_span = &end_json["invariant"]["target_span_after"];
+    let end_bs = end_span["byte_start"].as_u64().unwrap() as usize;
+    let end_be = end_span["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&end_content[end_bs..end_be], "Tail 1\r\nTail 2");
+    assert_eq!(end_span["line_start"], 4);
+    assert_eq!(end_span["line_end"], 5);
+    assert!(end_content[..end_bs].ends_with("Body.\r\n"));
+    std::fs::remove_file(&crlf_path).ok();
+}
+
+#[test]
+fn mutation_insert_block_empty_payload_uses_no_owned_target_exception() {
+    let path = tempfile_str("# Title\n\nBody.");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let output = md_with_stdin(&["insert-block", "--at-end", &path, "--json"], "");
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "NoChange");
+    assert_eq!(json["changed"], false);
+    assert!(json["invariant"]["target_span_before"].is_null());
+    assert!(json["invariant"]["target_span_after"].is_null());
+    assert_eq!(json["content"].as_str().unwrap(), source);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn mutation_preserves_non_target_bytes() {
     let source = std::fs::read_to_string("tests/fixtures/basic.md").unwrap();
     let output = md_with_stdin(

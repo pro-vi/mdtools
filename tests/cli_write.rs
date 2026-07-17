@@ -730,6 +730,71 @@ fn insert_block_at_start_after_frontmatter() {
 }
 
 #[test]
+fn insert_block_json_reports_exact_payload_span() {
+    let payload = "Inserted paragraph.";
+    let output = md_with_stdin(
+        &[
+            "insert-block",
+            "--after",
+            "0",
+            "tests/fixtures/basic.md",
+            "--json",
+        ],
+        payload,
+    );
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["disposition"], "Inserted");
+    assert_eq!(json["changed"], true);
+    assert!(json["invariant"]["target_span_before"].is_null());
+    let after = &json["invariant"]["target_span_after"];
+    let content = json["content"].as_str().unwrap();
+    let bs = after["byte_start"].as_u64().unwrap() as usize;
+    let be = after["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&content[bs..be], payload);
+    assert_eq!(after["line_start"], 2);
+    assert_eq!(after["line_end"], 2);
+    assert!(content[..bs].ends_with("# Introduction\n"));
+    assert!(content[be..].starts_with("\n\n"));
+}
+
+#[test]
+fn insert_block_empty_payload_is_exact_noop_across_output_modes() {
+    let source = "# Title\n\nBody.";
+    let tmp = tempfile(source);
+
+    let text_stdout = md_with_stdin(&["insert-block", "--at-end", &tmp], "");
+    assert!(text_stdout.status.success());
+    assert_eq!(String::from_utf8(text_stdout.stdout).unwrap(), source);
+
+    let json_stdout = md_with_stdin(&["insert-block", "--at-end", &tmp, "--json"], "");
+    assert!(json_stdout.status.success());
+    let json_stdout: serde_json::Value = serde_json::from_slice(&json_stdout.stdout).unwrap();
+    assert_eq!(json_stdout["disposition"], "NoChange");
+    assert_eq!(json_stdout["changed"], false);
+    assert!(json_stdout["invariant"]["target_span_before"].is_null());
+    assert!(json_stdout["invariant"]["target_span_after"].is_null());
+    assert_eq!(json_stdout["content"].as_str().unwrap(), source);
+
+    let in_place = md_with_stdin(&["insert-block", "--at-end", &tmp, "-i"], "");
+    assert!(in_place.status.success());
+    assert!(in_place.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+
+    let in_place_json = md_with_stdin(&["insert-block", "--at-end", &tmp, "-i", "--json"], "");
+    assert!(in_place_json.status.success());
+    let in_place_json: serde_json::Value = serde_json::from_slice(&in_place_json.stdout).unwrap();
+    assert_eq!(in_place_json["disposition"], "NoChange");
+    assert_eq!(in_place_json["changed"], false);
+    assert!(in_place_json["invariant"]["target_span_before"].is_null());
+    assert!(in_place_json["invariant"]["target_span_after"].is_null());
+    assert!(in_place_json["content"].is_null());
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn delete_last_block() {
     let tmp = tempfile("# Hello\n\nOnly paragraph.\n");
     let output = md()

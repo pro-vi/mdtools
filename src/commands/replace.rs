@@ -14,7 +14,7 @@ pub(crate) struct MutationEmission<'a> {
     pub changed: bool,
     pub line_endings: LineEndingStyle,
     pub span_before: Option<SourceSpan>,
-    pub replacement: &'a str,
+    pub span_after: Option<SourceSpan>,
     pub output_doc: &'a str,
 }
 
@@ -89,7 +89,12 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
         changed,
         line_endings,
         span_before: Some(block_span),
-        replacement: &replacement,
+        span_after: match disposition {
+            MutationDisposition::NoChange => Some(block_span),
+            MutationDisposition::Deleted => None,
+            MutationDisposition::Replaced => Some(replacement_span_after(block_span, &replacement)),
+            MutationDisposition::Inserted => None,
+        },
         output_doc: &output_doc,
     })
 }
@@ -109,6 +114,27 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
     let content = normalize_line_endings(&content, &line_endings);
 
     let (insert_byte, anchor_span) = resolve_insert_location(&doc, &location)?;
+    let target = MutationTargetRef::Insert(InsertTargetRef {
+        kind: MutationTargetKind::InsertLocation,
+        location,
+        anchor_span,
+    });
+
+    if content.is_empty() {
+        return emit_mutation(MutationEmission {
+            in_place: args.in_place,
+            json,
+            file: &args.file,
+            command: MutationCommandKind::InsertBlock,
+            target,
+            disposition: MutationDisposition::NoChange,
+            changed: false,
+            line_endings,
+            span_before: None,
+            span_after: None,
+            output_doc: &doc.source,
+        });
+    }
 
     let before = &doc.source[..insert_byte];
     let after = &doc.source[insert_byte..];
@@ -138,7 +164,9 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
     if needs_separator && !needs_leading_newline {
         output_doc.push_str(nl);
     }
+    let payload_start = output_doc.len();
     output_doc.push_str(&content);
+    let payload_end = output_doc.len();
     if needs_trailing_separator {
         output_doc.push_str(nl);
         output_doc.push_str(nl);
@@ -146,18 +174,7 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         output_doc.push_str(nl);
     }
     output_doc.push_str(after);
-
-    let target = MutationTargetRef::Insert(InsertTargetRef {
-        kind: MutationTargetKind::InsertLocation,
-        location,
-        anchor_span,
-    });
-
-    let (disposition, changed) = if content.is_empty() {
-        (MutationDisposition::NoChange, false)
-    } else {
-        (MutationDisposition::Inserted, true)
-    };
+    let span_after = inserted_span_after(&output_doc, payload_start, payload_end)?;
 
     emit_mutation(MutationEmission {
         in_place: args.in_place,
@@ -165,11 +182,11 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         file: &args.file,
         command: MutationCommandKind::InsertBlock,
         target,
-        disposition,
-        changed,
+        disposition: MutationDisposition::Inserted,
+        changed: true,
         line_endings,
         span_before: None,
-        replacement: &content,
+        span_after: Some(span_after),
         output_doc: &output_doc,
     })
 }
@@ -214,7 +231,7 @@ pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), Comman
         changed: true,
         line_endings,
         span_before: Some(block_span),
-        replacement: "",
+        span_after: None,
         output_doc: &output_doc,
     })
 }
@@ -383,28 +400,13 @@ pub(crate) fn replacement_span_after(span_before: SourceSpan, replacement: &str)
     }
 }
 
-/// Compute target_span_after based on disposition and replacement content.
-fn compute_span_after(
-    disposition: MutationDisposition,
-    span_before: Option<SourceSpan>,
-    replacement: &str,
-) -> Option<SourceSpan> {
-    match disposition {
-        MutationDisposition::Deleted => None,
-        MutationDisposition::NoChange => span_before,
-        MutationDisposition::Replaced => {
-            if let Some(before) = span_before {
-                Some(replacement_span_after(before, replacement))
-            } else {
-                None
-            }
-        }
-        MutationDisposition::Inserted => {
-            // For insert, span_before is None; compute from insertion point in output
-            // Find where the content was inserted
-            None // Simplified — insert span_after would require knowing the insert byte
-        }
-    }
+fn inserted_span_after(
+    output_doc: &str,
+    payload_start: usize,
+    payload_end: usize,
+) -> Result<SourceSpan, CommandError> {
+    let parsed = ParsedDocument::parse(output_doc.to_string())?;
+    Ok(parsed.span_for_byte_range(payload_start as u32, payload_end as u32))
 }
 
 pub(crate) fn emit_mutation(emission: MutationEmission<'_>) -> Result<(), CommandError> {
@@ -418,11 +420,9 @@ pub(crate) fn emit_mutation(emission: MutationEmission<'_>) -> Result<(), Comman
         changed,
         line_endings,
         span_before,
-        replacement,
+        span_after,
         output_doc,
     } = emission;
-
-    let span_after = compute_span_after(disposition, span_before, replacement);
 
     let build_result = |content: Option<String>| MutationResult {
         schema_version: SCHEMA_VERSION.to_string(),

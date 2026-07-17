@@ -526,6 +526,13 @@ pub struct SourcePreservationInvariant { // [id:contract-source-preservation]
 // - Deleted   => target_span_before = Some(deleted span), target_span_after = None
 // - Replaced  => target_span_before = Some(old span),     target_span_after = Some(new span)
 // - NoChange  => target_span_before = Some(span),         target_span_after = Some(span) (identical)
+// Successful non-empty insert-block follows the generic Inserted rule above.
+// The exception is empty insert-block payload: MutationDisposition::NoChange
+// with target_span_before = None and target_span_after = None because no
+// target bytes exist before or after.
+// For non-empty insert-block, synthesized block separators stay outside the
+// inserted payload span; target_span_after covers only the normalized payload
+// bytes while original non-target bytes remain preserved.
 // `SetFrontmatter` is the exception: its disposition is field-scoped, but its
 // invariant spans are whole-frontmatter-state scoped because Phase 1 does not
 // expose field-local source maps.

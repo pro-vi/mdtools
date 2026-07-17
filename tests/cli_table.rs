@@ -694,6 +694,12 @@ fn replace_table_row_json_reports_typed_target() {
     assert!(json["content"].is_null());
 
     let updated = std::fs::read_to_string(&tmp).unwrap();
+    let after = &json["invariant"]["target_span_after"];
+    let bs = after["byte_start"].as_u64().unwrap() as usize;
+    let be = after["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&updated[bs..be], "| Gamma | 300 |");
+    assert_eq!(after["line_start"], 5);
+    assert_eq!(after["line_end"], 5);
     assert!(updated.contains("| Gamma | 300 |"));
     assert!(updated.contains("Summary paragraph."));
     std::fs::remove_file(&tmp).unwrap();
@@ -740,6 +746,10 @@ fn replace_table_row_trailing_newline_noop_round_trips() {
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(json["disposition"], "NoChange");
     assert_eq!(json["changed"], false);
+    assert_eq!(
+        json["invariant"]["target_span_before"],
+        json["invariant"]["target_span_after"]
+    );
     assert_eq!(
         std::fs::read_to_string(&tmp).unwrap(),
         include_str!("fixtures/table.md")
