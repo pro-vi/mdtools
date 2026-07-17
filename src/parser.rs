@@ -237,6 +237,13 @@ pub struct FrontmatterInfo {
     pub format: FrontmatterFormat,
 }
 
+pub struct FrontmatterState<'a> {
+    pub span: Option<SourceSpan>,
+    pub raw: Option<&'a str>,
+    pub format: Option<FrontmatterFormat>,
+    pub etag: String,
+}
+
 impl ParsedDocument {
     pub fn parse(source: String) -> Result<Self, CommandError> {
         Self::parse_inner(source, false)
@@ -455,6 +462,26 @@ impl ParsedDocument {
         &self.source[span.byte_start as usize..span.byte_end as usize]
     }
 
+    pub fn frontmatter_state(&self) -> FrontmatterState<'_> {
+        match &self.frontmatter {
+            Some(frontmatter) => {
+                let raw = self.slice(&frontmatter.span);
+                FrontmatterState {
+                    span: Some(frontmatter.span),
+                    raw: Some(raw),
+                    format: Some(frontmatter.format),
+                    etag: frontmatter_state_etag(Some(raw)),
+                }
+            }
+            None => FrontmatterState {
+                span: None,
+                raw: None,
+                format: None,
+                etag: frontmatter_state_etag(None),
+            },
+        }
+    }
+
     /// Detect the document's line ending style.
     pub fn line_ending_style(&self) -> LineEndingStyle {
         let has_crlf = self.source.contains("\r\n");
@@ -469,6 +496,32 @@ impl ParsedDocument {
             (true, true) => LineEndingStyle::Mixed,
         }
     }
+}
+
+fn frontmatter_state_etag(raw: Option<&str>) -> String {
+    const ABSENT_DOMAIN: &[u8] = b"mdtools.frontmatter.absent";
+    const PRESENT_DOMAIN: &[u8] = b"mdtools.frontmatter.present\0";
+
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let bytes = raw.map(str::as_bytes);
+    let domain = if bytes.is_some() {
+        PRESENT_DOMAIN
+    } else {
+        ABSENT_DOMAIN
+    };
+
+    for &b in domain {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    if let Some(bytes) = bytes {
+        for &b in bytes {
+            hash ^= b as u64;
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    format!("{:016x}", hash)
 }
 
 /// Compute the byte span covering an ATX heading's `#` run.

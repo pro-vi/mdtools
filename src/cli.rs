@@ -18,6 +18,9 @@ const TASK_EXPECT_ETAG_HELP: &str =
 const TABLE_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the table's current etag (from `md table --json`)\n\
      differs — guards against mutating a stale table after intervening edits.";
+const FRONTMATTER_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the current whole-frontmatter etag (from `md frontmatter --json`)\n\
+     differs — guards against mutating stale frontmatter after intervening edits.";
 const SECTION_CONTAINS_HELP: &str =
     "Match parsed plaintext top-level heading text by literal substring; \
      exact matching remains the default";
@@ -247,6 +250,13 @@ pub struct SetArgs {
     /// Write changes back to the file
     #[arg(long = "in-place", short = 'i')]
     pub in_place: bool,
+
+    #[arg(
+        long = "expect-etag",
+        value_name = "ETAG",
+        help = FRONTMATTER_EXPECT_ETAG_HELP
+    )]
+    pub expect_etag: Option<String>,
 }
 
 #[derive(Args)]

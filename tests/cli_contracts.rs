@@ -1268,6 +1268,35 @@ fn all_json_commands_have_schema_version() {
     }
 }
 
+#[test]
+fn set_help_mentions_frontmatter_expect_etag() {
+    let help = md_help("set");
+    let normalized = help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(normalized.contains("--expect-etag"));
+    assert!(normalized.contains("whole-frontmatter etag"));
+    assert!(normalized.contains("md frontmatter --json"));
+}
+
+#[test]
+fn frontmatter_state_etag_tracks_exact_owned_bytes() {
+    let base = tempfile_str("---\ntitle: Same\n---\n# Body\n");
+    let reordered = tempfile_str("---\n# comment\ntitle: Same\n---\n# Body\n");
+    let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+    let empty_present = tempfile_str("---\n\n---\n# Body\n");
+    let absent = tempfile_str("# Body\n");
+
+    let base_etag = frontmatter_etag(&base);
+    assert_ne!(base_etag, frontmatter_etag(&reordered));
+    assert_ne!(base_etag, frontmatter_etag(&crlf));
+    assert_ne!(frontmatter_etag(&empty_present), frontmatter_etag(&absent));
+
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&reordered).ok();
+    std::fs::remove_file(&crlf).ok();
+    std::fs::remove_file(&empty_present).ok();
+    std::fs::remove_file(&absent).ok();
+}
+
 // ============================================================
 // ERROR PATH COVERAGE
 // ============================================================
@@ -1332,7 +1361,31 @@ fn error_exits_are_correct() {
 }
 
 #[test]
-fn stale_section_and_task_expect_etag_conflicts_exit_four() {
+fn stale_frontmatter_section_and_task_expect_etag_conflicts_exit_four() {
+    let frontmatter_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/frontmatter.md").unwrap());
+    let frontmatter_etag = frontmatter_etag(&frontmatter_path);
+    let stale_frontmatter = std::fs::read_to_string(&frontmatter_path).unwrap();
+    let fresh_frontmatter =
+        stale_frontmatter.replace("title: Test Document", "title: Intervening Document");
+    std::fs::write(&frontmatter_path, fresh_frontmatter.clone()).unwrap();
+    let o = md()
+        .args([
+            "set",
+            "date",
+            &frontmatter_path,
+            "2024-02-01",
+            "-i",
+            "--expect-etag",
+            &frontmatter_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(4));
+    assert!(String::from_utf8_lossy(&o.stderr).contains("frontmatter etag mismatch"));
+    assert_eq!(std::fs::read_to_string(&frontmatter_path).unwrap(), fresh_frontmatter);
+    std::fs::remove_file(&frontmatter_path).ok();
+
     let section_path = tempfile_str(&std::fs::read_to_string("tests/fixtures/basic.md").unwrap());
     let section_read = md()
         .args(["section", "Discussion", &section_path, "--json"])
@@ -1425,6 +1478,13 @@ fn tempfile_bytes(content: &[u8]) -> String {
     );
     std::fs::write(&path, content).unwrap();
     path
+}
+
+fn frontmatter_etag(path: &str) -> String {
+    let output = md().args(["frontmatter", path]).output().unwrap();
+    assert!(output.status.success(), "frontmatter read failed for {}", path);
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    json["etag"].as_str().unwrap().to_string()
 }
 
 fn assert_replace_section_target_span_after(

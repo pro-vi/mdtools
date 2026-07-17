@@ -95,6 +95,12 @@ vault/beta.md     Beta Doc
 vault/sub/delta.md    Delta Doc
 vault/sub/gamma.md    Gamma Doc
 
+# Read the whole frontmatter state and its exact-byte etag
+$ md frontmatter doc.md | jq '{present, etag, data: .frontmatter.data}'
+
+# Field-projection JSON keeps the same top-level present/etag metadata
+$ md frontmatter doc.md --field title --json | jq '{present, etag, fields}'
+
 # Aggregate one vault-shaped dataset from frontmatter
 $ md collect vault/ -r --field title,status
 path    title    status
@@ -216,13 +222,17 @@ md move-section "API" doc.md --after "Frontend" -i \
 md set tags doc.md '["rust", "cli"]' -i
 md set author.name doc.md "Jane" -i
 md set draft doc.md --delete -i
+
+# Guard a frontmatter mutation against stale whole-state reads, then re-query
+etag=$(md frontmatter doc.md --json | jq -r '.etag')
+md set author.name doc.md "Jane" -i --expect-etag "$etag"
 ```
 
 ### JSON mode
 
-Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later (`blocks`, `section`, `table`, and `tasks`) also expose per-target `etag` fingerprints for optimistic concurrency.
+Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later expose optimistic-concurrency fingerprints: `blocks`, `section`, `table`, and `tasks` expose per-target `etag`s, while `frontmatter` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata on both full and field-projection JSON reads.
 
-Guarded mutations fail closed: `--expect-etag` protects the single-target mutation commands, while `move-section` accepts `--expect-source-etag` and `--expect-dest-etag`. On `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, releveling, splice construction, stdout emission, or in-place write. Any mismatch exits with `EtagMismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. These fingerprints are content-addressed guards, not durable identity; identical bytes can still authorize the wrong same-content target after a structural shift, so the safe pattern is read, mutate, then re-query.
+Guarded mutations fail closed: `--expect-etag` protects `set`, the single-target block/section/table/task mutation commands, and `move-section` accepts `--expect-source-etag` and `--expect-dest-etag`. On `set`, the guard checks the current whole frontmatter state before any mutation, no-op shortcut, stdout emission, or in-place write. On `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, releveling, splice construction, stdout emission, or in-place write. Any mismatch exits with `EtagMismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. These fingerprints are content-addressed guards, not durable identity; identical bytes can still authorize the wrong same-content target after a structural shift, so the safe pattern is read, mutate, then re-query.
 
 ```sh
 $ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'

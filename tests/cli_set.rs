@@ -22,6 +22,17 @@ fn temp_file(content: &str) -> std::path::PathBuf {
     path
 }
 
+fn frontmatter_etag(path: &std::path::Path) -> String {
+    let out = md().args(["frontmatter", &path.to_string_lossy()]).output().unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    json["etag"].as_str().unwrap().to_string()
+}
+
 // CLI arg order: md set <key> <file> [value]
 
 // --- Core set operations ---
@@ -362,6 +373,91 @@ fn set_toml_preserves_format() {
     assert!(stdout.contains("title"));
 }
 
+#[test]
+fn set_expect_etag_matches_yaml_state() {
+    let tmp = temp_copy("set_basic.md");
+    let etag = frontmatter_etag(&tmp);
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Guarded",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "Replaced");
+    assert_eq!(json["changed"], true);
+    let content = json["content"].as_str().unwrap();
+    assert!(content.contains("title: Guarded"));
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_matches_toml_state() {
+    let tmp = temp_copy("toml_frontmatter.md");
+    let etag = frontmatter_etag(&tmp);
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Guarded",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "Replaced");
+    assert_eq!(json["target"]["FrontmatterField"]["format"], "Toml");
+    assert!(json["content"].as_str().unwrap().starts_with("+++\n"));
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_matches_absent_state() {
+    let tmp = temp_copy("no_frontmatter.md");
+    let etag = frontmatter_etag(&tmp);
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Guarded",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "Inserted");
+    assert_eq!(json["changed"], true);
+    assert!(json["content"].as_str().unwrap().starts_with("---\n"));
+    std::fs::remove_file(&tmp).ok();
+}
+
 // --- Body preservation ---
 
 #[test]
@@ -377,6 +473,137 @@ fn set_preserves_body_bytes() {
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("\n# Content\n\nBody text here.\n"));
+}
+
+#[test]
+fn set_frontmatter_only_eof_no_change_is_byte_identical() {
+    let content = "---\ntitle: Final Byte\n---";
+    let tmp = temp_file(content);
+    let etag = frontmatter_etag(&tmp);
+
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Final Byte",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "NoChange");
+    assert_eq!(json["changed"], false);
+    assert_eq!(json["content"].as_str().unwrap(), content);
+    assert_eq!(
+        json["invariant"]["target_span_before"],
+        json["invariant"]["target_span_after"]
+    );
+    assert_eq!(std::fs::read(&tmp).unwrap(), content.as_bytes());
+
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Final Byte",
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(std::fs::read(&tmp).unwrap(), content.as_bytes());
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_stale_update_conflict_preserves_bytes() {
+    let tmp = temp_copy("set_basic.md");
+    let etag = frontmatter_etag(&tmp);
+    let stale = std::fs::read_to_string(&tmp).unwrap();
+    let fresh = stale.replace("title: Original", "title: Intervening");
+    std::fs::write(&tmp, &fresh).unwrap();
+
+    let out = md()
+        .args([
+            "set",
+            "author",
+            &tmp.to_string_lossy(),
+            "Guarded",
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("frontmatter etag mismatch"));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_stale_noop_conflict_preserves_bytes() {
+    let tmp = temp_copy("set_basic.md");
+    let etag = frontmatter_etag(&tmp);
+    let stale = std::fs::read_to_string(&tmp).unwrap();
+    let fresh = stale.replace("author: Jane", "author: Janet");
+    std::fs::write(&tmp, &fresh).unwrap();
+
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Original",
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_stale_delete_conflict_preserves_bytes() {
+    let tmp = temp_copy("set_basic.md");
+    let etag = frontmatter_etag(&tmp);
+    let stale = std::fs::read_to_string(&tmp).unwrap();
+    let fresh = stale.replace("title: Original", "title: Drifted");
+    std::fs::write(&tmp, &fresh).unwrap();
+
+    let out = md()
+        .args([
+            "set",
+            "--delete",
+            "author",
+            &tmp.to_string_lossy(),
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
+    std::fs::remove_file(&tmp).ok();
 }
 
 // --- Error paths ---
@@ -407,18 +634,77 @@ fn set_string_with_delete_error() {
 }
 
 #[test]
-fn set_malformed_frontmatter_error() {
+fn set_malformed_frontmatter_is_treated_as_absent() {
     let out = md()
         .args([
             "set",
             "title",
             "tests/fixtures/malformed_frontmatter.md",
             "New",
+            "--json",
         ])
         .output()
         .unwrap();
-    assert!(!out.status.success());
-    assert_eq!(out.status.code().unwrap(), 2);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "Inserted");
+    let content = json["content"].as_str().unwrap();
+    assert!(content.contains("title: New"));
+    assert!(content.contains(": invalid: yaml: {{{"));
+}
+
+#[test]
+fn set_unclosed_frontmatter_is_treated_as_absent() {
+    let out = md()
+        .args([
+            "set",
+            "title",
+            "tests/fixtures/unclosed_frontmatter.md",
+            "New",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "Inserted");
+    let content = json["content"].as_str().unwrap();
+    assert!(content.contains("title: New"));
+    assert!(content.contains("# Main"));
+}
+
+#[test]
+fn set_scalar_frontmatter_root_is_rejected() {
+    let tmp = temp_file("---\nhello\n---\n\n# Main\n");
+    let out = md()
+        .args(["set", "title", &tmp.to_string_lossy(), "New"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("mapping/object"));
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_sequence_frontmatter_root_is_rejected() {
+    let tmp = temp_file("---\n- one\n- two\n---\n\n# Main\n");
+    let out = md()
+        .args(["set", "title", &tmp.to_string_lossy(), "New"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("mapping/object"));
+    std::fs::remove_file(&tmp).ok();
 }
 
 // --- Edge cases ---

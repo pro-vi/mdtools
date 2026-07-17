@@ -324,7 +324,16 @@ pub struct FrontmatterReadResult { // [id:contract-frontmatter-read-result]
     pub schema_version: &'static str,
     pub file: String,
     pub present: bool,
+    pub etag: String,
     pub frontmatter: Option<FrontmatterEnvelope>,
+}
+
+pub struct FrontmatterFieldProjectionResult { // [id:contract-frontmatter-field-projection-result]
+    pub schema_version: &'static str,
+    pub file: String,
+    pub present: bool,
+    pub etag: String,
+    pub fields: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 pub struct CollectResult { // [id:contract-collect-result]
@@ -418,6 +427,7 @@ pub enum MutationTargetKind { // [id:contract-mutation-target-kind]
     Block,
     Section,
     InsertLocation,
+    FrontmatterField,
     TaskItem,
     TableRow,
 }
@@ -430,6 +440,7 @@ pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
     DeleteBlock,
     DeleteSection,
     MoveSection,
+    SetFrontmatter,
     SetTask,
 }
 
@@ -458,6 +469,12 @@ pub struct InsertTargetRef { // [id:contract-insert-target-ref]
     pub anchor_span: Option<SourceSpan>,
 }
 
+pub struct FrontmatterFieldTargetRef {
+    pub kind: MutationTargetKind,
+    pub key_path: String,
+    pub format: FrontmatterFormat,
+}
+
 pub struct TaskItemTargetRef {
     pub kind: MutationTargetKind,
     pub loc: String,
@@ -477,6 +494,7 @@ pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     Block(BlockTargetRef),
     Section(SectionTargetRef),
     Insert(InsertTargetRef),
+    FrontmatterField(FrontmatterFieldTargetRef),
     TaskItem(TaskItemTargetRef),
     TableRow(TableRowTargetRef),
     SectionMove(SectionMoveTargetRef),

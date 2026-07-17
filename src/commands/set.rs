@@ -1,8 +1,15 @@
+use super::frontmatter::parse_frontmatter_data;
 use crate::cli::SetArgs;
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
-use crate::parser::ParsedDocument;
+use crate::parser::{FrontmatterState, ParsedDocument};
+
+struct ExistingFrontmatter<'a> {
+    data: serde_json::Value,
+    format: FrontmatterFormat,
+    state: FrontmatterState<'a>,
+}
 
 pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     // Validate args
@@ -32,9 +39,23 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     }
 
     let source = std::fs::read_to_string(&args.file)?;
+    let doc = ParsedDocument::parse(source.clone())?;
+    let existing = parse_existing_frontmatter(&doc)?;
 
-    // Determine if we have existing frontmatter
-    let (mut data, fm_format, fm_byte_end, had_frontmatter) = parse_existing_frontmatter(&source)?;
+    if let Some(expected) = args.expect_etag.as_deref() {
+        if expected != existing.state.etag {
+            return Err(CommandError::frontmatter_etag_mismatch(
+                expected,
+                &existing.state.etag,
+            ));
+        }
+    }
+
+    let ExistingFrontmatter {
+        mut data,
+        format: fm_format,
+        state,
+    } = existing;
 
     // Apply mutation
     let disposition = if args.delete {
@@ -45,16 +66,27 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     };
     let changed = disposition != MutationDisposition::NoChange;
 
-    // Serialize back
-    let new_fm_block = serialize_frontmatter(&data, fm_format)?;
-
-    // Build output document
-    let output_doc = if had_frontmatter {
-        format!("{}{}", &new_fm_block, &source[fm_byte_end..])
-    } else if source.is_empty() {
-        new_fm_block.clone()
+    let span_before = state.span;
+    let (output_doc, span_after) = if changed {
+        let new_fm_block = serialize_frontmatter(&data, fm_format)?;
+        let output_doc = if let Some(span) = state.span {
+            format!("{}{}", &new_fm_block, &source[span.byte_end as usize..])
+        } else if source.is_empty() {
+            new_fm_block.clone()
+        } else {
+            format!("{}\n{}", &new_fm_block, &source)
+        };
+        (
+            output_doc,
+            Some(SourceSpan {
+                line_start: 1,
+                line_end: new_fm_block.matches('\n').count() as u32,
+                byte_start: 0,
+                byte_end: new_fm_block.len() as u32,
+            }),
+        )
     } else {
-        format!("{}\n{}", &new_fm_block, &source)
+        (source.clone(), span_before)
     };
 
     // Build mutation result
@@ -64,36 +96,6 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
         format: fm_format,
     });
 
-    let span_before = if had_frontmatter {
-        Some(SourceSpan {
-            line_start: 1,
-            line_end: source[..fm_byte_end].matches('\n').count() as u32,
-            byte_start: 0,
-            byte_end: fm_byte_end as u32,
-        })
-    } else {
-        None
-    };
-
-    let span_after = if changed {
-        let line_count = new_fm_block.matches('\n').count() as u32;
-        Some(SourceSpan {
-            line_start: 1,
-            line_end: line_count,
-            byte_start: 0,
-            byte_end: new_fm_block.len() as u32,
-        })
-    } else {
-        span_before
-    };
-
-    let line_endings = if had_frontmatter {
-        let doc = ParsedDocument::parse(source)?;
-        doc.line_ending_style()
-    } else {
-        LineEndingStyle::Lf
-    };
-
     emit_set_mutation(
         args.in_place,
         json,
@@ -101,87 +103,28 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
         target,
         disposition,
         changed,
-        line_endings,
+        doc.line_ending_style(),
         span_before,
         span_after,
         &output_doc,
     )
 }
 
-fn parse_existing_frontmatter(
-    source: &str,
-) -> Result<(serde_json::Value, FrontmatterFormat, usize, bool), CommandError> {
-    // Try to detect frontmatter
-    let first_line = source.lines().next().unwrap_or("");
-    let (delimiter, format) = if first_line == "---" {
-        ("---", FrontmatterFormat::Yaml)
-    } else if first_line == "+++" {
-        ("+++", FrontmatterFormat::Toml)
-    } else {
-        // No frontmatter — return empty object
-        return Ok((
-            serde_json::Value::Object(serde_json::Map::new()),
-            FrontmatterFormat::Yaml,
-            0,
-            false,
-        ));
+fn parse_existing_frontmatter(doc: &ParsedDocument) -> Result<ExistingFrontmatter<'_>, CommandError> {
+    let state = doc.frontmatter_state();
+
+    let Some(raw) = state.raw else {
+        return Ok(ExistingFrontmatter {
+            data: serde_json::Value::Object(serde_json::Map::new()),
+            format: FrontmatterFormat::Yaml,
+            state,
+        });
     };
 
-    // Find closing delimiter
-    let closing_pos = find_closing_delimiter(source, delimiter);
-    let fm_byte_end = match closing_pos {
-        Some(end) => end,
-        None => {
-            return Err(CommandError::new(
-                DiagnosticCode::FrontmatterParseFailed,
-                format!("unclosed frontmatter (no closing '{}')", delimiter),
-            ));
-        }
-    };
-
-    // Extract raw content between delimiters
-    let delim_len = delimiter.len();
-    let after_open = delim_len + 1; // skip delimiter + newline
-    let close_start = source[..fm_byte_end]
-        .rfind(delimiter)
-        .unwrap_or(fm_byte_end);
-    let content = &source[after_open..close_start];
-
-    // Parse to JSON Value
-    let data = match format {
-        FrontmatterFormat::Yaml => {
-            if content.trim().is_empty() {
-                serde_json::Value::Object(serde_json::Map::new())
-            } else {
-                serde_yaml::from_str::<serde_json::Value>(content).map_err(|e| {
-                    CommandError::new(
-                        DiagnosticCode::FrontmatterParseFailed,
-                        format!("invalid YAML frontmatter: {}", e),
-                    )
-                })?
-            }
-        }
-        FrontmatterFormat::Toml => {
-            if content.trim().is_empty() {
-                serde_json::Value::Object(serde_json::Map::new())
-            } else {
-                let toml_val: toml::Value = content.parse().map_err(|e: toml::de::Error| {
-                    CommandError::new(
-                        DiagnosticCode::FrontmatterParseFailed,
-                        format!("invalid TOML frontmatter: {}", e),
-                    )
-                })?;
-                serde_json::to_value(&toml_val).map_err(|e| {
-                    CommandError::new(
-                        DiagnosticCode::FrontmatterParseFailed,
-                        format!("TOML to JSON conversion failed: {}", e),
-                    )
-                })?
-            }
-        }
-    };
-
-    // Ensure it's an object
+    let format = state
+        .format
+        .expect("present frontmatter state must include a format");
+    let data = parse_frontmatter_data(raw, format)?;
     if !data.is_object() {
         return Err(CommandError::new(
             DiagnosticCode::FrontmatterParseFailed,
@@ -189,32 +132,11 @@ fn parse_existing_frontmatter(
         ));
     }
 
-    Ok((data, format, fm_byte_end, true))
-}
-
-fn find_closing_delimiter(source: &str, delimiter: &str) -> Option<usize> {
-    // Skip the first line (opening delimiter)
-    let after_first_line = source.find('\n')? + 1;
-    let mut pos = after_first_line;
-    for line in source[after_first_line..].lines() {
-        let line_end = pos + line.len();
-        if line == delimiter {
-            // Include trailing newline if present
-            let end = if source.as_bytes().get(line_end) == Some(&b'\n') {
-                line_end + 1
-            } else {
-                line_end
-            };
-            return Some(end);
-        }
-        // Advance past the line + its newline
-        pos = if source.as_bytes().get(line_end) == Some(&b'\n') {
-            line_end + 1
-        } else {
-            line_end
-        };
-    }
-    None
+    Ok(ExistingFrontmatter {
+        data,
+        format,
+        state,
+    })
 }
 
 fn parse_value(raw: &str, force_string: bool) -> Result<serde_json::Value, CommandError> {

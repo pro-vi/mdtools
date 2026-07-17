@@ -470,6 +470,105 @@ fn frontmatter_absent() {
 }
 
 #[test]
+fn frontmatter_field_json_reuses_present_state_metadata() {
+    let full = md()
+        .args(["frontmatter", "tests/fixtures/frontmatter.md"])
+        .output()
+        .unwrap();
+    assert!(full.status.success());
+    let full_json: serde_json::Value = serde_json::from_slice(&full.stdout).unwrap();
+
+    let field = md()
+        .args([
+            "frontmatter",
+            "tests/fixtures/frontmatter.md",
+            "--field",
+            "title",
+            "--field",
+            "missing",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(field.status.success());
+    let field_json: serde_json::Value = serde_json::from_slice(&field.stdout).unwrap();
+
+    assert_eq!(field_json["present"], full_json["present"]);
+    assert_eq!(field_json["etag"], full_json["etag"]);
+    assert_eq!(field_json["fields"]["title"], "Test Document");
+    assert!(field_json["fields"]["missing"].is_null());
+}
+
+#[test]
+fn frontmatter_field_json_reuses_absent_state_metadata() {
+    let full = md()
+        .args(["frontmatter", "tests/fixtures/basic.md"])
+        .output()
+        .unwrap();
+    assert!(full.status.success());
+    let full_json: serde_json::Value = serde_json::from_slice(&full.stdout).unwrap();
+
+    let field = md()
+        .args([
+            "frontmatter",
+            "tests/fixtures/basic.md",
+            "--field",
+            "title",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(field.status.success());
+    let field_json: serde_json::Value = serde_json::from_slice(&field.stdout).unwrap();
+
+    assert_eq!(field_json["present"], false);
+    assert_eq!(field_json["present"], full_json["present"]);
+    assert_eq!(field_json["etag"], full_json["etag"]);
+    assert!(field_json["fields"]["title"].is_null());
+}
+
+#[test]
+fn yaml_scalar_frontmatter_reads_and_blocks_exclude_metadata() {
+    let path = tempfile("---\nhello\n---\n\n# Main\n");
+
+    let frontmatter = md().args(["frontmatter", &path]).output().unwrap();
+    assert!(frontmatter.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&frontmatter.stdout).unwrap();
+    assert_eq!(json["present"], true);
+    assert_eq!(json["frontmatter"]["data"], "hello");
+
+    let blocks = md().args(["blocks", &path, "--json"]).output().unwrap();
+    assert!(blocks.status.success());
+    let blocks_json: serde_json::Value = serde_json::from_slice(&blocks.stdout).unwrap();
+    let entries = blocks_json["blocks"].as_array().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["kind"], "Heading");
+
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn yaml_sequence_frontmatter_reads_and_blocks_exclude_metadata() {
+    let path = tempfile("---\n- one\n- two\n---\n\n# Main\n");
+
+    let frontmatter = md().args(["frontmatter", &path]).output().unwrap();
+    assert!(frontmatter.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&frontmatter.stdout).unwrap();
+    assert_eq!(json["present"], true);
+    assert_eq!(json["frontmatter"]["data"][0], "one");
+    assert_eq!(json["frontmatter"]["data"][1], "two");
+
+    let blocks = md().args(["blocks", &path, "--json"]).output().unwrap();
+    assert!(blocks.status.success());
+    let blocks_json: serde_json::Value = serde_json::from_slice(&blocks.stdout).unwrap();
+    let entries = blocks_json["blocks"].as_array().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["kind"], "Heading");
+
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
 fn stats_basic() {
     let output = md()
         .args(["stats", "tests/fixtures/basic.md"])

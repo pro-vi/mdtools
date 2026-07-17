@@ -233,6 +233,18 @@ impl CommandError {
         )
     }
 
+    pub fn frontmatter_etag_mismatch(expected: &str, actual: &str) -> Self {
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "frontmatter etag mismatch: expected {:?}, found {:?} \
+                 (frontmatter state changed since you read it; re-run `md frontmatter <FILE> --json` \
+                 for the current frontmatter etag, then retry)",
+                expected, actual
+            ),
+        )
+    }
+
     pub fn frontmatter_field_conflict(key: &str, blocker: &str) -> Self {
         Self::new(
             DiagnosticCode::FrontmatterFieldConflict,
