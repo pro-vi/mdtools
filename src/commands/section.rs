@@ -58,13 +58,18 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
 
     let line_endings = doc.line_ending_style();
     let replacement = normalize_line_endings(&replacement, &line_endings);
+    let effective_replacement = preserve_following_section_boundary(
+        doc.slice(&section_span),
+        &replacement,
+        (section_span.byte_end as usize) < doc.source.len(),
+    );
     let before = &doc.source[..section_span.byte_start as usize];
     let after = &doc.source[section_span.byte_end as usize..];
-    let output_doc = format!("{}{}{}", before, replacement, after);
+    let output_doc = format!("{}{}{}", before, effective_replacement, after);
 
-    let disposition = if replacement == doc.slice(&section_span) {
+    let disposition = if effective_replacement == doc.slice(&section_span) {
         MutationDisposition::NoChange
-    } else if replacement.is_empty() {
+    } else if effective_replacement.is_empty() {
         MutationDisposition::Deleted
     } else {
         MutationDisposition::Replaced
@@ -84,7 +89,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
                 changed,
                 line_endings,
                 section_span,
-                &replacement,
+                &effective_replacement,
                 None,
                 MutationCommandKind::ReplaceSection,
             );
@@ -98,7 +103,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
             changed,
             line_endings,
             section_span,
-            &replacement,
+            &effective_replacement,
             Some(output_doc),
             MutationCommandKind::ReplaceSection,
         );
@@ -107,6 +112,38 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
         print!("{}", output_doc);
     }
     Ok(())
+}
+
+fn preserve_following_section_boundary(
+    section_content: &str,
+    replacement: &str,
+    has_following_section: bool,
+) -> String {
+    if replacement.is_empty() || !has_following_section {
+        return replacement.to_string();
+    }
+
+    let boundary_tokens = trailing_line_ending_tokens(section_content);
+    if boundary_tokens.is_empty() {
+        return replacement.to_string();
+    }
+
+    let replacement_trailing_count = trailing_line_ending_tokens(replacement).len();
+    if replacement_trailing_count >= boundary_tokens.len() {
+        return replacement.to_string();
+    }
+
+    let extra_len: usize = boundary_tokens
+        .iter()
+        .skip(replacement_trailing_count)
+        .map(|token| token.len())
+        .sum();
+    let mut completed = String::with_capacity(replacement.len() + extra_len);
+    completed.push_str(replacement);
+    for token in boundary_tokens.iter().skip(replacement_trailing_count) {
+        completed.push_str(token);
+    }
+    completed
 }
 
 pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), CommandError> {
@@ -434,6 +471,28 @@ fn build_section_mutation_result(
 
 fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
     crate::output::normalize_line_endings(content, style)
+}
+
+fn trailing_line_ending_tokens(content: &str) -> Vec<&str> {
+    let bytes = content.as_bytes();
+    let mut end = bytes.len();
+    let mut spans = Vec::new();
+
+    while end > 0 && bytes[end - 1] == b'\n' {
+        let start = if end > 1 && bytes[end - 2] == b'\r' {
+            end - 2
+        } else {
+            end - 1
+        };
+        spans.push((start, end));
+        end = start;
+    }
+
+    spans.reverse();
+    spans
+        .into_iter()
+        .map(|(start, end)| &content[start..end])
+        .collect()
 }
 
 fn heading_matches(text: &str, selector_text: &str, match_mode: HeadingMatchMode) -> bool {
