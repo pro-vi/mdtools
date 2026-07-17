@@ -6,7 +6,7 @@ use comrak::{
     parse_document, Arena, Options,
 };
 
-use crate::errors::CommandError;
+use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 
 // --- Line-start index for byte offset derivation ---
@@ -67,6 +67,17 @@ impl LineIndex {
             byte_start,
             byte_end,
         }
+    }
+
+    fn frontmatter_sourcepos_to_span(&self, sp: Sourcepos, source: &str) -> SourceSpan {
+        let mut span = self.sourcepos_to_span(sp);
+        let suffix = &source[span.byte_end as usize..];
+        if suffix.starts_with("\r\n") {
+            span.byte_end += 2;
+        } else if suffix.starts_with('\n') {
+            span.byte_end += 1;
+        }
+        span
     }
 
     /// Fix parser-reported spans where the exact source-owned block starts earlier
@@ -237,18 +248,38 @@ pub struct FrontmatterInfo {
     pub format: FrontmatterFormat,
 }
 
+pub struct FrontmatterState<'a> {
+    pub span: Option<SourceSpan>,
+    pub raw: Option<&'a str>,
+    pub format: Option<FrontmatterFormat>,
+    pub etag: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FrontmatterParseMode {
+    Lenient,
+    StrictRead,
+    Mutation,
+}
+
 impl ParsedDocument {
     pub fn parse(source: String) -> Result<Self, CommandError> {
-        Self::parse_inner(source, false)
+        Self::parse_inner(source, FrontmatterParseMode::Lenient)
     }
 
     /// Parse specifically for the frontmatter command, which should error on malformed frontmatter
     /// rather than falling back to treating it as plain content.
     pub fn parse_for_frontmatter(source: String) -> Result<Self, CommandError> {
-        Self::parse_inner(source, true)
+        Self::parse_inner(source, FrontmatterParseMode::StrictRead)
     }
 
-    fn parse_inner(source: String, strict_frontmatter: bool) -> Result<Self, CommandError> {
+    /// Parse for frontmatter mutation commands, which must fail closed on malformed
+    /// or unclosed leading frontmatter instead of treating it as absent.
+    pub fn parse_for_frontmatter_mutation(source: String) -> Result<Self, CommandError> {
+        Self::parse_inner(source, FrontmatterParseMode::Mutation)
+    }
+
+    fn parse_inner(source: String, mode: FrontmatterParseMode) -> Result<Self, CommandError> {
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(delimiter);
@@ -272,22 +303,24 @@ impl ParsedDocument {
             }
         }
 
-        // If frontmatter exists, validate it
-        if has_frontmatter_node {
-            if let Some(ref raw) = frontmatter_raw {
-                let content = strip_frontmatter_delimiters(raw);
-                let valid = match frontmatter_format {
-                    FrontmatterFormat::Yaml => {
-                        serde_yaml::from_str::<serde_json::Value>(&content).is_ok()
-                    }
-                    FrontmatterFormat::Toml => content.parse::<toml::Value>().is_ok(),
-                };
-                if !valid && !strict_frontmatter {
-                    // Re-parse without frontmatter delimiter — treat as plain content
-                    let _ = root;
-                    return Self::parse_without_frontmatter(source);
-                }
+        if matches!(mode, FrontmatterParseMode::Mutation) && !has_frontmatter_node {
+            if let Some(delimiter) = delimiter {
+                return Err(CommandError::new(
+                    DiagnosticCode::FrontmatterParseFailed,
+                    format!("unclosed frontmatter (no closing '{}')", delimiter),
+                ));
             }
+        }
+
+        if matches!(mode, FrontmatterParseMode::Lenient)
+            && has_frontmatter_node
+            && frontmatter_raw.as_ref().is_some_and(|raw| {
+                !frontmatter_content_is_semantically_valid(raw, frontmatter_format)
+            })
+        {
+            // Re-parse without frontmatter delimiter — treat malformed frontmatter as plain content.
+            let _ = root;
+            return Self::parse_without_frontmatter(source);
         }
 
         let mut blocks = Vec::new();
@@ -298,10 +331,12 @@ impl ParsedDocument {
             let sp = data.sourcepos;
 
             match &data.value {
-                NodeValue::FrontMatter(raw) => {
-                    let fm_span = line_index.sourcepos_to_span(sp);
+                NodeValue::FrontMatter(_) => {
+                    let fm_span = line_index.frontmatter_sourcepos_to_span(sp, &source);
+                    let fm_raw =
+                        source[fm_span.byte_start as usize..fm_span.byte_end as usize].to_string();
                     frontmatter = Some(FrontmatterInfo {
-                        raw: raw.clone(),
+                        raw: fm_raw,
                         span: fm_span,
                         format: frontmatter_format,
                     });
@@ -455,6 +490,26 @@ impl ParsedDocument {
         &self.source[span.byte_start as usize..span.byte_end as usize]
     }
 
+    pub fn frontmatter_state(&self) -> FrontmatterState<'_> {
+        match &self.frontmatter {
+            Some(frontmatter) => {
+                let raw = self.slice(&frontmatter.span);
+                FrontmatterState {
+                    span: Some(frontmatter.span),
+                    raw: Some(raw),
+                    format: Some(frontmatter.format),
+                    etag: frontmatter_state_etag(Some(raw)),
+                }
+            }
+            None => FrontmatterState {
+                span: None,
+                raw: None,
+                format: None,
+                etag: frontmatter_state_etag(None),
+            },
+        }
+    }
+
     /// Detect the document's line ending style.
     pub fn line_ending_style(&self) -> LineEndingStyle {
         let has_crlf = self.source.contains("\r\n");
@@ -469,6 +524,44 @@ impl ParsedDocument {
             (true, true) => LineEndingStyle::Mixed,
         }
     }
+}
+
+fn frontmatter_content_is_semantically_valid(raw: &str, format: FrontmatterFormat) -> bool {
+    let content = strip_frontmatter_delimiters(raw);
+    if content.trim().is_empty() {
+        return true;
+    }
+
+    match format {
+        FrontmatterFormat::Yaml => serde_yaml::from_str::<serde_json::Value>(&content).is_ok(),
+        FrontmatterFormat::Toml => content.parse::<toml::Value>().is_ok(),
+    }
+}
+
+fn frontmatter_state_etag(raw: Option<&str>) -> String {
+    const ABSENT_DOMAIN: &[u8] = b"mdtools.frontmatter.absent";
+    const PRESENT_DOMAIN: &[u8] = b"mdtools.frontmatter.present\0";
+
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let bytes = raw.map(str::as_bytes);
+    let domain = if bytes.is_some() {
+        PRESENT_DOMAIN
+    } else {
+        ABSENT_DOMAIN
+    };
+
+    for &b in domain {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    if let Some(bytes) = bytes {
+        for &b in bytes {
+            hash ^= b as u64;
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    format!("{:016x}", hash)
 }
 
 /// Compute the byte span covering an ATX heading's `#` run.

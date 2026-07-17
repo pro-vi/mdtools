@@ -23,18 +23,20 @@ pub fn run(args: &FrontmatterArgs, json: bool) -> Result<(), CommandError> {
 fn process_file(file: &Path, _json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse_for_frontmatter(source)?;
+    let state = doc.frontmatter_state();
 
     let result = match &doc.frontmatter {
         Some(fm) => {
-            let parsed_data = parse_frontmatter_data(&fm.raw, fm.format)?;
+            let parsed_data = parse_frontmatter_data(state.raw.unwrap_or(&fm.raw), fm.format)?;
             FrontmatterReadResult {
                 schema_version: SCHEMA_VERSION.to_string(),
                 file: file.to_string_lossy().to_string(),
                 present: true,
+                etag: state.etag,
                 frontmatter: Some(FrontmatterEnvelope {
                     format: fm.format,
                     span: fm.span,
-                    raw: fm.raw.clone(),
+                    raw: state.raw.unwrap_or(&fm.raw).to_string(),
                     data: parsed_data,
                 }),
             }
@@ -43,6 +45,7 @@ fn process_file(file: &Path, _json: bool) -> Result<(), CommandError> {
             schema_version: SCHEMA_VERSION.to_string(),
             file: file.to_string_lossy().to_string(),
             present: false,
+            etag: state.etag,
             frontmatter: None,
         },
     };
@@ -60,10 +63,11 @@ fn run_field_projection(
 ) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
     let doc = ParsedDocument::parse_for_frontmatter(source)?;
+    let state = doc.frontmatter_state();
     let file_str = file.to_string_lossy();
 
     let data = match &doc.frontmatter {
-        Some(fm) => parse_frontmatter_data(&fm.raw, fm.format)?,
+        Some(fm) => parse_frontmatter_data(state.raw.unwrap_or(&fm.raw), fm.format)?,
         None => serde_json::Value::Object(serde_json::Map::new()),
     };
 
@@ -73,11 +77,13 @@ fn run_field_projection(
             let val = extract_field(&data, field);
             field_map.insert(field.clone(), val);
         }
-        let proj = serde_json::json!({
-            "schema_version": SCHEMA_VERSION,
-            "file": file_str,
-            "fields": field_map,
-        });
+        let proj = FrontmatterFieldProjectionResult {
+            schema_version: SCHEMA_VERSION.to_string(),
+            file: file_str.to_string(),
+            present: state.raw.is_some(),
+            etag: state.etag,
+            fields: field_map,
+        };
         output::write_json(&proj)?;
     } else {
         let values: Vec<String> = fields
@@ -119,6 +125,9 @@ pub(crate) fn parse_frontmatter_data(
     format: FrontmatterFormat,
 ) -> Result<serde_json::Value, CommandError> {
     let content = strip_frontmatter_delimiters(raw);
+    if content.trim().is_empty() {
+        return Ok(serde_json::Value::Object(serde_json::Map::new()));
+    }
 
     match format {
         FrontmatterFormat::Yaml => {

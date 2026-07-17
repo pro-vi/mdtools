@@ -237,7 +237,17 @@ pub struct FrontmatterReadResult {
     pub schema_version: String,
     pub file: String,
     pub present: bool,
+    pub etag: String,
     pub frontmatter: Option<FrontmatterEnvelope>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FrontmatterFieldProjectionResult {
+    pub schema_version: String,
+    pub file: String,
+    pub present: bool,
+    pub etag: String,
+    pub fields: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize)]

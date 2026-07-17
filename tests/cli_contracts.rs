@@ -700,6 +700,85 @@ fn mutation_preserves_non_target_bytes() {
     );
 }
 
+#[test]
+fn set_frontmatter_span_nullability_uses_whole_state_ownership_exception() {
+    let existing_insert_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/set_basic.md").unwrap());
+    let existing_insert_source = std::fs::read_to_string(&existing_insert_path).unwrap();
+    let existing_insert = md()
+        .args(["set", "meta.version", &existing_insert_path, "2", "--json"])
+        .output()
+        .unwrap();
+    assert!(existing_insert.status.success());
+    let existing_insert_json: serde_json::Value =
+        serde_json::from_slice(&existing_insert.stdout).unwrap();
+    assert_eq!(existing_insert_json["command"], "SetFrontmatter");
+    assert_eq!(existing_insert_json["disposition"], "Inserted");
+    assert!(existing_insert_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_insert_json["invariant"]["target_span_after"].is_object());
+    let existing_before_end = existing_insert_json["invariant"]["target_span_before"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let existing_after_end = existing_insert_json["invariant"]["target_span_after"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let existing_insert_content = existing_insert_json["content"].as_str().unwrap();
+    assert_eq!(
+        &existing_insert_content[existing_after_end..],
+        &existing_insert_source[existing_before_end..],
+        "existing-state insert must preserve bytes after the owned frontmatter span"
+    );
+    std::fs::remove_file(&existing_insert_path).ok();
+
+    let existing_delete_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/set_basic.md").unwrap());
+    let existing_delete_source = std::fs::read_to_string(&existing_delete_path).unwrap();
+    let existing_delete = md()
+        .args(["set", "--delete", "author", &existing_delete_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(existing_delete.status.success());
+    let existing_delete_json: serde_json::Value =
+        serde_json::from_slice(&existing_delete.stdout).unwrap();
+    assert_eq!(existing_delete_json["command"], "SetFrontmatter");
+    assert_eq!(existing_delete_json["disposition"], "Deleted");
+    assert!(existing_delete_json["invariant"]["target_span_before"].is_object());
+    assert!(existing_delete_json["invariant"]["target_span_after"].is_object());
+    let deleted_before_end = existing_delete_json["invariant"]["target_span_before"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let deleted_after_end = existing_delete_json["invariant"]["target_span_after"]["byte_end"]
+        .as_u64()
+        .unwrap() as usize;
+    let existing_delete_content = existing_delete_json["content"].as_str().unwrap();
+    assert_eq!(
+        &existing_delete_content[deleted_after_end..],
+        &existing_delete_source[deleted_before_end..],
+        "existing-state delete must preserve bytes after the owned frontmatter span"
+    );
+    std::fs::remove_file(&existing_delete_path).ok();
+
+    let absent_delete_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/no_frontmatter.md").unwrap());
+    let absent_delete_source = std::fs::read_to_string(&absent_delete_path).unwrap();
+    let absent_delete = md()
+        .args(["set", "--delete", "missing", &absent_delete_path, "--json"])
+        .output()
+        .unwrap();
+    assert!(absent_delete.status.success());
+    let absent_delete_json: serde_json::Value =
+        serde_json::from_slice(&absent_delete.stdout).unwrap();
+    assert_eq!(absent_delete_json["command"], "SetFrontmatter");
+    assert_eq!(absent_delete_json["disposition"], "NoChange");
+    assert!(absent_delete_json["invariant"]["target_span_before"].is_null());
+    assert!(absent_delete_json["invariant"]["target_span_after"].is_null());
+    assert_eq!(
+        absent_delete_json["content"].as_str().unwrap(),
+        absent_delete_source
+    );
+    std::fs::remove_file(&absent_delete_path).ok();
+}
+
 // ============================================================
 // EMPTY STDIN: replace with empty → Deleted disposition
 // ============================================================
@@ -1268,6 +1347,208 @@ fn all_json_commands_have_schema_version() {
     }
 }
 
+#[test]
+fn set_help_mentions_frontmatter_expect_etag() {
+    let help = md_help("set");
+    let normalized = help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(normalized.contains("--expect-etag"));
+    assert!(normalized.contains("whole-frontmatter etag"));
+    assert!(normalized.contains("md frontmatter --json"));
+}
+
+#[test]
+fn frontmatter_state_etag_tracks_exact_owned_bytes() {
+    let base = tempfile_str("---\ntitle: Same\n---");
+    let with_lf = tempfile_str("---\ntitle: Same\n---\n");
+    let reordered = tempfile_str("---\n# comment\ntitle: Same\n---\n# Body\n");
+    let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+    let toml = tempfile_str("+++\ntitle = \"Same\"\n+++\n");
+    let empty_present = tempfile_str("---\n\n---\n# Body\n");
+    let absent = tempfile_str("# Body\n");
+
+    let base_etag = frontmatter_etag(&base);
+    assert_ne!(base_etag, frontmatter_etag(&with_lf));
+    assert_ne!(base_etag, frontmatter_etag(&reordered));
+    assert_ne!(base_etag, frontmatter_etag(&crlf));
+    assert_ne!(base_etag, frontmatter_etag(&toml));
+    assert_ne!(frontmatter_etag(&empty_present), frontmatter_etag(&absent));
+
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&with_lf).ok();
+    std::fs::remove_file(&reordered).ok();
+    std::fs::remove_file(&crlf).ok();
+    std::fs::remove_file(&toml).ok();
+    std::fs::remove_file(&empty_present).ok();
+    std::fs::remove_file(&absent).ok();
+}
+
+#[test]
+fn frontmatter_present_state_raw_span_and_etag_match_owned_boundary_bytes() {
+    let eof = tempfile_str("---\ntitle: Same\n---");
+    let lf = tempfile_str("---\ntitle: Same\n---\n# Body\n");
+    let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+
+    let read = |path: &str| -> serde_json::Value {
+        let output = md().args(["frontmatter", path]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "frontmatter read failed for {}: {}",
+            path,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice(&output.stdout).unwrap()
+    };
+
+    let eof_json = read(&eof);
+    assert_eq!(eof_json["frontmatter"]["raw"], "---\ntitle: Same\n---");
+    assert_eq!(eof_json["frontmatter"]["span"]["byte_start"], 0);
+    assert_eq!(eof_json["frontmatter"]["span"]["byte_end"], 19);
+
+    let lf_json = read(&lf);
+    assert_eq!(lf_json["frontmatter"]["raw"], "---\ntitle: Same\n---\n");
+    assert_eq!(lf_json["frontmatter"]["span"]["byte_start"], 0);
+    assert_eq!(lf_json["frontmatter"]["span"]["byte_end"], 20);
+    assert_eq!(lf_json["frontmatter"]["data"]["title"], "Same");
+
+    let crlf_json = read(&crlf);
+    assert_eq!(
+        crlf_json["frontmatter"]["raw"],
+        "---\r\ntitle: Same\r\n---\r\n"
+    );
+    assert_eq!(crlf_json["frontmatter"]["span"]["byte_start"], 0);
+    assert_eq!(crlf_json["frontmatter"]["span"]["byte_end"], 23);
+    assert_eq!(crlf_json["frontmatter"]["data"]["title"], "Same");
+
+    assert_ne!(eof_json["etag"], lf_json["etag"]);
+    assert_ne!(lf_json["etag"], crlf_json["etag"]);
+
+    std::fs::remove_file(&eof).ok();
+    std::fs::remove_file(&lf).ok();
+    std::fs::remove_file(&crlf).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_comment_drift() {
+    let base = tempfile_str("---\ntitle: Same\n---\n");
+    let with_comment = tempfile_str("---\n# retained comment\ntitle: Same\n---\n");
+    assert_ne!(
+        frontmatter_etag(&base),
+        frontmatter_etag(&with_comment),
+        "comment drift"
+    );
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&with_comment).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_key_order_drift() {
+    let base = tempfile_str("---\ntitle: Same\nauthor: Jane\n---\n");
+    let reordered = tempfile_str("---\nauthor: Jane\ntitle: Same\n---\n");
+    assert_ne!(
+        frontmatter_etag(&base),
+        frontmatter_etag(&reordered),
+        "key order drift"
+    );
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&reordered).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_whitespace_drift() {
+    let base = tempfile_str("---\ntitle: Same\n---\n");
+    let extra_blank_line = tempfile_str("---\ntitle: Same\n\n---\n");
+    assert_ne!(
+        frontmatter_etag(&base),
+        frontmatter_etag(&extra_blank_line),
+        "whitespace drift"
+    );
+    std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&extra_blank_line).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_lf_versus_crlf_drift() {
+    let lf = tempfile_str("---\ntitle: Same\n---\n# Body\n");
+    let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+    assert_ne!(
+        frontmatter_etag(&lf),
+        frontmatter_etag(&crlf),
+        "LF versus CRLF"
+    );
+    std::fs::remove_file(&lf).ok();
+    std::fs::remove_file(&crlf).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_yaml_versus_toml_delimiter_family_drift() {
+    let yaml = tempfile_str("---\ntitle: Same\n---\n");
+    let toml = tempfile_str("+++\ntitle = \"Same\"\n+++\n");
+    assert_ne!(
+        frontmatter_etag(&yaml),
+        frontmatter_etag(&toml),
+        "YAML versus TOML delimiter family"
+    );
+    std::fs::remove_file(&yaml).ok();
+    std::fs::remove_file(&toml).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_detects_closing_delimiter_at_eof_versus_followed_by_lf() {
+    let eof = tempfile_str("---\ntitle: Same\n---");
+    let with_lf = tempfile_str("---\ntitle: Same\n---\n");
+    assert_ne!(
+        frontmatter_etag(&eof),
+        frontmatter_etag(&with_lf),
+        "closing delimiter at EOF versus followed by LF"
+    );
+    std::fs::remove_file(&eof).ok();
+    std::fs::remove_file(&with_lf).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_distinguishes_absent_versus_present_empty_state() {
+    let empty_present = tempfile_str("---\n\n---\n# Body\n");
+    let absent = tempfile_str("# Body\n");
+    assert_ne!(
+        frontmatter_etag(&empty_present),
+        frontmatter_etag(&absent),
+        "absent versus present empty state"
+    );
+    std::fs::remove_file(&empty_present).ok();
+    std::fs::remove_file(&absent).ok();
+}
+
+#[test]
+fn frontmatter_state_etag_ignores_non_frontmatter_body_bytes() {
+    let present_first = tempfile_str("---\ntitle: Same\n---\n# Body\nalpha\n");
+    let present_second = tempfile_str("---\ntitle: Same\n---\n# Different\nbeta\n");
+    let absent_first = tempfile_str("# Body\nalpha\n");
+    let absent_second = tempfile_str("# Different\nbeta\n");
+
+    let present_etag = frontmatter_etag(&present_first);
+    assert_eq!(
+        present_etag,
+        frontmatter_etag(&present_second),
+        "present frontmatter etag should ignore body bytes"
+    );
+
+    let absent_etag = frontmatter_etag(&absent_first);
+    assert_eq!(
+        absent_etag,
+        frontmatter_etag(&absent_second),
+        "absent frontmatter etag should ignore body bytes"
+    );
+    assert_ne!(
+        present_etag, absent_etag,
+        "present and absent frontmatter states stay domain-separated"
+    );
+
+    std::fs::remove_file(&present_first).ok();
+    std::fs::remove_file(&present_second).ok();
+    std::fs::remove_file(&absent_first).ok();
+    std::fs::remove_file(&absent_second).ok();
+}
+
 // ============================================================
 // ERROR PATH COVERAGE
 // ============================================================
@@ -1332,7 +1613,34 @@ fn error_exits_are_correct() {
 }
 
 #[test]
-fn stale_section_and_task_expect_etag_conflicts_exit_four() {
+fn stale_frontmatter_section_and_task_expect_etag_conflicts_exit_four() {
+    let frontmatter_path =
+        tempfile_str(&std::fs::read_to_string("tests/fixtures/frontmatter.md").unwrap());
+    let frontmatter_etag = frontmatter_etag(&frontmatter_path);
+    let stale_frontmatter = std::fs::read_to_string(&frontmatter_path).unwrap();
+    let fresh_frontmatter =
+        stale_frontmatter.replace("title: Test Document", "title: Intervening Document");
+    std::fs::write(&frontmatter_path, fresh_frontmatter.clone()).unwrap();
+    let o = md()
+        .args([
+            "set",
+            "date",
+            &frontmatter_path,
+            "2024-02-01",
+            "-i",
+            "--expect-etag",
+            &frontmatter_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(4));
+    assert!(String::from_utf8_lossy(&o.stderr).contains("frontmatter etag mismatch"));
+    assert_eq!(
+        std::fs::read_to_string(&frontmatter_path).unwrap(),
+        fresh_frontmatter
+    );
+    std::fs::remove_file(&frontmatter_path).ok();
+
     let section_path = tempfile_str(&std::fs::read_to_string("tests/fixtures/basic.md").unwrap());
     let section_read = md()
         .args(["section", "Discussion", &section_path, "--json"])
@@ -1425,6 +1733,17 @@ fn tempfile_bytes(content: &[u8]) -> String {
     );
     std::fs::write(&path, content).unwrap();
     path
+}
+
+fn frontmatter_etag(path: &str) -> String {
+    let output = md().args(["frontmatter", path]).output().unwrap();
+    assert!(
+        output.status.success(),
+        "frontmatter read failed for {}",
+        path
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    json["etag"].as_str().unwrap().to_string()
 }
 
 fn assert_replace_section_target_span_after(
