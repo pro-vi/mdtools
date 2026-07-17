@@ -318,6 +318,92 @@ fn indented_atx_crlf_projection_is_byte_accurate() {
 }
 
 #[test]
+fn indented_setext_block_heading_section_spans_include_indentation() {
+    let source = "# Doc\n\n  A Title\n  --------\nbody a\n\n   B Title\n   --------\nbody b\n";
+    let path = tempfile_str(source);
+
+    let blocks_output = md().args(["blocks", &path, "--json"]).output().unwrap();
+    assert!(blocks_output.status.success());
+    let blocks_json: serde_json::Value = serde_json::from_slice(&blocks_output.stdout).unwrap();
+    let blocks = blocks_json["blocks"].as_array().unwrap();
+
+    let a_block_start = blocks[1]["span"]["byte_start"].as_u64().unwrap() as usize;
+    let a_block_end = blocks[1]["span"]["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&source[a_block_start..a_block_end], "  A Title\n  --------");
+
+    let b_block_start = blocks[3]["span"]["byte_start"].as_u64().unwrap() as usize;
+    let b_block_end = blocks[3]["span"]["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(
+        &source[b_block_start..b_block_end],
+        "   B Title\n   --------"
+    );
+
+    let outline_output = md().args(["outline", &path, "--json"]).output().unwrap();
+    assert!(outline_output.status.success());
+    let outline_json: serde_json::Value = serde_json::from_slice(&outline_output.stdout).unwrap();
+    let entries = outline_json["entries"].as_array().unwrap();
+
+    let a_heading_start = entries[1]["heading"]["span"]["byte_start"]
+        .as_u64()
+        .unwrap() as usize;
+    let a_heading_end = entries[1]["heading"]["span"]["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(
+        &source[a_heading_start..a_heading_end],
+        "  A Title\n  --------"
+    );
+
+    let a_section_start = entries[1]["section_span"]["byte_start"].as_u64().unwrap() as usize;
+    let a_section_end = entries[1]["section_span"]["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(
+        &source[a_section_start..a_section_end],
+        "  A Title\n  --------\nbody a\n\n"
+    );
+
+    let b_section_start = entries[2]["section_span"]["byte_start"].as_u64().unwrap() as usize;
+    let b_section_end = entries[2]["section_span"]["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(
+        &source[b_section_start..b_section_end],
+        "   B Title\n   --------\nbody b\n"
+    );
+
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn indented_setext_etag_changes_when_legal_indentation_changes() {
+    let two_space = tempfile_str("# Doc\n\n  A Title\n  --------\nbody a\n");
+    let three_space = tempfile_str("# Doc\n\n   A Title\n   --------\nbody a\n");
+
+    let etag_for = |path: &str| -> String {
+        let output = md()
+            .args(["section", "A Title", path, "--json"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        json["section"]["etag"].as_str().unwrap().to_string()
+    };
+
+    assert_ne!(etag_for(&two_space), etag_for(&three_space));
+
+    std::fs::remove_file(&two_space).unwrap();
+    std::fs::remove_file(&three_space).unwrap();
+}
+
+#[test]
+fn indented_setext_prior_section_ends_before_following_heading_indentation() {
+    let path = tempfile_str("# Doc\n\n## A\nbody a\n\n  B Title\n  --------\nbody b\n");
+    let output = md()
+        .args(["section", "A", &path, "--json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["content"], "## A\nbody a\n\n");
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
 fn indented_atx_setext_and_indented_code_projection_is_unchanged() {
     let setext_source = std::fs::read_to_string("tests/fixtures/setext.md").unwrap();
     let setext_output = md()
