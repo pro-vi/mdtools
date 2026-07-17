@@ -678,7 +678,10 @@ fn t18bb_indented_setext_keep_level_round_trips_section_boundaries() {
 
     let moved = tempfile(&stdout);
     let dest_json = section_json(&moved, "Dest", &[]);
-    assert_eq!(dest_json["content"].as_str().unwrap(), "## Dest\nbody d\n\n");
+    assert_eq!(
+        dest_json["content"].as_str().unwrap(),
+        "## Dest\nbody d\n\n"
+    );
 
     let source_json = section_json(&moved, "Source", &[]);
     assert_eq!(
