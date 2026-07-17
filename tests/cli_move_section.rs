@@ -43,7 +43,7 @@ fn tempfile_bytes(bytes: &[u8]) -> String {
     path
 }
 
-fn section_etag(path: &str, selector: &str, extra_args: &[&str]) -> String {
+fn section_json(path: &str, selector: &str, extra_args: &[&str]) -> serde_json::Value {
     let mut args = vec!["section", selector, path];
     args.extend_from_slice(extra_args);
     args.push("--json");
@@ -54,7 +54,11 @@ fn section_etag(path: &str, selector: &str, extra_args: &[&str]) -> String {
         args,
         String::from_utf8_lossy(&output.stderr)
     );
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn section_etag(path: &str, selector: &str, extra_args: &[&str]) -> String {
+    let json = section_json(path, selector, extra_args);
     json["section"]["etag"].as_str().unwrap().to_string()
 }
 
@@ -642,6 +646,47 @@ fn t18b_indented_setext_keep_level_preserves_heading_bytes() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("  A Title\n  --------"), "got:\n{}", stdout);
     assert!(stdout.contains("body b\n\n  A Title"), "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t18bb_indented_setext_keep_level_round_trips_section_boundaries() {
+    let tmp = tempfile(
+        "# Doc\n\n## Prev\nprev\n\n  Source\n  ------\nbody s\n\n## Dest\nbody d\n\n## Tail\ntail\n",
+    );
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let expected =
+        "# Doc\n\n## Prev\nprev\n\n## Dest\nbody d\n\n  Source\n  ------\nbody s\n\n## Tail\ntail\n";
+    assert_eq!(stdout, expected);
+
+    let moved = tempfile(&stdout);
+    let dest_json = section_json(&moved, "Dest", &[]);
+    assert_eq!(dest_json["content"].as_str().unwrap(), "## Dest\nbody d\n\n");
+
+    let source_json = section_json(&moved, "Source", &[]);
+    assert_eq!(
+        source_json["content"].as_str().unwrap(),
+        "  Source\n  ------\nbody s\n\n"
+    );
+
+    std::fs::remove_file(&moved).unwrap();
     std::fs::remove_file(&tmp).unwrap();
 }
 
