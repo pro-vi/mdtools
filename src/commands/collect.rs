@@ -23,7 +23,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
                 if !aggregate_partial_failures {
                     return Err(err);
                 }
-                multifile::report_file_error(path, &err);
+                multifile::report_file_error(path, &err, false);
                 if (err.exit_code as u8) > (worst_code as u8) {
                     worst_code = err.exit_code;
                 }
@@ -46,10 +46,16 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     if error_count == 0 {
         Ok(())
     } else {
-        Err(CommandError {
-            exit_code: worst_code,
-            message: format!("{} file(s) failed", error_count),
-        })
+        let mut e = CommandError::multi_file(
+            worst_code,
+            error_count,
+            format!("{} file(s) failed", error_count),
+        );
+        // collect's stdout contract is a single JSON object (the table was
+        // already emitted); per-file detail is on stderr. Suppress the
+        // aggregate envelope so the wire shape stays one object.
+        e.payload_delivered = true;
+        Err(e)
     }
 }
 

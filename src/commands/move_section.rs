@@ -1,6 +1,6 @@
 use crate::cli::MoveSectionArgs;
 use crate::commands::replace::verify_expected_etag;
-use crate::commands::section::{build_selector, describe_selector, find_section};
+use crate::commands::section::{build_selector, describe_selector, find_section_as};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -45,8 +45,8 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.ignore_case,
     )?;
 
-    let source_section = find_section(&doc, &source_selector)?;
-    let dest_section = find_section(&doc, &dest_selector)?;
+    let source_section = find_section_as(&doc, &source_selector, crate::errors::ROLE_SOURCE)?;
+    let dest_section = find_section_as(&doc, &dest_selector, crate::errors::ROLE_DESTINATION)?;
 
     verify_expected_etag(
         args.expect_source_etag.as_deref(),

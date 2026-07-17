@@ -12,9 +12,9 @@ pub fn run(args: &FrontmatterArgs, json: bool) -> Result<(), CommandError> {
     let multi = file_set.is_multi();
 
     if args.fields.is_empty() {
-        multifile::for_each_file(&file_set, |file| process_file(file, json))
+        multifile::for_each_file(&file_set, json, |file| process_file(file, json))
     } else {
-        multifile::for_each_file(&file_set, |file| {
+        multifile::for_each_file(&file_set, false, |file| {
             run_field_projection(file, &args.fields, json, multi)
         })
     }

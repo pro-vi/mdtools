@@ -366,6 +366,16 @@ pub struct TaskFileResult {
 pub struct TasksResult {
     pub schema_version: String,
     pub results: Vec<TaskFileResult>,
+    /// Per-file failures in multi-file mode. tasks keeps its single-object
+    /// wire shape: structured failures ride here, never as NDJSON rows.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub failures: Vec<TaskFileFailure>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TaskFileFailure {
+    pub file: String,
+    pub error: crate::errors::ErrorInfo,
 }
 
 // --- Mutation types ---

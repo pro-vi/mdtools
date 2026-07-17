@@ -63,9 +63,18 @@ fn has_md_extension(path: &Path) -> bool {
         .map_or(false, |ext| ext == "md" || ext == "markdown")
 }
 
-/// Report a per-file error to stderr with filename prefix.
-pub fn report_file_error(file: &Path, err: &CommandError) {
+/// Report a per-file error to stderr with filename prefix. Under --json,
+/// additionally emit a per-file error envelope row into the NDJSON stream on
+/// stdout so structured consumers see the failure inline.
+pub fn report_file_error(file: &Path, err: &CommandError, json: bool) {
     eprintln!("{}: {}", file.display(), err);
+    if json {
+        if let Some(row) =
+            crate::errors::error_envelope_json(err, Some(&file.display().to_string()))
+        {
+            println!("{}", row);
+        }
+    }
 }
 
 /// Run a per-file callback over a resolved FileSet, handling the
@@ -73,7 +82,7 @@ pub fn report_file_error(file: &Path, err: &CommandError) {
 ///
 /// Callers capture `file_set.is_multi()` in their closure if they
 /// need it for output formatting.
-pub fn for_each_file<F>(file_set: &FileSet, mut f: F) -> Result<(), CommandError>
+pub fn for_each_file<F>(file_set: &FileSet, json: bool, mut f: F) -> Result<(), CommandError>
 where
     F: FnMut(&Path) -> Result<(), CommandError>,
 {
@@ -85,7 +94,7 @@ where
     let mut worst_code = MdExitCode::Success;
     for path in &file_set.paths {
         if let Err(e) = f(path) {
-            report_file_error(path, &e);
+            report_file_error(path, &e, json);
             if (e.exit_code as u8) > (worst_code as u8) {
                 worst_code = e.exit_code;
             }
@@ -95,9 +104,10 @@ where
     if error_count == 0 {
         Ok(())
     } else {
-        Err(CommandError {
-            exit_code: worst_code,
-            message: format!("{} file(s) failed", error_count),
-        })
+        Err(CommandError::multi_file(
+            worst_code,
+            error_count,
+            format!("{} file(s) failed", error_count),
+        ))
     }
 }

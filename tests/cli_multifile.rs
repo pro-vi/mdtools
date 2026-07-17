@@ -424,11 +424,12 @@ fn collect_directory_with_one_malformed_file_emits_no_json_output() {
         .unwrap();
 
     assert_eq!(out.status.code(), Some(2));
-    assert!(
-        out.stdout.is_empty(),
-        "stdout: {:?}",
-        String::from_utf8_lossy(&out.stdout)
-    );
+    // Total failure under --json: stdout carries exactly one structured
+    // error envelope (never a partial/empty table).
+    let envelope: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(envelope["schema_version"], "mdtools.v1");
+    assert_eq!(envelope["error"]["code"], "frontmatter_parse_failed");
+    assert_eq!(envelope["error"]["exit_code"], 2);
 
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("invalid YAML frontmatter"));
@@ -456,11 +457,12 @@ fn collect_directory_with_one_malformed_toml_file_emits_no_json_output() {
         .unwrap();
 
     assert_eq!(out.status.code(), Some(2));
-    assert!(
-        out.stdout.is_empty(),
-        "stdout: {:?}",
-        String::from_utf8_lossy(&out.stdout)
-    );
+    // Total failure under --json: stdout carries exactly one structured
+    // error envelope (never a partial/empty table).
+    let envelope: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(envelope["schema_version"], "mdtools.v1");
+    assert_eq!(envelope["error"]["code"], "frontmatter_parse_failed");
+    assert_eq!(envelope["error"]["exit_code"], 2);
 
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("invalid TOML frontmatter"));

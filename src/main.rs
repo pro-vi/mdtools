@@ -18,6 +18,11 @@ fn main() -> ExitCode {
     match run(&cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
+            if cli.json && !e.payload_delivered {
+                if let Some(envelope) = errors::error_envelope_json(&e, None) {
+                    println!("{}", envelope);
+                }
+            }
             eprintln!("{}", e);
             e.exit_code.into()
         }

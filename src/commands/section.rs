@@ -258,11 +258,22 @@ pub fn find_section(
     doc: &ParsedDocument,
     selector: &SectionSelector,
 ) -> Result<SectionEntry, CommandError> {
+    find_section_as(doc, selector, crate::errors::ROLE_TARGET)
+}
+
+/// Like find_section, but selector errors carry `role` so adapters can
+/// recommend the right disambiguation flag (move-section passes source /
+/// destination).
+pub fn find_section_as(
+    doc: &ParsedDocument,
+    selector: &SectionSelector,
+    role: &'static str,
+) -> Result<SectionEntry, CommandError> {
     match selector.kind {
         SectionSelectorKind::Preamble => find_preamble(doc),
         SectionSelectorKind::HeadingText => {
             let heading_text = selector.heading_text.as_deref().unwrap_or("");
-            find_heading_section(doc, heading_text, selector)
+            find_heading_section(doc, heading_text, selector, role)
         }
     }
 }
@@ -329,6 +340,7 @@ fn find_heading_section(
     doc: &ParsedDocument,
     heading_text: &str,
     selector: &SectionSelector,
+    role: &'static str,
 ) -> Result<SectionEntry, CommandError> {
     // Find all matching headings
     let matches: Vec<_> = doc
@@ -342,17 +354,32 @@ fn find_heading_section(
         .collect();
 
     if matches.is_empty() {
-        return Err(CommandError::not_found_heading(heading_text));
+        return Err(CommandError::not_found_heading_as(heading_text, role));
     }
 
+    let match_refs: Vec<crate::errors::MatchRef> = matches
+        .iter()
+        .enumerate()
+        .map(|(i, b)| crate::errors::MatchRef {
+            block_index: b.index,
+            occurrence: (i + 1) as u32,
+            line: b.span.line_start,
+        })
+        .collect();
+
     if matches.len() > 1 && selector.occurrence.is_none() {
-        return Err(CommandError::duplicate_heading(heading_text, matches.len()));
+        return Err(CommandError::duplicate_heading_as(
+            heading_text,
+            matches.len(),
+            &match_refs,
+            role,
+        ));
     }
 
     let selected = if let Some(occ) = selector.occurrence {
-        matches
-            .get(occ.saturating_sub(1) as usize)
-            .ok_or_else(|| CommandError::not_found_heading(heading_text))?
+        matches.get(occ.saturating_sub(1) as usize).ok_or_else(|| {
+            CommandError::occurrence_out_of_range(heading_text, occ, &match_refs, role)
+        })?
     } else {
         matches[0]
     };

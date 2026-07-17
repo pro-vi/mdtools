@@ -101,14 +101,28 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
     };
 
     if json {
-        // Collect all, preserving partial results on per-file errors
+        // Collect all, preserving partial results on per-file errors.
+        // tasks stays a single aggregate JSON object: failures ride inside
+        // it as structured rows, never as extra NDJSON envelope objects.
         let mut error_count = 0u32;
+        let mut worst_code = crate::errors::MdExitCode::Success;
+        let mut failures = Vec::new();
         for path in &file_set.paths {
             match collect_fn(path) {
                 Ok(fr) => file_results.push(fr),
                 Err(e) => {
                     if multi {
-                        multifile::report_file_error(path, &e);
+                        // stderr prefix only; the structured failure lands in
+                        // the aggregate payload below (json=false here on
+                        // purpose — no envelope row for tasks).
+                        multifile::report_file_error(path, &e, false);
+                        if (e.exit_code as u8) > (worst_code as u8) {
+                            worst_code = e.exit_code;
+                        }
+                        failures.push(crate::model::TaskFileFailure {
+                            file: path.display().to_string(),
+                            error: crate::errors::ErrorInfo::from(&e),
+                        });
                         error_count += 1;
                     } else {
                         return Err(e);
@@ -119,19 +133,23 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
         let result = TasksResult {
             schema_version: SCHEMA_VERSION.to_string(),
             results: file_results,
+            failures,
         };
         output::write_json(&result)?;
         if error_count > 0 {
-            Err(CommandError {
-                exit_code: crate::errors::MdExitCode::ParseError,
-                message: format!("{} file(s) failed", error_count),
-            })
+            let mut e = CommandError::multi_file(
+                worst_code,
+                error_count,
+                format!("{} file(s) failed", error_count),
+            );
+            e.payload_delivered = true;
+            Err(e)
         } else {
             Ok(())
         }
     } else {
         // Text output
-        multifile::for_each_file(&file_set, |file| {
+        multifile::for_each_file(&file_set, false, |file| {
             let fr = collect_fn(file)?;
             for task in &fr.tasks {
                 let heading =

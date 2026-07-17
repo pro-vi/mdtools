@@ -89,7 +89,12 @@ fn assert_stale_missing_delete_conflict_preserves_bytes(
         Some(4),
         "{label}: EtagMismatch exit code"
     );
-    assert!(out.stdout.is_empty(), "{label}: stdout must stay empty");
+    let envelope: serde_json::Value = serde_json::from_slice(&out.stdout)
+        .unwrap_or_else(|e| panic!("{label}: stdout must be one error envelope: {e}"));
+    assert_eq!(
+        envelope["error"]["code"], "etag_mismatch",
+        "{label}: envelope code"
+    );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("frontmatter etag mismatch"),
@@ -1326,7 +1331,12 @@ fn set_expect_etag_stale_semantic_validation_conflicts_before_parsing() {
             Some(4),
             "{label}: EtagMismatch exit code"
         );
-        assert!(out.stdout.is_empty(), "{label}: stdout must stay empty");
+        let envelope: serde_json::Value = serde_json::from_slice(&out.stdout)
+            .unwrap_or_else(|e| panic!("{label}: stdout must be one error envelope: {e}"));
+        assert_eq!(
+            envelope["error"]["code"], "etag_mismatch",
+            "{label}: envelope code"
+        );
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(
             stderr.contains("frontmatter etag mismatch"),
