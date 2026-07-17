@@ -1,5 +1,5 @@
 use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
-use crate::commands::replace::{replacement_span_after, verify_expected_etag};
+use crate::commands::replace::{replacement_span_after, verify_expected_etag_unique};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -42,9 +42,11 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     )?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&section_span),
+        "section",
+        || all_section_etags(&doc),
         |expected, actual| {
             CommandError::section_etag_mismatch(
                 &describe_selector(&section.selector),
@@ -79,11 +81,12 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
 
     if args.in_place {
         if changed {
-            std::fs::write(&args.file, &output_doc)?;
+            output::write_file_atomic(args.file.as_ref(), &output_doc)?;
         }
         if json {
             let result = build_section_mutation_result(
                 &args.file.to_string_lossy(),
+                args.etag_guard.expect_etag.is_some(),
                 section,
                 disposition,
                 changed,
@@ -98,6 +101,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     } else if json {
         let result = build_section_mutation_result(
             &args.file.to_string_lossy(),
+            args.etag_guard.expect_etag.is_some(),
             section,
             disposition,
             changed,
@@ -157,9 +161,11 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     )?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&section_span),
+        "section",
+        || all_section_etags(&doc),
         |expected, actual| {
             CommandError::section_etag_mismatch(
                 &describe_selector(&section.selector),
@@ -178,10 +184,11 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     let disposition = MutationDisposition::Deleted;
 
     if args.in_place {
-        std::fs::write(&args.file, &output_doc)?;
+        output::write_file_atomic(args.file.as_ref(), &output_doc)?;
         if json {
             let result = build_section_mutation_result(
                 &args.file.to_string_lossy(),
+                args.etag_guard.expect_etag.is_some(),
                 section,
                 disposition,
                 changed,
@@ -196,6 +203,7 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     } else if json {
         let result = build_section_mutation_result(
             &args.file.to_string_lossy(),
+            args.etag_guard.expect_etag.is_some(),
             section,
             disposition,
             changed,
@@ -210,6 +218,30 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
         print!("{}", output_doc);
     }
     Ok(())
+}
+
+/// Content etags of every section in the document (preamble + one per
+/// heading), for section-guard ambiguity checks: identical duplicate
+/// sections share a fingerprint, and a guard hash matching more than one
+/// section cannot prove identity.
+pub fn all_section_etags(doc: &ParsedDocument) -> Vec<String> {
+    let mut etags = Vec::new();
+    if let Ok(preamble) = find_preamble(doc) {
+        etags.push(preamble.etag);
+    }
+    for block in &doc.blocks {
+        if let Some(h) = &block.heading {
+            let byte_end = find_section_byte_end(doc, block.index, h.level);
+            let span = SourceSpan {
+                line_start: block.span.line_start,
+                line_end: block.span.line_end,
+                byte_start: block.span.byte_start,
+                byte_end,
+            };
+            etags.push(output::content_etag(doc.slice(&span).as_bytes()));
+        }
+    }
+    etags
 }
 
 pub fn build_selector(
@@ -459,6 +491,7 @@ fn find_section_byte_end(doc: &ParsedDocument, heading_index: u32, level: u8) ->
 
 fn build_section_mutation_result(
     file: &str,
+    guarded: bool,
     section: SectionEntry,
     disposition: MutationDisposition,
     changed: bool,
@@ -486,6 +519,7 @@ fn build_section_mutation_result(
         }),
         disposition,
         changed,
+        guarded,
         line_endings,
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,

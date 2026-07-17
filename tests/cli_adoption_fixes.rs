@@ -336,14 +336,13 @@ fn insert_block_at_end_with_expect_etag_is_usage_error() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn expect_etag_does_not_disambiguate_duplicate_content_blocks() {
-    // KNOWN LIMITATION (PR#10 Codex P2). `--expect-etag` is content-addressed, not
-    // identity-addressed: two blocks with identical content share an etag, so an etag
-    // computed for ONE duplicate-content block authorizes a mutation on ANOTHER. With
-    // a stale index this silently hits the wrong target — exactly what the guard is
-    // meant to prevent. This characterizes the CURRENT behavior; a future
-    // identity-binding fix (positional anchor, or fail-closed on hash ambiguity) must
-    // flip the final assert to expect exit 4. See CLAUDE.md "Known limitations".
+fn expect_etag_fails_closed_on_duplicate_content_blocks() {
+    // RESOLVED (PR#10 Codex P2, closed by the binary-owned-contract U3 work).
+    // `--expect-etag` is content-addressed: two blocks with identical content
+    // share an etag, so a content match cannot prove which block the guard
+    // was bound to. The guard now fails closed (exit 4, etag_ambiguous) when
+    // the expected hash is non-unique among the document's blocks, instead
+    // of silently authorizing a mutation on the wrong duplicate.
     let tmp = tempfile("# T\n\nDup line.\n\nMiddle.\n\nDup line.\n");
     // blocks: 0=heading, 1="Dup line.", 2="Middle.", 3="Dup line."
     let e1 = block_etag(&tmp, 1);
@@ -352,16 +351,20 @@ fn expect_etag_does_not_disambiguate_duplicate_content_blocks() {
         e1, e3,
         "identical-content blocks share an etag (content-addressed root cause)"
     );
-    // Authorize a delete on block 3 using block 1's etag — succeeds TODAY because the
-    // content (hence etag) matches, even though the etag "belonged to" a different block.
+    let before = std::fs::read_to_string(&tmp).unwrap();
     let out = md()
         .args(["delete-block", "3", &tmp, "-i", "--expect-etag", &e1])
         .output()
         .unwrap();
-    assert!(
-        out.status.success(),
-        "TODO(identity-binding): content-only etag lets block-1's etag authorize a \
-         mutation on block-3; an identity-bound guard would fail-close (exit 4) here"
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "ambiguous guard hash must fail closed"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        before,
+        "file must be untouched on ambiguity"
     );
     cleanup(&tmp);
 }

@@ -51,16 +51,14 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 - `section --ignore-case` uses Rust lowercase projection, not Unicode normalization or full case folding; composed and decomposed spellings still differ unless lowercase alone makes them equal
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
 - `--expect-etag` / `--expect-source-etag` / `--expect-dest-etag` are
-  **content-addressed, not identity-addressed**: they verify the selected block,
-  section, table, task item, or move-section source/destination still has the expected
-  content fingerprint from the earlier read when a later command invocation mutates it.
-  In a doc with **duplicate-content targets**, an intervening edit can shift indices or
-  selectors so the old handle lands on a *different* same-content target whose fingerprint
-  also matches — the guard
-  passes against the wrong target. Mitigation today: **re-query immediately before
-  mutating** (the moat) to shrink the window. A proper fix (binding the expectation to
-  positional identity / span, or failing closed on hash ambiguity) is a design decision
-  that trades against "loc carries no identity" — deferred as follow-up.
+  **content-addressed, not identity-addressed**, but block, section, and task guards
+  now **fail closed on hash ambiguity**: when the expected fingerprint matches more
+  than one same-kind target in the document (identical duplicates), the mutation
+  exits 4 with `etag_ambiguous` instead of silently authorizing the wrong duplicate.
+  Residual: `replace-table-row`/`delete-table-row` guards are still plain
+  content-compares (no ambiguity check), and true identity binding (neighbor-aware /
+  context-sensitive anchors) remains follow-up — it trades against "loc carries no
+  identity". Re-query-before-mutate remains the recommended pattern.
 - **Bench ablation integrity (maintain this).** The no-md / `native*` baselines must keep
   `md` unreachable by *every* form — the `./md` workdir copy, bare `md` on PATH, and the
   `BASH_ENV` the claude-cli shell never sources. This recurred as a bypass **5× across axes**

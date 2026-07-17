@@ -12,6 +12,7 @@ pub(crate) struct MutationEmission<'a> {
     pub target: MutationTargetRef,
     pub disposition: MutationDisposition,
     pub changed: bool,
+    pub guarded: bool,
     pub line_endings: LineEndingStyle,
     pub span_before: Option<SourceSpan>,
     pub span_after: Option<SourceSpan>,
@@ -32,6 +33,7 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
     verify_etag(
         args.expect_etag.as_deref(),
         args.index,
+        &doc,
         doc.slice(&block_span),
     )?;
 
@@ -87,6 +89,7 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
         target,
         disposition,
         changed,
+        guarded: args.expect_etag.is_some(),
         line_endings,
         span_before: Some(block_span),
         span_after: match disposition {
@@ -129,6 +132,7 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
             target,
             disposition: MutationDisposition::NoChange,
             changed: false,
+            guarded: args.expect_etag.is_some(),
             line_endings,
             span_before: None,
             span_after: None,
@@ -184,6 +188,7 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         target,
         disposition: MutationDisposition::Inserted,
         changed: true,
+        guarded: args.expect_etag.is_some(),
         line_endings,
         span_before: None,
         span_after: Some(span_after),
@@ -205,6 +210,7 @@ pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), Comman
     verify_etag(
         args.expect_etag.as_deref(),
         args.index,
+        &doc,
         doc.slice(&block_span),
     )?;
 
@@ -229,6 +235,7 @@ pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), Comman
         target,
         disposition: MutationDisposition::Deleted,
         changed: true,
+        guarded: args.expect_etag.is_some(),
         line_endings,
         span_before: Some(block_span),
         span_after: None,
@@ -322,10 +329,19 @@ fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
 /// Verify the target block's current content fingerprint matches the agent's
 /// `--expect-etag`. Fails-closed (Conflict) on mismatch, so a stale index never
 /// silently mutates the wrong block. No-op when no etag was supplied.
-fn verify_etag(expect: Option<&str>, index: u32, current: &str) -> Result<(), CommandError> {
-    verify_expected_etag(expect, current, |expected, actual| {
-        CommandError::etag_mismatch(index, expected, actual)
-    })
+fn verify_etag(
+    expect: Option<&str>,
+    index: u32,
+    doc: &crate::parser::ParsedDocument,
+    current: &str,
+) -> Result<(), CommandError> {
+    verify_expected_etag_unique(
+        expect,
+        current,
+        "block",
+        || all_block_etags(doc),
+        |expected, actual| CommandError::etag_mismatch(index, expected, actual),
+    )
 }
 
 pub(crate) fn verify_expected_etag<F>(
@@ -343,6 +359,46 @@ where
         }
     }
     Ok(())
+}
+
+/// Like verify_expected_etag, but fails closed when the matching fingerprint
+/// is NON-UNIQUE among the same-kind candidates in the document: identical
+/// duplicates share a content etag, and a content match cannot prove the
+/// guard is bound to the intended target. `candidates` is called lazily,
+/// only when the fingerprint matches.
+pub(crate) fn verify_expected_etag_unique<F, C>(
+    expect: Option<&str>,
+    current: &str,
+    noun: &'static str,
+    candidates: C,
+    mismatch: F,
+) -> Result<(), CommandError>
+where
+    F: FnOnce(&str, &str) -> CommandError,
+    C: FnOnce() -> Vec<String>,
+{
+    if let Some(expected) = expect {
+        let actual = output::content_etag(current.as_bytes());
+        if expected != actual {
+            return Err(mismatch(expected, &actual));
+        }
+        let duplicates = candidates()
+            .iter()
+            .filter(|etag| etag.as_str() == expected)
+            .count();
+        if duplicates > 1 {
+            return Err(CommandError::etag_ambiguous(noun, expected, duplicates));
+        }
+    }
+    Ok(())
+}
+
+/// Content etags of every top-level block, for block-guard ambiguity checks.
+pub(crate) fn all_block_etags(doc: &crate::parser::ParsedDocument) -> Vec<String> {
+    doc.blocks
+        .iter()
+        .map(|b| output::content_etag(doc.slice(&b.span).as_bytes()))
+        .collect()
 }
 
 /// For insert-block, `--expect-etag` verifies the anchor block (--before/--after).
@@ -369,7 +425,7 @@ fn verify_insert_etag(
         .blocks
         .get(anchor as usize)
         .ok_or_else(|| CommandError::block_out_of_range(anchor, doc.blocks.len() as u32))?;
-    verify_etag(Some(expected), anchor, doc.slice(&block.span))
+    verify_etag(Some(expected), anchor, doc, doc.slice(&block.span))
 }
 
 /// Strip at most one trailing line-ending from `--from`/stdin replacement
@@ -418,6 +474,7 @@ pub(crate) fn emit_mutation(emission: MutationEmission<'_>) -> Result<(), Comman
         target,
         disposition,
         changed,
+        guarded,
         line_endings,
         span_before,
         span_after,
@@ -431,6 +488,7 @@ pub(crate) fn emit_mutation(emission: MutationEmission<'_>) -> Result<(), Comman
         target: target.clone(),
         disposition,
         changed,
+        guarded,
         line_endings,
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,
@@ -442,7 +500,7 @@ pub(crate) fn emit_mutation(emission: MutationEmission<'_>) -> Result<(), Comman
 
     if in_place {
         if changed {
-            std::fs::write(file, output_doc)?;
+            output::write_file_atomic(file.as_ref(), &output_doc)?;
         }
         if json {
             output::write_json(&build_result(None))?;

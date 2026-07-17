@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::cli::{SetTaskArgs, TasksArgs};
-use crate::commands::replace::verify_expected_etag;
+use crate::commands::replace::verify_expected_etag_unique;
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
@@ -210,9 +210,17 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
 
     let line_endings = doc.line_ending_style();
     let task_span = task_item.span;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&task_span),
+        "task",
+        || {
+            doc.blocks
+                .iter()
+                .flat_map(|b| &b.task_items)
+                .map(|ti| output::content_etag(doc.slice(&ti.span).as_bytes()))
+                .collect()
+        },
         |expected, actual| CommandError::task_etag_mismatch(&args.loc, expected, actual),
     )?;
 
@@ -263,6 +271,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
         target: target.clone(),
         disposition,
         changed,
+        guarded: args.etag_guard.expect_etag.is_some(),
         line_endings,
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,
@@ -274,7 +283,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
 
     if args.in_place {
         if changed {
-            std::fs::write(&args.file, &output_doc)?;
+            output::write_file_atomic(args.file.as_ref(), &output_doc)?;
         }
         if json {
             output::write_json(&build_result(None))?;

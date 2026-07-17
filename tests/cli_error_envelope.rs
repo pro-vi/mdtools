@@ -253,7 +253,7 @@ fn diagnostic_codes_serialize_snake_case_and_cover_exit_codes() {
         assert!(exit >= 1 && exit <= 4, "{name}: exit {exit}");
     }
     // count pins the schema surface; update deliberately with new variants
-    assert_eq!(DiagnosticCode::ALL.len(), 21);
+    assert_eq!(DiagnosticCode::ALL.len(), 22);
 }
 
 trait OutputWithStdin {

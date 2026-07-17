@@ -42,6 +42,7 @@ pub enum DiagnosticCode {
     NotATaskList,
     InvalidTaskLoc,
     EtagMismatch,
+    EtagAmbiguous,
     MultiFileFailure,
 }
 
@@ -64,7 +65,7 @@ impl DiagnosticCode {
             }
             Self::TaskItemNotFound | Self::NotATaskList => MdExitCode::NotFound,
             Self::InvalidTaskLoc => MdExitCode::InvalidInput,
-            Self::EtagMismatch => MdExitCode::Conflict,
+            Self::EtagMismatch | Self::EtagAmbiguous => MdExitCode::Conflict,
             // Aggregate multi-file failures override exit_code with the worst
             // per-file code at construction; this static mapping is the floor.
             Self::MultiFileFailure => MdExitCode::NotFound,
@@ -94,6 +95,7 @@ impl DiagnosticCode {
         Self::NotATaskList,
         Self::InvalidTaskLoc,
         Self::EtagMismatch,
+        Self::EtagAmbiguous,
         Self::MultiFileFailure,
     ];
 }
@@ -352,6 +354,30 @@ impl CommandError {
         .with_hint("re-run `md tasks --json <FILE>` for current task locs")
         .with_context(ErrorContext {
             loc: Some(loc.to_string()),
+            ..ErrorContext::default()
+        })
+    }
+
+    /// The expected fingerprint matched, but the same fingerprint appears on
+    /// multiple same-kind targets in the document: a content match cannot
+    /// prove identity, so the guard fails closed.
+    pub fn etag_ambiguous(noun: &str, expected: &str, count: usize) -> Self {
+        Self::new(
+            DiagnosticCode::EtagAmbiguous,
+            format!(
+                "{} etag {:?} is ambiguous: {} same-content {}s share this fingerprint \
+                 (a content match cannot prove identity; re-query and disambiguate by \
+                 occurrence or index before mutating)",
+                noun, expected, count, noun
+            ),
+        )
+        .with_hint(format!(
+            "{} identical {}s share this etag; re-query and target one explicitly by occurrence/index",
+            count, noun
+        ))
+        .with_context(ErrorContext {
+            expected_etag: Some(expected.to_string()),
+            total_matches: Some(count),
             ..ErrorContext::default()
         })
     }

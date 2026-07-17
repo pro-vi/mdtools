@@ -112,7 +112,7 @@ fn expect_etag_listed_on_exactly_the_guarded_commands() {
 fn diagnostics_table_is_total_with_valid_exit_codes() {
     let s = schema();
     let diags = s["diagnostic_codes"].as_array().unwrap();
-    assert_eq!(diags.len(), 21);
+    assert_eq!(diags.len(), 22);
     for d in diags {
         let code = d["code"].as_str().unwrap();
         let exit = d["exit_code"].as_u64().unwrap();

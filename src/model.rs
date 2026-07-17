@@ -104,6 +104,9 @@ pub struct HeadingRef {
 pub struct OutlineEntry {
     pub heading: HeadingRef,
     pub section_span: SourceSpan,
+    /// Content fingerprint of the full section span (heading through section
+    /// end) — the value section mutations accept via --expect-etag.
+    pub etag: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -500,6 +503,10 @@ pub struct MutationResult {
     pub target: MutationTargetRef,
     pub disposition: MutationDisposition,
     pub changed: bool,
+    /// True when the mutation ran under an etag expectation
+    /// (--expect-etag / --expect-source-etag / --expect-dest-etag), so guard
+    /// adoption is observable to agents and usage instrumentation.
+    pub guarded: bool,
     pub line_endings: LineEndingStyle,
     pub invariant: SourcePreservationInvariant,
     pub content: Option<String>,

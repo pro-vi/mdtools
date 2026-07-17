@@ -23,6 +23,10 @@ pub const CAPABILITIES: &[&str] = &[
     "table_etag",
     "frontmatter_etag",
     "move_section_dual_etag",
+    "outline_etag",
+    "etag_ambiguity_fail_closed",
+    "guarded_flag",
+    "atomic_write",
 ];
 
 /// query|mutation kind per command. The exhaustiveness test below fails when

@@ -82,6 +82,7 @@ fn build_outline(doc: &ParsedDocument, file: &str) -> OutlineResult {
 
         entries.push(OutlineEntry {
             heading: heading_ref,
+            etag: output::content_etag(doc.slice(&section_span).as_bytes()),
             section_span,
         });
     }

@@ -77,6 +77,41 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 /// (`--expect-etag`) against target-content drift between the earlier read and
 /// mutation attempt. Content-addressed fingerprint only, not durable target
 /// identity. Deterministic across runs and platforms.
+/// Atomically replace `path` with `content`: write to a temp file in the
+/// same directory, copy the original's permission bits, fsync, then rename.
+/// A killed process can leave a stale temp file but never a truncated or
+/// partially-written target.
+pub fn write_file_atomic(path: &std::path::Path, content: &str) -> std::io::Result<()> {
+    use std::io::Write;
+
+    let dir = path.parent().filter(|p| !p.as_os_str().is_empty());
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "md".to_string());
+    let tmp_name = format!(".{}.md-tmp.{}", file_name, std::process::id());
+    let tmp_path = match dir {
+        Some(d) => d.join(&tmp_name),
+        None => std::path::PathBuf::from(&tmp_name),
+    };
+
+    let result = (|| {
+        let mut tmp = std::fs::File::create(&tmp_path)?;
+        tmp.write_all(content.as_bytes())?;
+        tmp.sync_all()?;
+        drop(tmp);
+        if let Ok(meta) = std::fs::metadata(path) {
+            std::fs::set_permissions(&tmp_path, meta.permissions())?;
+        }
+        std::fs::rename(&tmp_path, path)
+    })();
+
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+    result
+}
+
 pub fn content_etag(bytes: &[u8]) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325; // FNV offset basis
     for &b in bytes {

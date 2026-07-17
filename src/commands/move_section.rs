@@ -1,6 +1,6 @@
 use crate::cli::MoveSectionArgs;
-use crate::commands::replace::verify_expected_etag;
-use crate::commands::section::{build_selector, describe_selector, find_section_as};
+use crate::commands::replace::verify_expected_etag_unique;
+use crate::commands::section::{all_section_etags, build_selector, describe_selector, find_section_as};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -48,9 +48,11 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     let source_section = find_section_as(&doc, &source_selector, crate::errors::ROLE_SOURCE)?;
     let dest_section = find_section_as(&doc, &dest_selector, crate::errors::ROLE_DESTINATION)?;
 
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.expect_source_etag.as_deref(),
         doc.slice(&source_section.span),
+        "section",
+        || all_section_etags(&doc),
         |expected, actual| {
             CommandError::move_section_source_etag_mismatch(
                 &describe_selector(&source_section.selector),
@@ -59,9 +61,11 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
             )
         },
     )?;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.expect_dest_etag.as_deref(),
         doc.slice(&dest_section.span),
+        "section",
+        || all_section_etags(&doc),
         |expected, actual| {
             CommandError::move_section_dest_etag_mismatch(
                 &describe_selector(&dest_section.selector),
@@ -403,6 +407,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         target: target.clone(),
         disposition,
         changed,
+        guarded: args.expect_source_etag.is_some() || args.expect_dest_etag.is_some(),
         line_endings,
         invariant: invariant.clone(),
         content,
@@ -412,7 +417,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         // Already validated above that args.file is Some when --in-place.
         let path = args.file.as_ref().expect("validated above");
         if changed {
-            std::fs::write(path, &output_doc)?;
+            output::write_file_atomic(path, &output_doc)?;
         }
         if json {
             output::write_json(&make_result(None))?;

@@ -105,6 +105,7 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
         target,
         disposition,
         changed,
+        args.expect_etag.is_some(),
         doc.line_ending_style(),
         span_before,
         span_after,
@@ -303,6 +304,7 @@ fn emit_set_mutation(
     target: MutationTargetRef,
     disposition: MutationDisposition,
     changed: bool,
+    guarded: bool,
     line_endings: LineEndingStyle,
     span_before: Option<SourceSpan>,
     span_after: Option<SourceSpan>,
@@ -315,6 +317,7 @@ fn emit_set_mutation(
         target: target.clone(),
         disposition,
         changed,
+        guarded,
         line_endings,
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,
@@ -326,7 +329,7 @@ fn emit_set_mutation(
 
     if in_place {
         if changed {
-            std::fs::write(file, output_doc)?;
+            output::write_file_atomic(file.as_ref(), &output_doc)?;
         }
         if json {
             output::write_json(&build_result(None))?;
