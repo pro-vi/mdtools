@@ -1,5 +1,6 @@
 use crate::cli::MoveSectionArgs;
-use crate::commands::section::{build_selector, find_section};
+use crate::commands::replace::verify_expected_etag;
+use crate::commands::section::{build_selector, describe_selector, find_section};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -46,6 +47,29 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
 
     let source_section = find_section(&doc, &source_selector)?;
     let dest_section = find_section(&doc, &dest_selector)?;
+
+    verify_expected_etag(
+        args.expect_source_etag.as_deref(),
+        doc.slice(&source_section.span),
+        |expected, actual| {
+            CommandError::move_section_source_etag_mismatch(
+                &describe_selector(&source_section.selector),
+                expected,
+                actual,
+            )
+        },
+    )?;
+    verify_expected_etag(
+        args.expect_dest_etag.as_deref(),
+        doc.slice(&dest_section.span),
+        |expected, actual| {
+            CommandError::move_section_dest_etag_mismatch(
+                &describe_selector(&dest_section.selector),
+                expected,
+                actual,
+            )
+        },
+    )?;
 
     let src_span = source_section.span;
     let dest_span = dest_section.span;

@@ -506,7 +506,7 @@ fn heading_matches(text: &str, selector_text: &str, match_mode: HeadingMatchMode
     }
 }
 
-fn describe_selector(selector: &SectionSelector) -> String {
+pub(crate) fn describe_selector(selector: &SectionSelector) -> String {
     match selector.kind {
         SectionSelectorKind::Preamble => ":preamble".to_string(),
         SectionSelectorKind::HeadingText => {

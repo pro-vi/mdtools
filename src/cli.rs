@@ -6,6 +6,12 @@ use crate::model::{BlockKind, TaskStatus};
 const SECTION_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the target section's current etag (from `md section --json`)\n\
      differs — guards against a stale selector after intervening edits.";
+const MOVE_SECTION_SOURCE_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the selected source section's current etag (from `md section --json`)\n\
+     differs — guards against moving a stale source after intervening edits.";
+const MOVE_SECTION_DEST_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the selected destination section's current etag (from `md section --json`)\n\
+     differs — guards against moving relative to a stale destination after intervening edits.";
 const TASK_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
      differs — guards against a stale loc after intervening edits.";
@@ -341,6 +347,20 @@ pub struct MoveSectionArgs {
     /// 1-indexed occurrence to disambiguate same-text destination headings
     #[arg(long = "dest-occurrence")]
     pub dest_occurrence: Option<u32>,
+
+    #[arg(
+        long = "expect-source-etag",
+        value_name = "ETAG",
+        long_help = MOVE_SECTION_SOURCE_EXPECT_ETAG_HELP
+    )]
+    pub expect_source_etag: Option<String>,
+
+    #[arg(
+        long = "expect-dest-etag",
+        value_name = "ETAG",
+        long_help = MOVE_SECTION_DEST_EXPECT_ETAG_HELP
+    )]
+    pub expect_dest_etag: Option<String>,
 
     /// Write changes back to the file
     #[arg(long = "in-place", short = 'i')]
