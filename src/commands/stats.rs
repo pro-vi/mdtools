@@ -84,11 +84,15 @@ fn compute_word_count(doc: &ParsedDocument) -> u32 {
     let mut count = 0u32;
     for block in &doc.blocks {
         match block.kind {
-            BlockKind::Heading
-            | BlockKind::Paragraph
-            | BlockKind::List
-            | BlockKind::BlockQuote
-            | BlockKind::Table => {
+            BlockKind::Heading => {
+                let heading_text = block
+                    .heading
+                    .as_ref()
+                    .map(|heading| heading.text.as_str())
+                    .unwrap_or_else(|| doc.slice(&block.span));
+                count += heading_text.split_whitespace().count() as u32;
+            }
+            BlockKind::Paragraph | BlockKind::List | BlockKind::BlockQuote | BlockKind::Table => {
                 let content = doc.slice(&block.span);
                 count += count_words_in_content(content, block.kind);
             }
@@ -100,11 +104,6 @@ fn compute_word_count(doc: &ParsedDocument) -> u32 {
 
 fn count_words_in_content(content: &str, kind: BlockKind) -> u32 {
     match kind {
-        BlockKind::Heading => {
-            // Strip leading # markers
-            let text = content.trim_start_matches('#').trim();
-            text.split_whitespace().count() as u32
-        }
         BlockKind::List => {
             // Strip list markers and count words in items
             content

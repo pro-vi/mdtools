@@ -1,8 +1,26 @@
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 fn md() -> Command {
     Command::new(env!("CARGO_BIN_EXE_md"))
+}
+
+fn md_with_stdin(args: &[&str], stdin_content: &str) -> std::process::Output {
+    let mut child = md()
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(stdin_content.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
 }
 
 fn tempfile(content: &str) -> String {
@@ -23,6 +41,25 @@ fn tempfile_bytes(bytes: &[u8]) -> String {
     );
     std::fs::write(&path, bytes).unwrap();
     path
+}
+
+fn section_json(path: &str, selector: &str, extra_args: &[&str]) -> serde_json::Value {
+    let mut args = vec!["section", selector, path];
+    args.extend_from_slice(extra_args);
+    args.push("--json");
+    let output = md().args(&args).output().unwrap();
+    assert!(
+        output.status.success(),
+        "command {:?} failed: {}",
+        args,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn section_etag(path: &str, selector: &str, extra_args: &[&str]) -> String {
+    let json = section_json(path, selector, extra_args);
+    json["section"]["etag"].as_str().unwrap().to_string()
 }
 
 // === Core moves (5) ===
@@ -577,6 +614,88 @@ fn t18_setext_auto_level_errors() {
     // Setext h2 source as a top-level sibling (not nested under an h1) so the
     // containment check passes; then auto-level into h1 dest forces delta = -1.
     let tmp = tempfile("A Title\n-------\nbody\n\n# Other\nother\n");
+    let output = md()
+        .args(["move-section", "A Title", &tmp, "--after", "Other"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("setext heading"), "stderr: {}", stderr);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t18b_indented_setext_keep_level_preserves_heading_bytes() {
+    let tmp = tempfile("# Doc\n\n  A Title\n  --------\nsetext body\n\n## B\nbody b\n");
+    let output = md()
+        .args([
+            "move-section",
+            "A Title",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("  A Title\n  --------"), "got:\n{}", stdout);
+    assert!(stdout.contains("body b\n\n  A Title"), "got:\n{}", stdout);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t18bb_indented_setext_keep_level_round_trips_section_boundaries() {
+    let tmp = tempfile(
+        "# Doc\n\n## Prev\nprev\n\n  Source\n  ------\nbody s\n\n## Dest\nbody d\n\n## Tail\ntail\n",
+    );
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let expected =
+        "# Doc\n\n## Prev\nprev\n\n## Dest\nbody d\n\n  Source\n  ------\nbody s\n\n## Tail\ntail\n";
+    assert_eq!(stdout, expected);
+
+    let moved = tempfile(&stdout);
+    let dest_json = section_json(&moved, "Dest", &[]);
+    assert_eq!(
+        dest_json["content"].as_str().unwrap(),
+        "## Dest\nbody d\n\n"
+    );
+
+    let source_json = section_json(&moved, "Source", &[]);
+    assert_eq!(
+        source_json["content"].as_str().unwrap(),
+        "  Source\n  ------\nbody s\n\n"
+    );
+
+    std::fs::remove_file(&moved).unwrap();
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn t18c_indented_setext_auto_level_errors() {
+    let tmp = tempfile("  A Title\n  --------\nbody\n\n# Other\nother\n");
     let output = md()
         .args(["move-section", "A Title", &tmp, "--after", "Other"])
         .output()
@@ -1468,5 +1587,560 @@ fn t22_output_modes_stdout_inplace_json() {
         .unwrap()
         .contains("## B\nbody b\n## A\nbody a"));
 
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_allows_success_with_matching_source_and_dest_guards() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+    let source_etag = section_etag(&tmp, "A", &[]);
+    let dest_etag = section_etag(&tmp, "B", &[]);
+
+    let output = md()
+        .args([
+            "move-section",
+            "A",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(updated, "# Doc\n\n## B\nbody b\n## A\nbody a\n\n");
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_stale_source_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+    let stale_source_etag = section_etag(&tmp, "A", &[]);
+    std::fs::write(&tmp, "# Doc\n\n## A\nbody a updated\n\n## B\nbody b\n").unwrap();
+    let dest_etag = section_etag(&tmp, "B", &[]);
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "A",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &stale_source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("source section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_stale_dest_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+    let source_etag = section_etag(&tmp, "A", &[]);
+    let stale_dest_etag = section_etag(&tmp, "B", &[]);
+    std::fs::write(&tmp, "# Doc\n\n## A\nbody a\n\n## B\nbody b updated\n").unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "A",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &stale_dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("destination section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_checks_source_before_destination_when_both_are_stale() {
+    let tmp = tempfile("# Doc\n\n## A\nbody a\n\n## B\nbody b\n");
+    let stale_source_etag = section_etag(&tmp, "A", &[]);
+    let stale_dest_etag = section_etag(&tmp, "B", &[]);
+    std::fs::write(
+        &tmp,
+        "# Doc\n\n## A\nbody a updated\n\n## B\nbody b updated\n",
+    )
+    .unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "A",
+            &tmp,
+            "--after",
+            "B",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &stale_source_etag,
+            "--expect-dest-etag",
+            &stale_dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("source section"), "stderr: {}", stderr);
+    assert!(
+        !stderr.contains("destination section"),
+        "expected source-first failure, got: {}",
+        stderr
+    );
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_binds_guards_to_selected_occurrences() {
+    let tmp = tempfile(
+        "# Doc\n\n## API Alpha\nalpha body\n\n## Setup One\nsetup one\n\n## Logging\nlogging body\n\n## setup two\nsetup two\n\n## api beta\nbeta body\n",
+    );
+    let source_etag = section_etag(
+        &tmp,
+        "api",
+        &["--contains", "--ignore-case", "--occurrence", "2"],
+    );
+    let dest_etag = section_etag(
+        &tmp,
+        "setup",
+        &["--contains", "--ignore-case", "--occurrence", "2"],
+    );
+
+    let output = md()
+        .args([
+            "move-section",
+            "api",
+            &tmp,
+            "--before",
+            "setup",
+            "--contains",
+            "--ignore-case",
+            "--source-occurrence",
+            "2",
+            "--dest-occurrence",
+            "2",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    let alpha = updated.find("## API Alpha").unwrap();
+    let setup_one = updated.find("## Setup One").unwrap();
+    let beta = updated.find("## api beta").unwrap();
+    let setup_two = updated.find("## setup two").unwrap();
+    assert!(
+        alpha < setup_one,
+        "first occurrence moved unexpectedly:\n{}",
+        updated
+    );
+    assert!(
+        beta < setup_two,
+        "selected source did not move before selected destination:\n{}",
+        updated
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_supports_guarded_stdin_stdout_success_and_failure() {
+    let fixture = "# Doc\n\n## A\nbody a\n\n## B\nbody b\n";
+    let tmp = tempfile(fixture);
+    let source_etag = section_etag(&tmp, "A", &[]);
+    let dest_etag = section_etag(&tmp, "B", &[]);
+
+    let success = md_with_stdin(
+        &[
+            "move-section",
+            "A",
+            "--into",
+            "B",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ],
+        fixture,
+    );
+    assert!(
+        success.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&success.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&success.stdout);
+    assert!(
+        stdout.contains("## B\nbody b\n### A\nbody a\n"),
+        "stdout:\n{}",
+        stdout
+    );
+
+    let failure = md_with_stdin(
+        &[
+            "move-section",
+            "A",
+            "--into",
+            "B",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            "deadbeef",
+        ],
+        fixture,
+    );
+    assert_eq!(failure.status.code(), Some(4));
+    assert!(
+        failure.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&failure.stderr);
+    assert!(stderr.contains("destination section"), "stderr: {}", stderr);
+
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_runs_before_otherwise_nochange_move() {
+    let tmp = tempfile("# Doc\n## A\na\n## B\nb");
+    let stale_source_etag = section_etag(&tmp, "B", &[]);
+    std::fs::write(&tmp, "# Doc\n## A\na\n## B\nupdated b").unwrap();
+    let dest_etag = section_etag(&tmp, "A", &[]);
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "B",
+            &tmp,
+            "--after",
+            "A",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &stale_source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("source section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_source_indentation_drift_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n  ## Source\nbody s\n\n## Dest\nbody d\n");
+    let stale_source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+    std::fs::write(&tmp, "# Doc\n\n   ## Source\nbody s\n\n## Dest\nbody d\n").unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &stale_source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("source section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_indented_setext_source_indentation_drift_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n  Source\n  ------\nbody s\n\n## Dest\nbody d\n");
+    let stale_source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+    std::fs::write(
+        &tmp,
+        "# Doc\n\n   Source\n   ------\nbody s\n\n## Dest\nbody d\n",
+    )
+    .unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &stale_source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("source section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_dest_indentation_drift_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n## Source\nbody s\n\n  ## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let stale_dest_etag = section_etag(&tmp, "Dest", &[]);
+    std::fs::write(&tmp, "# Doc\n\n## Source\nbody s\n\n   ## Dest\nbody d\n").unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &stale_dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("destination section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_indented_setext_dest_indentation_drift_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n## Source\nbody s\n\n  Dest\n  ----\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let stale_dest_etag = section_etag(&tmp, "Dest", &[]);
+    std::fs::write(
+        &tmp,
+        "# Doc\n\n## Source\nbody s\n\n   Dest\n   ----\nbody d\n",
+    )
+    .unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &stale_dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("destination section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_matching_guards_move_exact_indentation_keep_level() {
+    let tmp = tempfile("# Doc\n\n  ## Source\nbody s\n\n   ## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(
+        updated,
+        "# Doc\n\n   ## Dest\nbody d\n  ## Source\nbody s\n\n"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_indented_setext_matching_guards_move_exact_indentation_keep_level() {
+    let tmp = tempfile("# Doc\n\n  Source\n  ------\nbody s\n\n## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(
+        updated,
+        "# Doc\n\n## Dest\nbody d\n\n  Source\n  ------\nbody s\n\n"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_matching_guards_move_exact_indentation_auto_level() {
+    let tmp = tempfile("# Doc\n\n  ### Source\nbody s\n\n## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(updated, "# Doc\n\n## Dest\nbody d\n  ## Source\nbody s\n\n");
     std::fs::remove_file(&tmp).unwrap();
 }

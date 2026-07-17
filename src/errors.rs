@@ -186,13 +186,25 @@ impl CommandError {
     }
 
     pub fn section_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
+        Self::section_etag_mismatch_for("section", selector, expected, actual)
+    }
+
+    pub fn move_section_source_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
+        Self::section_etag_mismatch_for("source section", selector, expected, actual)
+    }
+
+    pub fn move_section_dest_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
+        Self::section_etag_mismatch_for("destination section", selector, expected, actual)
+    }
+
+    fn section_etag_mismatch_for(role: &str, selector: &str, expected: &str, actual: &str) -> Self {
         Self::new(
             DiagnosticCode::EtagMismatch,
             format!(
-                "section {} etag mismatch: expected {:?}, found {:?} \
+                "{} {} etag mismatch: expected {:?}, found {:?} \
                  (section content changed since you read it; re-run `md section <SELECTOR> <FILE> --json` \
                  for the current section span and etag, then retry)",
-                selector, expected, actual
+                role, selector, expected, actual
             ),
         )
     }

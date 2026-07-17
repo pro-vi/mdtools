@@ -1,5 +1,6 @@
 use crate::cli::MoveSectionArgs;
-use crate::commands::section::{build_selector, find_section};
+use crate::commands::replace::verify_expected_etag;
+use crate::commands::section::{build_selector, describe_selector, find_section};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -47,25 +48,39 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     let source_section = find_section(&doc, &source_selector)?;
     let dest_section = find_section(&doc, &dest_selector)?;
 
+    verify_expected_etag(
+        args.expect_source_etag.as_deref(),
+        doc.slice(&source_section.span),
+        |expected, actual| {
+            CommandError::move_section_source_etag_mismatch(
+                &describe_selector(&source_section.selector),
+                expected,
+                actual,
+            )
+        },
+    )?;
+    verify_expected_etag(
+        args.expect_dest_etag.as_deref(),
+        doc.slice(&dest_section.span),
+        |expected, actual| {
+            CommandError::move_section_dest_etag_mismatch(
+                &describe_selector(&dest_section.selector),
+                expected,
+                actual,
+            )
+        },
+    )?;
+
     let src_span = source_section.span;
     let dest_span = dest_section.span;
 
-    // --- Line-start alignment ---
-    //
-    // Comrak reports sourcepos for ATX headings starting at the `#`, not at
-    // the start of the line, so 0-3 leading spaces are excluded from the
-    // block span. Without this fix-up, indented headings would orphan their
-    // leading spaces at the source location and lose them at the destination.
-    let bytes = doc.source.as_bytes();
-    let src_byte_start = line_start(bytes, src_span.byte_start as usize) as u32;
-    let src_byte_end = line_start(bytes, src_span.byte_end as usize) as u32;
+    let src_byte_start = src_span.byte_start;
+    let src_byte_end = src_span.byte_end;
 
     // --- Compute insert byte (raw — before src removal) and new top level ---
     let insert_byte_raw = match dest_mode {
-        InsertMode::AfterSibling | InsertMode::IntoAsChild => {
-            line_start(bytes, dest_span.byte_end as usize) as u32
-        }
-        InsertMode::BeforeSibling => line_start(bytes, dest_span.byte_start as usize) as u32,
+        InsertMode::AfterSibling | InsertMode::IntoAsChild => dest_span.byte_end,
+        InsertMode::BeforeSibling => dest_span.byte_start,
     };
 
     let dest_heading_level = dest_section

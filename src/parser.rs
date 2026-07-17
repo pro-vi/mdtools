@@ -69,43 +69,62 @@ impl LineIndex {
         }
     }
 
-    /// For indented code blocks, comrak reports start.column=5 (after the 4-space indent)
-    /// and end.column=0 (sentinel for blank-line termination). Fix both.
-    fn sourcepos_to_span_fixup(&self, sp: Sourcepos, is_indented_code: bool) -> SourceSpan {
-        if !is_indented_code {
-            return self.sourcepos_to_span(sp);
-        }
-
-        // Fix start: use column 1 (beginning of line, including indent)
-        let byte_start = self.to_byte(sp.start.line, 1).unwrap_or(0) as u32;
-
-        // Fix end: if end.column == 0, use end of (end.line - 1)
-        let byte_end = if sp.end.column == 0 && sp.end.line > 1 {
-            // Find end of the previous line
-            let prev_line = sp.end.line - 1;
-            let prev_idx = prev_line - 1;
-            if prev_idx + 1 < self.starts.len() {
-                // End of prev_line = start of next line - 1 (the \n)
-                // But we want to include the content up to the \n
-                (self.starts[prev_idx + 1]).min(self.source_len) as u32
+    /// Fix parser-reported spans where the exact source-owned block starts earlier
+    /// than comrak's position metadata indicates.
+    fn sourcepos_to_span_fixup(
+        &self,
+        sp: Sourcepos,
+        source: &str,
+        is_indented_code: bool,
+        heading_line: Option<usize>,
+    ) -> SourceSpan {
+        let mut span = if is_indented_code {
+            // For indented code blocks, comrak reports start.column=5 (after the
+            // 4-space indent) and end.column=0 (sentinel for blank-line termination).
+            let byte_start = self.to_byte(sp.start.line, 1).unwrap_or(0) as u32;
+            let byte_end = if sp.end.column == 0 && sp.end.line > 1 {
+                let prev_line = sp.end.line - 1;
+                let prev_idx = prev_line - 1;
+                if prev_idx + 1 < self.starts.len() {
+                    (self.starts[prev_idx + 1]).min(self.source_len) as u32
+                } else {
+                    self.source_len as u32
+                }
             } else {
-                self.source_len as u32
+                self.to_byte_end(sp.end.line, sp.end.column)
+                    .unwrap_or(self.source_len) as u32
+            };
+
+            SourceSpan {
+                line_start: sp.start.line as u32,
+                line_end: if sp.end.column == 0 && sp.end.line > 1 {
+                    (sp.end.line - 1) as u32
+                } else {
+                    sp.end.line as u32
+                },
+                byte_start,
+                byte_end,
             }
         } else {
-            self.to_byte_end(sp.end.line, sp.end.column)
-                .unwrap_or(self.source_len) as u32
+            self.sourcepos_to_span(sp)
         };
 
-        SourceSpan {
-            line_start: sp.start.line as u32,
-            line_end: if sp.end.column == 0 && sp.end.line > 1 {
-                (sp.end.line - 1) as u32
-            } else {
-                sp.end.line as u32
-            },
-            byte_start,
-            byte_end,
+        if let Some(line) = heading_line {
+            if let Some(byte_start) = self.heading_line_start(source, line) {
+                span.byte_start = byte_start;
+            }
         }
+
+        span
+    }
+
+    fn heading_line_start(&self, source: &str, line: usize) -> Option<u32> {
+        let line_start = self.to_byte(line, 1)?;
+        let bytes = source.as_bytes();
+        if line_start >= bytes.len() {
+            return None;
+        }
+        Some(line_start as u32)
     }
 
     fn line_count(&self) -> u32 {
@@ -289,16 +308,16 @@ impl ParsedDocument {
                     // Frontmatter is NOT a block — no index increment
                 }
                 _ => {
-                    let kind = node_value_to_block_kind(&data.value);
-                    let is_indented = matches!(kind, BlockKind::IndentedCode);
-                    let span = line_index.sourcepos_to_span_fixup(sp, is_indented);
-
-                    // Extract heading metadata while data is borrowed
                     let heading_meta = if let NodeValue::Heading(h) = &data.value {
                         Some((h.level, h.setext, sp.start.line))
                     } else {
                         None
                     };
+                    let kind = node_value_to_block_kind(&data.value);
+                    let is_indented = matches!(kind, BlockKind::IndentedCode);
+                    let heading_line = heading_meta.map(|(_, _, line)| line);
+                    let span =
+                        line_index.sourcepos_to_span_fixup(sp, &source, is_indented, heading_line);
                     drop(data);
 
                     let heading = heading_meta.map(|(level, setext, line)| {
@@ -355,15 +374,15 @@ impl ParsedDocument {
         for (block_index, node) in root.children().enumerate() {
             let data = node.data.borrow();
             let sp = data.sourcepos;
-            let kind = node_value_to_block_kind(&data.value);
-            let is_indented = matches!(kind, BlockKind::IndentedCode);
-            let span = line_index.sourcepos_to_span_fixup(sp, is_indented);
-
             let heading_meta = if let NodeValue::Heading(h) = &data.value {
                 Some((h.level, h.setext, sp.start.line))
             } else {
                 None
             };
+            let kind = node_value_to_block_kind(&data.value);
+            let is_indented = matches!(kind, BlockKind::IndentedCode);
+            let heading_line = heading_meta.map(|(_, _, line)| line);
+            let span = line_index.sourcepos_to_span_fixup(sp, &source, is_indented, heading_line);
             drop(data);
 
             let heading = heading_meta.map(|(level, setext, line)| {

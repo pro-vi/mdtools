@@ -204,6 +204,14 @@ md delete-section "Draft Notes" doc.md -i --expect-etag "$etag"
 # disambiguate duplicate matches, and `:preamble` still rejects `--contains`
 md move-section "api" doc.md --after "front" --contains --ignore-case --keep-level
 
+# Guard a move against stale source/destination reads, then re-query before the
+# next mutation because etags are content-addressed rather than durable identity
+source_etag=$(md section "API" doc.md --json | jq -r '.section.etag')
+dest_etag=$(md section "Frontend" doc.md --json | jq -r '.section.etag')
+md move-section "API" doc.md --after "Frontend" -i \
+  --expect-source-etag "$source_etag" \
+  --expect-dest-etag "$dest_etag"
+
 # Set frontmatter fields (dot-path, type-inferred)
 md set tags doc.md '["rust", "cli"]' -i
 md set author.name doc.md "Jane" -i
@@ -214,7 +222,7 @@ md set draft doc.md --delete -i
 
 Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later (`blocks`, `section`, `table`, and `tasks`) also expose per-target `etag` fingerprints for optimistic concurrency.
 
-Guarded mutations fail closed: if `--expect-etag` does not match the target's current exact-byte content, the mutation exits with `EtagMismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. These fingerprints are optimistic-concurrency guards, not durable identity; identical bytes can still authorize the wrong same-content target after a structural shift.
+Guarded mutations fail closed: `--expect-etag` protects the single-target mutation commands, while `move-section` accepts `--expect-source-etag` and `--expect-dest-etag`. On `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, releveling, splice construction, stdout emission, or in-place write. Any mismatch exits with `EtagMismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. These fingerprints are content-addressed guards, not durable identity; identical bytes can still authorize the wrong same-content target after a structural shift, so the safe pattern is read, mutate, then re-query.
 
 ```sh
 $ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'

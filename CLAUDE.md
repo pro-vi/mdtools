@@ -35,7 +35,7 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
   discovered Markdown file, requested-field order preserved, missing metadata kept as
   blank/null cells, and partial per-file parse failures reported without turning it
   into a mutation/query engine.
-- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint), and `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`/`delete-table-row`, and `set-task` accept `--expect-etag <hash>` to fail-closed (exit 4, `EtagMismatch`) when the target's current fingerprint differs. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
+- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint), and `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`/`delete-table-row`, and `set-task` accept `--expect-etag <hash>`, while `move-section` accepts `--expect-source-etag <hash>` and `--expect-dest-etag <hash>`, to fail-closed (exit 4, `EtagMismatch`) when the current fingerprint differs. `move-section` checks source first and destination second before any no-op or write path. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
 - **Re-query pattern is the moat.** Agents query `md tasks --json`, mutate, re-query for fresh locs. Design new commands to support this cycle. Locs must be cheap to re-derive.
 - **Payload-bearing vs payload-free mutations.** `replace-section`, `replace-block`, `replace-table-row`, and `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `delete-table-row` is intentionally payload-free: selector only, no stdin or `--from`. `replace-block` and `replace-table-row` strip one trailing line-ending from the content (matching the newline-excluded target-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code), while table-row replacement preserves the row's existing line ending by keeping it outside the replaced span.
 - **Hybrid > pure.** Agents perform best with both `md` and unix tools. Don't try to replace `sed` for simple edits.
@@ -50,11 +50,13 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 - `section --ignore-case` uses Rust lowercase projection, not Unicode normalization or full case folding; composed and decomposed spellings still differ unless lowercase alone makes them equal
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
-- `--expect-etag` is **content-addressed, not identity-addressed**: it verifies the
-  selected block, section, table, or task item still has the expected content fingerprint from
-  the earlier read when a later command invocation mutates it. In a doc with
-  **duplicate-content blocks**, an intervening edit can shift indices so the old index
-  lands on a *different* same-content block whose fingerprint also matches — the guard
+- `--expect-etag` / `--expect-source-etag` / `--expect-dest-etag` are
+  **content-addressed, not identity-addressed**: they verify the selected block,
+  section, table, task item, or move-section source/destination still has the expected
+  content fingerprint from the earlier read when a later command invocation mutates it.
+  In a doc with **duplicate-content targets**, an intervening edit can shift indices or
+  selectors so the old handle lands on a *different* same-content target whose fingerprint
+  also matches — the guard
   passes against the wrong target. Mitigation today: **re-query immediately before
   mutating** (the moat) to shrink the window. A proper fix (binding the expectation to
   positional identity / span, or failing closed on hash ambiguity) is a design decision
