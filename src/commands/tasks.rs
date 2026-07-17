@@ -192,9 +192,24 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
 
-    // Resolve block
+    // Resolve block. An out-of-range block index inside a LOC is a stale/bad
+    // loc from the caller's perspective, not a block-tool error: report it in
+    // loc vocabulary so adapters route it to their bad-loc recovery.
     let block = doc.blocks.get(parsed.block_index as usize).ok_or_else(|| {
-        CommandError::block_out_of_range(parsed.block_index, doc.blocks.len() as u32)
+        CommandError::new(
+            crate::errors::DiagnosticCode::TaskItemNotFound,
+            format!(
+                "task item not found: {} (block index {} out of range; document has {} blocks)",
+                args.loc,
+                parsed.block_index,
+                doc.blocks.len()
+            ),
+        )
+        .with_hint("re-run `md tasks --json <FILE>` for current task locs")
+        .with_context(crate::errors::ErrorContext {
+            loc: Some(args.loc.clone()),
+            ..crate::errors::ErrorContext::default()
+        })
     })?;
 
     if block.task_items.is_empty() {
