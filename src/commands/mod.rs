@@ -5,6 +5,7 @@ pub mod links;
 pub mod move_section;
 pub mod outline;
 pub mod replace;
+pub mod schema;
 pub mod search;
 pub mod section;
 pub mod set;
