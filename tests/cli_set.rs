@@ -461,6 +461,179 @@ fn set_expect_etag_matches_absent_state() {
     std::fs::remove_file(&tmp).ok();
 }
 
+#[test]
+fn set_expect_etag_matching_guards_cover_yaml_and_toml_dispositions() {
+    let yaml = temp_copy("set_basic.md");
+    let yaml_etag = frontmatter_etag(&yaml);
+
+    let replace = md()
+        .args([
+            "set",
+            "title",
+            &yaml.to_string_lossy(),
+            "Guarded Replace",
+            "--json",
+            "--expect-etag",
+            &yaml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        replace.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&replace.stderr)
+    );
+    let replace_json: serde_json::Value = serde_json::from_slice(&replace.stdout).unwrap();
+    assert_eq!(replace_json["disposition"], "Replaced");
+
+    let insert = md()
+        .args([
+            "set",
+            "meta.version",
+            &yaml.to_string_lossy(),
+            "2",
+            "--json",
+            "--expect-etag",
+            &yaml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        insert.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&insert.stderr)
+    );
+    let insert_json: serde_json::Value = serde_json::from_slice(&insert.stdout).unwrap();
+    assert_eq!(insert_json["disposition"], "Inserted");
+
+    let delete = md()
+        .args([
+            "set",
+            "--delete",
+            "author",
+            &yaml.to_string_lossy(),
+            "--json",
+            "--expect-etag",
+            &yaml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        delete.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&delete.stderr)
+    );
+    let delete_json: serde_json::Value = serde_json::from_slice(&delete.stdout).unwrap();
+    assert_eq!(delete_json["disposition"], "Deleted");
+
+    let noop = md()
+        .args([
+            "set",
+            "title",
+            &yaml.to_string_lossy(),
+            "Original",
+            "--json",
+            "--expect-etag",
+            &yaml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        noop.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&noop.stderr)
+    );
+    let noop_json: serde_json::Value = serde_json::from_slice(&noop.stdout).unwrap();
+    assert_eq!(noop_json["disposition"], "NoChange");
+
+    let toml = temp_copy("toml_frontmatter.md");
+    let toml_etag = frontmatter_etag(&toml);
+
+    let toml_replace = md()
+        .args([
+            "set",
+            "title",
+            &toml.to_string_lossy(),
+            "Guarded Replace",
+            "--json",
+            "--expect-etag",
+            &toml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        toml_replace.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&toml_replace.stderr)
+    );
+    let toml_replace_json: serde_json::Value =
+        serde_json::from_slice(&toml_replace.stdout).unwrap();
+    assert_eq!(toml_replace_json["disposition"], "Replaced");
+
+    let toml_insert = md()
+        .args([
+            "set",
+            "meta.version",
+            &toml.to_string_lossy(),
+            "2",
+            "--json",
+            "--expect-etag",
+            &toml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        toml_insert.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&toml_insert.stderr)
+    );
+    let toml_insert_json: serde_json::Value = serde_json::from_slice(&toml_insert.stdout).unwrap();
+    assert_eq!(toml_insert_json["disposition"], "Inserted");
+
+    let toml_delete = md()
+        .args([
+            "set",
+            "--delete",
+            "version",
+            &toml.to_string_lossy(),
+            "--json",
+            "--expect-etag",
+            &toml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        toml_delete.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&toml_delete.stderr)
+    );
+    let toml_delete_json: serde_json::Value = serde_json::from_slice(&toml_delete.stdout).unwrap();
+    assert_eq!(toml_delete_json["disposition"], "Deleted");
+
+    let toml_noop = md()
+        .args([
+            "set",
+            "title",
+            &toml.to_string_lossy(),
+            "TOML Doc",
+            "--json",
+            "--expect-etag",
+            &toml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        toml_noop.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&toml_noop.stderr)
+    );
+    let toml_noop_json: serde_json::Value = serde_json::from_slice(&toml_noop.stdout).unwrap();
+    assert_eq!(toml_noop_json["disposition"], "NoChange");
+
+    std::fs::remove_file(&yaml).ok();
+    std::fs::remove_file(&toml).ok();
+}
+
 // --- Body preservation ---
 
 #[test]
@@ -533,6 +706,79 @@ fn set_frontmatter_only_eof_no_change_is_byte_identical() {
 }
 
 #[test]
+fn set_expect_etag_changed_frontmatter_replaces_exact_owned_boundary_without_extra_gap() {
+    let yaml = temp_file("---\ntitle: Old\n---\n# Body\n");
+    let yaml_etag = frontmatter_etag(&yaml);
+    let yaml_out = md()
+        .args([
+            "set",
+            "title",
+            &yaml.to_string_lossy(),
+            "New",
+            "--json",
+            "--expect-etag",
+            &yaml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        yaml_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&yaml_out.stderr)
+    );
+    let yaml_json: serde_json::Value = serde_json::from_slice(&yaml_out.stdout).unwrap();
+    assert_eq!(yaml_json["content"], "---\ntitle: New\n---\n# Body\n");
+
+    let toml = temp_file("+++\ntitle = \"Old\"\n+++\n# Body\n");
+    let toml_etag = frontmatter_etag(&toml);
+    let toml_out = md()
+        .args([
+            "set",
+            "title",
+            &toml.to_string_lossy(),
+            "New",
+            "--json",
+            "--expect-etag",
+            &toml_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        toml_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&toml_out.stderr)
+    );
+    let toml_json: serde_json::Value = serde_json::from_slice(&toml_out.stdout).unwrap();
+    assert_eq!(toml_json["content"], "+++\ntitle = \"New\"\n+++\n# Body\n");
+
+    let crlf = temp_file("---\r\ntitle: Old\r\n---\r\n# Body\r\n");
+    let crlf_etag = frontmatter_etag(&crlf);
+    let crlf_out = md()
+        .args([
+            "set",
+            "title",
+            &crlf.to_string_lossy(),
+            "New",
+            "--json",
+            "--expect-etag",
+            &crlf_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        crlf_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&crlf_out.stderr)
+    );
+    let crlf_json: serde_json::Value = serde_json::from_slice(&crlf_out.stdout).unwrap();
+    assert_eq!(crlf_json["content"], "---\ntitle: New\n---\n# Body\r\n");
+
+    std::fs::remove_file(&yaml).ok();
+    std::fs::remove_file(&toml).ok();
+    std::fs::remove_file(&crlf).ok();
+}
+
+#[test]
 fn set_expect_etag_stale_update_conflict_preserves_bytes() {
     let tmp = temp_copy("set_basic.md");
     let etag = frontmatter_etag(&tmp);
@@ -553,6 +799,7 @@ fn set_expect_etag_stale_update_conflict_preserves_bytes() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(4));
+    assert!(out.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("frontmatter etag mismatch"));
     assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
@@ -580,6 +827,7 @@ fn set_expect_etag_stale_noop_conflict_preserves_bytes() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(4));
+    assert!(out.stdout.is_empty());
     assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
     std::fs::remove_file(&tmp).ok();
 }
@@ -605,7 +853,68 @@ fn set_expect_etag_stale_delete_conflict_preserves_bytes() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(4));
+    assert!(out.stdout.is_empty());
     assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_stale_delete_of_missing_key_conflict_preserves_bytes() {
+    let tmp = temp_copy("set_basic.md");
+    let etag = frontmatter_etag(&tmp);
+    let stale = std::fs::read_to_string(&tmp).unwrap();
+    let fresh = stale.replace("title: Original", "title: Drifted");
+    std::fs::write(&tmp, &fresh).unwrap();
+
+    let out = md()
+        .args([
+            "set",
+            "--delete",
+            "missing",
+            &tmp.to_string_lossy(),
+            "-i",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    assert!(out.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), fresh);
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_expect_etag_absent_guard_turns_stale_after_intervening_creation() {
+    let tmp = temp_copy("no_frontmatter.md");
+    let absent_etag = frontmatter_etag(&tmp);
+
+    let first = md()
+        .args(["set", "title", &tmp.to_string_lossy(), "Created", "-i"])
+        .output()
+        .unwrap();
+    assert!(
+        first.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+
+    let after_creation = std::fs::read_to_string(&tmp).unwrap();
+    let out = md()
+        .args([
+            "set",
+            "title",
+            &tmp.to_string_lossy(),
+            "Guarded",
+            "-i",
+            "--expect-etag",
+            &absent_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    assert!(out.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), after_creation);
     std::fs::remove_file(&tmp).ok();
 }
 

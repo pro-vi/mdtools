@@ -1279,22 +1279,73 @@ fn set_help_mentions_frontmatter_expect_etag() {
 
 #[test]
 fn frontmatter_state_etag_tracks_exact_owned_bytes() {
-    let base = tempfile_str("---\ntitle: Same\n---\n# Body\n");
+    let base = tempfile_str("---\ntitle: Same\n---");
+    let with_lf = tempfile_str("---\ntitle: Same\n---\n");
     let reordered = tempfile_str("---\n# comment\ntitle: Same\n---\n# Body\n");
     let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+    let toml = tempfile_str("+++\ntitle = \"Same\"\n+++\n");
     let empty_present = tempfile_str("---\n\n---\n# Body\n");
     let absent = tempfile_str("# Body\n");
 
     let base_etag = frontmatter_etag(&base);
+    assert_ne!(base_etag, frontmatter_etag(&with_lf));
     assert_ne!(base_etag, frontmatter_etag(&reordered));
     assert_ne!(base_etag, frontmatter_etag(&crlf));
+    assert_ne!(base_etag, frontmatter_etag(&toml));
     assert_ne!(frontmatter_etag(&empty_present), frontmatter_etag(&absent));
 
     std::fs::remove_file(&base).ok();
+    std::fs::remove_file(&with_lf).ok();
     std::fs::remove_file(&reordered).ok();
     std::fs::remove_file(&crlf).ok();
+    std::fs::remove_file(&toml).ok();
     std::fs::remove_file(&empty_present).ok();
     std::fs::remove_file(&absent).ok();
+}
+
+#[test]
+fn frontmatter_present_state_raw_span_and_etag_match_owned_boundary_bytes() {
+    let eof = tempfile_str("---\ntitle: Same\n---");
+    let lf = tempfile_str("---\ntitle: Same\n---\n# Body\n");
+    let crlf = tempfile_bytes(b"---\r\ntitle: Same\r\n---\r\n# Body\r\n");
+
+    let read = |path: &str| -> serde_json::Value {
+        let output = md().args(["frontmatter", path]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "frontmatter read failed for {}: {}",
+            path,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice(&output.stdout).unwrap()
+    };
+
+    let eof_json = read(&eof);
+    assert_eq!(eof_json["frontmatter"]["raw"], "---\ntitle: Same\n---");
+    assert_eq!(eof_json["frontmatter"]["span"]["byte_start"], 0);
+    assert_eq!(eof_json["frontmatter"]["span"]["byte_end"], 19);
+
+    let lf_json = read(&lf);
+    assert_eq!(lf_json["frontmatter"]["raw"], "---\ntitle: Same\n---\n");
+    assert_eq!(lf_json["frontmatter"]["span"]["byte_start"], 0);
+    assert_eq!(lf_json["frontmatter"]["span"]["byte_end"], 20);
+    assert_eq!(lf_json["frontmatter"]["data"]["title"], "Same");
+
+    let crlf_json = read(&crlf);
+    assert_eq!(
+        crlf_json["frontmatter"]["raw"],
+        "---\r\ntitle: Same\r\n---\r\n"
+    );
+    assert_eq!(crlf_json["frontmatter"]["span"]["byte_start"], 0);
+    assert_eq!(crlf_json["frontmatter"]["span"]["byte_end"], 23);
+    assert_eq!(crlf_json["frontmatter"]["data"]["title"], "Same");
+
+    assert_ne!(eof_json["etag"], lf_json["etag"]);
+    assert_ne!(lf_json["etag"], crlf_json["etag"]);
+
+    std::fs::remove_file(&eof).ok();
+    std::fs::remove_file(&lf).ok();
+    std::fs::remove_file(&crlf).ok();
 }
 
 // ============================================================

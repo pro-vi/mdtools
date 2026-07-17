@@ -69,6 +69,17 @@ impl LineIndex {
         }
     }
 
+    fn frontmatter_sourcepos_to_span(&self, sp: Sourcepos, source: &str) -> SourceSpan {
+        let mut span = self.sourcepos_to_span(sp);
+        let suffix = &source[span.byte_end as usize..];
+        if suffix.starts_with("\r\n") {
+            span.byte_end += 2;
+        } else if suffix.starts_with('\n') {
+            span.byte_end += 1;
+        }
+        span
+    }
+
     /// Fix parser-reported spans where the exact source-owned block starts earlier
     /// than comrak's position metadata indicates.
     fn sourcepos_to_span_fixup(
@@ -333,10 +344,12 @@ impl ParsedDocument {
             let sp = data.sourcepos;
 
             match &data.value {
-                NodeValue::FrontMatter(raw) => {
-                    let fm_span = line_index.sourcepos_to_span(sp);
+                NodeValue::FrontMatter(_) => {
+                    let fm_span = line_index.frontmatter_sourcepos_to_span(sp, &source);
+                    let fm_raw =
+                        source[fm_span.byte_start as usize..fm_span.byte_end as usize].to_string();
                     frontmatter = Some(FrontmatterInfo {
-                        raw: raw.clone(),
+                        raw: fm_raw,
                         span: fm_span,
                         format: frontmatter_format,
                     });
