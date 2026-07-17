@@ -169,6 +169,37 @@ fn section_ignore_case() {
 }
 
 #[test]
+fn indented_atx_read_json_spans_include_indentation() {
+    let path = tempfile("# Doc\n\n  ## A\nbody a\n\n   ## B\nbody b\n");
+    let source = std::fs::read_to_string(&path).unwrap();
+
+    let outline_output = md().args(["outline", &path, "--json"]).output().unwrap();
+    assert!(outline_output.status.success());
+    let outline_json: serde_json::Value = serde_json::from_slice(&outline_output.stdout).unwrap();
+    let entries = outline_json["entries"].as_array().unwrap();
+
+    let heading_start = entries[1]["heading"]["span"]["byte_start"]
+        .as_u64()
+        .unwrap() as usize;
+    let heading_end = entries[1]["heading"]["span"]["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&source[heading_start..heading_end], "  ## A");
+
+    let section_output = md()
+        .args(["section", "A", &path, "--json"])
+        .output()
+        .unwrap();
+    assert!(section_output.status.success());
+    let section_json: serde_json::Value = serde_json::from_slice(&section_output.stdout).unwrap();
+    let section = &section_json["section"]["span"];
+    let section_start = section["byte_start"].as_u64().unwrap() as usize;
+    let section_end = section["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&source[section_start..section_end], "  ## A\nbody a\n\n");
+    assert_eq!(section_json["content"], "  ## A\nbody a\n\n");
+
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
 fn unicode_section_ignore_case_exact_non_ascii_read() {
     let path = tempfile("# Doc\n\n## CAFÉ\nbody\n");
     let output = md()

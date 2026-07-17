@@ -1805,3 +1805,141 @@ fn move_section_etag_runs_before_otherwise_nochange_move() {
     assert_eq!(after, before);
     std::fs::remove_file(&tmp).unwrap();
 }
+
+#[test]
+fn move_section_etag_source_indentation_drift_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n  ## Source\nbody s\n\n## Dest\nbody d\n");
+    let stale_source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+    std::fs::write(&tmp, "# Doc\n\n   ## Source\nbody s\n\n## Dest\nbody d\n").unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &stale_source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("source section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_dest_indentation_drift_fails_closed_without_writing() {
+    let tmp = tempfile("# Doc\n\n## Source\nbody s\n\n  ## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let stale_dest_etag = section_etag(&tmp, "Dest", &[]);
+    std::fs::write(&tmp, "# Doc\n\n## Source\nbody s\n\n   ## Dest\nbody d\n").unwrap();
+    let before = std::fs::read_to_string(&tmp).unwrap();
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &stale_dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(4));
+    assert!(
+        output.stdout.is_empty(),
+        "stdout should be empty on failure"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("destination section"), "stderr: {}", stderr);
+    let after = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(after, before);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_matching_guards_move_exact_indentation_keep_level() {
+    let tmp = tempfile("# Doc\n\n  ## Source\nbody s\n\n   ## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "--keep-level",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(
+        updated,
+        "# Doc\n\n   ## Dest\nbody d\n  ## Source\nbody s\n\n"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn move_section_etag_matching_guards_move_exact_indentation_auto_level() {
+    let tmp = tempfile("# Doc\n\n  ### Source\nbody s\n\n## Dest\nbody d\n");
+    let source_etag = section_etag(&tmp, "Source", &[]);
+    let dest_etag = section_etag(&tmp, "Dest", &[]);
+
+    let output = md()
+        .args([
+            "move-section",
+            "Source",
+            &tmp,
+            "--after",
+            "Dest",
+            "-i",
+            "--expect-source-etag",
+            &source_etag,
+            "--expect-dest-etag",
+            &dest_etag,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(updated, "# Doc\n\n## Dest\nbody d\n  ## Source\nbody s\n\n");
+    std::fs::remove_file(&tmp).unwrap();
+}

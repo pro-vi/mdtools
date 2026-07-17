@@ -74,22 +74,13 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     let src_span = source_section.span;
     let dest_span = dest_section.span;
 
-    // --- Line-start alignment ---
-    //
-    // Comrak reports sourcepos for ATX headings starting at the `#`, not at
-    // the start of the line, so 0-3 leading spaces are excluded from the
-    // block span. Without this fix-up, indented headings would orphan their
-    // leading spaces at the source location and lose them at the destination.
-    let bytes = doc.source.as_bytes();
-    let src_byte_start = line_start(bytes, src_span.byte_start as usize) as u32;
-    let src_byte_end = line_start(bytes, src_span.byte_end as usize) as u32;
+    let src_byte_start = src_span.byte_start;
+    let src_byte_end = src_span.byte_end;
 
     // --- Compute insert byte (raw — before src removal) and new top level ---
     let insert_byte_raw = match dest_mode {
-        InsertMode::AfterSibling | InsertMode::IntoAsChild => {
-            line_start(bytes, dest_span.byte_end as usize) as u32
-        }
-        InsertMode::BeforeSibling => line_start(bytes, dest_span.byte_start as usize) as u32,
+        InsertMode::AfterSibling | InsertMode::IntoAsChild => dest_span.byte_end,
+        InsertMode::BeforeSibling => dest_span.byte_start,
     };
 
     let dest_heading_level = dest_section
