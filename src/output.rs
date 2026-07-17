@@ -78,9 +78,12 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 /// mutation attempt. Content-addressed fingerprint only, not durable target
 /// identity. Deterministic across runs and platforms.
 /// Atomically replace `path` with `content`: write to a temp file in the
-/// same directory, copy the original's permission bits, fsync, then rename.
-/// A killed process can leave a stale temp file but never a truncated or
-/// partially-written target.
+/// same directory, copy the original's permission bits, fsync the file, then
+/// rename. A killed process can leave a stale temp file but never a
+/// truncated or partially-written target. Waiver: the parent directory is
+/// not fsynced after the rename, so a machine crash in that instant can
+/// revert to the OLD contents on some filesystems — old-or-new, never
+/// corrupt — which is proportionate for a document CLI.
 pub fn write_file_atomic(path: &std::path::Path, content: &str) -> std::io::Result<()> {
     use std::io::Write;
 
