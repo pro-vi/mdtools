@@ -1383,7 +1383,10 @@ fn stale_frontmatter_section_and_task_expect_etag_conflicts_exit_four() {
         .unwrap();
     assert_eq!(o.status.code(), Some(4));
     assert!(String::from_utf8_lossy(&o.stderr).contains("frontmatter etag mismatch"));
-    assert_eq!(std::fs::read_to_string(&frontmatter_path).unwrap(), fresh_frontmatter);
+    assert_eq!(
+        std::fs::read_to_string(&frontmatter_path).unwrap(),
+        fresh_frontmatter
+    );
     std::fs::remove_file(&frontmatter_path).ok();
 
     let section_path = tempfile_str(&std::fs::read_to_string("tests/fixtures/basic.md").unwrap());
@@ -1482,7 +1485,11 @@ fn tempfile_bytes(content: &[u8]) -> String {
 
 fn frontmatter_etag(path: &str) -> String {
     let output = md().args(["frontmatter", path]).output().unwrap();
-    assert!(output.status.success(), "frontmatter read failed for {}", path);
+    assert!(
+        output.status.success(),
+        "frontmatter read failed for {}",
+        path
+    );
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     json["etag"].as_str().unwrap().to_string()
 }

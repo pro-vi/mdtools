@@ -6,7 +6,7 @@ use comrak::{
     parse_document, Arena, Options,
 };
 
-use crate::errors::CommandError;
+use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 
 // --- Line-start index for byte offset derivation ---
@@ -244,18 +244,31 @@ pub struct FrontmatterState<'a> {
     pub etag: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FrontmatterParseMode {
+    Lenient,
+    StrictRead,
+    Mutation,
+}
+
 impl ParsedDocument {
     pub fn parse(source: String) -> Result<Self, CommandError> {
-        Self::parse_inner(source, false)
+        Self::parse_inner(source, FrontmatterParseMode::Lenient)
     }
 
     /// Parse specifically for the frontmatter command, which should error on malformed frontmatter
     /// rather than falling back to treating it as plain content.
     pub fn parse_for_frontmatter(source: String) -> Result<Self, CommandError> {
-        Self::parse_inner(source, true)
+        Self::parse_inner(source, FrontmatterParseMode::StrictRead)
     }
 
-    fn parse_inner(source: String, strict_frontmatter: bool) -> Result<Self, CommandError> {
+    /// Parse for frontmatter mutation commands, which must fail closed on malformed
+    /// or unclosed leading frontmatter instead of treating it as absent.
+    pub fn parse_for_frontmatter_mutation(source: String) -> Result<Self, CommandError> {
+        Self::parse_inner(source, FrontmatterParseMode::Mutation)
+    }
+
+    fn parse_inner(source: String, mode: FrontmatterParseMode) -> Result<Self, CommandError> {
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(delimiter);
@@ -279,17 +292,32 @@ impl ParsedDocument {
             }
         }
 
+        if matches!(mode, FrontmatterParseMode::Mutation)
+            && delimiter.is_some()
+            && !has_frontmatter_node
+        {
+            let delimiter = delimiter.expect("checked is_some above");
+            return Err(CommandError::new(
+                DiagnosticCode::FrontmatterParseFailed,
+                format!("unclosed frontmatter (no closing '{}')", delimiter),
+            ));
+        }
+
         // If frontmatter exists, validate it
         if has_frontmatter_node {
             if let Some(ref raw) = frontmatter_raw {
                 let content = strip_frontmatter_delimiters(raw);
-                let valid = match frontmatter_format {
-                    FrontmatterFormat::Yaml => {
-                        serde_yaml::from_str::<serde_json::Value>(&content).is_ok()
+                let valid = if content.trim().is_empty() {
+                    true
+                } else {
+                    match frontmatter_format {
+                        FrontmatterFormat::Yaml => {
+                            serde_yaml::from_str::<serde_json::Value>(&content).is_ok()
+                        }
+                        FrontmatterFormat::Toml => content.parse::<toml::Value>().is_ok(),
                     }
-                    FrontmatterFormat::Toml => content.parse::<toml::Value>().is_ok(),
                 };
-                if !valid && !strict_frontmatter {
+                if !valid && matches!(mode, FrontmatterParseMode::Lenient) {
                     // Re-parse without frontmatter delimiter — treat as plain content
                     let _ = root;
                     return Self::parse_without_frontmatter(source);

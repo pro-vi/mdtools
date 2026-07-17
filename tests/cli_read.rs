@@ -470,6 +470,19 @@ fn frontmatter_absent() {
 }
 
 #[test]
+fn frontmatter_empty_block_reads_as_present_empty_object() {
+    let path = tempfile("---\n\n---\n# Main\n");
+
+    let output = md().args(["frontmatter", &path]).output().unwrap();
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["present"], true);
+    assert_eq!(json["frontmatter"]["data"], serde_json::json!({}));
+
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
 fn frontmatter_field_json_reuses_present_state_metadata() {
     let full = md()
         .args(["frontmatter", "tests/fixtures/frontmatter.md"])

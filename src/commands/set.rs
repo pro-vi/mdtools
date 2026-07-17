@@ -39,7 +39,7 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     }
 
     let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse(source.clone())?;
+    let doc = ParsedDocument::parse_for_frontmatter_mutation(source.clone())?;
     let existing = parse_existing_frontmatter(&doc)?;
 
     if let Some(expected) = args.expect_etag.as_deref() {
@@ -110,7 +110,9 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     )
 }
 
-fn parse_existing_frontmatter(doc: &ParsedDocument) -> Result<ExistingFrontmatter<'_>, CommandError> {
+fn parse_existing_frontmatter(
+    doc: &ParsedDocument,
+) -> Result<ExistingFrontmatter<'_>, CommandError> {
     let state = doc.frontmatter_state();
 
     let Some(raw) = state.raw else {

@@ -23,7 +23,10 @@ fn temp_file(content: &str) -> std::path::PathBuf {
 }
 
 fn frontmatter_etag(path: &std::path::Path) -> String {
-    let out = md().args(["frontmatter", &path.to_string_lossy()]).output().unwrap();
+    let out = md()
+        .args(["frontmatter", &path.to_string_lossy()])
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -634,51 +637,62 @@ fn set_string_with_delete_error() {
 }
 
 #[test]
-fn set_malformed_frontmatter_is_treated_as_absent() {
+fn set_empty_frontmatter_block_allows_insertion() {
+    let tmp = temp_file("---\n\n---\n# Main\n");
+    let out = md()
+        .args(["set", "title", &tmp.to_string_lossy(), "New", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["disposition"], "Inserted");
+    let content = json["content"].as_str().unwrap();
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("title: New"));
+    assert!(content.contains("# Main"));
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
+fn set_malformed_frontmatter_errors() {
     let out = md()
         .args([
             "set",
             "title",
             "tests/fixtures/malformed_frontmatter.md",
             "New",
-            "--json",
         ])
         .output()
         .unwrap();
+    assert_eq!(out.status.code(), Some(2));
     assert!(
-        out.status.success(),
+        String::from_utf8_lossy(&out.stderr).contains("invalid YAML frontmatter"),
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(json["disposition"], "Inserted");
-    let content = json["content"].as_str().unwrap();
-    assert!(content.contains("title: New"));
-    assert!(content.contains(": invalid: yaml: {{{"));
 }
 
 #[test]
-fn set_unclosed_frontmatter_is_treated_as_absent() {
+fn set_unclosed_frontmatter_errors() {
     let out = md()
         .args([
             "set",
             "title",
             "tests/fixtures/unclosed_frontmatter.md",
             "New",
-            "--json",
         ])
         .output()
         .unwrap();
+    assert_eq!(out.status.code(), Some(2));
     assert!(
-        out.status.success(),
+        String::from_utf8_lossy(&out.stderr).contains("unclosed frontmatter"),
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(json["disposition"], "Inserted");
-    let content = json["content"].as_str().unwrap();
-    assert!(content.contains("title: New"));
-    assert!(content.contains("# Main"));
 }
 
 #[test]

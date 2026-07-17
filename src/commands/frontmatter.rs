@@ -125,6 +125,9 @@ pub(crate) fn parse_frontmatter_data(
     format: FrontmatterFormat,
 ) -> Result<serde_json::Value, CommandError> {
     let content = strip_frontmatter_delimiters(raw);
+    if content.trim().is_empty() {
+        return Ok(serde_json::Value::Object(serde_json::Map::new()));
+    }
 
     match format {
         FrontmatterFormat::Yaml => {
