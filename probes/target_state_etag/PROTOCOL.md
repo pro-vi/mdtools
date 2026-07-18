@@ -26,17 +26,26 @@ committed canonical `probes/target_state_etag/results.json` and
 
 Current local reproduction authority is non-mutating:
 
-- `cargo build --release`
+- `cargo build --release --locked --offline`
 - `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
+
+The build boundary is fail-closed: `--locked` prevents `Cargo.lock` edits or
+dependency-resolution drift, and `--offline` prevents Cargo registry or
+download access during local reproduction. A missing dependency cache is a
+failed reproduction precondition, not an invitation to relax the build
+contract. Any dependency acquisition or cache priming is operator setup outside
+the local probe reproduction boundary and requires separate authorization.
 
 Authorized regeneration is explicit and separate from reproduction:
 
+- `cargo build --release --locked --offline`
 - `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
 - `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
 
 Regeneration is not an incidental read operation. Any authorized refresh must
-review the resulting byte diff and synchronize the ledger and protocol hashes
-before treating the regenerated JSON as canonical again.
+stay inside the same locked offline build boundary, review the resulting byte
+diff, and synchronize the ledger and protocol hashes before treating the
+regenerated JSON as canonical again.
 
 All authorized execution stays inside the local security boundary: use the
 repository-local `target/release/md` binary, explicit repository paths,
