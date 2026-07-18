@@ -227,6 +227,8 @@ TOOL REFERENCE — md (markdown-aware CLI):
                                        Replace section. Reads from --from or stdin.
   md replace-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE> [-i] [--json] [--from PATH] [--expect-etag ETAG]
                                        Replace one table data row. Read the table etag with `md table --json` first.
+  md insert-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE> [-i] [--json] [--from PATH] [--expect-etag ETAG]
+                                       Insert one table data row at the resulting zero-based row position.
   md delete-table-row <TABLE_BLOCK_INDEX> <ROW_INDEX> <FILE> [-i] [--json] [--expect-etag ETAG]
                                        Delete one table data row. Selector-only mutation; no stdin or --from.
   md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--from PATH]
@@ -312,6 +314,7 @@ TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
   md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs into one table
   md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
   md replace-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
+  md insert-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
   md delete-table-row TABLE ROW F -i [--expect-etag ETAG]
   md replace-block N F -i --from PATH              replace block N
   md replace-section "H" F -i --from PATH          replace a section's body
@@ -359,6 +362,7 @@ TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-
   md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs into one table
   md table F [--select COLS] [--where "Col=val"]  /  md links F  /  md stats F
   md replace-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
+  md insert-table-row TABLE ROW F -i --from PATH [--expect-etag ETAG]
   md delete-table-row TABLE ROW F -i [--expect-etag ETAG]
   md replace-block N F -i --from PATH              replace block N
   md replace-section "H" F -i --from PATH          replace a section's body

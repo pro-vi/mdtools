@@ -378,6 +378,7 @@ pub enum MutationTargetKind {
     FrontmatterField,
     TaskItem,
     TableRow,
+    TableRowInsertion,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -385,6 +386,7 @@ pub enum MutationCommandKind {
     ReplaceBlock,
     ReplaceSection,
     ReplaceTableRow,
+    InsertTableRow,
     DeleteTableRow,
     InsertBlock,
     DeleteBlock,
@@ -438,6 +440,7 @@ pub enum MutationTargetRef {
     FrontmatterField(FrontmatterFieldTargetRef),
     TaskItem(TaskItemTargetRef),
     TableRow(TableRowTargetRef),
+    TableRowInsertion(TableRowInsertionTargetRef),
     SectionMove(SectionMoveTargetRef),
 }
 
@@ -473,6 +476,14 @@ pub struct TableRowTargetRef {
     pub table_block_index: u32,
     pub row_index: u32,
     pub span: SourceSpan,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TableRowInsertionTargetRef {
+    pub kind: MutationTargetKind,
+    pub table_block_index: u32,
+    pub row_index: u32,
+    pub table_span: SourceSpan,
 }
 
 #[derive(Clone, Debug, Serialize)]

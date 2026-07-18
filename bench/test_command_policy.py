@@ -162,6 +162,12 @@ class CommandPolicyGuardTests(unittest.TestCase):
             "mutation",
         )
 
+    def test_insert_table_row_is_classified_as_a_mutation(self) -> None:
+        self.assertEqual(
+            classify_command_kind("md insert-table-row 3 1 doc.md -i", "md"),
+            "mutation",
+        )
+
     def test_delete_table_row_is_classified_as_a_mutation(self) -> None:
         self.assertEqual(
             classify_command_kind("md delete-table-row 3 1 doc.md -i", "md"),
