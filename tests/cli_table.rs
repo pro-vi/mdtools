@@ -1317,6 +1317,26 @@ fn insert_table_row_preserves_mixed_local_boundaries() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+#[test]
+fn insert_table_row_handles_utf8_lf_boundary_without_panic() {
+    let tmp = tempfile("| Name |\n|---|\n| café\n| Beta |\n");
+    let out = md_with_stdin(&["insert-table-row", "0", "1", &tmp, "-i"], "| Gamma |\n");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name |\n|---|\n| café\n| Gamma |\n| Beta |\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["café"], ["Gamma"], ["Beta"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // --- delete-table-row ---
 
 #[test]

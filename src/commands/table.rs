@@ -341,10 +341,13 @@ fn line_boundary_after(source: &str, byte_index: usize) -> Option<&str> {
 }
 
 fn line_boundary_before(source: &str, byte_index: usize) -> Option<&str> {
-    if byte_index >= 2 && &source[byte_index - 2..byte_index] == "\r\n" {
-        Some(&source[byte_index - 2..byte_index])
-    } else if byte_index >= 1 && &source[byte_index - 1..byte_index] == "\n" {
-        Some(&source[byte_index - 1..byte_index])
+    let bytes = source.as_bytes();
+    if byte_index > bytes.len() {
+        None
+    } else if byte_index >= 2 && bytes[byte_index - 2] == b'\r' && bytes[byte_index - 1] == b'\n' {
+        source.get(byte_index - 2..byte_index)
+    } else if byte_index >= 1 && bytes[byte_index - 1] == b'\n' {
+        source.get(byte_index - 1..byte_index)
     } else {
         None
     }
