@@ -158,25 +158,16 @@ fn cleanup_owned_temp(tmp_path: &std::path::Path, created: Option<(u64, u64)>) {
     }
 }
 
-/// Off unix there is no stable inode, and Rust's default Windows sharing lets
-/// another process rename/delete the file while our handle is open — so "we
-/// created it" does NOT prove the current directory entry is still ours. Use
-/// the CREATION TIMESTAMP as a best-effort identity: remove only when the entry
-/// still carries the exact creation time we recorded. A substituted entry
-/// (different creation time) or an unprovable one (creation time unreadable) is
-/// relinquished, never deleted — leak over deleting a foreign entry. There is
-/// no unconditional-unlink path on any platform.
+/// Off unix std offers no stable file identity we can prove before unlinking:
+/// there is no inode, Rust's default Windows sharing lets another process
+/// rename/delete the file while our handle is open, and creation timestamps are
+/// both non-unique AND mutable (SetFileTime), so a substituted entry can forge
+/// any timestamp check. The only SAFE std-only behavior is to RELINQUISH
+/// cleanup entirely — leak the temp rather than risk deleting a foreign entry.
+/// (A complete fix needs a Windows stable-identity + pre-rename comparison; see
+/// the ADR's deferred non-goals.)
 #[cfg(not(unix))]
-fn cleanup_owned_temp(tmp_path: &std::path::Path, created: Option<std::time::SystemTime>) {
-    let Some(created) = created else {
-        return;
-    };
-    if let Ok(meta) = std::fs::symlink_metadata(tmp_path) {
-        if meta.created().ok() == Some(created) {
-            let _ = std::fs::remove_file(tmp_path);
-        }
-    }
-}
+fn cleanup_owned_temp(_tmp_path: &std::path::Path, _created: Option<()>) {}
 
 fn atomic_replace_via(
     target: &std::path::Path,
@@ -208,8 +199,10 @@ fn atomic_replace_via(
         use std::os::unix::fs::MetadataExt;
         tmp.metadata().ok().map(|m| (m.dev(), m.ino()))
     };
+    // Off unix cleanup relinquishes (see cleanup_owned_temp), so no identity
+    // needs capturing; keep the binding shape uniform across platforms.
     #[cfg(not(unix))]
-    let created: Option<std::time::SystemTime> = tmp.metadata().ok().and_then(|m| m.created().ok());
+    let created: Option<()> = Some(());
 
     let staged = (|| -> std::io::Result<()> {
         // Apply the original's bits through the HANDLE (fchmod), never the

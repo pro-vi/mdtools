@@ -2258,4 +2258,10 @@ fn move_section_source_etag_ambiguous_carries_source_role() {
     .unwrap();
     assert_eq!(e["error"]["code"], "etag_ambiguous");
     assert_eq!(e["error"]["context"]["role"], "source");
+    // Role-correct hint, not a generic "occurrence/index".
+    let hint = e["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--source-occurrence"),
+        "source ambiguity hint must name --source-occurrence: {hint}"
+    );
 }

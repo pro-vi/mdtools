@@ -453,9 +453,12 @@ impl CommandError {
                 count
             )
         } else {
+            // Name the role-correct disambiguator (--source-occurrence /
+            // --dest-occurrence / --occurrence) rather than a generic phrase.
+            let flag = role.map(SelectorRole::occurrence_flag).unwrap_or("--occurrence");
             format!(
-                "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by occurrence/index WITHOUT --expect-etag",
-                count, noun
+                "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by {} WITHOUT --expect-etag",
+                count, noun, flag
             )
         })
         .with_context(ErrorContext {
