@@ -194,11 +194,17 @@ order and must contain:
 - `graduation_verdict`
 - `disposition`
 
+`unrelated_edit_conflicts` counts that candidate's per-case
+`unrelated_edit_conflict` evidence. This aggregate count is not restricted to
+`document_target_state`, even though only that candidate can fail the
+whole-document false-conflict verdict step below.
+
 `graduation_verdict` is derived mechanically from aggregate actual outcomes with
 this precedence:
 
 1. `fails_wrong_identity` when `wrong_identity_accepts > 0`
-2. `fails_whole_document_false_conflict` when `unrelated_edit_conflicts > 0`
+2. `fails_whole_document_false_conflict` only for `document_target_state` when
+   `unrelated_edit_conflicts > 0`
 3. `fails_required_same_state` when `required_same_state_rejects > 0`
 4. `graduates` otherwise
 

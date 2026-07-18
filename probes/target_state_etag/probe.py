@@ -836,11 +836,12 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
                 wrong_identity_accepts += 1
             if result["required_same_state_reject"]:
                 required_same_state_rejects += 1
-            if result["whole_document_false_conflict_cost"]:
+            if result["unrelated_edit_conflict"]:
                 unrelated_edit_conflicts += 1
             if result["expectation_match"]:
                 expectation_matches += 1
         graduation_verdict = select_graduation_verdict(
+            candidate_name_value,
             wrong_identity_accepts,
             unrelated_edit_conflicts,
             required_same_state_rejects,
@@ -859,13 +860,14 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
 
 
 def select_graduation_verdict(
+    candidate_name_value: str,
     wrong_identity_accepts: int,
     unrelated_edit_conflicts: int,
     required_same_state_rejects: int,
 ) -> str:
     if wrong_identity_accepts:
         return "fails_wrong_identity"
-    if unrelated_edit_conflicts:
+    if candidate_name_value == "document_target_state" and unrelated_edit_conflicts:
         return "fails_whole_document_false_conflict"
     if required_same_state_rejects:
         return "fails_required_same_state"
