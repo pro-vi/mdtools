@@ -1,0 +1,243 @@
+{
+  "schema_version": "target-state-etag.v1",
+  "projection_authority": {
+    "source": "actual-mdtools-json",
+    "surfaces": [
+      {
+        "surface": "block",
+        "command": "md blocks FILE --json",
+        "descriptor_fields": ["index", "span", "etag"]
+      },
+      {
+        "surface": "section",
+        "command": "md section SELECTOR FILE --json",
+        "descriptor_fields": [
+          "section.selector",
+          "section.heading",
+          "section.span",
+          "section.etag",
+          "content"
+        ]
+      },
+      {
+        "surface": "table",
+        "command": "md table FILE --json ; md table FILE --index N --json",
+        "descriptor_fields": ["block_index", "span", "etag", "headers", "rows"]
+      },
+      {
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "descriptor_fields": [
+          "loc",
+          "child_path",
+          "span",
+          "etag",
+          "summary_text",
+          "nearest_heading"
+        ]
+      }
+    ]
+  },
+  "frontmatter_scope": "excluded",
+  "candidates": [
+    {
+      "name": "content_only",
+      "framing": "content_only\\u0000surface\\u0000u32(len(target_bytes))\\u0000target_bytes"
+    },
+    {
+      "name": "target_local",
+      "framing": "target_local\\u0000surface\\u0000u32(len(locator_descriptor))\\u0000locator_descriptor\\u0000u32(len(target_bytes))\\u0000target_bytes"
+    },
+    {
+      "name": "ambiguity_reject",
+      "framing": "ambiguity_reject\\u0000surface\\u0000u32(len(target_bytes))\\u0000target_bytes\\u0000u32(len(current_match_set))\\u0000current_match_set"
+    },
+    {
+      "name": "document_target_state",
+      "framing": "document_target_state\\u0000surface\\u0000u32(len(locator_descriptor))\\u0000locator_descriptor\\u0000u32(len(target_bytes))\\u0000target_bytes\\u0000u32(len(document_bytes))\\u0000document_bytes"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "block-unchanged-reread",
+      "surface": "block",
+      "scenario": "unchanged reread",
+      "projection": {
+        "command": "md blocks FILE --json",
+        "locator_descriptor": {
+          "index": 1,
+          "span": {"line_start": 3, "line_end": 3}
+        }
+      },
+      "observed_document_utf8": "# Doc\\n\\nalpha block\\n\\n## Next\\nbody\\n",
+      "candidate_document_utf8": "# Doc\\n\\nalpha block\\n\\n## Next\\nbody\\n",
+      "target_bytes_utf8": "alpha block",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "correct"},
+        "target_local": {"decision": "accept", "credit": "correct"},
+        "ambiguity_reject": {"decision": "accept", "credit": "correct"},
+        "document_target_state": {"decision": "accept", "credit": "correct"}
+      }
+    },
+    {
+      "case_id": "section-duplicate-content-targets",
+      "surface": "section",
+      "scenario": "duplicate-content targets",
+      "projection": {
+        "command": "md section Alpha FILE --json",
+        "locator_descriptor": {
+          "selector": {"kind": "HeadingText", "heading_text": "Alpha", "match_mode": "Exact"},
+          "heading_text": "Alpha"
+        }
+      },
+      "observed_document_utf8": "# Doc\\n\\n## Alpha\\nShared body\\n\\n## Beta\\nShared body\\n",
+      "candidate_document_utf8": "# Doc\\n\\n## Alpha\\nShared body\\n\\n## Beta\\nShared body\\n",
+      "target_bytes_utf8": "## Alpha\\nShared body\\n\\n",
+      "notes": "Content-only authority sees duplicated payload risk even when the locator remains exact.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "ambiguous"},
+        "target_local": {"decision": "accept", "credit": "correct"},
+        "ambiguity_reject": {"decision": "reject", "credit": "correct"},
+        "document_target_state": {"decision": "accept", "credit": "correct"}
+      }
+    },
+    {
+      "case_id": "task-copied-token-substitution",
+      "surface": "task",
+      "scenario": "copied-token substitution",
+      "projection": {
+        "command": "md tasks FILE --json",
+        "locator_descriptor": {
+          "loc": "2.0",
+          "child_path": [0],
+          "nearest_heading": "Sprint"
+        }
+      },
+      "observed_document_utf8": "# Sprint\\n\\n- [ ] Ship release\\n- [ ] Write notes\\n",
+      "candidate_document_utf8": "# Sprint\\n\\n- [x] Ship release\\n- [ ] Ship release\\n",
+      "target_bytes_utf8": "- [ ] Ship release",
+      "notes": "The old task bytes are copied to a different task while the original target flips status in place.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "wrong_identity"},
+        "target_local": {"decision": "reject", "credit": "correct"},
+        "ambiguity_reject": {"decision": "accept", "credit": "wrong_identity"},
+        "document_target_state": {"decision": "reject", "credit": "correct"}
+      }
+    },
+    {
+      "case_id": "section-same-locator-substitution",
+      "surface": "section",
+      "scenario": "same-locator substitution",
+      "projection": {
+        "command": "md section Target FILE --json",
+        "locator_descriptor": {
+          "selector": {"kind": "HeadingText", "heading_text": "Target", "match_mode": "Exact"},
+          "heading_text": "Target"
+        }
+      },
+      "observed_document_utf8": "# Doc\\n\\n## Target\\nowner: Alice\\n\\n## Archive\\nowner: Bob\\n",
+      "candidate_document_utf8": "# Doc\\n\\n## Target\\nowner: Bob\\n\\n## Archive\\nowner: Alice\\n",
+      "target_bytes_utf8": "## Target\\nowner: Alice\\n\\n",
+      "notes": "Uniqueness returns, but the same locator now names the wrong shifted identity. target_local and ambiguity_reject must not receive credit here.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "wrong_identity"},
+        "target_local": {"decision": "accept", "credit": "wrong_identity"},
+        "ambiguity_reject": {"decision": "accept", "credit": "wrong_identity"},
+        "document_target_state": {"decision": "reject", "credit": "correct"}
+      }
+    },
+    {
+      "case_id": "table-unrelated-edit-conflict-cost",
+      "surface": "table",
+      "scenario": "unrelated edit conflict cost",
+      "projection": {
+        "command": "md table FILE --index 1 --json",
+        "locator_descriptor": {
+          "block_index": 1,
+          "headers": ["Name", "Value"]
+        }
+      },
+      "observed_document_utf8": "# Doc\\n\\n| Name | Value |\\n| --- | --- |\\n| Alpha | 1 |\\n\\nnotes\\n",
+      "candidate_document_utf8": "# Doc\\n\\n| Name | Value |\\n| --- | --- |\\n| Alpha | 1 |\\n\\nnotes updated elsewhere\\n",
+      "target_bytes_utf8": "| Name | Value |\\n| --- | --- |\\n| Alpha | 1 |",
+      "notes": "The table bytes are unchanged, but the document bytes differ outside the target.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "correct"},
+        "target_local": {"decision": "accept", "credit": "correct"},
+        "ambiguity_reject": {"decision": "accept", "credit": "correct"},
+        "document_target_state": {"decision": "reject", "credit": "false_conflict"}
+      }
+    },
+    {
+      "case_id": "block-exact-byte-reversion",
+      "surface": "block",
+      "scenario": "exact-byte reversion",
+      "projection": {
+        "command": "md blocks FILE --json",
+        "locator_descriptor": {
+          "index": 1,
+          "span": {"line_start": 3, "line_end": 3}
+        }
+      },
+      "observed_document_utf8": "# Doc\\n\\nstable bytes\\n",
+      "candidate_document_utf8": "# Doc\\n\\nstable bytes\\n",
+      "target_bytes_utf8": "stable bytes",
+      "notes": "A hypothetical intermediate edit changed the block and then reverted to the exact original bytes before re-check.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "correct"},
+        "target_local": {"decision": "accept", "credit": "correct"},
+        "ambiguity_reject": {"decision": "accept", "credit": "correct"},
+        "document_target_state": {"decision": "accept", "credit": "correct"}
+      }
+    },
+    {
+      "case_id": "block-crlf-bytes",
+      "surface": "block",
+      "scenario": "CRLF bytes",
+      "projection": {
+        "command": "md blocks FILE --json",
+        "locator_descriptor": {
+          "index": 1,
+          "span": {"line_start": 3, "line_end": 3},
+          "line_endings": "CRLF"
+        }
+      },
+      "observed_document_utf8": "# Doc\\r\\n\\r\\nalpha block\\r\\n",
+      "candidate_document_utf8": "# Doc\\r\\n\\r\\nalpha block\\r\\n",
+      "target_bytes_utf8": "alpha block",
+      "byte_notes": "The source representation includes explicit \\r\\n bytes and must be compared byte-for-byte.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "correct"},
+        "target_local": {"decision": "accept", "credit": "correct"},
+        "ambiguity_reject": {"decision": "accept", "credit": "correct"},
+        "document_target_state": {"decision": "accept", "credit": "correct"}
+      }
+    },
+    {
+      "case_id": "section-multibyte-utf8-bytes",
+      "surface": "section",
+      "scenario": "multibyte UTF-8 bytes",
+      "projection": {
+        "command": "md section CAFÉ FILE --ignore-case --json",
+        "locator_descriptor": {
+          "selector": {
+            "kind": "HeadingText",
+            "heading_text": "CAFÉ",
+            "match_mode": "ExactIgnoreCase"
+          },
+          "heading_text": "CAFÉ"
+        }
+      },
+      "observed_document_utf8": "# Doc\\n\\n## CAFÉ\\nnaïve résumé\\n",
+      "candidate_document_utf8": "# Doc\\n\\n## CAFÉ\\nnaïve résumé\\n",
+      "target_bytes_utf8": "## CAFÉ\\nnaïve résumé\\n",
+      "byte_notes": "The target includes multibyte UTF-8 code points and must preserve exact byte slicing rather than normalized text equivalence.",
+      "expectations": {
+        "content_only": {"decision": "accept", "credit": "correct"},
+        "target_local": {"decision": "accept", "credit": "correct"},
+        "ambiguity_reject": {"decision": "accept", "credit": "correct"},
+        "document_target_state": {"decision": "accept", "credit": "correct"}
+      }
+    }
+  ]
+}
