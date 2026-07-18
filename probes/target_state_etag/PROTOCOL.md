@@ -143,10 +143,13 @@ For each case, the runner must:
 
 The candidate decisions are:
 
-- `content_only`: accept when the current-domain match count is at least one.
+- `content_only`: accept when the current target bytes selected by
+  `current_target_query` reproduce the observed target-bytes token.
 - `target_local`: accept when the current target bytes and canonical descriptor
   both exactly match the observed target bytes and canonical descriptor.
-- `ambiguity_reject`: accept when the current-domain match count is exactly one.
+- `ambiguity_reject`: accept only when the current target bytes selected by
+  `current_target_query` reproduce the observed target-bytes token and the
+  current-domain match count is exactly one.
 - `document_target_state`: accept when the current document bytes, current
   target bytes, and current canonical descriptor all exactly match the observed
   document bytes, target bytes, and canonical descriptor.
