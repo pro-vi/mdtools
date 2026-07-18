@@ -119,7 +119,7 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
                         if (e.exit_code as u8) > (worst_code as u8) {
                             worst_code = e.exit_code;
                         }
-                        failures.push(crate::model::TaskFileFailure {
+                        failures.push(crate::model::FileFailure {
                             file: path.display().to_string(),
                             error: crate::errors::ErrorInfo::from(&e),
                         });

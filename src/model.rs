@@ -256,6 +256,10 @@ pub struct FrontmatterFieldProjectionResult {
 #[derive(Clone, Debug, Serialize)]
 pub struct CollectResult {
     pub schema_version: String,
+    /// Per-file failures in aggregation mode; collect keeps its
+    /// single-object wire shape, failures ride here structurally.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub failures: Vec<FileFailure>,
     pub headers: Vec<String>,
     pub rows: Vec<Vec<serde_json::Value>>,
 }
@@ -372,11 +376,11 @@ pub struct TasksResult {
     /// Per-file failures in multi-file mode. tasks keeps its single-object
     /// wire shape: structured failures ride here, never as NDJSON rows.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub failures: Vec<TaskFileFailure>,
+    pub failures: Vec<FileFailure>,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct TaskFileFailure {
+pub struct FileFailure {
     pub file: String,
     pub error: crate::errors::ErrorInfo,
 }

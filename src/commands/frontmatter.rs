@@ -14,7 +14,7 @@ pub fn run(args: &FrontmatterArgs, json: bool) -> Result<(), CommandError> {
     if args.fields.is_empty() {
         multifile::for_each_file(&file_set, json, |file| process_file(file, json))
     } else {
-        multifile::for_each_file(&file_set, false, |file| {
+        multifile::for_each_file(&file_set, json, |file| {
             run_field_projection(file, &args.fields, json, multi)
         })
     }

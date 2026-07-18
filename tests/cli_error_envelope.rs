@@ -279,3 +279,82 @@ impl OutputWithStdin for Command {
         child.wait_with_output().unwrap()
     }
 }
+
+#[test]
+fn occurrence_zero_is_rejected_not_first_match() {
+    let tmp = temp_file(DUP_DOC);
+    let out = md()
+        .args(["section", "Setup", &tmp, "--occurrence", "0", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3), "occurrence 0 must be InvalidInput");
+    let env = parse_envelope(&out.stdout);
+    assert_eq!(env["error"]["code"], "invalid_selector");
+    assert!(env["error"]["hint"].as_str().unwrap().contains("1-based"));
+}
+
+#[test]
+fn preamble_with_occurrence_is_rejected() {
+    let tmp = temp_file("intro\n\n# H\n\nbody\n");
+    let out = md()
+        .args(["section", ":preamble", &tmp, "--occurrence", "2", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3));
+    let env = parse_envelope(&out.stdout);
+    assert_eq!(env["error"]["code"], "invalid_selector");
+}
+
+#[test]
+fn frontmatter_field_projection_emits_per_file_error_rows() {
+    let good = temp_file("---\ntitle: Good\n---\n# G\n");
+    let bad = temp_file("---\ntitle: [broken\n---\n# B\n");
+    let out = md()
+        .args(["frontmatter", "--field", "title", &good, &bad, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let rows: Vec<serde_json::Value> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| serde_json::from_str(l).expect("every NDJSON row parses"))
+        .collect();
+    assert_eq!(rows.len(), 3, "success row + per-file error row + aggregate");
+    assert_eq!(rows[1]["error"]["code"], "frontmatter_parse_failed");
+    assert_eq!(rows[1]["file"].as_str().unwrap(), bad);
+    assert_eq!(rows[2]["error"]["code"], "multi_file_failure");
+}
+
+#[test]
+fn collect_carries_structured_failures_in_single_object() {
+    let dir = format!(
+        "/tmp/mdtools_envelope_collectdir_{}_{}",
+        std::process::id(),
+        TMP_COUNTER.fetch_add(1, Ordering::SeqCst)
+    );
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(format!("{}/good.md", dir), "---\ntitle: OK\n---\n# G\n").unwrap();
+    std::fs::write(format!("{}/bad.md", dir), "---\ntitle: [broken\n---\n# B\n").unwrap();
+
+    let out = md()
+        .args(["collect", "--field", "title", &dir, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let obj = parse_envelope(&out.stdout); // exactly one JSON object
+    assert_eq!(obj["rows"].as_array().unwrap().len(), 1);
+    let failures = obj["failures"].as_array().unwrap();
+    assert_eq!(failures.len(), 1);
+    assert_eq!(failures[0]["error"]["code"], "frontmatter_parse_failed");
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn every_diagnostic_reachable_by_constructor_carries_a_hint_where_promised() {
+    // Spot-check the previously hint-less diagnostics now carry remediation.
+    let tmp = temp_file("# H\n\njust a paragraph\n");
+    let out = md().args(["table", &tmp, "--json"]).output().unwrap();
+    let env = parse_envelope(&out.stdout);
+    assert_eq!(env["error"]["code"], "no_tables_in_document");
+    assert!(env["error"]["hint"].is_string(), "no_tables must carry a hint");
+}

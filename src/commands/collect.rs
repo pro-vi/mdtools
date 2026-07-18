@@ -15,6 +15,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     let mut rows = Vec::new();
     let mut error_count = 0u32;
     let mut worst_code = MdExitCode::Success;
+    let mut failures = Vec::new();
 
     for path in &paths {
         match collect_row(path, &args.fields) {
@@ -27,6 +28,10 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
                 if (err.exit_code as u8) > (worst_code as u8) {
                     worst_code = err.exit_code;
                 }
+                failures.push(crate::model::FileFailure {
+                    file: path.display().to_string(),
+                    error: crate::errors::ErrorInfo::from(&err),
+                });
                 error_count += 1;
             }
         }
@@ -36,6 +41,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     if json {
         output::write_json(&CollectResult {
             schema_version: SCHEMA_VERSION.to_string(),
+            failures: failures.clone(),
             headers,
             rows,
         })?;
