@@ -11,7 +11,8 @@
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
 - historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
 - current `PROTOCOL.md` SHA-256: `8f40e63bcbad6e5a283e2831732055099f8931578dbbba4b11c1e6c056933b2d`
-- Exact locked build command: `cargo build --release --locked --offline`
+- Historical execution build command: `cargo build --release`
+- Current exact locked regeneration build command: `cargo build --release --locked --offline`
 - Exact regeneration command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
 - Exact non-mutating check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
 - `probes/target_state_etag/results.json` SHA-256: `4a6a3e4c7ec410cd98aa7ab35e55553012dcfc287e9116b1fe8949ee3ba1c98a`
