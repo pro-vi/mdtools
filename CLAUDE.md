@@ -59,6 +59,13 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
   content-compares (no ambiguity check), and true identity binding (neighbor-aware /
   context-sensitive anchors) remains follow-up — it trades against "loc carries no
   identity". Re-query-before-mutate remains the recommended pattern.
+  **Concurrency boundary (do not overclaim):** the guard is a *same-invocation
+  drift check* — md reads the target, checks the fingerprint, and splices+renames
+  within one process. It is **not a cross-process compare-and-swap and not a
+  lock**: a concurrent external writer between md's read and its atomic rename is
+  out of scope (the read→rename window is a documented std-only residual, alongside
+  the tempfile check→rename/check→unlink gaps). Serialize concurrent mutators
+  externally (the pi-mdtools adapter uses a per-file mutation queue).
 - **Bench ablation integrity (maintain this).** The no-md / `native*` baselines must keep
   `md` unreachable by *every* form — the `./md` workdir copy, bare `md` on PATH, and the
   `BASH_ENV` the claude-cli shell never sources. This recurred as a bypass **5× across axes**
