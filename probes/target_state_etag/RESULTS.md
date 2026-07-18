@@ -2,18 +2,26 @@
 
 - Date: 2026-07-18
 - Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
-- Accepted execution base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
+- Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
+- Historical execution lineage base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
 
-## Immutable Inputs And Commands
+## Immutable Inputs And Exact Commands
 
-- `probes/target_state_etag/probe.py` SHA-256: `339185b1c0be604272b91e9c2edae896de290ce77ba0298d8d1306586fa32461`
+- `probes/target_state_etag/probe.py` SHA-256: `be59924665a50bd3c38317f8b146a9a9a73b13a049a4ce15ba2dcab12a30faa7`
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
-- execution-time PROTOCOL.md authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
-- current PROTOCOL.md SHA-256: `7e1ef2a33da4722687c5e60def946ea66ac18096873fd710f1746049f2b2304d`
-- Build command: `cargo build --release`
-- Accepted output command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
-- Current non-mutating check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
-- `probes/target_state_etag/results.json` SHA-256: `68ea7de2aa473e4c746c08bbefc0a022beb9d84f53ebd4cd9ed6fcb1087b6b6e`
+- historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
+- current `PROTOCOL.md` SHA-256: `8f40e63bcbad6e5a283e2831732055099f8931578dbbba4b11c1e6c056933b2d`
+- Exact locked build command: `cargo build --release --locked --offline`
+- Exact regeneration command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
+- Exact non-mutating check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
+- `probes/target_state_etag/results.json` SHA-256: `4a6a3e4c7ec410cd98aa7ab35e55553012dcfc287e9116b1fe8949ee3ba1c98a`
+
+## Order-Only Regeneration Facts
+
+- Parsed current `results.json` is JSON-equal to `git show c7f08c9e1cfa4803617256c0f943a852c7d6703a:probes/target_state_etag/results.json`.
+- The regeneration changes candidate-keyed JSON presentation order only; no case, verdict, digest, credit, count, or disposition changed.
+- `candidate_names` remains exactly `["content_only","target_local","ambiguity_reject","document_target_state"]`.
+- `candidate_summary`, every per-case `candidate_results` map, and `overall_graduation_verdict.candidate_verdicts` now emit keys in that exact protocol order.
 
 ## Candidate Summary
 
