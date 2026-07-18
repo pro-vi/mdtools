@@ -1086,6 +1086,7 @@ fn insert_table_row_stdout_preserves_non_target_bytes_for_prepend_middle_and_app
 #[test]
 fn insert_table_row_json_reports_typed_target() {
     let tmp = tempfile(include_str!("fixtures/table.md"));
+    let table_before = table_json(&tmp, 1);
     let out = md_with_stdin(
         &["insert-table-row", "1", "1", &tmp, "-i", "--json"],
         "| Gamma | 300 |\n",
@@ -1105,6 +1106,10 @@ fn insert_table_row_json_reports_typed_target() {
     );
     assert_eq!(json["target"]["TableRowInsertion"]["table_block_index"], 1);
     assert_eq!(json["target"]["TableRowInsertion"]["row_index"], 1);
+    assert_eq!(
+        json["target"]["TableRowInsertion"]["table_span"],
+        table_before["span"]
+    );
     assert!(json["invariant"]["target_span_before"].is_null());
     assert_eq!(json["invariant"]["preserves_non_target_bytes"], true);
     assert!(json["content"].is_null());
@@ -1303,7 +1308,7 @@ fn insert_table_row_preserves_mixed_local_boundaries() {
     assert!(out.status.success());
     assert_eq!(
         std::fs::read_to_string(&tmp).unwrap(),
-        "| Name | Value |\n|---|---|\r\n| Alpha | 100 |\r\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\r\n"
+        "| Name | Value |\n|---|---|\r\n| Alpha | 100 |\r\n| Beta | 200 |\r\n| Gamma | 300 |\n\nSummary paragraph.\r\n"
     );
     assert_eq!(
         table_json(&tmp, 0)["rows"],

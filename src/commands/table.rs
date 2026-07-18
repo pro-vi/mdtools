@@ -169,6 +169,7 @@ pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(),
         kind: MutationTargetKind::TableRowInsertion,
         table_block_index: args.table_block_index,
         row_index: args.row_index,
+        table_span: block.span,
     });
 
     let insertion = resolve_table_row_insertion(&doc, block.span, &table, args.row_index)?;
@@ -292,9 +293,8 @@ fn resolve_table_row_insertion<'a>(
 
     if row_index < row_count {
         let row = &table.rows[row_index as usize];
-        let separator = line_boundary_after(source, row.span.byte_end as usize)
-            .or_else(|| line_boundary_before(source, row.span.byte_start as usize))
-            .ok_or_else(|| {
+        let separator =
+            line_boundary_before(source, row.span.byte_start as usize).ok_or_else(|| {
                 CommandError::new(
                     crate::errors::DiagnosticCode::ParseFailed,
                     "could not resolve line boundary for table row insertion",

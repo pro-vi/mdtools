@@ -1463,6 +1463,13 @@ fn insert_table_row_help_and_json_surface_match_contract() {
     assert!(normalized.contains("in-place"));
 
     let path = tempfile_str("| Name | Value |\n|---|---|\n| Alpha | 100 |\n| Beta | 200 |\n");
+    let table_before = md()
+        .args(["table", &path, "--index", "0", "--json"])
+        .output()
+        .unwrap();
+    assert!(table_before.status.success());
+    let table_before_json: serde_json::Value =
+        serde_json::from_slice(&table_before.stdout).unwrap();
     let output = md_with_stdin(
         &["insert-table-row", "0", "1", &path, "-i", "--json"],
         "| Gamma | 300 |\n",
@@ -1480,6 +1487,10 @@ fn insert_table_row_help_and_json_surface_match_contract() {
     );
     assert_eq!(json["target"]["TableRowInsertion"]["table_block_index"], 0);
     assert_eq!(json["target"]["TableRowInsertion"]["row_index"], 1);
+    assert_eq!(
+        json["target"]["TableRowInsertion"]["table_span"],
+        table_before_json["span"]
+    );
     assert!(json["invariant"]["target_span_before"].is_null());
     assert_eq!(
         &std::fs::read_to_string(&path).unwrap()[json["invariant"]["target_span_after"]
@@ -1490,6 +1501,16 @@ fn insert_table_row_help_and_json_surface_match_contract() {
                 .as_u64()
                 .unwrap() as usize],
         "| Gamma | 300 |"
+    );
+    let table_after = md()
+        .args(["table", &path, "--index", "0", "--json"])
+        .output()
+        .unwrap();
+    assert!(table_after.status.success());
+    let table_after_json: serde_json::Value = serde_json::from_slice(&table_after.stdout).unwrap();
+    assert_ne!(
+        json["target"]["TableRowInsertion"]["table_span"],
+        table_after_json["span"]
     );
     std::fs::remove_file(&path).ok();
 }

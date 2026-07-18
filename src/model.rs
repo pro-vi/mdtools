@@ -483,6 +483,7 @@ pub struct TableRowInsertionTargetRef {
     pub kind: MutationTargetKind,
     pub table_block_index: u32,
     pub row_index: u32,
+    pub table_span: SourceSpan,
 }
 
 #[derive(Clone, Debug, Serialize)]
