@@ -1482,9 +1482,13 @@ fn insert_table_row_help_and_json_surface_match_contract() {
     assert_eq!(json["target"]["TableRowInsertion"]["row_index"], 1);
     assert!(json["invariant"]["target_span_before"].is_null());
     assert_eq!(
-        &std::fs::read_to_string(&path).unwrap()
-            [json["invariant"]["target_span_after"]["byte_start"].as_u64().unwrap() as usize
-                ..json["invariant"]["target_span_after"]["byte_end"].as_u64().unwrap() as usize],
+        &std::fs::read_to_string(&path).unwrap()[json["invariant"]["target_span_after"]
+            ["byte_start"]
+            .as_u64()
+            .unwrap() as usize
+            ..json["invariant"]["target_span_after"]["byte_end"]
+                .as_u64()
+                .unwrap() as usize],
         "| Gamma | 300 |"
     );
     std::fs::remove_file(&path).ok();
