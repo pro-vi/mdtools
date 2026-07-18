@@ -113,11 +113,23 @@ Frontmatter is excluded. This probe does not reinterpret `md frontmatter`.
 - `current_domain_query`
 - per-candidate expected `decision` and `credit`
 
+Closed vocabularies are fixed at the manifest boundary:
+
+- `identity_truth`: `same_target`, `wrong_target`
+- `credit`: `correct`, `wrong_identity`, `false-conflict`
+- `case_class`: `duplicate_cross_target_copy`, `exact_byte_reversion`,
+  `same_locator_duplicate_shift`, `unchanged_crlf_bytes`,
+  `unchanged_multibyte_utf8_bytes`, `unchanged_reread`,
+  `unchanged_section_descriptor`, `unchanged_table_descriptor`,
+  `unchanged_task_descriptor`, `unrelated_edit_after_unchanged_target`
+
 Validation is mechanical and fail-closed:
 
 - reject missing required keys
 - reject duplicate `case_id` values
 - reject case IDs that do not match `^[a-z0-9]+(?:-[a-z0-9]+)*$`
+- reject unknown `identity_truth`, `credit`, or `case_class` labels before
+  scoring
 - reject unknown `surface` values
 - reject unknown query `type` values
 - reject query shapes that do not match the declared `surface`
