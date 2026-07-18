@@ -80,10 +80,6 @@ def build_report_bytes(md_binary_arg: Path) -> bytes:
             for case in manifest["cases"]
         ]
     candidate_summary = build_candidate_summary(case_reports)
-    overall_graduation_verdicts = {
-        candidate_name_value: candidate_summary[candidate_name_value]["overall_graduation_verdict"]
-        for candidate_name_value in EXPECTED_CANDIDATES
-    }
     report = {
         "case_count": len(case_reports),
         "candidate_names": list(EXPECTED_CANDIDATES),
@@ -92,7 +88,7 @@ def build_report_bytes(md_binary_arg: Path) -> bytes:
         "descriptor_schema_version": CANONICAL_DESCRIPTOR_SCHEMA_VERSION,
         "manifest_path": "cases.json",
         "manifest_schema_version": manifest["schema_version"],
-        "overall_graduation_verdicts": overall_graduation_verdicts,
+        "overall_graduation_verdict": build_overall_graduation_verdict(candidate_summary),
         "schema_version": PROBE_SCHEMA_VERSION,
     }
     return canonical_json_bytes(report)
@@ -798,7 +794,6 @@ def build_candidate_results(
         whole_document_false_conflict_cost = (
             candidate_name_value == "document_target_state" and unrelated_edit_conflict
         )
-        promotion_or_demotion = "promote" if decision == "accept" else "demote"
         if wrong_identity_accept:
             graduation_verdict = "fails_wrong_identity"
         elif whole_document_false_conflict_cost:
@@ -813,9 +808,7 @@ def build_candidate_results(
             "decision": decision,
             "expectation_match": decision == expected_decision,
             "expected_decision": expected_decision,
-            "graduation_verdict": graduation_verdict,
             "observed_token_sha256": observed_token,
-            "promotion_or_demotion": promotion_or_demotion,
             "required_same_state_reject": required_same_state_reject,
             "unrelated_edit_conflict": unrelated_edit_conflict,
             "whole_document_false_conflict_cost": whole_document_false_conflict_cost,
@@ -831,7 +824,7 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
         rejects = 0
         wrong_identity_accepts = 0
         required_same_state_rejects = 0
-        false_conflicts = 0
+        unrelated_edit_conflicts = 0
         expectation_matches = 0
         for case_report in case_reports:
             result = case_report["candidate_results"][candidate_name_value]
@@ -844,37 +837,75 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
             if result["required_same_state_reject"]:
                 required_same_state_rejects += 1
             if result["whole_document_false_conflict_cost"]:
-                false_conflicts += 1
+                unrelated_edit_conflicts += 1
             if result["expectation_match"]:
                 expectation_matches += 1
+        graduation_verdict = select_graduation_verdict(
+            wrong_identity_accepts,
+            unrelated_edit_conflicts,
+            required_same_state_rejects,
+        )
         summary[candidate_name_value] = {
             "accepts": accepts,
+            "disposition": "promote" if graduation_verdict == "graduates" else "demote",
             "expectation_matches": expectation_matches,
-            "false_conflicts": false_conflicts,
-            "overall_graduation_verdict": select_overall_graduation_verdict(
-                wrong_identity_accepts,
-                false_conflicts,
-                required_same_state_rejects,
-            ),
+            "graduation_verdict": graduation_verdict,
             "rejects": rejects,
             "required_same_state_rejects": required_same_state_rejects,
+            "unrelated_edit_conflicts": unrelated_edit_conflicts,
             "wrong_identity_accepts": wrong_identity_accepts,
         }
     return summary
 
 
-def select_overall_graduation_verdict(
+def select_graduation_verdict(
     wrong_identity_accepts: int,
-    false_conflicts: int,
+    unrelated_edit_conflicts: int,
     required_same_state_rejects: int,
 ) -> str:
     if wrong_identity_accepts:
         return "fails_wrong_identity"
-    if false_conflicts:
+    if unrelated_edit_conflicts:
         return "fails_whole_document_false_conflict"
     if required_same_state_rejects:
         return "fails_required_same_state"
     return "graduates"
+
+
+def build_overall_graduation_verdict(candidate_summary: dict[str, Any]) -> dict[str, Any]:
+    candidate_verdicts = {
+        candidate_name_value: candidate_summary[candidate_name_value]["graduation_verdict"]
+        for candidate_name_value in EXPECTED_CANDIDATES
+    }
+    graduating_candidates = [
+        candidate_name_value
+        for candidate_name_value in EXPECTED_CANDIDATES
+        if candidate_summary[candidate_name_value]["disposition"] == "promote"
+    ]
+    demoted_candidates = [
+        candidate_name_value
+        for candidate_name_value in EXPECTED_CANDIDATES
+        if candidate_summary[candidate_name_value]["disposition"] == "demote"
+    ]
+    if not graduating_candidates:
+        verdict = "no_candidate_graduates"
+        selected_candidate = None
+    elif len(graduating_candidates) == 1:
+        verdict = "single_candidate_graduates"
+        selected_candidate = graduating_candidates[0]
+    else:
+        verdict = "multiple_candidates_graduate"
+        selected_candidate = None
+    return {
+        "candidate_verdicts": candidate_verdicts,
+        "demoted_candidates": demoted_candidates,
+        "graduating_candidates": graduating_candidates,
+        "selected_candidate": selected_candidate,
+        "verdict": verdict,
+        "whole_document_false_conflict_cost": candidate_summary["document_target_state"][
+            "unrelated_edit_conflicts"
+        ],
+    }
 
 
 def build_blocks_command(document_name: str) -> list[str]:

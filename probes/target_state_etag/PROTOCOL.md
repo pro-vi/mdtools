@@ -15,7 +15,6 @@ compares four stateless candidates:
 The mutable probe surface for this run is limited to:
 
 - `probes/target_state_etag/PROTOCOL.md`
-- `probes/target_state_etag/cases.json`
 - `probes/target_state_etag/probe.py`
 
 This run is source-only. Do not execute or import `probe.py`, do not parse
@@ -159,6 +158,81 @@ Credits come from the manifest:
 - `correct`
 - `wrong_identity`
 - `false-conflict`
+
+## Aggregate Report Contract
+
+The canonical report remains a source-only JSON surface with:
+
+- top-level `candidate_summary`
+- top-level `cases`
+- one singular top-level `overall_graduation_verdict` object
+
+Per-case `candidate_results` are evidence only. They must preserve:
+
+- `decision`
+- `expected_decision`
+- `expectation_match`
+- `credit`
+- token digests
+- `wrong_identity_accept`
+- `required_same_state_reject`
+- `unrelated_edit_conflict`
+- `whole_document_false_conflict_cost`
+
+Per-case `candidate_results` must not expose a promotion field and must not
+decide experiment-level selection.
+
+Each `candidate_summary[CANDIDATE]` must be emitted in canonical candidate
+order and must contain:
+
+- `accepts`
+- `rejects`
+- `expectation_matches`
+- `wrong_identity_accepts`
+- `required_same_state_rejects`
+- `unrelated_edit_conflicts`
+- `graduation_verdict`
+- `disposition`
+
+`graduation_verdict` is derived mechanically from aggregate actual outcomes with
+this precedence:
+
+1. `fails_wrong_identity` when `wrong_identity_accepts > 0`
+2. `fails_whole_document_false_conflict` when `unrelated_edit_conflicts > 0`
+3. `fails_required_same_state` when `required_same_state_rejects > 0`
+4. `graduates` otherwise
+
+`disposition` is `promote` only when `graduation_verdict` is `graduates`;
+otherwise it is `demote`.
+
+The top-level `overall_graduation_verdict` object must contain:
+
+- `candidate_verdicts`
+- `graduating_candidates`
+- `demoted_candidates`
+- `selected_candidate`
+- `verdict`
+- `whole_document_false_conflict_cost`
+
+`candidate_verdicts` maps each canonical candidate name to its aggregate
+`graduation_verdict`.
+
+`graduating_candidates` and `demoted_candidates` are canonical-order lists
+derived from each candidate summary `disposition`.
+
+`selected_candidate` is the candidate name only when exactly one candidate
+graduates; otherwise it is `null`.
+
+`verdict` is derived only from the count of graduating candidates:
+
+- `no_candidate_graduates`
+- `single_candidate_graduates`
+- `multiple_candidates_graduate`
+
+No tie-break policy may be invented when multiple candidates graduate.
+
+`whole_document_false_conflict_cost` is the
+`candidate_summary["document_target_state"]["unrelated_edit_conflicts"]` count.
 
 ## Load-Bearing Same-Locator Case
 
