@@ -25,7 +25,12 @@ const IDENTICAL_SECTIONS: &str =
 fn section_etag(file: &str, occurrence: &str) -> String {
     let out = md()
         .args([
-            "section", "Setup", file, "--occurrence", occurrence, "--json",
+            "section",
+            "Setup",
+            file,
+            "--occurrence",
+            occurrence,
+            "--json",
         ])
         .output()
         .unwrap();
@@ -120,7 +125,9 @@ fn identical_duplicate_tasks_fail_closed_as_etag_ambiguous() {
     assert_eq!(out.status.code(), Some(4));
     let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(env["error"]["code"], "etag_ambiguous");
-    assert!(std::fs::read_to_string(&tmp).unwrap().contains("- [ ] same text\n- [ ] same text\n"));
+    assert!(std::fs::read_to_string(&tmp)
+        .unwrap()
+        .contains("- [ ] same text\n- [ ] same text\n"));
 }
 
 #[test]
@@ -153,7 +160,11 @@ fn atomic_write_preserves_permission_bits_and_leaves_no_temp() {
 
     // no stale temp files next to the target
     let dir = std::path::Path::new(&tmp).parent().unwrap();
-    let stem = std::path::Path::new(&tmp).file_name().unwrap().to_string_lossy().to_string();
+    let stem = std::path::Path::new(&tmp)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
     let leftovers: Vec<String> = std::fs::read_dir(dir)
         .unwrap()
         .filter_map(|e| e.ok())
@@ -200,7 +211,10 @@ fn mutating_through_a_symlink_rewrites_the_referent_not_the_link() {
     assert!(!std::fs::read_to_string(&target).unwrap().contains("Setup"));
     // link is STILL a symlink pointing at the target
     let meta = std::fs::symlink_metadata(&link).unwrap();
-    assert!(meta.file_type().is_symlink(), "symlink must survive the atomic replace");
+    assert!(
+        meta.file_type().is_symlink(),
+        "symlink must survive the atomic replace"
+    );
     std::fs::remove_file(&link).ok();
 }
 
@@ -212,9 +226,15 @@ fn temp_file_path_is_not_reusable_by_prediction() {
     // second write while a same-named file exists picks a different name and
     // still succeeds.
     let tmp = temp_file("# Doc\n\n## A\n\nx\n\n## B\n\ny\n");
-    let out1 = md().args(["delete-section", "A", &tmp, "-i"]).output().unwrap();
+    let out1 = md()
+        .args(["delete-section", "A", &tmp, "-i"])
+        .output()
+        .unwrap();
     assert!(out1.status.success());
-    let out2 = md().args(["delete-section", "B", &tmp, "-i"]).output().unwrap();
+    let out2 = md()
+        .args(["delete-section", "B", &tmp, "-i"])
+        .output()
+        .unwrap();
     assert!(out2.status.success());
     let remaining = std::fs::read_to_string(&tmp).unwrap();
     assert!(!remaining.contains("## A") && !remaining.contains("## B"));

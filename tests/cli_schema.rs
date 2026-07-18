@@ -32,10 +32,7 @@ fn schema_matches_bench_inventory() {
     // md_inventory_v1.json is the bench-side mirror; the binary is the
     // authority. Every inventory entry must match the schema's name+kind,
     // and the schema must add nothing the inventory misses except `schema`.
-    let inv_path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/bench/md_inventory_v1.json"
-    );
+    let inv_path = concat!(env!("CARGO_MANIFEST_DIR"), "/bench/md_inventory_v1.json");
     let inv: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(inv_path).unwrap()).unwrap();
     let s = schema();
@@ -102,10 +99,7 @@ fn expect_etag_listed_on_exactly_the_guarded_commands() {
     .map(|s| s.to_string())
     .collect();
     assert_eq!(with_flag, expected);
-    assert_eq!(
-        dual,
-        ["move-section".to_string()].into_iter().collect()
-    );
+    assert_eq!(dual, ["move-section".to_string()].into_iter().collect());
 }
 
 #[test]
@@ -116,10 +110,7 @@ fn diagnostics_table_is_total_with_valid_exit_codes() {
     for d in diags {
         let code = d["code"].as_str().unwrap();
         let exit = d["exit_code"].as_u64().unwrap();
-        assert!(
-            (1..=4).contains(&exit),
-            "{code}: exit {exit} outside 1..=4"
-        );
+        assert!((1..=4).contains(&exit), "{code}: exit {exit} outside 1..=4");
     }
 }
 

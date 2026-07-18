@@ -24,7 +24,9 @@ struct IrregularLowercaseSegment {
 pub fn run(args: &SearchArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
     let multi = file_set.is_multi();
-    multifile::for_each_file(&file_set, json, |file| process_file(file, args, json, multi))
+    multifile::for_each_file(&file_set, json, |file| {
+        process_file(file, args, json, multi)
+    })
 }
 
 fn process_file(

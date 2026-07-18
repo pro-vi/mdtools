@@ -1,6 +1,8 @@
 use crate::cli::MoveSectionArgs;
 use crate::commands::replace::verify_expected_etag_unique;
-use crate::commands::section::{all_section_etags, build_selector, describe_selector, find_section_as};
+use crate::commands::section::{
+    all_section_etags, build_selector, describe_selector, find_section_as,
+};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;

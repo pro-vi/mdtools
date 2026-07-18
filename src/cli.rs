@@ -26,7 +26,11 @@ const SECTION_CONTAINS_HELP: &str =
      exact matching remains the default";
 
 #[derive(Parser)]
-#[command(name = "md", about = "Markdown-aware CLI for agent operations", version)]
+#[command(
+    name = "md",
+    about = "Markdown-aware CLI for agent operations",
+    version
+)]
 pub struct Cli {
     #[arg(long, global = true)]
     pub json: bool,

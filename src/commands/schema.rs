@@ -120,9 +120,7 @@ fn build_schema() -> SchemaResult {
                     name: arg.get_id().to_string(),
                     required: arg.is_required_set(),
                     variadic: matches!(arg.get_action(), clap::ArgAction::Append)
-                        || arg
-                            .get_num_args()
-                            .map_or(false, |r| r.max_values() > 1),
+                        || arg.get_num_args().map_or(false, |r| r.max_values() > 1),
                 });
             } else if let Some(f) = flag_info(arg) {
                 flags.push(f);
