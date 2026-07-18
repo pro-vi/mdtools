@@ -150,7 +150,7 @@
       "case_class": "duplicate_cross_target_copy",
       "identity_truth": "wrong_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\n\nstable token\n\nmoved elsewhere\n",
+      "observed_document_utf8": "# Doc\n\nstable token\n\nstable token\n",
       "current_document_utf8": "# Doc\n\nstable token\n\nstable token\n",
       "observed_target_query": {
         "type": "block_target",
@@ -169,7 +169,7 @@
         "surface": "block",
         "command": "md blocks FILE --json"
       },
-      "notes": "The observed bytes remain unchanged at the original block index while an identical copied block appears at a later block index, so the current target query can select a wrong identity without collapsing the current domain to one exact-byte match.",
+      "notes": "The document stays unchanged with two identical duplicate blocks; the observed query selects the first copy while the current target query selects the later copied duplicate, leaving the current domain at two exact-byte matches.",
       "expected": {
         "content_only": { "decision": "accept", "credit": "wrong_identity" },
         "target_local": { "decision": "reject", "credit": "correct" },
@@ -182,7 +182,7 @@
       "case_class": "same_locator_duplicate_shift",
       "identity_truth": "wrong_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\n\nanchor\n\nstable token\n\nstable token\n",
+      "observed_document_utf8": "# Doc\n\nanchor\n\nstable token\n\nintervening content\n\nstable token\n",
       "current_document_utf8": "# Doc\n\nanchor\n\nstable token\n",
       "observed_target_query": {
         "type": "block_target",
@@ -208,7 +208,7 @@
         "require_document_bytes_different": true,
         "mechanical_failure_on_violation": true
       },
-      "notes": "The observed query selects the first of two identical duplicate blocks; the current document deletes the earlier duplicate so the only exact-byte survivor is treated as the later duplicate shifted into the vacated canonical block locator at the same block index and span.",
+      "notes": "The observed query selects the first of two identical duplicate blocks separated by intervening content; the current document removes that first duplicate and the intervening block so the later duplicate becomes the only exact-byte survivor shifted into the same canonical block locator.",
       "expected": {
         "content_only": { "decision": "accept", "credit": "wrong_identity" },
         "target_local": { "decision": "accept", "credit": "wrong_identity" },
