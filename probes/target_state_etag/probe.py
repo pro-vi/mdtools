@@ -22,6 +22,20 @@ EXPECTED_CANDIDATES = (
     "ambiguity_reject",
     "document_target_state",
 )
+EXPECTED_IDENTITY_TRUTHS = ("same_target", "wrong_target")
+EXPECTED_CREDITS = ("correct", "wrong_identity", "false-conflict")
+EXPECTED_CASE_CLASSES = (
+    "duplicate_cross_target_copy",
+    "exact_byte_reversion",
+    "same_locator_duplicate_shift",
+    "unchanged_crlf_bytes",
+    "unchanged_multibyte_utf8_bytes",
+    "unchanged_reread",
+    "unchanged_section_descriptor",
+    "unchanged_table_descriptor",
+    "unchanged_task_descriptor",
+    "unrelated_edit_after_unchanged_target",
+)
 
 
 class ProbeError(RuntimeError):
@@ -200,13 +214,21 @@ def validate_case(
         query_shapes,
     )
     normalized = {
-        "case_class": expect_string(case.get("case_class"), f"{case_id}.case_class"),
+        "case_class": expect_choice(
+            case.get("case_class"),
+            f"{case_id}.case_class",
+            EXPECTED_CASE_CLASSES,
+        ),
         "case_id": case_id,
         "current_document_utf8": current_document_utf8,
         "current_domain_query": current_domain_query,
         "current_target_query": current_target_query,
         "expected": expected,
-        "identity_truth": expect_string(case.get("identity_truth"), f"{case_id}.identity_truth"),
+        "identity_truth": expect_choice(
+            case.get("identity_truth"),
+            f"{case_id}.identity_truth",
+            EXPECTED_IDENTITY_TRUTHS,
+        ),
         "observed_document_utf8": observed_document_utf8,
         "observed_target_query": observed_target_query,
         "surface": surface,
@@ -302,9 +324,10 @@ def validate_expected(case_id: str, expected_value: Any) -> dict[str, Any]:
         )
         if decision not in {"accept", "reject"}:
             raise ProbeError(f"{case_id}: invalid expected decision for {candidate_name_value}")
-        credit = expect_string(
+        credit = expect_choice(
             candidate_expected.get("credit"),
             f"{case_id}.expected.{candidate_name_value}.credit",
+            EXPECTED_CREDITS,
         )
         normalized[candidate_name_value] = {"credit": credit, "decision": decision}
     return normalized
@@ -1212,6 +1235,15 @@ def expect_string(value: Any, where: str) -> str:
     if not isinstance(value, str):
         raise ProbeError(f"{where} must be a string")
     return value
+
+
+def expect_choice(value: Any, where: str, choices: tuple[str, ...]) -> str:
+    normalized = expect_string(value, where)
+    if normalized not in choices:
+        raise ProbeError(
+            f"{where}: invalid value {normalized!r}; allowed values: {choices!r}"
+        )
+    return normalized
 
 
 def expect_bool(value: Any, where: str) -> bool:
