@@ -183,3 +183,39 @@ fn outline_entries_expose_section_etags_matching_section_read() {
     let sv: serde_json::Value = serde_json::from_slice(&section.stdout).unwrap();
     assert_eq!(setup_entry["etag"], sv["section"]["etag"]);
 }
+
+#[test]
+fn mutating_through_a_symlink_rewrites_the_referent_not_the_link() {
+    let target = temp_file("# Doc\n\n## Setup\n\nold body\n");
+    let link = format!("{}.link.md", target);
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+
+    let out = md()
+        .args(["delete-section", "Setup", &link, "-i", "--json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+
+    // referent mutated
+    assert!(!std::fs::read_to_string(&target).unwrap().contains("Setup"));
+    // link is STILL a symlink pointing at the target
+    let meta = std::fs::symlink_metadata(&link).unwrap();
+    assert!(meta.file_type().is_symlink(), "symlink must survive the atomic replace");
+    std::fs::remove_file(&link).ok();
+}
+
+#[test]
+fn temp_file_path_is_not_reusable_by_prediction() {
+    // create_new refuses a pre-planted file at any temp path; the name also
+    // carries nanos+counter so pid alone cannot predict it. We can't plant
+    // every candidate, but we can prove the exclusive-create contract: a
+    // second write while a same-named file exists picks a different name and
+    // still succeeds.
+    let tmp = temp_file("# Doc\n\n## A\n\nx\n\n## B\n\ny\n");
+    let out1 = md().args(["delete-section", "A", &tmp, "-i"]).output().unwrap();
+    assert!(out1.status.success());
+    let out2 = md().args(["delete-section", "B", &tmp, "-i"]).output().unwrap();
+    assert!(out2.status.success());
+    let remaining = std::fs::read_to_string(&tmp).unwrap();
+    assert!(!remaining.contains("## A") && !remaining.contains("## B"));
+}

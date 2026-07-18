@@ -77,36 +77,68 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 /// (`--expect-etag`) against target-content drift between the earlier read and
 /// mutation attempt. Content-addressed fingerprint only, not durable target
 /// identity. Deterministic across runs and platforms.
-/// Atomically replace `path` with `content`: write to a temp file in the
-/// same directory, copy the original's permission bits, fsync the file, then
-/// rename. A killed process can leave a stale temp file but never a
-/// truncated or partially-written target. Waiver: the parent directory is
-/// not fsynced after the rename, so a machine crash in that instant can
-/// revert to the OLD contents on some filesystems — old-or-new, never
-/// corrupt — which is proportionate for a document CLI.
+/// Atomically replace `path` with `content`.
+///
+/// Safety properties (review-hardened):
+/// - The target is canonicalized first, so mutating through a symlinked
+///   document rewrites the REFERENT (editor semantics) instead of replacing
+///   the symlink itself.
+/// - The temp file is created with `create_new` (O_CREAT|O_EXCL), which
+///   refuses to follow a pre-planted symlink or reuse an existing file, and
+///   its name carries a timestamp + pid + counter so it is not predictable
+///   from the pid alone.
+/// - Permission bits are copied from the original BEFORE any content is
+///   written, so restrictive documents are never readable via a
+///   default-mode temp window.
+/// - A killed process can leave a stale temp file but never a truncated or
+///   partially-written target. Waiver: the parent directory is not fsynced
+///   after the rename, so a machine crash in that instant can revert to the
+///   OLD contents on some filesystems — old-or-new, never corrupt — which
+///   is proportionate for a document CLI.
 pub fn write_file_atomic(path: &std::path::Path, content: &str) -> std::io::Result<()> {
     use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
-    let dir = path.parent().filter(|p| !p.as_os_str().is_empty());
-    let file_name = path
+    // Mutations always operate on an existing document; resolve symlinks so
+    // the rename lands on the real file.
+    let target = std::fs::canonicalize(path)?;
+    let original_perms = std::fs::metadata(&target)?.permissions();
+
+    let dir = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let file_name = target
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "md".to_string());
-    let tmp_name = format!(".{}.md-tmp.{}", file_name, std::process::id());
-    let tmp_path = match dir {
-        Some(d) => d.join(&tmp_name),
-        None => std::path::PathBuf::from(&tmp_name),
-    };
+
+    static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let tmp_path = dir.join(format!(
+        ".{}.md-tmp.{}.{}.{}",
+        file_name,
+        std::process::id(),
+        nanos,
+        TMP_COUNTER.fetch_add(1, Ordering::SeqCst),
+    ));
 
     let result = (|| {
-        let mut tmp = std::fs::File::create(&tmp_path)?;
+        // create_new refuses existing files AND symlinks (dangling or not).
+        let mut tmp = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp_path)?;
+        // Restrict before writing a single byte.
+        std::fs::set_permissions(&tmp_path, original_perms.clone())?;
         tmp.write_all(content.as_bytes())?;
         tmp.sync_all()?;
         drop(tmp);
-        if let Ok(meta) = std::fs::metadata(path) {
-            std::fs::set_permissions(&tmp_path, meta.permissions())?;
-        }
-        std::fs::rename(&tmp_path, path)
+        std::fs::rename(&tmp_path, &target)
     })();
 
     if result.is_err() {
