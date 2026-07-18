@@ -1243,6 +1243,46 @@ fn insert_table_row_out_of_range_is_not_found() {
 }
 
 #[test]
+fn insert_table_row_matching_expect_etag_succeeds() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let list = md().args(["table", &tmp, "--json"]).output().unwrap();
+    assert!(list.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list.stdout).unwrap();
+    assert_eq!(list_json["tables"][0]["block_index"], 1);
+    let etag = list_json["tables"][0]["etag"].as_str().unwrap().to_string();
+
+    let out = md_with_stdin(
+        &[
+            "insert-table-row",
+            "1",
+            "1",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "| Gamma | 300 |\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Gamma | 300 |\n| Beta | 200 |\n\nSummary paragraph.\n"
+    );
+
+    let read_json = table_json(&tmp, 1);
+    assert_eq!(read_json["rows"][1], serde_json::json!(["Gamma", "300"]));
+    assert_eq!(
+        read_json["rows"],
+        serde_json::json!([["Alpha", "100"], ["Gamma", "300"], ["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn insert_table_row_expect_etag_conflicts_before_stdin_decode() {
     let tmp = tempfile(include_str!("fixtures/table.md"));
     let read = md()
