@@ -22,6 +22,6 @@
     { "name": "tasks", "kind": "query" },
     { "name": "set-task", "kind": "mutation" },
     { "name": "move-section", "kind": "mutation" },
-    { "name": "schema", "kind": "query" }
+    { "name": "schema", "kind": "query", "prompt_visible": false }
   ]
 }

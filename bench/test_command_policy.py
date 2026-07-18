@@ -11,6 +11,7 @@ import typing
 from bench.command_policy import (
     MD_COMMANDS,
     MD_DISPLAY_COMMANDS,
+    MD_PROMPT_VISIBLE_COMMANDS,
     MD_REAL_MODES,
     MUTATION_MD_COMMANDS,
     QUERY_MD_COMMANDS,
@@ -46,6 +47,53 @@ class MdInventoryValidationTests(unittest.TestCase):
         self.assertEqual(inventory.mutation_commands, MUTATION_MD_COMMANDS)
         self.assertIn("move-section", inventory.mutation_commands)
         self.assertNotIn("move-section", inventory.query_commands)
+
+    def test_full_inventory_is_distinct_from_the_prompt_visible_subset(self) -> None:
+        # `schema` is metadata tooling: it stays in the FULL inventory (so an
+        # agent's `md schema` still classifies as a query, never unknown) but is
+        # NOT prompt-visible, so it is neither advertised nor required in prompts.
+        inventory = load_md_inventory()
+        self.assertIn("schema", inventory.commands)
+        self.assertIn("schema", inventory.query_commands)
+        self.assertNotIn("schema", inventory.prompt_visible)
+        self.assertNotIn("md schema", inventory.display_commands)
+        # Every prompt-visible command is a real inventory command.
+        self.assertTrue(set(inventory.prompt_visible).issubset(set(inventory.commands)))
+        # classification still recognizes `md schema` as a query.
+        self.assertEqual(classify_command_kind("md schema --json"), "query")
+
+    def test_prompt_visible_defaults_true_when_omitted(self) -> None:
+        path = self._write_inventory(
+            {"schema_version": 1, "commands": [{"name": "outline", "kind": "query"}]}
+        )
+        inventory = load_md_inventory(path)
+        self.assertIn("outline", inventory.prompt_visible)
+        self.assertEqual(inventory.display_commands, ("md outline",))
+
+    def test_prompt_visible_false_hides_from_display_only(self) -> None:
+        path = self._write_inventory(
+            {
+                "schema_version": 1,
+                "commands": [
+                    {"name": "outline", "kind": "query"},
+                    {"name": "schema", "kind": "query", "prompt_visible": False},
+                ],
+            }
+        )
+        inventory = load_md_inventory(path)
+        self.assertEqual(inventory.commands, ("outline", "schema"))
+        self.assertIn("schema", inventory.query_commands)
+        self.assertEqual(inventory.display_commands, ("md outline",))
+
+    def test_inventory_rejects_non_boolean_prompt_visible(self) -> None:
+        path = self._write_inventory(
+            {
+                "schema_version": 1,
+                "commands": [{"name": "outline", "kind": "query", "prompt_visible": "yes"}],
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "prompt_visible"):
+            load_md_inventory(path)
 
     def test_inventory_rejects_wrong_schema_version(self) -> None:
         path = self._write_inventory({"schema_version": 2, "commands": []})

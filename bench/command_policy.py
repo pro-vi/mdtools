@@ -30,10 +30,17 @@ class MdCommandInventory:
     commands: tuple[str, ...]
     query_commands: frozenset[str]
     mutation_commands: frozenset[str]
+    # Names advertised on md-enabled prompts. A DISTINCT set from the full
+    # inventory: metadata tooling (e.g. `schema`, consumed by adapters, not
+    # benchmark agents) stays in `commands`/`query_commands` for classification
+    # but is NOT prompt-visible. Default per entry is visible (prompt_visible
+    # omitted ⇒ True).
+    prompt_visible: frozenset[str]
 
     @property
     def display_commands(self) -> tuple[str, ...]:
-        return tuple(f"md {command}" for command in self.commands)
+        # Prompt/display surface = prompt-visible commands only.
+        return tuple(f"md {command}" for command in self.commands if command in self.prompt_visible)
 
 
 def load_md_inventory(path: Path = MD_INVENTORY_PATH) -> MdCommandInventory:
@@ -60,6 +67,7 @@ def load_md_inventory(path: Path = MD_INVENTORY_PATH) -> MdCommandInventory:
     commands: list[str] = []
     query_commands: set[str] = set()
     mutation_commands: set[str] = set()
+    prompt_visible: set[str] = set()
     seen_kinds: dict[str, str] = {}
     allowed_kinds = {"query", "mutation"}
 
@@ -73,6 +81,17 @@ def load_md_inventory(path: Path = MD_INVENTORY_PATH) -> MdCommandInventory:
             raise ValueError(f"md inventory entry {index} has an empty name")
         if not isinstance(kind, str) or kind not in allowed_kinds:
             raise ValueError(f"md inventory entry {index} has unknown kind {kind!r}")
+
+        # Optional; default visible. `True`/`False` only — reject truthy non-bools
+        # (bool is a subclass of int, so this also rejects 0/1) to keep the policy
+        # explicit rather than silently hiding a command.
+        visible = entry.get("prompt_visible", True)
+        if not isinstance(visible, bool):
+            raise ValueError(
+                f"md inventory entry {index} prompt_visible must be a boolean, got {visible!r}"
+            )
+        if visible:
+            prompt_visible.add(name)
 
         previous_kind = seen_kinds.get(name)
         if previous_kind is not None:
@@ -97,12 +116,14 @@ def load_md_inventory(path: Path = MD_INVENTORY_PATH) -> MdCommandInventory:
         commands=tuple(commands),
         query_commands=frozenset(query_commands),
         mutation_commands=frozenset(mutation_commands),
+        prompt_visible=frozenset(prompt_visible),
     )
 
 
 MD_INVENTORY = load_md_inventory()
 MD_COMMANDS = MD_INVENTORY.commands
 MD_DISPLAY_COMMANDS = MD_INVENTORY.display_commands
+MD_PROMPT_VISIBLE_COMMANDS = MD_INVENTORY.prompt_visible
 QUERY_MD_COMMANDS = MD_INVENTORY.query_commands
 MUTATION_MD_COMMANDS = MD_INVENTORY.mutation_commands
 
