@@ -19,9 +19,26 @@ impl From<MdExitCode> for ExitCode {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DiagnosticCode {
+/// SINGLE AUTHORITY for the diagnostic vocabulary: the enum, ALL, and
+/// VARIANT_COUNT all derive from this one list, so a future variant cannot
+/// exist without appearing in `md schema` and the TS parity scope.
+macro_rules! diagnostic_codes {
+    ($($variant:ident),* $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+        #[serde(rename_all = "snake_case")]
+        pub enum DiagnosticCode {
+            $($variant,)*
+        }
+
+        impl DiagnosticCode {
+            /// Every variant, derived from the declaration itself.
+            pub const ALL: &'static [DiagnosticCode] = &[$(DiagnosticCode::$variant,)*];
+            pub const VARIANT_COUNT: usize = DiagnosticCode::ALL.len();
+        }
+    };
+}
+
+diagnostic_codes! {
     IoOpenFailed,
     ParseFailed,
     FrontmatterParseFailed,
@@ -47,6 +64,45 @@ pub enum DiagnosticCode {
 }
 
 impl DiagnosticCode {
+    /// Total remediation: every diagnostic has a default hint (exhaustive
+    /// match — the compiler forces an entry for new variants), so no
+    /// envelope can ship without actionable recovery. Constructor-specific
+    /// hints override this.
+    pub fn default_hint(self) -> &'static str {
+        match self {
+            Self::IoOpenFailed => "check that the file path exists and is readable",
+            Self::ParseFailed => "the file could not be parsed; ensure it is UTF-8 Markdown",
+            Self::FrontmatterParseFailed => {
+                "fix the frontmatter syntax between the opening and closing delimiters (--- for YAML, +++ for TOML)"
+            }
+            Self::HeadingNotFound => "run `md outline --json <FILE>` to list current headings",
+            Self::OccurrenceOutOfRange => "pass a 1-based occurrence within the reported match count",
+            Self::BlockIndexOutOfRange => "re-run `md blocks --json <FILE>` for current block indices",
+            Self::DuplicateHeadingMatch => "pass a 1-based occurrence flag to pick one match",
+            Self::InvalidSelector => {
+                "check the selector: occurrences are 1-based, and :preamble takes no occurrence or --contains"
+            }
+            Self::InvalidUtf8OnStdin => "pipe UTF-8 content, or deliver it via --from <PATH>",
+            Self::InvalidKeyPath => "use dot-separated object keys, e.g. `md set meta.title <FILE> \"value\"`",
+            Self::FrontmatterFieldConflict => {
+                "inspect the current shape with `md frontmatter --json <FILE>`, then set the blocking key to an object first"
+            }
+            Self::NoTablesInDocument => "run `md blocks --json <FILE>` to inspect what block kinds the document has",
+            Self::TableNotATable => "run `md table --json <FILE>` to list the table blocks and their indices",
+            Self::ColumnNotFound => "pick a column from the available list, or re-run `md table --json <FILE>` for current headers",
+            Self::TableRowNotFound => "re-run `md table --json <FILE>` for current row indices",
+            Self::InvalidTableRow => "re-run `md table --json <FILE>` for the current column count and row shape",
+            Self::TaskItemNotFound => "re-run `md tasks --json <FILE>` for current task locs",
+            Self::NotATaskList => "re-run `md tasks --json <FILE>` for current task locs",
+            Self::InvalidTaskLoc => "re-run `md tasks --json <FILE>` for current task locs",
+            Self::EtagMismatch => "re-read the target with the matching md read command for a fresh etag, then retry",
+            Self::EtagAmbiguous => {
+                "identical duplicates share this etag; edit one first so the fingerprints diverge, or retry without --expect-etag after a re-read"
+            }
+            Self::MultiFileFailure => "see the per-file failures (NDJSON error rows, or the failures[] array) for each file's error",
+        }
+    }
+
     pub fn exit_code(self) -> MdExitCode {
         match self {
             Self::IoOpenFailed => MdExitCode::NotFound,
@@ -71,66 +127,6 @@ impl DiagnosticCode {
             Self::MultiFileFailure => MdExitCode::NotFound,
         }
     }
-
-    /// Compiler-enforced variant ordinal: adding a DiagnosticCode variant
-    /// fails to compile here until it is given an ordinal, and the errors.rs
-    /// unit test then fails until ALL includes it. Keeps ALL from silently
-    /// missing future variants.
-    pub fn ordinal(self) -> usize {
-        match self {
-            Self::IoOpenFailed => 0,
-            Self::ParseFailed => 1,
-            Self::FrontmatterParseFailed => 2,
-            Self::HeadingNotFound => 3,
-            Self::OccurrenceOutOfRange => 4,
-            Self::BlockIndexOutOfRange => 5,
-            Self::DuplicateHeadingMatch => 6,
-            Self::InvalidSelector => 7,
-            Self::InvalidUtf8OnStdin => 8,
-            Self::InvalidKeyPath => 9,
-            Self::FrontmatterFieldConflict => 10,
-            Self::NoTablesInDocument => 11,
-            Self::TableNotATable => 12,
-            Self::ColumnNotFound => 13,
-            Self::TableRowNotFound => 14,
-            Self::InvalidTableRow => 15,
-            Self::TaskItemNotFound => 16,
-            Self::NotATaskList => 17,
-            Self::InvalidTaskLoc => 18,
-            Self::EtagMismatch => 19,
-            Self::EtagAmbiguous => 20,
-            Self::MultiFileFailure => 21,
-        }
-    }
-
-    pub const VARIANT_COUNT: usize = 22;
-
-    /// Every variant, for the `md schema` diagnostic table and its
-    /// exhaustiveness test.
-    pub const ALL: &'static [DiagnosticCode] = &[
-        Self::IoOpenFailed,
-        Self::ParseFailed,
-        Self::FrontmatterParseFailed,
-        Self::HeadingNotFound,
-        Self::OccurrenceOutOfRange,
-        Self::BlockIndexOutOfRange,
-        Self::DuplicateHeadingMatch,
-        Self::InvalidSelector,
-        Self::InvalidUtf8OnStdin,
-        Self::InvalidKeyPath,
-        Self::FrontmatterFieldConflict,
-        Self::NoTablesInDocument,
-        Self::TableNotATable,
-        Self::ColumnNotFound,
-        Self::TableRowNotFound,
-        Self::InvalidTableRow,
-        Self::TaskItemNotFound,
-        Self::NotATaskList,
-        Self::InvalidTaskLoc,
-        Self::EtagMismatch,
-        Self::EtagAmbiguous,
-        Self::MultiFileFailure,
-    ];
 }
 
 /// The role a section selector was playing when it failed, so adapters can
@@ -425,10 +421,17 @@ impl CommandError {
                 noun, expected, count, noun
             ),
         )
-        .with_hint(format!(
-            "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by occurrence/index WITHOUT --expect-etag",
-            count, noun
-        ))
+        .with_hint(if noun == "task" {
+            format!(
+                "{} identical task lines share this etag and locs already pin position; re-run `md tasks --json`, confirm the intended loc, then retry without --expect-etag or edit one duplicate first",
+                count
+            )
+        } else {
+            format!(
+                "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by occurrence/index WITHOUT --expect-etag",
+                count, noun
+            )
+        })
         .with_context(ErrorContext {
             expected_etag: Some(expected.to_string()),
             total_matches: Some(count),
@@ -586,7 +589,13 @@ impl From<&CommandError> for ErrorInfo {
             code: e.code,
             exit_code: e.exit_code as u8,
             message: e.message.clone(),
-            hint: e.hint.clone(),
+            // Remediation is TOTAL on the wire: constructor hints win, and
+            // every remaining diagnostic falls back to its typed default.
+            hint: Some(
+                e.hint
+                    .clone()
+                    .unwrap_or_else(|| e.code.default_hint().to_string()),
+            ),
             context: e.context.clone(),
         }
     }
@@ -617,14 +626,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_covers_every_variant_exactly_once() {
-        assert_eq!(DiagnosticCode::ALL.len(), DiagnosticCode::VARIANT_COUNT);
-        let mut seen = vec![false; DiagnosticCode::VARIANT_COUNT];
+    fn every_diagnostic_has_nonempty_default_remediation() {
         for code in DiagnosticCode::ALL {
-            let ordinal = code.ordinal();
-            assert!(!seen[ordinal], "duplicate in ALL: {:?}", code);
-            seen[ordinal] = true;
+            assert!(
+                !code.default_hint().trim().is_empty(),
+                "{:?} has an empty default hint",
+                code
+            );
         }
-        assert!(seen.iter().all(|s| *s), "ALL is missing a variant");
+    }
+
+    #[test]
+    fn error_info_hint_is_always_present() {
+        let bare = CommandError::new(DiagnosticCode::FrontmatterParseFailed, "boom");
+        let info = ErrorInfo::from(&bare);
+        assert!(info.hint.is_some(), "wire hint must be total");
     }
 }
