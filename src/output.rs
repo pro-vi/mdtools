@@ -128,15 +128,39 @@ pub fn write_file_atomic(path: &std::path::Path, content: &str) -> std::io::Resu
     ));
 
     let result = (|| {
-        // create_new refuses existing files AND symlinks (dangling or not).
-        let mut tmp = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&tmp_path)?;
-        // Restrict before writing a single byte.
-        std::fs::set_permissions(&tmp_path, original_perms.clone())?;
+        // create_new refuses existing files AND symlinks (dangling or not);
+        // on unix the file is BORN 0600 (no umask window an observer could
+        // exploit by opening the fd before a later chmod).
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut tmp = opts.open(&tmp_path)?;
+        // Apply the original's bits through the HANDLE (fchmod), never the
+        // pathname, before writing a single byte.
+        tmp.set_permissions(original_perms.clone())?;
         tmp.write_all(content.as_bytes())?;
         tmp.sync_all()?;
+        // Bind the rename to the inode we actually wrote: if the directory
+        // entry was substituted underneath us, refuse rather than install
+        // an attacker's file at the target. (The residual check→rename gap
+        // is unavoidable with std's pathname rename; this narrows it to
+        // nanoseconds and makes silent substitution detectable.)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let handle_meta = tmp.metadata()?;
+            let entry_meta = std::fs::symlink_metadata(&tmp_path)?;
+            if handle_meta.dev() != entry_meta.dev() || handle_meta.ino() != entry_meta.ino() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "temp file directory entry was substituted during write; aborting mutation",
+                ));
+            }
+        }
         drop(tmp);
         std::fs::rename(&tmp_path, &target)
     })();
