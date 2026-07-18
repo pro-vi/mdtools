@@ -72,6 +72,39 @@ impl DiagnosticCode {
         }
     }
 
+    /// Compiler-enforced variant ordinal: adding a DiagnosticCode variant
+    /// fails to compile here until it is given an ordinal, and the errors.rs
+    /// unit test then fails until ALL includes it. Keeps ALL from silently
+    /// missing future variants.
+    pub fn ordinal(self) -> usize {
+        match self {
+            Self::IoOpenFailed => 0,
+            Self::ParseFailed => 1,
+            Self::FrontmatterParseFailed => 2,
+            Self::HeadingNotFound => 3,
+            Self::OccurrenceOutOfRange => 4,
+            Self::BlockIndexOutOfRange => 5,
+            Self::DuplicateHeadingMatch => 6,
+            Self::InvalidSelector => 7,
+            Self::InvalidUtf8OnStdin => 8,
+            Self::InvalidKeyPath => 9,
+            Self::FrontmatterFieldConflict => 10,
+            Self::NoTablesInDocument => 11,
+            Self::TableNotATable => 12,
+            Self::ColumnNotFound => 13,
+            Self::TableRowNotFound => 14,
+            Self::InvalidTableRow => 15,
+            Self::TaskItemNotFound => 16,
+            Self::NotATaskList => 17,
+            Self::InvalidTaskLoc => 18,
+            Self::EtagMismatch => 19,
+            Self::EtagAmbiguous => 20,
+            Self::MultiFileFailure => 21,
+        }
+    }
+
+    pub const VARIANT_COUNT: usize = 22;
+
     /// Every variant, for the `md schema` diagnostic table and its
     /// exhaustiveness test.
     pub const ALL: &'static [DiagnosticCode] = &[
@@ -106,6 +139,17 @@ impl DiagnosticCode {
 pub const ROLE_TARGET: &str = "target";
 pub const ROLE_SOURCE: &str = "source";
 pub const ROLE_DESTINATION: &str = "destination";
+
+/// The occurrence flag that actually exists for each selector role
+/// (move-section uses --source-occurrence / --dest-occurrence; plain
+/// --occurrence does not exist there).
+fn occurrence_flag_for(role: &str) -> &'static str {
+    match role {
+        r if r == ROLE_SOURCE => "--source-occurrence",
+        r if r == ROLE_DESTINATION => "--dest-occurrence",
+        _ => "--occurrence",
+    }
+}
 
 const MATCHES_CAP: usize = 20;
 
@@ -228,8 +272,9 @@ impl CommandError {
             ),
         )
         .with_hint(format!(
-            "the document has {} matching heading(s); pass a 1-based occurrence within range",
-            matches.len()
+            "the document has {} matching heading(s); pass a 1-based {} within range",
+            matches.len(),
+            occurrence_flag_for(role)
         ))
         .with_context(ErrorContext {
             role: Some(role),
@@ -276,7 +321,10 @@ impl CommandError {
                 heading, count
             ),
         )
-        .with_hint("pass a 1-based --occurrence to pick one match")
+        .with_hint(format!(
+            "pass a 1-based {} to pick one match",
+            occurrence_flag_for(role)
+        ))
         .with_context(ctx)
     }
 
@@ -285,6 +333,7 @@ impl CommandError {
             DiagnosticCode::InvalidKeyPath,
             format!("invalid key path '{}': {}", key, reason),
         )
+        .with_hint("use dot-separated object keys, e.g. `md set meta.title <FILE> \"value\"`")
     }
 
     pub fn no_tables() -> Self {
@@ -292,6 +341,7 @@ impl CommandError {
             DiagnosticCode::NoTablesInDocument,
             "no tables found in document",
         )
+        .with_hint("run `md blocks --json <FILE>` to inspect what block kinds the document has")
     }
 
     pub fn table_not_found(index: u32) -> Self {
@@ -299,6 +349,7 @@ impl CommandError {
             DiagnosticCode::TableNotATable,
             format!("block {} is not a table", index),
         )
+        .with_hint("run `md table --json <FILE>` to list the table blocks and their indices")
     }
 
     pub fn column_not_found(name: &str, headers: &[String]) -> Self {
@@ -310,6 +361,7 @@ impl CommandError {
                 headers.join(", ")
             ),
         )
+        .with_hint("pick a column from the available list in the message, or re-run `md table --json <FILE>` for current headers")
     }
 
     pub fn table_row_not_found(block_index: u32, row_index: u32, row_count: u32) -> Self {
@@ -325,6 +377,7 @@ impl CommandError {
 
     pub fn invalid_table_row(message: impl Into<String>) -> Self {
         Self::new(DiagnosticCode::InvalidTableRow, message)
+            .with_hint("re-run `md table --json <FILE>` for the current column count and row shape")
     }
 
     pub fn task_item_not_found(loc: &str) -> Self {
@@ -344,6 +397,7 @@ impl CommandError {
             DiagnosticCode::NotATaskList,
             format!("block {} has no task items", block_index),
         )
+        .with_hint("re-run `md tasks --json <FILE>` for current task locs")
     }
 
     pub fn invalid_task_loc(loc: &str) -> Self {
@@ -366,13 +420,13 @@ impl CommandError {
             DiagnosticCode::EtagAmbiguous,
             format!(
                 "{} etag {:?} is ambiguous: {} same-content {}s share this fingerprint \
-                 (a content match cannot prove identity; re-query and disambiguate by \
-                 occurrence or index before mutating)",
+                 (a content match cannot prove identity, and the guard will keep failing \
+                 while the duplicates are byte-identical)",
                 noun, expected, count, noun
             ),
         )
         .with_hint(format!(
-            "{} identical {}s share this etag; re-query and target one explicitly by occurrence/index",
+            "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by occurrence/index WITHOUT --expect-etag",
             count, noun
         ))
         .with_context(ErrorContext {
@@ -495,6 +549,7 @@ impl CommandError {
             DiagnosticCode::FrontmatterFieldConflict,
             format!("cannot set '{}': '{}' is not an object", key, blocker),
         )
+        .with_hint("run `md frontmatter --json <FILE>` to inspect the current shape, then set the blocking key to an object first or choose a different key path")
     }
 }
 
@@ -555,4 +610,21 @@ pub fn error_envelope_json(e: &CommandError, file: Option<&str>) -> Option<Strin
         error: ErrorInfo::from(e),
     })
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_covers_every_variant_exactly_once() {
+        assert_eq!(DiagnosticCode::ALL.len(), DiagnosticCode::VARIANT_COUNT);
+        let mut seen = vec![false; DiagnosticCode::VARIANT_COUNT];
+        for code in DiagnosticCode::ALL {
+            let ordinal = code.ordinal();
+            assert!(!seen[ordinal], "duplicate in ALL: {:?}", code);
+            seen[ordinal] = true;
+        }
+        assert!(seen.iter().all(|s| *s), "ALL is missing a variant");
+    }
 }

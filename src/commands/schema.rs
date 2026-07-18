@@ -70,7 +70,11 @@ struct CommandInfo {
 #[derive(Serialize)]
 struct DiagnosticInfo {
     code: DiagnosticCode,
+    /// For dynamic_exit codes this is the FLOOR; the actual exit is computed
+    /// at runtime (multi_file_failure exits with the worst per-file code).
     exit_code: u8,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    dynamic_exit: bool,
 }
 
 #[derive(Serialize)]
@@ -137,6 +141,7 @@ fn build_schema() -> SchemaResult {
         .map(|c| DiagnosticInfo {
             code: *c,
             exit_code: c.exit_code() as u8,
+            dynamic_exit: matches!(c, DiagnosticCode::MultiFileFailure),
         })
         .collect();
 
