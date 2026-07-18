@@ -236,7 +236,7 @@ Guarded mutations fail closed: `--expect-etag` protects `set`, the single-target
 
 ### Structured errors and self-description
 
-Under `--json`, failures emit one structured error envelope on stdout (stderr keeps the human text, exit codes are unchanged), so `md ... --json | jq -e .error` is a branchable pipeline step:
+Once arguments parse, failures under `--json` emit one structured error envelope on stdout (stderr keeps the human text, exit codes are unchanged), so `md ... --json | jq -e .error` is a branchable pipeline step. Two documented boundaries: clap usage errors (unknown flags, missing arguments) exit `2` with plain text on stderr and EMPTY stdout — distinguishable from an envelope by the absence of stdout JSON, and colliding with `ParseError`'s exit `2` only in that text-mode form; and `multi_file_failure`'s exit code is dynamic (the worst per-file code — the value in `md schema` is its floor).
 
 ```json
 {
