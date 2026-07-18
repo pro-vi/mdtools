@@ -2144,3 +2144,75 @@ fn move_section_etag_matching_guards_move_exact_indentation_auto_level() {
     assert_eq!(updated, "# Doc\n\n## Dest\nbody d\n  ## Source\nbody s\n\n");
     std::fs::remove_file(&tmp).unwrap();
 }
+
+// --- U5: role-correct occurrence remediation for move-section selectors ---
+
+#[test]
+fn move_section_duplicate_source_recommends_source_occurrence() {
+    let tmp = tempfile("# Root\n\n## Dup\n\nx\n\n## Dup\n\ny\n\n## Dest\n\nz\n");
+    let out = md()
+        .args([
+            "move-section",
+            "--into",
+            "Dest",
+            "Dup",
+            &tmp,
+            "-i",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let v: serde_json::Value = serde_json::from_str(
+        String::from_utf8(out.stdout)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(v["error"]["code"], "duplicate_heading_match");
+    assert_eq!(v["error"]["context"]["role"], "source");
+    let hint = v["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--source-occurrence"),
+        "source role must advise --source-occurrence: {hint}"
+    );
+    assert!(
+        !hint.contains("--dest-occurrence"),
+        "must not advise the destination flag: {hint}"
+    );
+}
+
+#[test]
+fn move_section_duplicate_destination_recommends_dest_occurrence() {
+    let tmp = tempfile("# Root\n\n## Src\n\nx\n\n## Dest\n\na\n\n## Dest\n\nb\n");
+    let out = md()
+        .args([
+            "move-section",
+            "--into",
+            "Dest",
+            "Src",
+            &tmp,
+            "-i",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let v: serde_json::Value = serde_json::from_str(
+        String::from_utf8(out.stdout)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(v["error"]["code"], "duplicate_heading_match");
+    assert_eq!(v["error"]["context"]["role"], "destination");
+    let hint = v["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--dest-occurrence"),
+        "destination role must advise --dest-occurrence: {hint}"
+    );
+}

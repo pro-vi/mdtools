@@ -47,8 +47,13 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.ignore_case,
     )?;
 
-    let source_section = find_section_as(&doc, &source_selector, crate::errors::ROLE_SOURCE)?;
-    let dest_section = find_section_as(&doc, &dest_selector, crate::errors::ROLE_DESTINATION)?;
+    let source_section =
+        find_section_as(&doc, &source_selector, crate::errors::SelectorRole::Source)?;
+    let dest_section = find_section_as(
+        &doc,
+        &dest_selector,
+        crate::errors::SelectorRole::Destination,
+    )?;
 
     verify_expected_etag_unique(
         args.expect_source_etag.as_deref(),

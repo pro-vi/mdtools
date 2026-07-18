@@ -254,7 +254,8 @@ pub fn build_selector(
         return Err(CommandError::new(
             DiagnosticCode::InvalidSelector,
             "empty selector cannot be used with --contains",
-        ));
+        )
+        .with_hint("pass a non-empty heading substring with --contains, or drop --contains for an exact match"));
     }
 
     // Occurrence is a 1-based contract; 0 must never silently select the
@@ -272,12 +273,14 @@ pub fn build_selector(
             Err(CommandError::new(
                 DiagnosticCode::InvalidSelector,
                 "--contains cannot be used with :preamble",
-            ))
+            )
+            .with_hint("use :preamble alone to select content before the first heading, or a heading selector with --contains"))
         } else if occurrence.is_some() {
             Err(CommandError::new(
                 DiagnosticCode::InvalidSelector,
                 ":preamble is unique; occurrence cannot be used with it",
-            ))
+            )
+            .with_hint("drop the occurrence flag: :preamble selects the single pre-heading region"))
         } else {
             Ok(SectionSelector {
                 kind: SectionSelectorKind::Preamble,
@@ -305,7 +308,7 @@ pub fn find_section(
     doc: &ParsedDocument,
     selector: &SectionSelector,
 ) -> Result<SectionEntry, CommandError> {
-    find_section_as(doc, selector, crate::errors::ROLE_TARGET)
+    find_section_as(doc, selector, crate::errors::SelectorRole::Target)
 }
 
 /// Like find_section, but selector errors carry `role` so adapters can
@@ -314,7 +317,7 @@ pub fn find_section(
 pub fn find_section_as(
     doc: &ParsedDocument,
     selector: &SectionSelector,
-    role: &'static str,
+    role: crate::errors::SelectorRole,
 ) -> Result<SectionEntry, CommandError> {
     match selector.kind {
         SectionSelectorKind::Preamble => find_preamble(doc),
@@ -387,7 +390,7 @@ fn find_heading_section(
     doc: &ParsedDocument,
     heading_text: &str,
     selector: &SectionSelector,
-    role: &'static str,
+    role: crate::errors::SelectorRole,
 ) -> Result<SectionEntry, CommandError> {
     // Find all matching headings
     let matches: Vec<_> = doc

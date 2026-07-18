@@ -79,8 +79,11 @@ impl DiagnosticCode {
             Self::OccurrenceOutOfRange => "pass a 1-based occurrence within the reported match count",
             Self::BlockIndexOutOfRange => "re-run `md blocks --json <FILE>` for current block indices",
             Self::DuplicateHeadingMatch => "pass a 1-based occurrence flag to pick one match",
+            // Domain-NEUTRAL: invalid_selector is shared by section, table, and
+            // move-section. Each construction attaches a domain-specific hint;
+            // this fallback must not assume any one command's vocabulary.
             Self::InvalidSelector => {
-                "check the selector: occurrences are 1-based, and :preamble takes no occurrence or --contains"
+                "the selector is not valid for this command; re-check the accepted selector forms in the command's usage"
             }
             Self::InvalidUtf8OnStdin => "pipe UTF-8 content, or deliver it via --from <PATH>",
             Self::InvalidKeyPath => "use dot-separated object keys, e.g. `md set meta.title <FILE> \"value\"`",
@@ -131,19 +134,35 @@ impl DiagnosticCode {
 
 /// The role a section selector was playing when it failed, so adapters can
 /// recommend the right disambiguation flag (`--occurrence` vs
-/// `--source-occurrence` vs `--dest-occurrence`).
-pub const ROLE_TARGET: &str = "target";
-pub const ROLE_SOURCE: &str = "source";
-pub const ROLE_DESTINATION: &str = "destination";
+/// `--source-occurrence` vs `--dest-occurrence`). A CLOSED enum: the role can
+/// only ever be one of these three, so a typo can't silently produce
+/// target-flavored advice for a source/destination selector.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectorRole {
+    Target,
+    Source,
+    Destination,
+}
 
-/// The occurrence flag that actually exists for each selector role
-/// (move-section uses --source-occurrence / --dest-occurrence; plain
-/// --occurrence does not exist there).
-fn occurrence_flag_for(role: &str) -> &'static str {
-    match role {
-        r if r == ROLE_SOURCE => "--source-occurrence",
-        r if r == ROLE_DESTINATION => "--dest-occurrence",
-        _ => "--occurrence",
+impl SelectorRole {
+    /// Wire value carried in ErrorContext.role.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Target => "target",
+            Self::Source => "source",
+            Self::Destination => "destination",
+        }
+    }
+
+    /// The occurrence flag that actually exists for this role (move-section uses
+    /// --source-occurrence / --dest-occurrence; plain --occurrence does not
+    /// exist there).
+    fn occurrence_flag(self) -> &'static str {
+        match self {
+            Self::Target => "--occurrence",
+            Self::Source => "--source-occurrence",
+            Self::Destination => "--dest-occurrence",
+        }
     }
 }
 
@@ -236,17 +255,17 @@ impl CommandError {
     }
 
     pub fn not_found_heading(heading: &str) -> Self {
-        Self::not_found_heading_as(heading, ROLE_TARGET)
+        Self::not_found_heading_as(heading, SelectorRole::Target)
     }
 
-    pub fn not_found_heading_as(heading: &str, role: &'static str) -> Self {
+    pub fn not_found_heading_as(heading: &str, role: SelectorRole) -> Self {
         Self::new(
             DiagnosticCode::HeadingNotFound,
             format!("heading not found: {}", heading),
         )
         .with_hint("run `md outline --json <FILE>` to list current headings")
         .with_context(ErrorContext {
-            role: Some(role),
+            role: Some(role.as_str()),
             total_matches: Some(0),
             ..ErrorContext::default()
         })
@@ -256,7 +275,7 @@ impl CommandError {
         heading: &str,
         requested: u32,
         matches: &[MatchRef],
-        role: &'static str,
+        role: SelectorRole,
     ) -> Self {
         Self::new(
             DiagnosticCode::OccurrenceOutOfRange,
@@ -270,10 +289,10 @@ impl CommandError {
         .with_hint(format!(
             "the document has {} matching heading(s); pass a 1-based {} within range",
             matches.len(),
-            occurrence_flag_for(role)
+            role.occurrence_flag()
         ))
         .with_context(ErrorContext {
-            role: Some(role),
+            role: Some(role.as_str()),
             requested_occurrence: Some(requested),
             total_matches: Some(matches.len()),
             matches: Some(ErrorContext::capped_matches(matches)),
@@ -293,17 +312,17 @@ impl CommandError {
     }
 
     pub fn duplicate_heading(heading: &str, count: usize) -> Self {
-        Self::duplicate_heading_as(heading, count, &[], ROLE_TARGET)
+        Self::duplicate_heading_as(heading, count, &[], SelectorRole::Target)
     }
 
     pub fn duplicate_heading_as(
         heading: &str,
         count: usize,
         matches: &[MatchRef],
-        role: &'static str,
+        role: SelectorRole,
     ) -> Self {
         let mut ctx = ErrorContext {
-            role: Some(role),
+            role: Some(role.as_str()),
             total_matches: Some(count),
             ..ErrorContext::default()
         };
@@ -319,7 +338,7 @@ impl CommandError {
         )
         .with_hint(format!(
             "pass a 1-based {} to pick one match",
-            occurrence_flag_for(role)
+            role.occurrence_flag()
         ))
         .with_context(ctx)
     }
@@ -462,17 +481,23 @@ impl CommandError {
     }
 
     pub fn section_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
-        Self::section_etag_mismatch_for("section", ROLE_TARGET, selector, expected, actual)
+        Self::section_etag_mismatch_for("section", SelectorRole::Target, selector, expected, actual)
     }
 
     pub fn move_section_source_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
-        Self::section_etag_mismatch_for("source section", ROLE_SOURCE, selector, expected, actual)
+        Self::section_etag_mismatch_for(
+            "source section",
+            SelectorRole::Source,
+            selector,
+            expected,
+            actual,
+        )
     }
 
     pub fn move_section_dest_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
         Self::section_etag_mismatch_for(
             "destination section",
-            ROLE_DESTINATION,
+            SelectorRole::Destination,
             selector,
             expected,
             actual,
@@ -481,13 +506,13 @@ impl CommandError {
 
     fn section_etag_mismatch_for(
         noun: &str,
-        role: &'static str,
+        role: SelectorRole,
         selector: &str,
         expected: &str,
         actual: &str,
     ) -> Self {
         let mut ctx = Self::etag_ctx(expected, actual);
-        ctx.role = Some(role);
+        ctx.role = Some(role.as_str());
         Self::new(
             DiagnosticCode::EtagMismatch,
             format!(

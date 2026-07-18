@@ -1439,3 +1439,68 @@ fn table_tsv_consistent_columns() {
     // All lines should have the same number of tabs
     assert!(tab_counts.windows(2).all(|w| w[0] == w[1]));
 }
+
+// --- U5: domain-correct remediation for the overloaded invalid_selector ---
+
+#[test]
+fn multi_table_selection_hint_is_table_domain_not_section() {
+    // A document with multiple tables + a --select but no --index yields
+    // invalid_selector. Its hint must talk about --index/tables, NEVER the
+    // section vocabulary (occurrences / :preamble) it once fell back to.
+    let out = md()
+        .args([
+            "table",
+            "tests/fixtures/table_multi.md",
+            "--select",
+            "Task",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let v: serde_json::Value = serde_json::from_str(stdout.lines().next().unwrap()).unwrap();
+    assert_eq!(v["error"]["code"], "invalid_selector");
+    let hint = v["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--index"),
+        "table hint must point at --index: {hint}"
+    );
+    assert!(
+        !hint.contains(":preamble"),
+        "table hint must not mention section :preamble: {hint}"
+    );
+    assert!(
+        !hint.contains("occurrence"),
+        "table hint must not mention heading occurrence: {hint}"
+    );
+}
+
+#[test]
+fn invalid_where_filter_hint_is_table_domain() {
+    let out = md()
+        .args([
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--where",
+            "not a filter",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let v: serde_json::Value = serde_json::from_str(stdout.lines().next().unwrap()).unwrap();
+    assert_eq!(v["error"]["code"], "invalid_selector");
+    let hint = v["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("col=val") || hint.contains("--where"),
+        "filter hint must describe filter syntax: {hint}"
+    );
+    assert!(
+        !hint.contains(":preamble"),
+        "filter hint must not mention section :preamble: {hint}"
+    );
+}
