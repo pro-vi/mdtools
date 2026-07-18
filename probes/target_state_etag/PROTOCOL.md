@@ -1,137 +1,178 @@
-# Target-State Etag Authority Protocol
+# Target-State Etag Deterministic Manifest Protocol
 
 Date locked: 2026-07-18
 
 ## Scope
 
-This probe is a review-only scaffold for comparing four stateless authority
-candidates against the read projections that mdtools already exposes through
-`md ... --json`.
+This probe is a complete static specification for a local-only experiment that
+compares four stateless candidates:
 
-Authoritative projection surfaces for this probe:
+- `content_only`
+- `target_local`
+- `ambiguity_reject`
+- `document_target_state`
 
-- `md blocks FILE --json` -> `blocks[*]` with `index`, `span`, `etag`, and exact
-  block bytes recoverable from the source slice.
-- `md section SELECTOR FILE --json` -> `section` plus `content`, selector
-  metadata, heading metadata, `span`, and `etag`.
-- `md table FILE --json` and `md table FILE --index N --json` -> table list/read
-  descriptors with `block_index`, `span`, `etag`, `headers`, and row/column data.
-- `md tasks FILE --json` -> `results[*].tasks[*]` with `loc`, `child_path`,
-  `span`, `etag`, `summary_text`, and nearest-heading context.
+The mutable probe surface for this run is limited to:
 
-Frontmatter is out of scope. `md frontmatter --json` owns a whole-frontmatter
-state token already, and this probe must not reinterpret or replace it.
+- `probes/target_state_etag/PROTOCOL.md`
+- `probes/target_state_etag/cases.json`
+- `probes/target_state_etag/probe.py`
 
-## Hypothesis
+This run is source-only. Do not execute or import `probe.py`, do not parse
+`cases.json` through the probe, and do not author result artifacts in this run.
 
-`document_target_state` is the only stateless candidate that can reject copied or
-shifted wrong-identity substitutions across block, section, table, and task
-surfaces while still accepting unchanged rereads, exact-byte reversion, CRLF
-bytes, and multibyte UTF-8 bytes when descriptors come from actual mdtools
-projections.
+## Read Authority
 
-## Candidate Framing
+All descriptor authority must come from live `md ... --json` read commands over
+the observed and current documents materialized from `cases.json`. The runner
+must not embed projection snapshots, invent a handwritten Markdown parser, or
+substitute filesystem metadata for descriptor authority.
 
-All candidates must use explicit domain separation and unambiguous length framing.
-The framing notation below is descriptive, not yet executable:
+### Block
 
-- `content_only`:
-  `content_only\0surface\0u32(len(target_bytes))\0target_bytes`
-- `target_local`:
-  `target_local\0surface\0u32(len(locator_descriptor))\0locator_descriptor\0u32(len(target_bytes))\0target_bytes`
-- `ambiguity_reject`:
-  `ambiguity_reject\0surface\0u32(len(target_bytes))\0target_bytes\0u32(len(current_match_set))\0current_match_set`
-- `document_target_state`:
-  `document_target_state\0surface\0u32(len(locator_descriptor))\0locator_descriptor\0u32(len(target_bytes))\0target_bytes\0u32(len(document_bytes))\0document_bytes`
+- Target query command: `md blocks FILE --json`
+- Query key: zero-based `block_index`
+- Exact target bytes: source slice at `blocks[block_index].span`
+- Canonical descriptor: `{ "kind", "index", "span" }`
+- Current-domain query: `md blocks FILE --json`
 
-Locator descriptors must be taken from the real projection surface for the target:
+### Section
 
-- block: `index` plus `span`
-- section: selector metadata plus heading metadata plus `span`
-- table: `block_index` plus `span`
-- task: `loc` plus `child_path` plus `span`
+- Target query command:
+  `md section SELECTOR FILE [--occurrence N] [--contains] [--ignore-case] --json`
+- Query keys: `selector`, optional one-based `occurrence`, `contains`,
+  `ignore_case`
+- Exact target bytes: returned `content`
+- Canonical descriptor:
+  `{ "kind", "selector", "heading", "depth", "block_indices", "span" }`
+- Current-domain query:
+  `md section SELECTOR FILE --occurrence N --json`, enumerating one-based
+  occurrences until the command stops resolving a match
 
-## Minimum Experiment
+### Table
 
-1. Read the target only through the projection authority above.
-2. Materialize the exact document bytes declared in `cases.json`.
-3. Evaluate each candidate against the case's observed target and candidate
-   document state without inventing a shadow parser.
-4. Record both the candidate decision (`accept` or `reject`) and whether that
-   decision deserves credit.
+- Target query command: `md table FILE --index BLOCK_INDEX --json`
+- Query key: `block_index`
+- Exact target bytes: source slice at returned `span`
+- Canonical descriptor: `{ "block_index", "span", "headers" }`
+- Current-domain query: `md table FILE --json`
 
-## Disconfirming Evidence
+### Task
 
-The hypothesis is false if any of the following occurs:
+- Target query command: `md tasks FILE --json`
+- Query keys: zero-based `result_index` and zero-based `task_index`
+- Exact target bytes: source slice at
+  `results[result_index].tasks[task_index].span`
+- Canonical descriptor:
+  `{ "loc", "block_index", "child_path", "task_index", "depth", "nearest_heading", "nearest_heading_block_index", "span" }`
+- Current-domain query: `md tasks FILE --json`
 
-- `content_only`, `target_local`, or `ambiguity_reject` rejects every wrong
-  identity case in the manifest without adding hidden state.
-- `document_target_state` accepts the wrong target in a copied-token or
-  same-locator substitution.
-- `document_target_state` cannot be reconstructed from actual mdtools
-  projections plus exact document bytes.
-- Any candidate fails unchanged reread, exact-byte reversion, CRLF, or multibyte
-  UTF-8 cases for byte-identity reasons alone.
+Frontmatter is excluded. This probe does not reinterpret `md frontmatter`.
 
-## Required Scenarios
+## Manifest Contract
 
-The deterministic manifest must cover:
+`cases.json` is the deterministic manifest. Each case must carry:
 
-- unchanged reread
-- duplicate-content targets
-- copied-token substitution
-- same-locator substitution
-- unrelated edit conflict cost
-- exact-byte reversion
-- CRLF bytes
-- multibyte UTF-8 bytes
-- descriptor availability for block, section, table, and task projections
-
-The same-locator substitution case is special: if uniqueness returns after the
-wrong target occupies the same locator, `ambiguity_reject` and `target_local`
-must not receive credit for accepting that shifted identity.
-
-## Actual Projection Requirement
-
-Later authorized execution may only derive target descriptors from the live
-output of the commands listed in Scope. The probe must not substitute:
-
-- a handwritten Markdown parser
-- filesystem metadata
-- path-bound durable identity
-- nonces
-- hidden persistence
-
-## Security And Execution Boundary
-
-This run is static review only. The scaffold may describe later use of a local
-`md` binary, but it must not be executed, imported, or compiled during this run.
-Later authorized execution must remain local-only, use explicit paths, avoid
-network access, avoid environment-derived authority, avoid `shell=True`, and use
-ephemeral temporary files only.
-
-## Evidence Fields
-
-Each later measured row should record at least:
-
-- `case_id`
+- stable `case_id`
+- `case_class`
+- `identity_truth`
 - `surface`
-- `projection_command`
-- `locator_descriptor`
-- `target_bytes_utf8`
-- `document_bytes_utf8`
-- `candidate`
-- `decision`
-- `credit`
-- `reason`
+- `observed_document_utf8`
+- `current_document_utf8`
+- `observed_target_query`
+- `current_target_query`
+- `current_domain_query`
+- per-candidate expected `decision` and `credit`
 
-## Promotion / Demotion Rule
+Validation is mechanical and fail-closed:
 
-Promote a candidate only if it:
+- reject missing required keys
+- reject duplicate `case_id` values
+- reject case IDs that do not match `^[a-z0-9]+(?:-[a-z0-9]+)*$`
+- reject unknown `surface` values
+- reject unknown query `type` values
+- reject query shapes that do not match the declared `surface`
+- reject out-of-range block, table, result, or task indexes
+- reject section queries whose selector or occurrence inputs do not resolve
+- reject cases whose candidate matrix omits any of the four candidate names
 
-- accepts unchanged reread, exact-byte reversion, CRLF, and multibyte UTF-8
-- rejects every wrong-identity substitution case
-- uses only the declared stateless framing
+`observed_document_utf8` and `current_document_utf8` must use standard JSON
+escapes only. `json.load` must yield the exact LF, CRLF, and multibyte UTF-8
+text that the runner writes to disk. The runner must never apply a second escape
+decoder.
 
-Demote a candidate immediately on the first silent wrong-target accept, or if it
-depends on frontmatter state, hidden persistence, or a fifth hybrid authority.
+## Candidate Decision Rules
+
+For each case, the runner must:
+
+1. Materialize the observed and current document strings exactly as UTF-8.
+2. Resolve the observed target from the observed document using
+   `observed_target_query`.
+3. Resolve the current target from the current document using
+   `current_target_query`.
+4. Resolve the current domain from the current document using
+   `current_domain_query`.
+5. Count current exact-byte matches against the observed target bytes.
+
+The candidate decisions are:
+
+- `content_only`: accept when the current-domain match count is at least one.
+- `target_local`: accept when the current target bytes and canonical descriptor
+  both exactly match the observed target bytes and canonical descriptor.
+- `ambiguity_reject`: accept when the current-domain match count is exactly one.
+- `document_target_state`: accept when the current document bytes, current
+  target bytes, and current canonical descriptor all exactly match the observed
+  document bytes, target bytes, and canonical descriptor.
+
+Credits come from the manifest:
+
+- `correct`
+- `wrong_identity`
+- `false-conflict`
+
+## Load-Bearing Same-Locator Case
+
+The `same-locator` duplicate-shift case is mandatory and must fail
+mechanically unless all of the following are observed from real `md` output:
+
+- observed and current target exact bytes are equal
+- observed and current canonical block descriptors are equal
+- current ambiguity count is exactly one
+- observed and current whole-document bytes differ
+
+If any precondition is false, the runner must stop with a hard mechanical
+failure rather than silently scoring the case.
+
+## Required Case Matrix
+
+The manifest must contain exactly these ten case IDs:
+
+- `block-unchanged-reread`
+- `block-duplicate-cross-target-copy`
+- `block-same-locator-duplicate-shift`
+- `block-unrelated-edit-false-conflict`
+- `block-exact-byte-reversion`
+- `block-unchanged-crlf-bytes`
+- `block-unchanged-multibyte-utf8-bytes`
+- `section-unchanged-real-descriptor`
+- `table-unchanged-real-descriptor`
+- `task-unchanged-real-descriptor`
+
+Those ten cases encode the required scenario matrix:
+
+- unchanged block reread
+- static duplicate block cross-target copy
+- same-locator duplicate shift
+- unrelated edit after an unchanged target
+- exact-byte reversion
+- unchanged CRLF block bytes
+- unchanged multibyte UTF-8 block bytes
+- unchanged section descriptor from a real section command
+- unchanged table descriptor from a real table command
+- unchanged task descriptor from a real tasks command
+
+## Static Boundary
+
+Later local execution may use a repository-local `md` binary plus ephemeral
+temporary files only. It must remain local-only, use explicit paths, avoid
+network access, avoid environment-derived authority, and keep `shell=False`.
