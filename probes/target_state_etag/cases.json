@@ -85,6 +85,28 @@
       "scenario": "duplicate-content targets",
       "projection": {
         "command": "md section Alpha FILE --json",
+        "actual_md_json": {
+          "section": {
+            "kind": "Heading",
+            "heading": {
+              "level": 2,
+              "text": "Alpha",
+              "block_index": 1,
+              "span": {"line_start": 3, "line_end": 3, "byte_start": 7, "byte_end": 15}
+            },
+            "selector": {
+              "kind": "HeadingText",
+              "heading_text": "Alpha",
+              "occurrence": null,
+              "match_mode": "Exact"
+            },
+            "depth": 2,
+            "block_indices": [1, 2],
+            "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 29},
+            "etag": "4e002f3e5922060a"
+          },
+          "content": "## Alpha\\nShared body\\n\\n"
+        },
         "locator_descriptor": {
           "selector": {
             "kind": "HeadingText",
@@ -118,8 +140,29 @@
       "scenario": "copied-token substitution",
       "projection": {
         "command": "md tasks FILE --json",
+        "actual_md_json": {
+          "results": [
+            {
+              "tasks": [
+                {
+                  "loc": "1.0",
+                  "block_index": 1,
+                  "child_path": [0],
+                  "task_index": 0,
+                  "status": "pending",
+                  "depth": 0,
+                  "nearest_heading": "Sprint",
+                  "nearest_heading_block_index": 0,
+                  "span": {"line_start": 3, "line_end": 3, "byte_start": 10, "byte_end": 28},
+                  "etag": "b7f5dd01c44e4749",
+                  "summary_text": "Ship release"
+                }
+              ]
+            }
+          ]
+        },
         "locator_descriptor": {
-          "loc": "2.0",
+          "loc": "1.0",
           "child_path": [0],
           "span": {"line_start": 3, "line_end": 3, "byte_start": 10, "byte_end": 28},
           "nearest_heading": "Sprint"
@@ -142,6 +185,28 @@
       "scenario": "same-locator substitution",
       "projection": {
         "command": "md section Target FILE --json",
+        "actual_md_json": {
+          "section": {
+            "kind": "Heading",
+            "heading": {
+              "level": 2,
+              "text": "Target",
+              "block_index": 1,
+              "span": {"line_start": 3, "line_end": 3, "byte_start": 7, "byte_end": 16}
+            },
+            "selector": {
+              "kind": "HeadingText",
+              "heading_text": "Target",
+              "occurrence": null,
+              "match_mode": "Exact"
+            },
+            "depth": 2,
+            "block_indices": [1, 2],
+            "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 31},
+            "etag": "0c4063135e45df99"
+          },
+          "content": "## Target\\nowner: Alice\\n\\n"
+        },
         "locator_descriptor": {
           "selector": {
             "kind": "HeadingText",
@@ -175,6 +240,14 @@
       "scenario": "unrelated edit conflict cost",
       "projection": {
         "command": "md table FILE --index 1 --json",
+        "actual_md_json": {
+          "block_index": 1,
+          "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 51},
+          "etag": "802888d41db86948",
+          "headers": ["Name", "Value"],
+          "alignments": ["None", "None"],
+          "rows": [["Alpha", "1"]]
+        },
         "locator_descriptor": {
           "block_index": 1,
           "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 51},
@@ -243,6 +316,28 @@
       "scenario": "multibyte UTF-8 bytes",
       "projection": {
         "command": "md section CAFÉ FILE --ignore-case --json",
+        "actual_md_json": {
+          "section": {
+            "kind": "Heading",
+            "heading": {
+              "level": 2,
+              "text": "CAFÉ",
+              "block_index": 1,
+              "span": {"line_start": 3, "line_end": 3, "byte_start": 7, "byte_end": 15}
+            },
+            "selector": {
+              "kind": "HeadingText",
+              "heading_text": "CAFÉ",
+              "occurrence": null,
+              "match_mode": "ExactIgnoreCase"
+            },
+            "depth": 2,
+            "block_indices": [1, 2],
+            "span": {"line_start": 3, "line_end": 4, "byte_start": 7, "byte_end": 32},
+            "etag": "ec72a41d6718f496"
+          },
+          "content": "## CAFÉ\\nnaïve résumé\\n"
+        },
         "locator_descriptor": {
           "selector": {
             "kind": "HeadingText",
