@@ -14,7 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_CASES_PATH = SCRIPT_DIR / "cases.json"
+MANIFEST_PATH = SCRIPT_DIR / "cases.json"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -26,12 +26,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=Path,
         required=True,
         help="Path to the md binary that would supply projection authority later.",
-    )
-    parser.add_argument(
-        "--cases",
-        type=Path,
-        default=DEFAULT_CASES_PATH,
-        help="Deterministic case manifest. Defaults to the script-local manifest.",
     )
     parser.add_argument(
         "--output",
@@ -51,7 +45,7 @@ def build_plan(args: argparse.Namespace) -> dict[str, object]:
         return {
             "mode": "review-only-scaffold",
             "md_binary": str(args.md_binary),
-            "cases_path": str(args.cases),
+            "cases_path": str(MANIFEST_PATH),
             "output_path": str(args.output) if args.output else None,
             "check_path": str(args.check) if args.check else None,
             "ephemeral_workspace": tempdir,

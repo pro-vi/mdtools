@@ -86,8 +86,19 @@
       "projection": {
         "command": "md section Alpha FILE --json",
         "locator_descriptor": {
-          "selector": {"kind": "HeadingText", "heading_text": "Alpha", "match_mode": "Exact"},
-          "heading_text": "Alpha"
+          "selector": {
+            "kind": "HeadingText",
+            "heading_text": "Alpha",
+            "occurrence": null,
+            "match_mode": "Exact"
+          },
+          "heading": {
+            "level": 2,
+            "text": "Alpha",
+            "block_index": 1,
+            "span": {"line_start": 3, "line_end": 3, "byte_start": 7, "byte_end": 15}
+          },
+          "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 29}
         }
       },
       "observed_document_utf8": "# Doc\\n\\n## Alpha\\nShared body\\n\\n## Beta\\nShared body\\n",
@@ -110,6 +121,7 @@
         "locator_descriptor": {
           "loc": "2.0",
           "child_path": [0],
+          "span": {"line_start": 3, "line_end": 3, "byte_start": 10, "byte_end": 28},
           "nearest_heading": "Sprint"
         }
       },
@@ -131,8 +143,19 @@
       "projection": {
         "command": "md section Target FILE --json",
         "locator_descriptor": {
-          "selector": {"kind": "HeadingText", "heading_text": "Target", "match_mode": "Exact"},
-          "heading_text": "Target"
+          "selector": {
+            "kind": "HeadingText",
+            "heading_text": "Target",
+            "occurrence": null,
+            "match_mode": "Exact"
+          },
+          "heading": {
+            "level": 2,
+            "text": "Target",
+            "block_index": 1,
+            "span": {"line_start": 3, "line_end": 3, "byte_start": 7, "byte_end": 16}
+          },
+          "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 31}
         }
       },
       "observed_document_utf8": "# Doc\\n\\n## Target\\nowner: Alice\\n\\n## Archive\\nowner: Bob\\n",
@@ -154,6 +177,7 @@
         "command": "md table FILE --index 1 --json",
         "locator_descriptor": {
           "block_index": 1,
+          "span": {"line_start": 3, "line_end": 5, "byte_start": 7, "byte_end": 51},
           "headers": ["Name", "Value"]
         }
       },
@@ -223,9 +247,16 @@
           "selector": {
             "kind": "HeadingText",
             "heading_text": "CAFÉ",
+            "occurrence": null,
             "match_mode": "ExactIgnoreCase"
           },
-          "heading_text": "CAFÉ"
+          "heading": {
+            "level": 2,
+            "text": "CAFÉ",
+            "block_index": 1,
+            "span": {"line_start": 3, "line_end": 3, "byte_start": 7, "byte_end": 15}
+          },
+          "span": {"line_start": 3, "line_end": 4, "byte_start": 7, "byte_end": 32}
         }
       },
       "observed_document_utf8": "# Doc\\n\\n## CAFÉ\\nnaïve résumé\\n",
