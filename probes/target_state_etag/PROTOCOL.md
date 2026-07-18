@@ -323,6 +323,7 @@ Those ten cases encode the required scenario matrix:
 
 ## Static Boundary
 
-Later local execution may use a repository-local `md` binary plus ephemeral
-temporary files only. It must remain local-only, use explicit paths, avoid
-network access, avoid environment-derived authority, and keep `shell=False`.
+All authorized local execution uses a repository-local `md` binary plus
+ephemeral temporary files only. It remains local-only, uses explicit paths,
+avoids network access, avoids environment-derived authority, and keeps
+`shell=False`.
