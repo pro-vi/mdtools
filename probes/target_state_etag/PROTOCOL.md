@@ -12,13 +12,36 @@ compares four stateless candidates:
 - `ambiguity_reject`
 - `document_target_state`
 
-The mutable probe surface for this run is limited to:
+The original source-construction phase was source-only and limited authorship
+to `probes/target_state_etag/PROTOCOL.md` and
+`probes/target_state_etag/probe.py`. That phase did not authorize executing or
+importing `probe.py`, did not authorize parsing `cases.json` through the probe,
+and did not authorize authoring result artifacts.
 
-- `probes/target_state_etag/PROTOCOL.md`
-- `probes/target_state_etag/probe.py`
+A later separately authorized execution used hash-locked
+`probes/target_state_etag/probe.py`, `probes/target_state_etag/cases.json`, and
+the execution-time `probes/target_state_etag/PROTOCOL.md` to produce the
+committed canonical `probes/target_state_etag/results.json` and
+`probes/target_state_etag/RESULTS.md`.
 
-This run is source-only. Do not execute or import `probe.py`, do not parse
-`cases.json` through the probe, and do not author result artifacts in this run.
+Current local reproduction authority is non-mutating:
+
+- `cargo build --release`
+- `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
+
+Authorized regeneration is explicit and separate from reproduction:
+
+- `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
+- `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
+
+Regeneration is not an incidental read operation. Any authorized refresh must
+review the resulting byte diff and synchronize the ledger and protocol hashes
+before treating the regenerated JSON as canonical again.
+
+All authorized execution stays inside the local security boundary: use the
+repository-local `target/release/md` binary, explicit repository paths,
+ephemeral temporary files only, no network, no environment-derived authority,
+and `shell=False` subprocess execution.
 
 ## Read Authority
 
@@ -161,7 +184,18 @@ Credits come from the manifest:
 
 ## Aggregate Report Contract
 
-The canonical report remains a source-only JSON surface with:
+The canonical report is the deterministic JSON artifact at
+`probes/target_state_etag/results.json`, produced by the authorized output
+command and revalidated by the canonical check command. Each candidate has one
+global disposition across the required ten-case matrix, and any
+wrong-identity acceptance in any required case is sufficient to demote that
+global candidate. The block cases contain the wrong-target, duplicate, and
+same-locator identity challenges. The section, table, and task cases validate
+live descriptor reconstruction in unchanged state only and do not
+independently prove wrong-target identity on those surfaces. No per-surface
+candidate graduation or identity claim is made, and position-bound target identity is a separate focused architectural decision.
+
+The report must contain:
 
 - top-level `candidate_summary`
 - top-level `cases`
