@@ -8,11 +8,11 @@
 
 - `probes/target_state_etag/probe.py` SHA-256: `339185b1c0be604272b91e9c2edae896de290ce77ba0298d8d1306586fa32461`
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
-- execution-time `PROTOCOL.md` SHA-256: `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
+- execution-time PROTOCOL.md authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
 - current PROTOCOL.md SHA-256: `33af966231b641a2205d5e224d81993036414dab595fdcecb74b026ad0923adc`
 - Build command: `cargo build --release`
-- Output command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
-- Check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
+- Accepted output command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
+- Current non-mutating check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
 - `probes/target_state_etag/results.json` SHA-256: `68ea7de2aa473e4c746c08bbefc0a022beb9d84f53ebd4cd9ed6fcb1087b6b6e`
 
 ## Candidate Summary
@@ -29,9 +29,10 @@
 These verdicts are global candidate outcomes across the required ten-case
 matrix. Any wrong-identity acceptance in any required case is sufficient to
 demote that candidate globally. The block cases carry the wrong-target,
-duplicate, and same-locator identity challenges; the section, table, and task
-cases validate live descriptor reconstruction in unchanged state only and do
-not independently prove wrong-target identity on those surfaces.
+duplicate, and same-locator identity challenges and provide the block-surface
+counterexamples sufficient for global demotion. The unchanged section, table,
+and task cases prove live projection and descriptor reproducibility only; they
+do not independently prove wrong-target identity on those surfaces.
 
 - `overall` verdict: `no_candidate_graduates`
 - graduating candidates: none
