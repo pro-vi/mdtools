@@ -232,7 +232,26 @@ md set author.name doc.md "Jane" -i --expect-etag "$etag"
 
 Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later expose optimistic-concurrency fingerprints: `blocks`, `section`, `table`, and `tasks` expose per-target `etag`s, while `frontmatter` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata on both full and field-projection JSON reads.
 
-Guarded mutations fail closed: `--expect-etag` protects `set`, the single-target block/section/table/task mutation commands, and `move-section` accepts `--expect-source-etag` and `--expect-dest-etag`. On `set`, the guard checks the current whole frontmatter state before any mutation, no-op shortcut, stdout emission, or in-place write. On `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, releveling, splice construction, stdout emission, or in-place write. Any mismatch exits with `EtagMismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. These fingerprints are content-addressed guards, not durable identity; identical bytes can still authorize the wrong same-content target after a structural shift, so the safe pattern is read, mutate, then re-query.
+Guarded mutations fail closed: `--expect-etag` protects `set`, the single-target block/section/table/task mutation commands, and `move-section` accepts `--expect-source-etag` and `--expect-dest-etag`. On `set`, the guard checks the current whole frontmatter state before any mutation, no-op shortcut, stdout emission, or in-place write. On `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, releveling, splice construction, stdout emission, or in-place write. Any mismatch exits with `etag_mismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. The fingerprints are content-addressed, and block/section/task guards additionally fail closed as `etag_ambiguous` (also exit 4) when identical duplicate targets share the expected fingerprint — a content match cannot prove which duplicate the guard was bound to. Table-row guards are plain content compares (no ambiguity check yet). The safe pattern remains read, mutate, then re-query. All in-place writes are atomic (temp file + rename, permissions preserved): a killed process never leaves a truncated document.
+
+### Structured errors and self-description
+
+Under `--json`, failures emit one structured error envelope on stdout (stderr keeps the human text, exit codes are unchanged), so `md ... --json | jq -e .error` is a branchable pipeline step:
+
+```json
+{
+  "schema_version": "mdtools.v1",
+  "error": {
+    "code": "duplicate_heading_match",
+    "exit_code": 4,
+    "message": "heading \"Setup\" matches 3 sections; use --occurrence to disambiguate",
+    "hint": "pass a 1-based --occurrence to pick one match",
+    "context": { "role": "target", "total_matches": 3, "matches": [ { "block_index": 4, "occurrence": 1, "line": 12 } ] }
+  }
+}
+```
+
+Multi-file streaming commands emit per-file envelope rows plus one aggregate row; `tasks` and `collect` keep their single-object shape and carry `failures[]` instead. `md schema --json` dumps the whole surface — commands, flags, query/mutation kinds, diagnostic codes, capabilities, and `binary_version` — so adapters and tests derive from the binary instead of restating it.
 
 ```sh
 $ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'
@@ -252,7 +271,8 @@ $ md --json outline doc.md
         "block_index": 0,
         "span": { "line_start": 1, "line_end": 1, "byte_start": 0, "byte_end": 14 }
       },
-      "section_span": { "line_start": 1, "line_end": 24, "byte_start": 0, "byte_end": 272 }
+      "section_span": { "line_start": 1, "line_end": 24, "byte_start": 0, "byte_end": 272 },
+      "etag": "2cce4d9d8f0df9f1"
     }
   ]
 }
