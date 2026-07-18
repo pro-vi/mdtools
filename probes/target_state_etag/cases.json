@@ -119,8 +119,8 @@
       "case_class": "unchanged_reread",
       "identity_truth": "same_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nalpha block\\n\\n## Next\\nbody\\n",
-      "current_document_utf8": "# Doc\\n\\nalpha block\\n\\n## Next\\nbody\\n",
+      "observed_document_utf8": "# Doc\n\nalpha block\n\n## Next\nbody\n",
+      "current_document_utf8": "# Doc\n\nalpha block\n\n## Next\nbody\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -150,8 +150,8 @@
       "case_class": "duplicate_cross_target_copy",
       "identity_truth": "wrong_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nstable token\\n\\nmoved elsewhere\\n",
-      "current_document_utf8": "# Doc\\n\\nmutated target\\n\\nstable token\\n",
+      "observed_document_utf8": "# Doc\n\nstable token\n\nmoved elsewhere\n",
+      "current_document_utf8": "# Doc\n\nmutated target\n\nstable token\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -162,7 +162,7 @@
         "type": "block_target",
         "surface": "block",
         "command": "md blocks FILE --json",
-        "block_index": 1
+        "block_index": 2
       },
       "current_domain_query": {
         "type": "blocks_domain",
@@ -182,8 +182,8 @@
       "case_class": "same_locator_duplicate_shift",
       "identity_truth": "wrong_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nanchor\\n\\nstable token\\n\\nstable token\\n",
-      "current_document_utf8": "# Doc\\n\\nanchor\\n\\nstable token\\n",
+      "observed_document_utf8": "# Doc\n\nanchor\n\nstable token\n\nstable token\n",
+      "current_document_utf8": "# Doc\n\nanchor\n\nstable token\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -221,8 +221,8 @@
       "case_class": "unrelated_edit_after_unchanged_target",
       "identity_truth": "same_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nstable token\\n\\nnotes\\n",
-      "current_document_utf8": "# Doc\\n\\nstable token\\n\\nnotes updated elsewhere\\n",
+      "observed_document_utf8": "# Doc\n\nstable token\n\nnotes\n",
+      "current_document_utf8": "# Doc\n\nstable token\n\nnotes updated elsewhere\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -253,8 +253,8 @@
       "case_class": "exact_byte_reversion",
       "identity_truth": "same_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nstable bytes\\n",
-      "current_document_utf8": "# Doc\\n\\nstable bytes\\n",
+      "observed_document_utf8": "# Doc\n\nstable bytes\n",
+      "current_document_utf8": "# Doc\n\nstable bytes\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -285,8 +285,8 @@
       "case_class": "unchanged_crlf_bytes",
       "identity_truth": "same_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\r\\n\\r\\nalpha block\\r\\n\\r\\nomega\\r\\n",
-      "current_document_utf8": "# Doc\\r\\n\\r\\nalpha block\\r\\n\\r\\nomega\\r\\n",
+      "observed_document_utf8": "# Doc\r\n\r\nalpha block\r\n\r\nomega\r\n",
+      "current_document_utf8": "# Doc\r\n\r\nalpha block\r\n\r\nomega\r\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -317,8 +317,8 @@
       "case_class": "unchanged_multibyte_utf8_bytes",
       "identity_truth": "same_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nnaïve résumé ☕\\n\\nomega\\n",
-      "current_document_utf8": "# Doc\\n\\nnaïve résumé ☕\\n\\nomega\\n",
+      "observed_document_utf8": "# Doc\n\nnaïve résumé ☕\n\nomega\n",
+      "current_document_utf8": "# Doc\n\nnaïve résumé ☕\n\nomega\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
@@ -349,8 +349,8 @@
       "case_class": "unchanged_section_descriptor",
       "identity_truth": "same_target",
       "surface": "section",
-      "observed_document_utf8": "# Doc\\n\\n## Target\\nfirst section\\n\\n## Target\\nsecond section\\n",
-      "current_document_utf8": "# Doc\\n\\n## Target\\nfirst section\\n\\n## Target\\nsecond section\\n",
+      "observed_document_utf8": "# Doc\n\n## Target\nfirst section\n\n## Target\nsecond section\n",
+      "current_document_utf8": "# Doc\n\n## Target\nfirst section\n\n## Target\nsecond section\n",
       "observed_target_query": {
         "type": "section_target",
         "surface": "section",
@@ -392,8 +392,8 @@
       "case_class": "unchanged_table_descriptor",
       "identity_truth": "same_target",
       "surface": "table",
-      "observed_document_utf8": "# Doc\\n\\n| Name | Value |\\n| --- | --- |\\n| Alpha | 1 |\\n",
-      "current_document_utf8": "# Doc\\n\\n| Name | Value |\\n| --- | --- |\\n| Alpha | 1 |\\n",
+      "observed_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| Alpha | 1 |\n",
+      "current_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| Alpha | 1 |\n",
       "observed_target_query": {
         "type": "table_target",
         "surface": "table",
@@ -423,8 +423,8 @@
       "case_class": "unchanged_task_descriptor",
       "identity_truth": "same_target",
       "surface": "task",
-      "observed_document_utf8": "# Sprint\\n\\n- [ ] Ship release\\n  - [x] Draft notes\\n",
-      "current_document_utf8": "# Sprint\\n\\n- [ ] Ship release\\n  - [x] Draft notes\\n",
+      "observed_document_utf8": "# Sprint\n\n- [ ] Ship release\n  - [x] Draft notes\n",
+      "current_document_utf8": "# Sprint\n\n- [ ] Ship release\n  - [x] Draft notes\n",
       "observed_target_query": {
         "type": "task_target",
         "surface": "task",

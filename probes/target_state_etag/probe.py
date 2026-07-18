@@ -745,7 +745,6 @@ def build_candidate_results(
     current_document_bytes: bytes,
 ) -> dict[str, Any]:
     results: dict[str, Any] = {}
-    first_match = ambiguity_matches[0] if ambiguity_matches else None
     observed_descriptor_bytes = canonical_descriptor_bytes(observed_target["descriptor"])
     current_descriptor_bytes = canonical_descriptor_bytes(current_target["descriptor"])
     observed_target_bytes = observed_target["target_bytes"]
@@ -754,7 +753,7 @@ def build_candidate_results(
     payloads = {
         "content_only": {
             "observed": [observed_target_bytes],
-            "current": [first_match["target_bytes"]] if first_match is not None else [current_target_bytes],
+            "current": [current_target_bytes],
         },
         "target_local": {
             "observed": [observed_descriptor_bytes, observed_target_bytes],
@@ -762,7 +761,7 @@ def build_candidate_results(
         },
         "ambiguity_reject": {
             "observed": [observed_target_bytes],
-            "current": [first_match["target_bytes"]] if first_match is not None else [current_target_bytes],
+            "current": [current_target_bytes],
         },
         "document_target_state": {
             "observed": [observed_descriptor_bytes, observed_target_bytes, observed_document_bytes],
@@ -781,7 +780,7 @@ def build_candidate_results(
             payloads[candidate_name_value]["current"],
         )
         if candidate_name_value == "content_only":
-            decision = "accept" if ambiguity_matches else "reject"
+            decision = "accept" if observed_token == current_token else "reject"
         elif candidate_name_value == "target_local":
             decision = "accept" if observed_token == current_token else "reject"
         elif candidate_name_value == "ambiguity_reject":
