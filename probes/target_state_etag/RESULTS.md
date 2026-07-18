@@ -18,7 +18,7 @@
 
 ## Order-Only Regeneration Facts
 
-- Parsed current `results.json` is JSON-equal to `git show c7f08c9e1cfa4803617256c0f943a852c7d6703a:probes/target_state_etag/results.json`.
+- parsed semantic equality was mechanically proven: current `results.json` is JSON-equal to `git show c7f08c9e1cfa4803617256c0f943a852c7d6703a:probes/target_state_etag/results.json`.
 - The regeneration changes candidate-keyed JSON presentation order only; no case, verdict, digest, credit, count, or disposition changed.
 - `candidate_names` remains exactly `["content_only","target_local","ambiguity_reject","document_target_state"]`.
 - `candidate_summary`, every per-case `candidate_results` map, and `overall_graduation_verdict.candidate_verdicts` now emit keys in that exact protocol order.
