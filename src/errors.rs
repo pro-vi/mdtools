@@ -332,8 +332,10 @@ impl CommandError {
         Self::new(
             DiagnosticCode::DuplicateHeadingMatch,
             format!(
-                "heading {:?} matches {} sections; use --occurrence to disambiguate",
-                heading, count
+                "heading {:?} matches {} sections; use {} to disambiguate",
+                heading,
+                count,
+                role.occurrence_flag()
             ),
         )
         .with_hint(format!(
@@ -430,7 +432,12 @@ impl CommandError {
     /// The expected fingerprint matched, but the same fingerprint appears on
     /// multiple same-kind targets in the document: a content match cannot
     /// prove identity, so the guard fails closed.
-    pub fn etag_ambiguous(noun: &str, expected: &str, count: usize) -> Self {
+    pub fn etag_ambiguous(
+        noun: &str,
+        expected: &str,
+        count: usize,
+        role: Option<SelectorRole>,
+    ) -> Self {
         Self::new(
             DiagnosticCode::EtagAmbiguous,
             format!(
@@ -452,6 +459,7 @@ impl CommandError {
             )
         })
         .with_context(ErrorContext {
+            role: role.map(|r| r.as_str()),
             expected_etag: Some(expected.to_string()),
             total_matches: Some(count),
             ..ErrorContext::default()

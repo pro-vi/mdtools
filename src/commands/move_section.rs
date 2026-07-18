@@ -59,6 +59,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.expect_source_etag.as_deref(),
         doc.slice(&source_section.span),
         "section",
+        Some(crate::errors::SelectorRole::Source),
         || all_section_etags(&doc),
         |expected, actual| {
             CommandError::move_section_source_etag_mismatch(
@@ -72,6 +73,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.expect_dest_etag.as_deref(),
         doc.slice(&dest_section.span),
         "section",
+        Some(crate::errors::SelectorRole::Destination),
         || all_section_etags(&doc),
         |expected, actual| {
             CommandError::move_section_dest_etag_mismatch(

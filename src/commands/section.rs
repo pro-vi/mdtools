@@ -46,6 +46,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&section_span),
         "section",
+        Some(crate::errors::SelectorRole::Target),
         || all_section_etags(&doc),
         |expected, actual| {
             CommandError::section_etag_mismatch(
@@ -165,6 +166,7 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&section_span),
         "section",
+        Some(crate::errors::SelectorRole::Target),
         || all_section_etags(&doc),
         |expected, actual| {
             CommandError::section_etag_mismatch(

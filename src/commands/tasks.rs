@@ -229,6 +229,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&task_span),
         "task",
+        None,
         || {
             doc.blocks
                 .iter()

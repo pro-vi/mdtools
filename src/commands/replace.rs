@@ -339,6 +339,7 @@ fn verify_etag(
         expect,
         current,
         "block",
+        None,
         || all_block_etags(doc),
         |expected, actual| CommandError::etag_mismatch(index, expected, actual),
     )
@@ -370,6 +371,7 @@ pub(crate) fn verify_expected_etag_unique<F, C>(
     expect: Option<&str>,
     current: &str,
     noun: &'static str,
+    role: Option<crate::errors::SelectorRole>,
     candidates: C,
     mismatch: F,
 ) -> Result<(), CommandError>
@@ -387,7 +389,9 @@ where
             .filter(|etag| etag.as_str() == expected)
             .count();
         if duplicates > 1 {
-            return Err(CommandError::etag_ambiguous(noun, expected, duplicates));
+            return Err(CommandError::etag_ambiguous(
+                noun, expected, duplicates, role,
+            ));
         }
     }
     Ok(())

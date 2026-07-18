@@ -158,13 +158,23 @@ fn cleanup_owned_temp(tmp_path: &std::path::Path, created: Option<(u64, u64)>) {
     }
 }
 
-/// Off unix we cannot compare inodes; reaching cleanup means the exclusive
-/// create succeeded (so the temp is ours), and no cross-process inode
-/// substitution race applies with an open handle. Best-effort remove.
+/// Off unix there is no stable inode, and Rust's default Windows sharing lets
+/// another process rename/delete the file while our handle is open — so "we
+/// created it" does NOT prove the current directory entry is still ours. Use
+/// the CREATION TIMESTAMP as a best-effort identity: remove only when the entry
+/// still carries the exact creation time we recorded. A substituted entry
+/// (different creation time) or an unprovable one (creation time unreadable) is
+/// relinquished, never deleted — leak over deleting a foreign entry. There is
+/// no unconditional-unlink path on any platform.
 #[cfg(not(unix))]
-fn cleanup_owned_temp(tmp_path: &std::path::Path, created: Option<()>) {
-    if created.is_some() {
-        let _ = std::fs::remove_file(tmp_path);
+fn cleanup_owned_temp(tmp_path: &std::path::Path, created: Option<std::time::SystemTime>) {
+    let Some(created) = created else {
+        return;
+    };
+    if let Ok(meta) = std::fs::symlink_metadata(tmp_path) {
+        if meta.created().ok() == Some(created) {
+            let _ = std::fs::remove_file(tmp_path);
+        }
     }
 }
 
@@ -199,7 +209,7 @@ fn atomic_replace_via(
         tmp.metadata().ok().map(|m| (m.dev(), m.ino()))
     };
     #[cfg(not(unix))]
-    let created: Option<()> = Some(());
+    let created: Option<std::time::SystemTime> = tmp.metadata().ok().and_then(|m| m.created().ok());
 
     let staged = (|| -> std::io::Result<()> {
         // Apply the original's bits through the HANDLE (fchmod), never the
