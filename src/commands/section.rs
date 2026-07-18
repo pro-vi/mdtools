@@ -257,11 +257,26 @@ pub fn build_selector(
         ));
     }
 
+    // Occurrence is a 1-based contract; 0 must never silently select the
+    // first match (wrong-target hazard on mutations).
+    if occurrence == Some(0) {
+        return Err(CommandError::new(
+            DiagnosticCode::InvalidSelector,
+            "occurrence is 1-based; 0 is not a valid occurrence",
+        )
+        .with_hint("pass a 1-based occurrence (1 selects the first match)"));
+    }
+
     if selector == ":preamble" {
         if contains {
             Err(CommandError::new(
                 DiagnosticCode::InvalidSelector,
                 "--contains cannot be used with :preamble",
+            ))
+        } else if occurrence.is_some() {
+            Err(CommandError::new(
+                DiagnosticCode::InvalidSelector,
+                ":preamble is unique; occurrence cannot be used with it",
             ))
         } else {
             Ok(SectionSelector {
