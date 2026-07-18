@@ -1109,6 +1109,21 @@ def sha256_hex(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def order_report_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        ordered: dict[str, Any] = {}
+        if set(value.keys()) == set(EXPECTED_CANDIDATES):
+            key_order = EXPECTED_CANDIDATES
+        else:
+            key_order = sorted(value.keys())
+        for key in key_order:
+            ordered[key] = order_report_value(value[key])
+        return ordered
+    if isinstance(value, list):
+        return [order_report_value(item) for item in value]
+    return value
+
+
 def canonical_descriptor_bytes(descriptor: dict[str, Any]) -> bytes:
     return json.dumps(
         descriptor,
@@ -1121,10 +1136,10 @@ def canonical_descriptor_bytes(descriptor: dict[str, Any]) -> bytes:
 def canonical_json_bytes(value: dict[str, Any]) -> bytes:
     return (
         json.dumps(
-            value,
+            order_report_value(value),
             ensure_ascii=False,
             indent=2,
-            sort_keys=True,
+            sort_keys=False,
         )
         + "\n"
     ).encode("utf-8")
