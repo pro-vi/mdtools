@@ -33,7 +33,7 @@ substitute filesystem metadata for descriptor authority.
 - Target query command: `md blocks FILE --json`
 - Query key: zero-based `block_index`
 - Exact target bytes: source slice at `blocks[block_index].span`
-- Canonical descriptor: `{ "kind", "index", "span" }`
+- Canonical descriptor: `{ "index", "span" }`
 - Current-domain query: `md blocks FILE --json`
 
 ### Section
@@ -42,9 +42,8 @@ substitute filesystem metadata for descriptor authority.
   `md section SELECTOR FILE [--occurrence N] [--contains] [--ignore-case] --json`
 - Query keys: `selector`, optional one-based `occurrence`, `contains`,
   `ignore_case`
-- Exact target bytes: returned `content`
-- Canonical descriptor:
-  `{ "kind", "selector", "heading", "depth", "block_indices", "span" }`
+- Exact target bytes: source slice at returned `section.span`
+- Canonical descriptor: `{ "selector", "heading", "span" }`
 - Current-domain query:
   `md section SELECTOR FILE --occurrence N --json`, enumerating one-based
   occurrences until the command stops resolving a match
@@ -54,7 +53,7 @@ substitute filesystem metadata for descriptor authority.
 - Target query command: `md table FILE --index BLOCK_INDEX --json`
 - Query key: `block_index`
 - Exact target bytes: source slice at returned `span`
-- Canonical descriptor: `{ "block_index", "span", "headers" }`
+- Canonical descriptor: `{ "block_index", "span" }`
 - Current-domain query: `md table FILE --json`
 
 ### Task
@@ -63,8 +62,7 @@ substitute filesystem metadata for descriptor authority.
 - Query keys: zero-based `result_index` and zero-based `task_index`
 - Exact target bytes: source slice at
   `results[result_index].tasks[task_index].span`
-- Canonical descriptor:
-  `{ "loc", "block_index", "child_path", "task_index", "depth", "nearest_heading", "nearest_heading_block_index", "span" }`
+- Canonical descriptor: `{ "loc", "child_path", "span" }`
 - Current-domain query: `md tasks FILE --json`
 
 Frontmatter is excluded. This probe does not reinterpret `md frontmatter`.
@@ -100,6 +98,35 @@ Validation is mechanical and fail-closed:
 escapes only. `json.load` must yield the exact LF, CRLF, and multibyte UTF-8
 text that the runner writes to disk. The runner must never apply a second escape
 decoder.
+
+Target bytes are always authoritative byte slices from the temporary document
+raw bytes at the resolved `span.byte_start..span.byte_end`. Returned `content`,
+`preview`, `summary_text`, `etag`, manifest-owned spans, or handwritten parsing
+must never replace that slice.
+
+## Token Framing Contract
+
+Every candidate token preimage uses:
+
+- ASCII domain label `target-state-etag-token`
+- unsigned 64-bit big-endian byte length plus raw bytes for probe schema
+  version
+- unsigned 64-bit big-endian byte length plus raw bytes for candidate name
+- unsigned 64-bit big-endian byte length plus raw bytes for target surface
+- unsigned 64-bit big-endian byte length plus raw bytes for each candidate
+  payload field
+
+The payload field lists are:
+
+- `content_only`: `target_bytes`
+- `target_local`: `canonical_descriptor_utf8`, `target_bytes`
+- `ambiguity_reject`: `target_bytes`
+- `document_target_state`: `canonical_descriptor_utf8`, `target_bytes`,
+  `document_bytes`
+
+`ambiguity_reject` does not hash a current match set. It reuses the
+`target_bytes` token framing and fails closed unless the current-domain exact
+byte match count is exactly one.
 
 ## Candidate Decision Rules
 
@@ -139,6 +166,12 @@ mechanically unless all of the following are observed from real `md` output:
 - observed and current canonical block descriptors are equal
 - current ambiguity count is exactly one
 - observed and current whole-document bytes differ
+
+The authorized document pair for this case is a shifted-identity pair: the
+observed query selects the first of two duplicate blocks, and the current query
+selects the surviving second duplicate after the first duplicate is removed,
+while the surviving duplicate now occupies the same canonical block
+`index`/`span` locator.
 
 If any precondition is false, the runner must stop with a hard mechanical
 failure rather than silently scoring the case.

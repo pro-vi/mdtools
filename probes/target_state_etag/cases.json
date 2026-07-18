@@ -3,22 +3,43 @@
   "manifest_kind": "deterministic-query-matrix",
   "date_locked": "2026-07-18",
   "case_id_regex": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+  "descriptor_contract": {
+    "block": ["index", "span"],
+    "section": ["selector", "heading", "span"],
+    "table": ["block_index", "span"],
+    "task": ["loc", "child_path", "span"]
+  },
+  "target_bytes_contract": {
+    "source": "slice temporary document raw bytes by resolved span.byte_start..span.byte_end",
+    "forbidden_authority": [
+      "returned content strings",
+      "preview fields",
+      "summary_text fields",
+      "etag fields",
+      "manifest-owned span literals",
+      "handwritten parsing"
+    ]
+  },
   "candidates": [
     {
       "name": "content_only",
-      "framing": "content_only\\u0000surface\\u0000u32(len(target_bytes))\\u0000target_bytes"
+      "decision_gate": "accept when at least one current-domain exact-byte match reproduces the observed target_bytes token",
+      "framing": "target-state-etag-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(target_bytes)) + target_bytes"
     },
     {
       "name": "target_local",
-      "framing": "target_local\\u0000surface\\u0000u32(len(locator_descriptor))\\u0000locator_descriptor\\u0000u32(len(target_bytes))\\u0000target_bytes"
+      "decision_gate": "accept when the current canonical descriptor and current target_bytes reproduce the observed token",
+      "framing": "target-state-etag-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(canonical_descriptor_utf8)) + canonical_descriptor_utf8 + u64be(len(target_bytes)) + target_bytes"
     },
     {
       "name": "ambiguity_reject",
-      "framing": "ambiguity_reject\\u0000surface\\u0000u32(len(target_bytes))\\u0000target_bytes\\u0000u32(len(current_match_set))\\u0000current_match_set"
+      "decision_gate": "accept only when exactly one current-domain exact-byte match exists and the target_bytes token reproduces the observed token",
+      "framing": "target-state-etag-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(target_bytes)) + target_bytes"
     },
     {
       "name": "document_target_state",
-      "framing": "document_target_state\\u0000surface\\u0000u32(len(locator_descriptor))\\u0000locator_descriptor\\u0000u32(len(target_bytes))\\u0000target_bytes\\u0000u32(len(document_bytes))\\u0000document_bytes"
+      "decision_gate": "accept when the current canonical descriptor, current target_bytes, and current document_bytes reproduce the observed token",
+      "framing": "target-state-etag-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(canonical_descriptor_utf8)) + canonical_descriptor_utf8 + u64be(len(target_bytes)) + target_bytes + u64be(len(document_bytes)) + document_bytes"
     }
   ],
   "query_shapes": {
@@ -161,19 +182,19 @@
       "case_class": "same_locator_duplicate_shift",
       "identity_truth": "wrong_target",
       "surface": "block",
-      "observed_document_utf8": "# Doc\\n\\nstable token\\n\\nstable token\\n",
-      "current_document_utf8": "# Doc\\n\\nstable token\\n\\nretired copy\\n",
+      "observed_document_utf8": "# Doc\\n\\nanchor\\n\\nstable token\\n\\nstable token\\n",
+      "current_document_utf8": "# Doc\\n\\nanchor\\n\\nstable token\\n",
       "observed_target_query": {
         "type": "block_target",
         "surface": "block",
         "command": "md blocks FILE --json",
-        "block_index": 1
+        "block_index": 2
       },
       "current_target_query": {
         "type": "block_target",
         "surface": "block",
         "command": "md blocks FILE --json",
-        "block_index": 1
+        "block_index": 2
       },
       "current_domain_query": {
         "type": "blocks_domain",
@@ -187,7 +208,7 @@
         "require_document_bytes_different": true,
         "mechanical_failure_on_violation": true
       },
-      "notes": "This load-bearing same-locator case forces a hard failure unless live md output confirms the single-match duplicate-shift preconditions.",
+      "notes": "The observed query selects the first of two identical duplicate blocks; the current query selects the surviving second duplicate after the first duplicate is removed and the survivor shifts into the same canonical block locator.",
       "expected": {
         "content_only": { "decision": "accept", "credit": "wrong_identity" },
         "target_local": { "decision": "accept", "credit": "wrong_identity" },

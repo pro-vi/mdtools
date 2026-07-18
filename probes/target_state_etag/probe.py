@@ -80,6 +80,10 @@ def build_report_bytes(md_binary_arg: Path) -> bytes:
             for case in manifest["cases"]
         ]
     candidate_summary = build_candidate_summary(case_reports)
+    overall_graduation_verdicts = {
+        candidate_name_value: candidate_summary[candidate_name_value]["overall_graduation_verdict"]
+        for candidate_name_value in EXPECTED_CANDIDATES
+    }
     report = {
         "case_count": len(case_reports),
         "candidate_names": list(EXPECTED_CANDIDATES),
@@ -88,6 +92,7 @@ def build_report_bytes(md_binary_arg: Path) -> bytes:
         "descriptor_schema_version": CANONICAL_DESCRIPTOR_SCHEMA_VERSION,
         "manifest_path": "cases.json",
         "manifest_schema_version": manifest["schema_version"],
+        "overall_graduation_verdicts": overall_graduation_verdicts,
         "schema_version": PROBE_SCHEMA_VERSION,
     }
     return canonical_json_bytes(report)
@@ -847,11 +852,30 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
             "accepts": accepts,
             "expectation_matches": expectation_matches,
             "false_conflicts": false_conflicts,
+            "overall_graduation_verdict": select_overall_graduation_verdict(
+                wrong_identity_accepts,
+                false_conflicts,
+                required_same_state_rejects,
+            ),
             "rejects": rejects,
             "required_same_state_rejects": required_same_state_rejects,
             "wrong_identity_accepts": wrong_identity_accepts,
         }
     return summary
+
+
+def select_overall_graduation_verdict(
+    wrong_identity_accepts: int,
+    false_conflicts: int,
+    required_same_state_rejects: int,
+) -> str:
+    if wrong_identity_accepts:
+        return "fails_wrong_identity"
+    if false_conflicts:
+        return "fails_whole_document_false_conflict"
+    if required_same_state_rejects:
+        return "fails_required_same_state"
+    return "graduates"
 
 
 def build_blocks_command(document_name: str) -> list[str]:
