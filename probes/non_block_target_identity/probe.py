@@ -55,7 +55,47 @@ EXPECTED_CASE_IDS = tuple(case_id for case_id, _identity_truth in EXPECTED_CASE_
 EXPECTED_CASE_IDENTITY_TRUTHS = {
     case_id: identity_truth for case_id, identity_truth in EXPECTED_CASE_MATRIX
 }
-EXPECTED_MANIFEST_SEMANTIC_SHA256 = "d0b47e5c8ee38800e383cb25c82484ed01dd497008bd4faf0625e0799d3c41b9"
+EXPECTED_MANIFEST_SEMANTIC_SHA256 = "149ac4d3ddb9abc01ffca9a6f65a5dcebfa9b64fac6ba75e5328eef68fb8d7dc"
+EXPECTED_MECHANICAL_PRECONDITION_CASE_CLASSES = (
+    "unchanged_reread",
+    "duplicate_cross_target_copy",
+    "unrelated_edit_after_unchanged_target",
+)
+EXPECTED_MECHANICAL_RELATIONS = ("equal", "different")
+EXPECTED_MECHANICAL_PRECONDITION_KEYS = (
+    "target_bytes_relation",
+    "canonical_descriptor_relation",
+    "document_bytes_relation",
+    "require_observed_match_count",
+    "require_current_match_count",
+    "mechanical_failure_on_violation",
+)
+EXPECTED_MECHANICAL_PRECONDITIONS = {
+    "unchanged_reread": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": True,
+    },
+    "duplicate_cross_target_copy": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "different",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 2,
+        "require_current_match_count": 2,
+        "mechanical_failure_on_violation": True,
+    },
+    "unrelated_edit_after_unchanged_target": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": True,
+    },
+}
 EXPECTED_SAME_LOCATOR_LINEAGE_KEYS = (
     "require_observed_match_count",
     "require_current_match_count",
@@ -69,6 +109,35 @@ EXPECTED_SAME_LOCATOR_PRECONDITION_KEYS = (
     "require_document_bytes_different",
     "mechanical_failure_on_violation",
 )
+EXPECTED_SAME_LOCATOR_PRECONDITIONS = {
+    "require_target_bytes_equal": True,
+    "require_canonical_descriptor_equal": True,
+    "require_document_bytes_different": True,
+    "mechanical_failure_on_violation": True,
+}
+EXPECTED_SAME_LOCATOR_LINEAGE = {
+    "section-same-locator-duplicate-shift": {
+        "require_observed_match_count": 2,
+        "require_current_match_count": 1,
+        "require_distinct_increasing_byte_starts": True,
+        "require_reconstructed_current_document_sha256": "9717f942e03bb6f16df1850333808f9530c2766587f06f1419c8e748baf80796",
+        "require_reconstruction_equality": RECONSTRUCTION_FORMULA,
+    },
+    "table-same-locator-duplicate-shift": {
+        "require_observed_match_count": 2,
+        "require_current_match_count": 1,
+        "require_distinct_increasing_byte_starts": True,
+        "require_reconstructed_current_document_sha256": "1cb04e31f967dc328dfef286412ae53f08bb01fa7481d1dd29858bf8c85f7c69",
+        "require_reconstruction_equality": RECONSTRUCTION_FORMULA,
+    },
+    "task-same-locator-duplicate-shift": {
+        "require_observed_match_count": 2,
+        "require_current_match_count": 1,
+        "require_distinct_increasing_byte_starts": True,
+        "require_reconstructed_current_document_sha256": "bd99a3386bdc46b0f0c7834389b54b62083224737834d002d93d0eff04b6484e",
+        "require_reconstruction_equality": RECONSTRUCTION_FORMULA,
+    },
+}
 
 
 class ProbeError(RuntimeError):
@@ -277,12 +346,75 @@ def validate_case(
         ),
         "surface": surface,
     }
-    is_same_locator = normalized["case_class"] == "same_locator_duplicate_shift"
+    case_class = normalized["case_class"]
+    if case_class in EXPECTED_MECHANICAL_PRECONDITION_CASE_CLASSES:
+        normalized["mechanical_preconditions"] = validate_mechanical_preconditions(case_id, case, case_class)
+    elif "mechanical_preconditions" in case:
+        raise ProbeError(
+            f"{case_id}: only unchanged-reread, duplicate-cross-target-copy, and unrelated-edit cases may carry mechanical_preconditions"
+        )
+    is_same_locator = case_class == "same_locator_duplicate_shift"
     if is_same_locator:
         normalized["same_locator_preconditions"] = validate_same_locator_preconditions(case_id, case)
         normalized["same_locator_lineage"] = validate_same_locator_lineage(case_id, case)
     elif "same_locator_preconditions" in case or "same_locator_lineage" in case:
         raise ProbeError(f"{case_id}: non-same-locator cases must not carry same-locator mappings")
+    return normalized
+
+
+def validate_mechanical_preconditions(
+    case_id: str,
+    case: dict[str, Any],
+    case_class: str,
+) -> dict[str, Any]:
+    raw = expect_mapping(
+        case.get("mechanical_preconditions"),
+        f"{case_id}.mechanical_preconditions",
+    )
+    if set(raw.keys()) != set(EXPECTED_MECHANICAL_PRECONDITION_KEYS):
+        raise ProbeError(f"{case_id}.mechanical_preconditions: unexpected key set")
+    normalized = {
+        "target_bytes_relation": expect_choice(
+            raw.get("target_bytes_relation"),
+            f"{case_id}.mechanical_preconditions.target_bytes_relation",
+            EXPECTED_MECHANICAL_RELATIONS,
+        ),
+        "canonical_descriptor_relation": expect_choice(
+            raw.get("canonical_descriptor_relation"),
+            f"{case_id}.mechanical_preconditions.canonical_descriptor_relation",
+            EXPECTED_MECHANICAL_RELATIONS,
+        ),
+        "document_bytes_relation": expect_choice(
+            raw.get("document_bytes_relation"),
+            f"{case_id}.mechanical_preconditions.document_bytes_relation",
+            EXPECTED_MECHANICAL_RELATIONS,
+        ),
+        "require_observed_match_count": expect_nonnegative_int(
+            raw.get("require_observed_match_count"),
+            f"{case_id}.mechanical_preconditions.require_observed_match_count",
+        ),
+        "require_current_match_count": expect_nonnegative_int(
+            raw.get("require_current_match_count"),
+            f"{case_id}.mechanical_preconditions.require_current_match_count",
+        ),
+        "mechanical_failure_on_violation": expect_bool(
+            raw.get("mechanical_failure_on_violation"),
+            f"{case_id}.mechanical_preconditions.mechanical_failure_on_violation",
+        ),
+    }
+    expected = EXPECTED_MECHANICAL_PRECONDITIONS[case_class]
+    if normalized != expected:
+        for key, expected_value in expected.items():
+            actual_value = normalized[key]
+            if actual_value != expected_value:
+                raise ProbeError(
+                    f"{case_id}.mechanical_preconditions.{key}: "
+                    f"runner-owned {case_class} precondition contract requires "
+                    f"{expected_value!r}, got {actual_value!r}"
+                )
+        raise ProbeError(
+            f"{case_id}.mechanical_preconditions: runner-owned {case_class} precondition contract mismatch"
+        )
     return normalized
 
 
@@ -374,7 +506,7 @@ def validate_same_locator_preconditions(case_id: str, case: dict[str, Any]) -> d
     )
     if set(raw.keys()) != set(EXPECTED_SAME_LOCATOR_PRECONDITION_KEYS):
         raise ProbeError(f"{case_id}.same_locator_preconditions: unexpected key set")
-    return {
+    normalized = {
         "require_target_bytes_equal": expect_bool(
             raw.get("require_target_bytes_equal"),
             f"{case_id}.same_locator_preconditions.require_target_bytes_equal",
@@ -392,6 +524,19 @@ def validate_same_locator_preconditions(case_id: str, case: dict[str, Any]) -> d
             f"{case_id}.same_locator_preconditions.mechanical_failure_on_violation",
         ),
     }
+    if normalized != EXPECTED_SAME_LOCATOR_PRECONDITIONS:
+        for key, expected_value in EXPECTED_SAME_LOCATOR_PRECONDITIONS.items():
+            actual_value = normalized[key]
+            if actual_value != expected_value:
+                raise ProbeError(
+                    f"{case_id}.same_locator_preconditions.{key}: "
+                    f"runner-owned same-locator precondition contract requires "
+                    f"{expected_value!r}, got {actual_value!r}"
+                )
+        raise ProbeError(
+            f"{case_id}.same_locator_preconditions: runner-owned same-locator precondition contract mismatch"
+        )
+    return normalized
 
 
 def validate_same_locator_lineage(case_id: str, case: dict[str, Any]) -> dict[str, Any]:
@@ -406,7 +551,7 @@ def validate_same_locator_lineage(case_id: str, case: dict[str, Any]) -> dict[st
         raise ProbeError(
             f"{case_id}.same_locator_lineage.require_reconstruction_equality must equal the runner-owned reconstruction formula"
         )
-    return {
+    normalized = {
         "require_observed_match_count": expect_nonnegative_int(
             raw.get("require_observed_match_count"),
             f"{case_id}.same_locator_lineage.require_observed_match_count",
@@ -425,6 +570,22 @@ def validate_same_locator_lineage(case_id: str, case: dict[str, Any]) -> dict[st
         ),
         "require_reconstruction_equality": reconstruction_formula,
     }
+    expected = EXPECTED_SAME_LOCATOR_LINEAGE.get(case_id)
+    if expected is None:
+        raise ProbeError(f"{case_id}.same_locator_lineage: no runner-owned same-locator contract")
+    if normalized != expected:
+        for key, expected_value in expected.items():
+            actual_value = normalized[key]
+            if actual_value != expected_value:
+                raise ProbeError(
+                    f"{case_id}.same_locator_lineage.{key}: "
+                    f"runner-owned same-locator lineage contract requires "
+                    f"{expected_value!r}, got {actual_value!r}"
+                )
+        raise ProbeError(
+            f"{case_id}.same_locator_lineage: runner-owned same-locator lineage contract mismatch"
+        )
+    return normalized
 
 
 def evaluate_case(
@@ -488,6 +649,15 @@ def evaluate_case(
     current_matches = [
         entry for entry in current_domain if entry["target_bytes"] == observed_target["target_bytes"]
     ]
+    mechanical_precondition_report = evaluate_mechanical_preconditions(
+        case,
+        observed_target,
+        current_target,
+        observed_matches,
+        current_matches,
+        observed_document_bytes,
+        current_document_bytes,
+    )
     same_locator_report = evaluate_same_locator(
         case,
         observed_target,
@@ -499,6 +669,8 @@ def evaluate_case(
     )
     candidate_results = build_candidate_results(
         case,
+        mechanical_precondition_report,
+        same_locator_report,
         observed_target,
         current_target,
         current_matches,
@@ -556,6 +728,8 @@ def evaluate_case(
         "schema_version": PROBE_SCHEMA_VERSION,
         "surface": case["surface"],
     }
+    if mechanical_precondition_report is not None:
+        report["mechanical_preconditions"] = mechanical_precondition_report
     if same_locator_report is not None:
         report["same_locator_lineage"] = same_locator_report
     return report
@@ -816,14 +990,89 @@ def evaluate_same_locator(
     return report
 
 
+def evaluate_mechanical_preconditions(
+    case: dict[str, Any],
+    observed_target: dict[str, Any],
+    current_target: dict[str, Any],
+    observed_matches: list[dict[str, Any]],
+    current_matches: list[dict[str, Any]],
+    observed_document_bytes: bytes,
+    current_document_bytes: bytes,
+) -> dict[str, Any] | None:
+    preconditions = case.get("mechanical_preconditions")
+    if preconditions is None:
+        return None
+    descriptor_equal = observed_target["descriptor"] == current_target["descriptor"]
+    target_bytes_equal = observed_target["target_bytes"] == current_target["target_bytes"]
+    document_bytes_equal = observed_document_bytes == current_document_bytes
+    report = {
+        "canonical_descriptor_relation": "equal" if descriptor_equal else "different",
+        "current_match_count": len(current_matches),
+        "document_bytes_relation": "equal" if document_bytes_equal else "different",
+        "mechanical_failure_on_violation": preconditions["mechanical_failure_on_violation"],
+        "observed_match_count": len(observed_matches),
+        "target_bytes_relation": "equal" if target_bytes_equal else "different",
+    }
+    failures = []
+    if report["target_bytes_relation"] != preconditions["target_bytes_relation"]:
+        failures.append(
+            "target-bytes relation is "
+            f"{report['target_bytes_relation']} instead of {preconditions['target_bytes_relation']}"
+        )
+    if report["canonical_descriptor_relation"] != preconditions["canonical_descriptor_relation"]:
+        failures.append(
+            "canonical-descriptor relation is "
+            f"{report['canonical_descriptor_relation']} instead of "
+            f"{preconditions['canonical_descriptor_relation']}"
+        )
+    if report["document_bytes_relation"] != preconditions["document_bytes_relation"]:
+        failures.append(
+            "document-bytes relation is "
+            f"{report['document_bytes_relation']} instead of {preconditions['document_bytes_relation']}"
+        )
+    if report["observed_match_count"] != preconditions["require_observed_match_count"]:
+        failures.append(
+            "observed exact-byte match count is "
+            f"{report['observed_match_count']} instead of "
+            f"{preconditions['require_observed_match_count']}"
+        )
+    if report["current_match_count"] != preconditions["require_current_match_count"]:
+        failures.append(
+            "current exact-byte match count is "
+            f"{report['current_match_count']} instead of "
+            f"{preconditions['require_current_match_count']}"
+        )
+    if failures and preconditions["mechanical_failure_on_violation"]:
+        raise ProbeError(
+            f"{case['case_id']}: mechanical preconditions failed: {'; '.join(failures)}"
+        )
+    return report
+
+
 def build_candidate_results(
     case: dict[str, Any],
+    mechanical_precondition_report: dict[str, Any] | None,
+    same_locator_report: dict[str, Any] | None,
     observed_target: dict[str, Any],
     current_target: dict[str, Any],
     current_matches: list[dict[str, Any]],
     observed_document_bytes: bytes,
     current_document_bytes: bytes,
 ) -> dict[str, Any]:
+    case_id = case["case_id"]
+    case_class = case["case_class"]
+    if case_class in EXPECTED_MECHANICAL_PRECONDITION_CASE_CLASSES:
+        if mechanical_precondition_report is None:
+            raise ProbeError(
+                f"{case_id}: {case_class} scoring requires a validated mechanical precondition gate"
+            )
+    elif case_class == "same_locator_duplicate_shift":
+        if same_locator_report is None:
+            raise ProbeError(
+                f"{case_id}: same-locator scoring requires a validated same-locator lineage gate"
+            )
+    else:
+        raise ProbeError(f"{case_id}: unsupported case_class for scoring: {case_class!r}")
     results: dict[str, Any] = {}
     observed_descriptor_bytes = canonical_descriptor_bytes(observed_target["descriptor"])
     current_descriptor_bytes = canonical_descriptor_bytes(current_target["descriptor"])

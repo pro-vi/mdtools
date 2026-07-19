@@ -127,6 +127,12 @@ Forbidden authority is unchanged from `probes/target_state_etag`:
 - `current_target_query`
 - `current_domain_query`
 
+Every `unchanged_reread`, `duplicate_cross_target_copy`, and
+`unrelated_edit_after_unchanged_target` case must also carry runner-owned
+exact:
+
+- `mechanical_preconditions`
+
 All three same-locator cases must also carry runner-owned exact:
 
 - `same_locator_preconditions`
@@ -167,8 +173,37 @@ Validation is mechanical and fail-closed:
 - reject unknown `surface` values
 - reject query shapes whose `surface` or `command` does not match the declared
   query type
+- reject missing `mechanical_preconditions` on unchanged-reread,
+  duplicate-cross-target-copy, or unrelated-edit cases
+- reject any extra `mechanical_preconditions` on same-locator cases
 - reject missing same-locator mappings for the three same-locator cases
 - reject any extra same-locator mapping on non-same-locator cases
+
+### Case-Class Mechanical Preconditions
+
+Before scoring, the runner must fail closed unless the non-same-locator case
+class contract is satisfied mechanically from live descriptors and byte slices.
+The `mechanical_preconditions` mapping is exact and runner-owned:
+
+- `unchanged_reread` must require `target_bytes_relation: equal`,
+  `canonical_descriptor_relation: equal`, `document_bytes_relation: equal`,
+  `require_observed_match_count: 1`, `require_current_match_count: 1`, and
+  `mechanical_failure_on_violation: true`
+- `duplicate_cross_target_copy` must require
+  `target_bytes_relation: equal`, `canonical_descriptor_relation: different`,
+  `document_bytes_relation: equal`, `require_observed_match_count: 2`,
+  `require_current_match_count: 2`, and
+  `mechanical_failure_on_violation: true`
+- `unrelated_edit_after_unchanged_target` must require
+  `target_bytes_relation: equal`, `canonical_descriptor_relation: equal`,
+  `document_bytes_relation: different`, `require_observed_match_count: 1`,
+  `require_current_match_count: 1`, and
+  `mechanical_failure_on_violation: true`
+
+If any of those exact preconditions are false, the runner must stop with a
+hard mechanical failure before candidate scoring. These mappings exist so the
+wrong-target duplicate case, unchanged reread case, and unrelated-edit case
+cannot drift into weaker or ambiguous setups.
 
 ### Same-Locator Lineage Proof
 

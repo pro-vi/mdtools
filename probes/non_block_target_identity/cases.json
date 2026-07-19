@@ -139,6 +139,14 @@
         "ignore_case": false,
         "occurrence_start": 1,
         "enumerate_until_missing": true
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -175,6 +183,14 @@
         "ignore_case": false,
         "occurrence_start": 1,
         "enumerate_until_missing": true
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "different",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 2,
+        "require_current_match_count": 2,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -260,6 +276,14 @@
         "ignore_case": false,
         "occurrence_start": 1,
         "enumerate_until_missing": true
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -285,6 +309,14 @@
         "type": "tables_domain",
         "surface": "table",
         "command": "md table FILE --json"
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -310,6 +342,14 @@
         "type": "tables_domain",
         "surface": "table",
         "command": "md table FILE --json"
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "different",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 2,
+        "require_current_match_count": 2,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -373,6 +413,14 @@
         "type": "tables_domain",
         "surface": "table",
         "command": "md table FILE --json"
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -400,6 +448,14 @@
         "type": "tasks_domain",
         "surface": "task",
         "command": "md tasks FILE --json"
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -427,6 +483,14 @@
         "type": "tasks_domain",
         "surface": "task",
         "command": "md tasks FILE --json"
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "different",
+        "document_bytes_relation": "equal",
+        "require_observed_match_count": 2,
+        "require_current_match_count": 2,
+        "mechanical_failure_on_violation": true
       }
     },
     {
@@ -494,6 +558,14 @@
         "type": "tasks_domain",
         "surface": "task",
         "command": "md tasks FILE --json"
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "canonical_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "require_observed_match_count": 1,
+        "require_current_match_count": 1,
+        "mechanical_failure_on_violation": true
       }
     }
   ]
