@@ -10,7 +10,7 @@ use crate::parser::ParsedDocument;
 pub fn run(args: &OutlineArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
     let multi = file_set.is_multi();
-    multifile::for_each_file(&file_set, |file| process_file(file, json, multi))
+    multifile::for_each_file(&file_set, json, |file| process_file(file, json, multi))
 }
 
 fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError> {
@@ -82,6 +82,7 @@ fn build_outline(doc: &ParsedDocument, file: &str) -> OutlineResult {
 
         entries.push(OutlineEntry {
             heading: heading_ref,
+            etag: output::content_etag(doc.slice(&section_span).as_bytes()),
             section_span,
         });
     }

@@ -26,7 +26,11 @@ const SECTION_CONTAINS_HELP: &str =
      exact matching remains the default";
 
 #[derive(Parser)]
-#[command(name = "md", about = "Markdown-aware CLI for agent operations")]
+#[command(
+    name = "md",
+    about = "Markdown-aware CLI for agent operations",
+    version
+)]
 pub struct Cli {
     #[arg(long, global = true)]
     pub json: bool,
@@ -58,7 +62,15 @@ pub enum Command {
     Tasks(TasksArgs),
     SetTask(SetTaskArgs),
     MoveSection(MoveSectionArgs),
+    /// Dump the CLI surface for adapters and parity tests
+    ///
+    /// Commands, flags, kinds, diagnostic codes, and capabilities.
+    /// Example: md schema --json | jq '.capabilities'
+    Schema(SchemaArgs),
 }
+
+#[derive(Args)]
+pub struct SchemaArgs {}
 
 #[derive(Args)]
 pub struct OutlineArgs {

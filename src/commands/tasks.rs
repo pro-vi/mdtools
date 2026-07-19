@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::cli::{SetTaskArgs, TasksArgs};
-use crate::commands::replace::verify_expected_etag;
+use crate::commands::replace::verify_expected_etag_unique;
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
@@ -101,14 +101,28 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
     };
 
     if json {
-        // Collect all, preserving partial results on per-file errors
+        // Collect all, preserving partial results on per-file errors.
+        // tasks stays a single aggregate JSON object: failures ride inside
+        // it as structured rows, never as extra NDJSON envelope objects.
         let mut error_count = 0u32;
+        let mut worst_code = crate::errors::MdExitCode::Success;
+        let mut failures = Vec::new();
         for path in &file_set.paths {
             match collect_fn(path) {
                 Ok(fr) => file_results.push(fr),
                 Err(e) => {
                     if multi {
-                        multifile::report_file_error(path, &e);
+                        // stderr prefix only; the structured failure lands in
+                        // the aggregate payload below (json=false here on
+                        // purpose — no envelope row for tasks).
+                        multifile::report_file_error(path, &e, false);
+                        if (e.exit_code as u8) > (worst_code as u8) {
+                            worst_code = e.exit_code;
+                        }
+                        failures.push(crate::model::FileFailure {
+                            file: path.display().to_string(),
+                            error: crate::errors::ErrorInfo::from(&e),
+                        });
                         error_count += 1;
                     } else {
                         return Err(e);
@@ -119,19 +133,23 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
         let result = TasksResult {
             schema_version: SCHEMA_VERSION.to_string(),
             results: file_results,
+            failures,
         };
         output::write_json(&result)?;
         if error_count > 0 {
-            Err(CommandError {
-                exit_code: crate::errors::MdExitCode::ParseError,
-                message: format!("{} file(s) failed", error_count),
-            })
+            let mut e = CommandError::multi_file(
+                worst_code,
+                error_count,
+                format!("{} file(s) failed", error_count),
+            );
+            e.payload_delivered = true;
+            Err(e)
         } else {
             Ok(())
         }
     } else {
         // Text output
-        multifile::for_each_file(&file_set, |file| {
+        multifile::for_each_file(&file_set, false, |file| {
             let fr = collect_fn(file)?;
             for task in &fr.tasks {
                 let heading =
@@ -174,9 +192,24 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
 
-    // Resolve block
+    // Resolve block. An out-of-range block index inside a LOC is a stale/bad
+    // loc from the caller's perspective, not a block-tool error: report it in
+    // loc vocabulary so adapters route it to their bad-loc recovery.
     let block = doc.blocks.get(parsed.block_index as usize).ok_or_else(|| {
-        CommandError::block_out_of_range(parsed.block_index, doc.blocks.len() as u32)
+        CommandError::new(
+            crate::errors::DiagnosticCode::TaskItemNotFound,
+            format!(
+                "task item not found: {} (block index {} out of range; document has {} blocks)",
+                args.loc,
+                parsed.block_index,
+                doc.blocks.len()
+            ),
+        )
+        .with_hint("re-run `md tasks --json <FILE>` for current task locs")
+        .with_context(crate::errors::ErrorContext {
+            loc: Some(args.loc.clone()),
+            ..crate::errors::ErrorContext::default()
+        })
     })?;
 
     if block.task_items.is_empty() {
@@ -192,9 +225,18 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
 
     let line_endings = doc.line_ending_style();
     let task_span = task_item.span;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&task_span),
+        "task",
+        None,
+        || {
+            doc.blocks
+                .iter()
+                .flat_map(|b| &b.task_items)
+                .map(|ti| output::content_etag(doc.slice(&ti.span).as_bytes()))
+                .collect()
+        },
         |expected, actual| CommandError::task_etag_mismatch(&args.loc, expected, actual),
     )?;
 
@@ -245,6 +287,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
         target: target.clone(),
         disposition,
         changed,
+        guarded: args.etag_guard.expect_etag.is_some(),
         line_endings,
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,
@@ -256,7 +299,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
 
     if args.in_place {
         if changed {
-            std::fs::write(&args.file, &output_doc)?;
+            output::write_file_atomic(args.file.as_ref(), &output_doc)?;
         }
         if json {
             output::write_json(&build_result(None))?;

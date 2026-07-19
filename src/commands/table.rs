@@ -35,6 +35,9 @@ pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
                         "document has {} tables; use --index to select one",
                         table_blocks.len()
                     ),
+                )
+                .with_hint(
+                    "run `md table --json <FILE>` (no --index) to list the table block indices, then pass --index <BLOCK_INDEX>",
                 ))
             }
         }
@@ -114,6 +117,7 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
         target,
         disposition,
         changed,
+        guarded: args.etag_guard.expect_etag.is_some(),
         line_endings: doc.line_ending_style(),
         span_before: Some(row.span),
         span_after: match disposition {
@@ -179,6 +183,7 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
         target,
         disposition: MutationDisposition::Deleted,
         changed: true,
+        guarded: args.etag_guard.expect_etag.is_some(),
         line_endings: doc.line_ending_style(),
         span_before: Some(deletion_span),
         span_after: None,
@@ -361,7 +366,8 @@ fn parse_filters(headers: &[String], filters: &[String]) -> Result<Vec<FilterOp>
                         "invalid filter: {:?} (use col=val, col!=val, or col~=substr)",
                         f
                     ),
-                ));
+                )
+                .with_hint("write each --where filter as col=val, col!=val, or col~=substr"));
             }
         }
     }

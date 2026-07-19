@@ -18,6 +18,11 @@ fn main() -> ExitCode {
     match run(&cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
+            if cli.json && !e.payload_delivered {
+                if let Some(envelope) = errors::error_envelope_json(&e, None) {
+                    println!("{}", envelope);
+                }
+            }
             eprintln!("{}", e);
             e.exit_code.into()
         }
@@ -47,5 +52,6 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::Tasks(args) => commands::tasks::run_tasks(args, cli.json),
         Command::SetTask(args) => commands::tasks::run_set_task(args, cli.json),
         Command::MoveSection(args) => commands::move_section::run_move_section(args, cli.json),
+        Command::Schema(args) => commands::schema::run(args, cli.json),
     }
 }

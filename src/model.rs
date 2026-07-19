@@ -104,6 +104,9 @@ pub struct HeadingRef {
 pub struct OutlineEntry {
     pub heading: HeadingRef,
     pub section_span: SourceSpan,
+    /// Content fingerprint of the full section span (heading through section
+    /// end) — the value section mutations accept via --expect-etag.
+    pub etag: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -253,6 +256,10 @@ pub struct FrontmatterFieldProjectionResult {
 #[derive(Clone, Debug, Serialize)]
 pub struct CollectResult {
     pub schema_version: String,
+    /// Per-file failures in aggregation mode; collect keeps its
+    /// single-object wire shape, failures ride here structurally.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub failures: Vec<FileFailure>,
     pub headers: Vec<String>,
     pub rows: Vec<Vec<serde_json::Value>>,
 }
@@ -366,6 +373,16 @@ pub struct TaskFileResult {
 pub struct TasksResult {
     pub schema_version: String,
     pub results: Vec<TaskFileResult>,
+    /// Per-file failures in multi-file mode. tasks keeps its single-object
+    /// wire shape: structured failures ride here, never as NDJSON rows.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub failures: Vec<FileFailure>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FileFailure {
+    pub file: String,
+    pub error: crate::errors::ErrorInfo,
 }
 
 // --- Mutation types ---
@@ -490,6 +507,10 @@ pub struct MutationResult {
     pub target: MutationTargetRef,
     pub disposition: MutationDisposition,
     pub changed: bool,
+    /// True when the mutation ran under an etag expectation
+    /// (--expect-etag / --expect-source-etag / --expect-dest-etag), so guard
+    /// adoption is observable to agents and usage instrumentation.
+    pub guarded: bool,
     pub line_endings: LineEndingStyle,
     pub invariant: SourcePreservationInvariant,
     pub content: Option<String>,

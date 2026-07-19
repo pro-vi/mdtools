@@ -21,6 +21,7 @@
     { "name": "delete-table-row", "kind": "mutation" },
     { "name": "tasks", "kind": "query" },
     { "name": "set-task", "kind": "mutation" },
-    { "name": "move-section", "kind": "mutation" }
+    { "name": "move-section", "kind": "mutation" },
+    { "name": "schema", "kind": "query", "prompt_visible": false }
   ]
 }

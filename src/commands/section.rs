@@ -1,5 +1,5 @@
 use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
-use crate::commands::replace::{replacement_span_after, verify_expected_etag};
+use crate::commands::replace::{replacement_span_after, verify_expected_etag_unique};
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
@@ -42,9 +42,12 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     )?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&section_span),
+        "section",
+        Some(crate::errors::SelectorRole::Target),
+        || all_section_etags(&doc),
         |expected, actual| {
             CommandError::section_etag_mismatch(
                 &describe_selector(&section.selector),
@@ -79,11 +82,12 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
 
     if args.in_place {
         if changed {
-            std::fs::write(&args.file, &output_doc)?;
+            output::write_file_atomic(args.file.as_ref(), &output_doc)?;
         }
         if json {
             let result = build_section_mutation_result(
                 &args.file.to_string_lossy(),
+                args.etag_guard.expect_etag.is_some(),
                 section,
                 disposition,
                 changed,
@@ -98,6 +102,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
     } else if json {
         let result = build_section_mutation_result(
             &args.file.to_string_lossy(),
+            args.etag_guard.expect_etag.is_some(),
             section,
             disposition,
             changed,
@@ -157,9 +162,12 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     )?;
     let section = find_section(&doc, &selector)?;
     let section_span = section.span;
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         doc.slice(&section_span),
+        "section",
+        Some(crate::errors::SelectorRole::Target),
+        || all_section_etags(&doc),
         |expected, actual| {
             CommandError::section_etag_mismatch(
                 &describe_selector(&section.selector),
@@ -178,10 +186,11 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     let disposition = MutationDisposition::Deleted;
 
     if args.in_place {
-        std::fs::write(&args.file, &output_doc)?;
+        output::write_file_atomic(args.file.as_ref(), &output_doc)?;
         if json {
             let result = build_section_mutation_result(
                 &args.file.to_string_lossy(),
+                args.etag_guard.expect_etag.is_some(),
                 section,
                 disposition,
                 changed,
@@ -196,6 +205,7 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     } else if json {
         let result = build_section_mutation_result(
             &args.file.to_string_lossy(),
+            args.etag_guard.expect_etag.is_some(),
             section,
             disposition,
             changed,
@@ -212,6 +222,30 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
     Ok(())
 }
 
+/// Content etags of every section in the document (preamble + one per
+/// heading), for section-guard ambiguity checks: identical duplicate
+/// sections share a fingerprint, and a guard hash matching more than one
+/// section cannot prove identity.
+pub fn all_section_etags(doc: &ParsedDocument) -> Vec<String> {
+    let mut etags = Vec::new();
+    if let Ok(preamble) = find_preamble(doc) {
+        etags.push(preamble.etag);
+    }
+    for block in &doc.blocks {
+        if let Some(h) = &block.heading {
+            let byte_end = find_section_byte_end(doc, block.index, h.level);
+            let span = SourceSpan {
+                line_start: block.span.line_start,
+                line_end: block.span.line_end,
+                byte_start: block.span.byte_start,
+                byte_end,
+            };
+            etags.push(output::content_etag(doc.slice(&span).as_bytes()));
+        }
+    }
+    etags
+}
+
 pub fn build_selector(
     selector: &str,
     occurrence: Option<u32>,
@@ -222,7 +256,18 @@ pub fn build_selector(
         return Err(CommandError::new(
             DiagnosticCode::InvalidSelector,
             "empty selector cannot be used with --contains",
-        ));
+        )
+        .with_hint("pass a non-empty heading substring with --contains, or drop --contains for an exact match"));
+    }
+
+    // Occurrence is a 1-based contract; 0 must never silently select the
+    // first match (wrong-target hazard on mutations).
+    if occurrence == Some(0) {
+        return Err(CommandError::new(
+            DiagnosticCode::InvalidSelector,
+            "occurrence is 1-based; 0 is not a valid occurrence",
+        )
+        .with_hint("pass a 1-based occurrence (1 selects the first match)"));
     }
 
     if selector == ":preamble" {
@@ -230,7 +275,14 @@ pub fn build_selector(
             Err(CommandError::new(
                 DiagnosticCode::InvalidSelector,
                 "--contains cannot be used with :preamble",
-            ))
+            )
+            .with_hint("use :preamble alone to select content before the first heading, or a heading selector with --contains"))
+        } else if occurrence.is_some() {
+            Err(CommandError::new(
+                DiagnosticCode::InvalidSelector,
+                ":preamble is unique; occurrence cannot be used with it",
+            )
+            .with_hint("drop the occurrence flag: :preamble selects the single pre-heading region"))
         } else {
             Ok(SectionSelector {
                 kind: SectionSelectorKind::Preamble,
@@ -258,11 +310,22 @@ pub fn find_section(
     doc: &ParsedDocument,
     selector: &SectionSelector,
 ) -> Result<SectionEntry, CommandError> {
+    find_section_as(doc, selector, crate::errors::SelectorRole::Target)
+}
+
+/// Like find_section, but selector errors carry `role` so adapters can
+/// recommend the right disambiguation flag (move-section passes source /
+/// destination).
+pub fn find_section_as(
+    doc: &ParsedDocument,
+    selector: &SectionSelector,
+    role: crate::errors::SelectorRole,
+) -> Result<SectionEntry, CommandError> {
     match selector.kind {
         SectionSelectorKind::Preamble => find_preamble(doc),
         SectionSelectorKind::HeadingText => {
             let heading_text = selector.heading_text.as_deref().unwrap_or("");
-            find_heading_section(doc, heading_text, selector)
+            find_heading_section(doc, heading_text, selector, role)
         }
     }
 }
@@ -329,6 +392,7 @@ fn find_heading_section(
     doc: &ParsedDocument,
     heading_text: &str,
     selector: &SectionSelector,
+    role: crate::errors::SelectorRole,
 ) -> Result<SectionEntry, CommandError> {
     // Find all matching headings
     let matches: Vec<_> = doc
@@ -342,17 +406,32 @@ fn find_heading_section(
         .collect();
 
     if matches.is_empty() {
-        return Err(CommandError::not_found_heading(heading_text));
+        return Err(CommandError::not_found_heading_as(heading_text, role));
     }
 
+    let match_refs: Vec<crate::errors::MatchRef> = matches
+        .iter()
+        .enumerate()
+        .map(|(i, b)| crate::errors::MatchRef {
+            block_index: b.index,
+            occurrence: (i + 1) as u32,
+            line: b.span.line_start,
+        })
+        .collect();
+
     if matches.len() > 1 && selector.occurrence.is_none() {
-        return Err(CommandError::duplicate_heading(heading_text, matches.len()));
+        return Err(CommandError::duplicate_heading_as(
+            heading_text,
+            matches.len(),
+            &match_refs,
+            role,
+        ));
     }
 
     let selected = if let Some(occ) = selector.occurrence {
-        matches
-            .get(occ.saturating_sub(1) as usize)
-            .ok_or_else(|| CommandError::not_found_heading(heading_text))?
+        matches.get(occ.saturating_sub(1) as usize).ok_or_else(|| {
+            CommandError::occurrence_out_of_range(heading_text, occ, &match_refs, role)
+        })?
     } else {
         matches[0]
     };
@@ -432,6 +511,7 @@ fn find_section_byte_end(doc: &ParsedDocument, heading_index: u32, level: u8) ->
 
 fn build_section_mutation_result(
     file: &str,
+    guarded: bool,
     section: SectionEntry,
     disposition: MutationDisposition,
     changed: bool,
@@ -459,6 +539,7 @@ fn build_section_mutation_result(
         }),
         disposition,
         changed,
+        guarded,
         line_endings,
         invariant: SourcePreservationInvariant {
             preserves_non_target_bytes: true,

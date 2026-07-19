@@ -15,6 +15,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     let mut rows = Vec::new();
     let mut error_count = 0u32;
     let mut worst_code = MdExitCode::Success;
+    let mut failures = Vec::new();
 
     for path in &paths {
         match collect_row(path, &args.fields) {
@@ -23,10 +24,14 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
                 if !aggregate_partial_failures {
                     return Err(err);
                 }
-                multifile::report_file_error(path, &err);
+                multifile::report_file_error(path, &err, false);
                 if (err.exit_code as u8) > (worst_code as u8) {
                     worst_code = err.exit_code;
                 }
+                failures.push(crate::model::FileFailure {
+                    file: path.display().to_string(),
+                    error: crate::errors::ErrorInfo::from(&err),
+                });
                 error_count += 1;
             }
         }
@@ -36,6 +41,7 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     if json {
         output::write_json(&CollectResult {
             schema_version: SCHEMA_VERSION.to_string(),
+            failures: failures.clone(),
             headers,
             rows,
         })?;
@@ -46,10 +52,16 @@ pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     if error_count == 0 {
         Ok(())
     } else {
-        Err(CommandError {
-            exit_code: worst_code,
-            message: format!("{} file(s) failed", error_count),
-        })
+        let mut e = CommandError::multi_file(
+            worst_code,
+            error_count,
+            format!("{} file(s) failed", error_count),
+        );
+        // collect's stdout contract is a single JSON object (the table was
+        // already emitted); per-file detail is on stderr. Suppress the
+        // aggregate envelope so the wire shape stays one object.
+        e.payload_delivered = true;
+        Err(e)
     }
 }
 

@@ -546,7 +546,8 @@ fn unicode_section_ignore_case_duplicate_destination_conflict_after_fold() {
         .unwrap();
     assert_eq!(output.status.code(), Some(4));
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("--occurrence"));
+    // Destination duplicate ⇒ role-correct flag, not the target-only --occurrence.
+    assert!(stderr.contains("--dest-occurrence"));
     std::fs::remove_file(&tmp).unwrap();
 }
 
@@ -2143,4 +2144,129 @@ fn move_section_etag_matching_guards_move_exact_indentation_auto_level() {
     let updated = std::fs::read_to_string(&tmp).unwrap();
     assert_eq!(updated, "# Doc\n\n## Dest\nbody d\n  ## Source\nbody s\n\n");
     std::fs::remove_file(&tmp).unwrap();
+}
+
+// --- U5: role-correct occurrence remediation for move-section selectors ---
+
+#[test]
+fn move_section_duplicate_source_recommends_source_occurrence() {
+    let tmp = tempfile("# Root\n\n## Dup\n\nx\n\n## Dup\n\ny\n\n## Dest\n\nz\n");
+    let out = md()
+        .args([
+            "move-section",
+            "--into",
+            "Dest",
+            "Dup",
+            &tmp,
+            "-i",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let v: serde_json::Value = serde_json::from_str(
+        String::from_utf8(out.stdout)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(v["error"]["code"], "duplicate_heading_match");
+    assert_eq!(v["error"]["context"]["role"], "source");
+    let hint = v["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--source-occurrence"),
+        "source role must advise --source-occurrence: {hint}"
+    );
+    assert!(
+        !hint.contains("--dest-occurrence"),
+        "must not advise the destination flag: {hint}"
+    );
+}
+
+#[test]
+fn move_section_duplicate_destination_recommends_dest_occurrence() {
+    let tmp = tempfile("# Root\n\n## Src\n\nx\n\n## Dest\n\na\n\n## Dest\n\nb\n");
+    let out = md()
+        .args([
+            "move-section",
+            "--into",
+            "Dest",
+            "Src",
+            &tmp,
+            "-i",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let v: serde_json::Value = serde_json::from_str(
+        String::from_utf8(out.stdout)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(v["error"]["code"], "duplicate_heading_match");
+    assert_eq!(v["error"]["context"]["role"], "destination");
+    let hint = v["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--dest-occurrence"),
+        "destination role must advise --dest-occurrence: {hint}"
+    );
+}
+
+#[test]
+fn move_section_source_etag_ambiguous_carries_source_role() {
+    // Two byte-identical "Dup" sections share an etag; selecting source #1 and
+    // guarding with that shared etag must fail closed as etag_ambiguous AND
+    // carry the SOURCE role (U5/#6 — role must survive ambiguity construction).
+    let tmp = tempfile("# R\n\n## Dup\n\nsame body\n\n## Dup\n\nsame body\n\n## Dest\n\nz\n");
+    let read = md()
+        .args(["section", "Dup", &tmp, "--occurrence", "1", "--json"])
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&read.stdout).unwrap();
+    let etag = v["section"]["etag"].as_str().unwrap().to_string();
+
+    let out = md()
+        .args([
+            "move-section",
+            "--into",
+            "Dest",
+            "Dup",
+            &tmp,
+            "-i",
+            "--json",
+            "--source-occurrence",
+            "1",
+            "--expect-source-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    let e: serde_json::Value = serde_json::from_str(
+        String::from_utf8(out.stdout)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(e["error"]["code"], "etag_ambiguous");
+    assert_eq!(e["error"]["context"]["role"], "source");
+    // Role-correct hint: BOTH the occurrence flag and the guard flag, not a
+    // generic "occurrence/index ... WITHOUT --expect-etag".
+    let hint = e["error"]["hint"].as_str().unwrap();
+    assert!(
+        hint.contains("--source-occurrence"),
+        "source ambiguity hint must name --source-occurrence: {hint}"
+    );
+    assert!(
+        hint.contains("--expect-source-etag"),
+        "source ambiguity hint must name --expect-source-etag, not --expect-etag: {hint}"
+    );
 }
