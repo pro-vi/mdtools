@@ -629,6 +629,7 @@ def evaluate_case(
         "observed_domain",
         case["surface"],
         case["current_domain_query"],
+        case["observed_target_query"],
         md_binary,
         workspace,
         observed_path,
@@ -639,6 +640,7 @@ def evaluate_case(
         "current_domain",
         case["surface"],
         case["current_domain_query"],
+        case["current_target_query"],
         md_binary,
         workspace,
         current_path,
@@ -698,6 +700,7 @@ def evaluate_case(
                 md_binary,
                 case["surface"],
                 case["current_domain_query"],
+                case["current_target_query"],
                 current_path.name,
                 len(current_domain),
             ),
@@ -711,6 +714,7 @@ def evaluate_case(
                 md_binary,
                 case["surface"],
                 case["current_domain_query"],
+                case["observed_target_query"],
                 observed_path.name,
                 len(observed_domain),
             ),
@@ -790,6 +794,7 @@ def resolve_domain(
     domain_name: str,
     surface: str,
     query: dict[str, Any],
+    task_selection_query: dict[str, Any],
     md_binary: Path,
     workspace: Path,
     document_path: Path,
@@ -832,7 +837,12 @@ def resolve_domain(
             workspace,
             f"{case_id}.{domain_name}",
         )
-        descriptors = task_domain_descriptors(case_id, domain_name, result)
+        descriptors = task_domain_descriptors(
+            case_id,
+            domain_name,
+            result,
+            task_selection_query,
+        )
         return [
             build_domain_entry(descriptor, document_bytes, f"{case_id}.{domain_name}[{index}]")
             for index, descriptor in enumerate(descriptors)
@@ -1383,6 +1393,7 @@ def build_report_domain_commands(
     md_binary: Path,
     surface: str,
     query: dict[str, Any],
+    task_selection_query: dict[str, Any],
     document_name: str,
     resolved_entry_count: int,
 ) -> list[list[str]]:
@@ -1405,6 +1416,8 @@ def build_report_domain_commands(
     if surface == "table":
         return [[repo_relative_path_text(md_binary), *build_tables_command(document_name)]]
     if surface == "task":
+        if task_selection_query["surface"] != "task":
+            raise ProbeError("task domain reporting requires a task selection query")
         return [[repo_relative_path_text(md_binary), *build_tasks_command(document_name)]]
     raise ProbeError(f"unsupported surface {surface!r} for domain command reporting")
 
@@ -1513,30 +1526,37 @@ def task_descriptor_from_result(
     return canonical_task_descriptor(case_id, where, entry)
 
 
-def task_domain_descriptors(case_id: str, where: str, result: dict[str, Any]) -> list[dict[str, Any]]:
+def task_domain_descriptors(
+    case_id: str,
+    where: str,
+    result: dict[str, Any],
+    query: dict[str, Any],
+) -> list[dict[str, Any]]:
     results = expect_list(result.get("results"), f"{case_id}.{where}.results")
+    result_index = query["result_index"]
+    if result_index >= len(results):
+        raise ProbeError(f"{case_id}.{where}: result_index {result_index} out of range")
+    file_result = expect_mapping(
+        results[result_index],
+        f"{case_id}.{where}.results[{result_index}]",
+    )
+    tasks = expect_list(
+        file_result.get("tasks"),
+        f"{case_id}.{where}.results[{result_index}].tasks",
+    )
     descriptors = []
-    for result_index, file_result_value in enumerate(results):
-        file_result = expect_mapping(
-            file_result_value,
-            f"{case_id}.{where}.results[{result_index}]",
+    for task_index, entry_value in enumerate(tasks):
+        entry = expect_mapping(
+            entry_value,
+            f"{case_id}.{where}.results[{result_index}].tasks[{task_index}]",
         )
-        tasks = expect_list(
-            file_result.get("tasks"),
-            f"{case_id}.{where}.results[{result_index}].tasks",
+        descriptors.append(
+            canonical_task_descriptor(
+                case_id,
+                f"{where}.results[{result_index}].tasks[{task_index}]",
+                entry,
+            )
         )
-        for task_index, entry_value in enumerate(tasks):
-            entry = expect_mapping(
-                entry_value,
-                f"{case_id}.{where}.results[{result_index}].tasks[{task_index}]",
-            )
-            descriptors.append(
-                canonical_task_descriptor(
-                    case_id,
-                    f"{where}.results[{result_index}].tasks[{task_index}]",
-                    entry,
-                )
-            )
     return descriptors
 
 
