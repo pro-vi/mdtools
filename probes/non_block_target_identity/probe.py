@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import os
@@ -1014,6 +1015,44 @@ def evaluate_mechanical_preconditions(
         "target_bytes_relation": "equal" if target_bytes_equal else "different",
     }
     failures = []
+    if case["case_class"] == "unrelated_edit_after_unchanged_target":
+        pinned_target_span = observed_target["descriptor"]["span"]
+        changed_byte_ranges = build_changed_byte_ranges(
+            observed_document_bytes,
+            current_document_bytes,
+        )
+        all_observed_changes_outside_target_span = all(
+            not spans_overlap(
+                pinned_target_span,
+                changed_range["observed_byte_range"],
+            )
+            for changed_range in changed_byte_ranges
+        )
+        all_current_changes_outside_target_span = all(
+            not spans_overlap(
+                pinned_target_span,
+                changed_range["current_byte_range"],
+            )
+            for changed_range in changed_byte_ranges
+        )
+        report.update(
+            {
+                "all_changed_bytes_outside_pinned_target_span": (
+                    all_observed_changes_outside_target_span
+                    and all_current_changes_outside_target_span
+                ),
+                "all_current_changes_outside_pinned_target_span": (
+                    all_current_changes_outside_target_span
+                ),
+                "all_observed_changes_outside_pinned_target_span": (
+                    all_observed_changes_outside_target_span
+                ),
+                "changed_byte_ranges": changed_byte_ranges,
+                "pinned_target_span": pinned_target_span,
+            }
+        )
+        if not report["all_changed_bytes_outside_pinned_target_span"]:
+            failures.append("changed bytes overlap the pinned target span")
     if report["target_bytes_relation"] != preconditions["target_bytes_relation"]:
         failures.append(
             "target-bytes relation is "
@@ -1047,6 +1086,42 @@ def evaluate_mechanical_preconditions(
             f"{case['case_id']}: mechanical preconditions failed: {'; '.join(failures)}"
         )
     return report
+
+
+def build_changed_byte_ranges(
+    observed_document_bytes: bytes,
+    current_document_bytes: bytes,
+) -> list[dict[str, Any]]:
+    matcher = difflib.SequenceMatcher(
+        a=observed_document_bytes,
+        b=current_document_bytes,
+        autojunk=False,
+    )
+    changed_ranges = []
+    for tag, observed_start, observed_end, current_start, current_end in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        changed_ranges.append(
+            {
+                "change_kind": tag,
+                "current_byte_range": {
+                    "byte_end": current_end,
+                    "byte_start": current_start,
+                },
+                "observed_byte_range": {
+                    "byte_end": observed_end,
+                    "byte_start": observed_start,
+                },
+            }
+        )
+    return changed_ranges
+
+
+def spans_overlap(span: dict[str, int], byte_range: dict[str, int]) -> bool:
+    return (
+        max(span["byte_start"], byte_range["byte_start"])
+        < min(span["byte_end"], byte_range["byte_end"])
+    )
 
 
 def build_candidate_results(
