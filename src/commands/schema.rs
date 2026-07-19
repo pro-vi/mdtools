@@ -36,8 +36,8 @@ fn kind_of(name: &str) -> Option<&'static str> {
         "outline" | "section" | "blocks" | "block" | "search" | "links" | "frontmatter"
         | "collect" | "stats" | "table" | "tasks" | "schema" => "query",
         "replace-section" | "delete-section" | "replace-block" | "insert-block"
-        | "delete-block" | "set" | "replace-table-row" | "delete-table-row" | "set-task"
-        | "move-section" => "mutation",
+        | "delete-block" | "set" | "replace-table-row" | "delete-table-row"
+        | "insert-table-row" | "set-task" | "move-section" => "mutation",
         _ => return None,
     })
 }

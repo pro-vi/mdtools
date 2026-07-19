@@ -92,6 +92,7 @@ fn expect_etag_listed_on_exactly_the_guarded_commands() {
         "delete-section",
         "replace-table-row",
         "delete-table-row",
+        "insert-table-row",
         "set",
         "set-task",
     ]
