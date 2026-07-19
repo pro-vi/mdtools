@@ -1,0 +1,102 @@
+# Target-State Etag Results Ledger
+
+- Date: 2026-07-19
+- Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
+- Accepted integration base commit for this ledger refresh: `efdd8e6ef9e44262d7ca728084ec5cb57f28a039`
+- Prior ledger refresh accepted integration base commit: `37ee4c40c30a1743d1718f699251c101ed9d911b`
+- Earlier ledger refresh accepted integration base commit: `1c0f61acc03ae8f94ff2f95adeb4b61aa44a6d9b`
+- Earlier lineage integration base commit: `49d40083c14890935a8828dbccfec6f0fa2364bb`
+- Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
+- Historical execution lineage base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
+
+## Immutable Inputs And Exact Commands
+
+- `probes/target_state_etag/probe.py` SHA-256: `b202a60f39e9315a6622749075a38ad5f4ef1a3b5d54b7b7c150f56d52e167b9`
+- `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
+- canonical manifest semantic SHA-256: `ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`
+- historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
+- current `PROTOCOL.md` SHA-256: `04362c7e1bd2fd82e2233933c15d1d84b3bb491891b4cf6fed110581d8feda2d`
+- Historical execution build command: `cargo build --release`
+- Current exact locked regeneration build command: `cargo build --release --locked --offline`
+- Exact regeneration command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
+- Exact non-mutating check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
+- `probes/target_state_etag/results.json` SHA-256: `4a6a3e4c7ec410cd98aa7ab35e55553012dcfc287e9116b1fe8949ee3ba1c98a`
+
+## Current Validation Evidence
+
+- `cargo build --release --locked --offline` completed for this inspection run at accepted head `efdd8e6ef9e44262d7ca728084ec5cb57f28a039`.
+- The exact committed manifest is accepted by the runner-owned canonical semantic digest at `ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`.
+- A formatting/object-key-order-only reserialization is also accepted: reversing top-level JSON object key order still loads all ten cases and reproduces semantic SHA-256 `ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`.
+- A reproduced coordinated unrelated-edit weakening of `block-unrelated-edit-false-conflict` fails at the canonical semantic digest before case normalization or scoring with `cases.json runner-owned canonical semantic digest mismatch: actual 64741a9d202216d977edb04e61eb156a713adf0531416d115f15504bacd441e0, expected ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`.
+- The semantic pin covers every semantic value and list order in the complete fixed manifest while ignoring only JSON object formatting and key order.
+- The committed manifest still loads with exactly ten cases in the runner-owned protocol order, and the accepted case-id to `identity_truth` matrix is exact: `block-unchanged-reread=same_target`, `block-duplicate-cross-target-copy=wrong_target`, `block-same-locator-duplicate-shift=wrong_target`, `block-unrelated-edit-false-conflict=same_target`, `block-exact-byte-reversion=same_target`, `block-unchanged-crlf-bytes=same_target`, `block-unchanged-multibyte-utf8-bytes=same_target`, `section-unchanged-real-descriptor=same_target`, `table-unchanged-real-descriptor=same_target`, and `task-unchanged-real-descriptor=same_target`.
+- The exact non-mutating check command `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json` passed byte-identically against the committed canonical report.
+- Current digest gate: current `load_manifest()` and `probe.py --check` reject every semantic `cases.json` mutation first at the runner-owned canonical semantic digest before case normalization or scoring.
+- The identity-truth, same-locator, fixed-matrix, credit, case-class, and query validator bullets below are defense-in-depth evidence from direct in-memory calls into normalization and validation seams after independently proving the accepted manifest digest; they are not current end-to-end loader output for a semantically changed manifest.
+- Reaching those exact field-specific messages in an end-to-end run would require a coordinated runner digest authority update outside the accepted probe workflow.
+- Direct in-memory defense-in-depth evidence for the `identity_truth` seam after independently proving the accepted manifest digest: flipping `identity_truth` for each of the ten fixed case IDs is rejected before scoring with deterministic field-specific actual/expected errors of the form ``<case_id>.identity_truth: runner-owned identity truth mismatch for case <case_id>: got <actual>, expected <expected>``.
+- The same direct in-memory `identity_truth` seam rejects relabeling `block-same-locator-duplicate-shift.identity_truth` to `same_target` before scoring at `block-same-locator-duplicate-shift.identity_truth: runner-owned identity truth mismatch for case block-same-locator-duplicate-shift: got 'same_target', expected 'wrong_target'`.
+- The canonical non-mutating check target remains byte-identical at `probes/target_state_etag/results.json` SHA-256 `4a6a3e4c7ec410cd98aa7ab35e55553012dcfc287e9116b1fe8949ee3ba1c98a`.
+- Direct in-memory defense-in-depth evidence for the same-locator seam after independently proving the accepted manifest digest: the committed valid mapping for `block-same-locator-duplicate-shift` still equals runner authority exactly: `require_target_bytes_equal=true`, `require_canonical_descriptor_equal=true`, `require_current_match_count=1`, `require_document_bytes_different=true`, and `mechanical_failure_on_violation=true`.
+- The same direct in-memory same-locator seam rejects deleting `same_locator_preconditions` at `block-same-locator-duplicate-shift.same_locator_preconditions must be an object`.
+- The same direct in-memory same-locator seam rejects replacing `same_locator_preconditions` with a non-mapping at `block-same-locator-duplicate-shift.same_locator_preconditions must be an object`.
+- The same direct in-memory same-locator seam rejects deleting `require_target_bytes_equal` at `block-same-locator-duplicate-shift.same_locator_preconditions.require_target_bytes_equal must be a boolean`.
+- The same direct in-memory same-locator seam rejects weakening `require_target_bytes_equal` to `false` at `block-same-locator-duplicate-shift.same_locator_preconditions.require_target_bytes_equal: runner-owned same-locator precondition contract requires True, got False`.
+- The same direct in-memory same-locator seam rejects weakening `require_canonical_descriptor_equal` to `false` at `block-same-locator-duplicate-shift.same_locator_preconditions.require_canonical_descriptor_equal: runner-owned same-locator precondition contract requires True, got False`.
+- The same direct in-memory same-locator seam rejects weakening `require_current_match_count` to `2` at `block-same-locator-duplicate-shift.same_locator_preconditions.require_current_match_count: runner-owned same-locator precondition contract requires 1, got 2`.
+- The same direct in-memory same-locator seam rejects weakening `require_document_bytes_different` to `false` at `block-same-locator-duplicate-shift.same_locator_preconditions.require_document_bytes_different: runner-owned same-locator precondition contract requires True, got False`.
+- The same direct in-memory same-locator seam rejects weakening `mechanical_failure_on_violation` to `false` at `block-same-locator-duplicate-shift.same_locator_preconditions.mechanical_failure_on_violation: runner-owned same-locator precondition contract requires True, got False`.
+- Historical direct in-memory fixed-matrix validation evidence after independently proving the accepted manifest digest shows that removing `block-same-locator-duplicate-shift` and `block-unrelated-edit-false-conflict` from both `required_case_ids` and `cases` is rejected before scoring at `manifest.required_case_ids`; current end-to-end semantic mutations do not reach this seam because the digest gate fires first.
+- Historical direct in-memory fixed-matrix validation evidence after independently proving the accepted manifest digest shows that replacing the third required id and matching case id with `block-substituted-case` is rejected before scoring at `manifest.required_case_ids`; current end-to-end semantic mutations do not reach this seam because the digest gate fires first.
+- Historical direct in-memory fixed-matrix validation evidence after independently proving the accepted manifest digest shows that reordering `required_case_ids` while leaving `cases` unchanged is rejected before scoring at `manifest.required_case_ids`; current end-to-end semantic mutations do not reach this seam because the digest gate fires first.
+- Historical direct in-memory fixed-matrix validation evidence after independently proving the accepted manifest digest shows that reordering the actual `cases` array while leaving `required_case_ids` unchanged is rejected before scoring at `manifest.cases case_id order`; current end-to-end semantic mutations do not reach this seam because the digest gate fires first.
+- Historical direct in-memory normalization evidence after independently proving the accepted manifest digest shows that `block-unchanged-reread.identity_truth` rejects `same-target`; allowed values are `same_target` and `wrong_target`.
+- Historical direct in-memory normalization evidence after independently proving the accepted manifest digest shows that `block-unchanged-reread.expected.content_only.credit` rejects `wrong-identiy`; allowed values are `correct`, `wrong_identity`, and `false-conflict`.
+- Historical direct in-memory normalization evidence after independently proving the accepted manifest digest shows that `block-unchanged-reread.case_class` rejects `unchanged-rereaad`; allowed values are `duplicate_cross_target_copy`, `exact_byte_reversion`, `same_locator_duplicate_shift`, `unchanged_crlf_bytes`, `unchanged_multibyte_utf8_bytes`, `unchanged_reread`, `unchanged_section_descriptor`, `unchanged_table_descriptor`, `unchanged_task_descriptor`, and `unrelated_edit_after_unchanged_target`.
+- Historical direct in-memory query validation evidence after independently proving the accepted manifest digest shows that the runner rejects unknown query `type` values and query shapes whose `surface`, command, or required keys diverge from `manifest.query_shapes`; current end-to-end semantic mutations do not reach those query seams because the digest gate fires first.
+
+## Order-Only Regeneration Facts
+
+- parsed semantic equality was mechanically proven: current `results.json` is JSON-equal to `git show c7f08c9e1cfa4803617256c0f943a852c7d6703a:probes/target_state_etag/results.json`.
+- The regeneration changes candidate-keyed JSON presentation order only; no case, verdict, digest, credit, count, or disposition changed.
+- `candidate_names` remains exactly `["content_only","target_local","ambiguity_reject","document_target_state"]`.
+- `candidate_summary`, every per-case `candidate_results` map, and `overall_graduation_verdict.candidate_verdicts` now emit keys in that exact protocol order.
+
+## Candidate Summary
+
+| candidate | accepts | rejects | expectation matches | wrong.identity accepts | required-same-state rejects | unrelated.edit conflicts | graduation verdict | disposition |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| `content_only` | 10 | 0 | 10 | 2 | 0 | 0 | `fails_wrong_identity` | `demote` |
+| `target_local` | 9 | 1 | 10 | 1 | 0 | 0 | `fails_wrong_identity` | `demote` |
+| `ambiguity_reject` | 9 | 1 | 10 | 1 | 0 | 0 | `fails_wrong_identity` | `demote` |
+| `document_target_state` | 7 | 3 | 10 | 0 | 1 | 1 | `fails_whole_document_false_conflict` | `demote` |
+
+## Overall Verdict
+
+These verdicts are global candidate outcomes across the required ten-case
+matrix. Any wrong-identity acceptance in any required case is sufficient to
+demote that candidate globally. The block cases carry the wrong-target,
+duplicate, and same-locator identity challenges and provide the block-surface
+counterexamples sufficient for global demotion. The unchanged section, table,
+and task cases prove live projection and descriptor reproducibility only; they
+do not independently prove wrong-target identity on those surfaces.
+
+- `overall` verdict: `no_candidate_graduates`
+- graduating candidates: none
+- demoted candidates: `content_only`, `target_local`, `ambiguity_reject`, `document_target_state`
+- selected candidate: `null`
+- whole-document false-conflict cost: `1`
+- candidate verdicts: `content_only=fails_wrong_identity`, `target_local=fails_wrong_identity`, `ambiguity_reject=fails_wrong_identity`, `document_target_state=fails_whole_document_false_conflict`
+
+## Case Observations
+
+- `duplicate_copy` observation: `block-duplicate-cross-target-copy` had `ambiguity_match_count=2`; `content_only` accepted with `credit=wrong_identity`, while `target_local`, `ambiguity_reject`, and `document_target_state` rejected.
+- `same.locator` observation: `block-same-locator-duplicate-shift` had `ambiguity_match_count=1`; `content_only`, `target_local`, and `ambiguity_reject` accepted with `credit=wrong_identity`, while `document_target_state` rejected.
+- `unrelated.edit` observation: `block-unrelated-edit-false-conflict` kept `identity_truth=same_target`; `document_target_state` rejected with `required_same_state_reject=true`, `unrelated_edit_conflict=true`, and `whole_document_false_conflict_cost=true`, while `content_only`, `target_local`, and `ambiguity_reject` accepted.
+
+## Conclusion
+
+This ledger is bounded to the ten-case stateless-candidate experiment recorded
+in `results.json`. No tested candidate graduated, so the probe does not itself
+choose or implement a production etag format, and position-bound target-state
+semantics remain a separate architectural decision.
