@@ -1,17 +1,18 @@
 # Target-State Etag Results Ledger
 
-- Date: 2026-07-18
+- Date: 2026-07-19
 - Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
-- Accepted integration base commit for this ledger refresh: `706b4679dfc943ed9967147e378e623b5064b12d`
+- Accepted integration base commit for this ledger refresh: `49d40083c14890935a8828dbccfec6f0fa2364bb`
+- Prior ledger refresh accepted integration base commit: `706b4679dfc943ed9967147e378e623b5064b12d`
 - Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
 - Historical execution lineage base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
 
 ## Immutable Inputs And Exact Commands
 
-- `probes/target_state_etag/probe.py` SHA-256: `5bbd9e115cad323e7427009c842c1664b9b872d2d6de0bcdd79b2e701fbc7589`
+- `probes/target_state_etag/probe.py` SHA-256: `9b7ae640572567e4a50024418b169b6fc66d48248d5182167a45e69feccbead2`
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
 - historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
-- current `PROTOCOL.md` SHA-256: `4d3c62aa49601c22b529da7703f47a588287cb1f7371b4672ce2e3721cc03e0b`
+- current `PROTOCOL.md` SHA-256: `04362c7e1bd2fd82e2233933c15d1d84b3bb491891b4cf6fed110581d8feda2d`
 - Historical execution build command: `cargo build --release`
 - Current exact locked regeneration build command: `cargo build --release --locked --offline`
 - Exact regeneration command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
@@ -20,8 +21,13 @@
 
 ## Current Validation Evidence
 
-- `cargo build --release --locked --offline` completed for this inspection run at accepted head `706b4679dfc943ed9967147e378e623b5064b12d`.
+- `cargo build --release --locked --offline` completed for this inspection run at accepted head `49d40083c14890935a8828dbccfec6f0fa2364bb`.
+- The committed manifest still loads with exactly ten cases in the runner-owned protocol order: `block-unchanged-reread`, `block-duplicate-cross-target-copy`, `block-same-locator-duplicate-shift`, `block-unrelated-edit-false-conflict`, `block-exact-byte-reversion`, `block-unchanged-crlf-bytes`, `block-unchanged-multibyte-utf8-bytes`, `section-unchanged-real-descriptor`, `table-unchanged-real-descriptor`, and `task-unchanged-real-descriptor`.
 - The exact non-mutating check command `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json` passed byte-identically against the committed canonical report.
+- Coordinated manifest weakening still fails closed at `manifest.required_case_ids`: removing `block-same-locator-duplicate-shift` and `block-unrelated-edit-false-conflict` from both `required_case_ids` and `cases` is rejected before scoring.
+- Coordinated case-id substitution still fails closed at `manifest.required_case_ids`: replacing the third required id and matching case id with `block-substituted-case` is rejected before scoring.
+- Reordering `required_case_ids` while leaving `cases` unchanged still fails closed at `manifest.required_case_ids` before scoring.
+- Reordering the actual `cases` array while leaving `required_case_ids` unchanged still fails closed at `manifest.cases case_id order` before scoring.
 - Invalid `identity_truth` label rejection was exercised through the real normalization path: `block-unchanged-reread.identity_truth` rejected `same-target`; allowed values are `same_target` and `wrong_target`.
 - Invalid `credit` label rejection was exercised through the real normalization path: `block-unchanged-reread.expected.content_only.credit` rejected `wrong-identiy`; allowed values are `correct`, `wrong_identity`, and `false-conflict`.
 - Invalid `case_class` label rejection was exercised through the real normalization path: `block-unchanged-reread.case_class` rejected `unchanged-rereaad`; allowed values are `duplicate_cross_target_copy`, `exact_byte_reversion`, `same_locator_duplicate_shift`, `unchanged_crlf_bytes`, `unchanged_multibyte_utf8_bytes`, `unchanged_reread`, `unchanged_section_descriptor`, `unchanged_table_descriptor`, `unchanged_task_descriptor`, and `unrelated_edit_after_unchanged_target`.
