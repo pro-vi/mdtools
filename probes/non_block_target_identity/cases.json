@@ -1,0 +1,500 @@
+{
+  "schema_version": "non-block-target-identity.v1",
+  "manifest_kind": "deterministic-query-matrix",
+  "date_locked": "2026-07-19",
+  "case_id_regex": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+  "descriptor_contract": {
+    "section": ["selector", "heading", "span"],
+    "table": ["block_index", "span"],
+    "task": ["loc", "child_path", "span"]
+  },
+  "target_bytes_contract": {
+    "source": "slice temporary document raw bytes by resolved span.byte_start..span.byte_end",
+    "forbidden_authority": [
+      "returned content strings",
+      "preview fields",
+      "summary_text fields",
+      "etag fields",
+      "manifest-owned span literals",
+      "handwritten parsing"
+    ]
+  },
+  "candidates": [
+    {
+      "name": "content_only",
+      "decision_gate": "accept when the current target_bytes selected by current_target_query reproduce the observed target_bytes token",
+      "framing": "non-block-target-identity-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(target_bytes)) + target_bytes"
+    },
+    {
+      "name": "target_local",
+      "decision_gate": "accept when the current canonical descriptor and current target_bytes reproduce the observed token",
+      "framing": "non-block-target-identity-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(canonical_descriptor_utf8)) + canonical_descriptor_utf8 + u64be(len(target_bytes)) + target_bytes"
+    },
+    {
+      "name": "ambiguity_reject",
+      "decision_gate": "accept only when the current target_bytes selected by current_target_query reproduce the observed token and exactly one current-domain exact-byte match exists",
+      "framing": "non-block-target-identity-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(target_bytes)) + target_bytes"
+    },
+    {
+      "name": "document_target_state",
+      "decision_gate": "accept when the current canonical descriptor, current target_bytes, and current document_bytes reproduce the observed token",
+      "framing": "non-block-target-identity-token + u64be(len(schema_version)) + schema_version + u64be(len(candidate_name)) + candidate_name + u64be(len(surface)) + surface + u64be(len(canonical_descriptor_utf8)) + canonical_descriptor_utf8 + u64be(len(target_bytes)) + target_bytes + u64be(len(document_bytes)) + document_bytes"
+    }
+  ],
+  "query_shapes": {
+    "section_target": {
+      "surface": "section",
+      "command": "md section SELECTOR FILE --occurrence N --json",
+      "required_keys": [
+        "type",
+        "surface",
+        "command",
+        "selector",
+        "occurrence",
+        "contains",
+        "ignore_case"
+      ]
+    },
+    "section_domain": {
+      "surface": "section",
+      "command": "md section SELECTOR FILE --occurrence N --json",
+      "required_keys": [
+        "type",
+        "surface",
+        "command",
+        "selector",
+        "contains",
+        "ignore_case",
+        "occurrence_start",
+        "enumerate_until_missing"
+      ]
+    },
+    "table_target": {
+      "surface": "table",
+      "command": "md table FILE --index BLOCK_INDEX --json",
+      "required_keys": ["type", "surface", "command", "block_index"]
+    },
+    "tables_domain": {
+      "surface": "table",
+      "command": "md table FILE --json",
+      "required_keys": ["type", "surface", "command"]
+    },
+    "task_target": {
+      "surface": "task",
+      "command": "md tasks FILE --json",
+      "required_keys": ["type", "surface", "command", "result_index", "task_index"]
+    },
+    "tasks_domain": {
+      "surface": "task",
+      "command": "md tasks FILE --json",
+      "required_keys": ["type", "surface", "command"]
+    }
+  },
+  "required_case_ids": [
+    "section-unchanged-reread",
+    "section-duplicate-cross-target-copy",
+    "section-same-locator-duplicate-shift",
+    "section-unrelated-edit-false-conflict",
+    "table-unchanged-reread",
+    "table-duplicate-cross-target-copy",
+    "table-same-locator-duplicate-shift",
+    "table-unrelated-edit-false-conflict",
+    "task-unchanged-reread",
+    "task-duplicate-cross-target-copy",
+    "task-same-locator-duplicate-shift",
+    "task-unrelated-edit-false-conflict"
+  ],
+  "cases": [
+    {
+      "case_id": "section-unchanged-reread",
+      "case_class": "unchanged_reread",
+      "identity_truth": "same_target",
+      "surface": "section",
+      "observed_document_utf8": "# Doc\n\n## Target\nalpha\n\n## Tail\nomega\n",
+      "current_document_utf8": "# Doc\n\n## Target\nalpha\n\n## Tail\nomega\n",
+      "observed_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_domain_query": {
+        "type": "section_domain",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "contains": false,
+        "ignore_case": false,
+        "occurrence_start": 1,
+        "enumerate_until_missing": true
+      }
+    },
+    {
+      "case_id": "section-duplicate-cross-target-copy",
+      "case_class": "duplicate_cross_target_copy",
+      "identity_truth": "wrong_target",
+      "surface": "section",
+      "observed_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n",
+      "current_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n",
+      "observed_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 2,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_domain_query": {
+        "type": "section_domain",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "contains": false,
+        "ignore_case": false,
+        "occurrence_start": 1,
+        "enumerate_until_missing": true
+      }
+    },
+    {
+      "case_id": "section-same-locator-duplicate-shift",
+      "case_class": "same_locator_duplicate_shift",
+      "identity_truth": "wrong_target",
+      "surface": "section",
+      "observed_document_utf8": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n\n## Gap\nremove me\n\n## Target\nstable token\n",
+      "current_document_utf8": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n",
+      "observed_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_domain_query": {
+        "type": "section_domain",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "contains": false,
+        "ignore_case": false,
+        "occurrence_start": 1,
+        "enumerate_until_missing": true
+      },
+      "same_locator_preconditions": {
+        "require_target_bytes_equal": true,
+        "require_canonical_descriptor_equal": true,
+        "require_document_bytes_different": true,
+        "mechanical_failure_on_violation": true
+      },
+      "same_locator_lineage": {
+        "require_observed_match_count": 2,
+        "require_current_match_count": 1,
+        "require_distinct_increasing_byte_starts": true,
+        "require_reconstructed_current_document_sha256": "9717f942e03bb6f16df1850333808f9530c2766587f06f1419c8e748baf80796",
+        "require_reconstruction_equality": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target"
+      }
+    },
+    {
+      "case_id": "section-unrelated-edit-false-conflict",
+      "case_class": "unrelated_edit_after_unchanged_target",
+      "identity_truth": "same_target",
+      "surface": "section",
+      "observed_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Notes\nbefore\n",
+      "current_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Notes\nafter elsewhere\n",
+      "observed_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_target_query": {
+        "type": "section_target",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "occurrence": 1,
+        "contains": false,
+        "ignore_case": false
+      },
+      "current_domain_query": {
+        "type": "section_domain",
+        "surface": "section",
+        "command": "md section SELECTOR FILE --occurrence N --json",
+        "selector": "Target",
+        "contains": false,
+        "ignore_case": false,
+        "occurrence_start": 1,
+        "enumerate_until_missing": true
+      }
+    },
+    {
+      "case_id": "table-unchanged-reread",
+      "case_class": "unchanged_reread",
+      "identity_truth": "same_target",
+      "surface": "table",
+      "observed_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nTail.\n",
+      "current_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nTail.\n",
+      "observed_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 1
+      },
+      "current_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 1
+      },
+      "current_domain_query": {
+        "type": "tables_domain",
+        "surface": "table",
+        "command": "md table FILE --json"
+      }
+    },
+    {
+      "case_id": "table-duplicate-cross-target-copy",
+      "case_class": "duplicate_cross_target_copy",
+      "identity_truth": "wrong_target",
+      "surface": "table",
+      "observed_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+      "current_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+      "observed_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 1
+      },
+      "current_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 2
+      },
+      "current_domain_query": {
+        "type": "tables_domain",
+        "surface": "table",
+        "command": "md table FILE --json"
+      }
+    },
+    {
+      "case_id": "table-same-locator-duplicate-shift",
+      "case_class": "same_locator_duplicate_shift",
+      "identity_truth": "wrong_target",
+      "surface": "table",
+      "observed_document_utf8": "# Doc\n\nLead.\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nBetween.\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+      "current_document_utf8": "# Doc\n\nLead.\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+      "observed_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 2
+      },
+      "current_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 2
+      },
+      "current_domain_query": {
+        "type": "tables_domain",
+        "surface": "table",
+        "command": "md table FILE --json"
+      },
+      "same_locator_preconditions": {
+        "require_target_bytes_equal": true,
+        "require_canonical_descriptor_equal": true,
+        "require_document_bytes_different": true,
+        "mechanical_failure_on_violation": true
+      },
+      "same_locator_lineage": {
+        "require_observed_match_count": 2,
+        "require_current_match_count": 1,
+        "require_distinct_increasing_byte_starts": true,
+        "require_reconstructed_current_document_sha256": "1cb04e31f967dc328dfef286412ae53f08bb01fa7481d1dd29858bf8c85f7c69",
+        "require_reconstruction_equality": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target"
+      }
+    },
+    {
+      "case_id": "table-unrelated-edit-false-conflict",
+      "case_class": "unrelated_edit_after_unchanged_target",
+      "identity_truth": "same_target",
+      "surface": "table",
+      "observed_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nNotes.\n",
+      "current_document_utf8": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nNotes changed elsewhere.\n",
+      "observed_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 1
+      },
+      "current_target_query": {
+        "type": "table_target",
+        "surface": "table",
+        "command": "md table FILE --index BLOCK_INDEX --json",
+        "block_index": 1
+      },
+      "current_domain_query": {
+        "type": "tables_domain",
+        "surface": "table",
+        "command": "md table FILE --json"
+      }
+    },
+    {
+      "case_id": "task-unchanged-reread",
+      "case_class": "unchanged_reread",
+      "identity_truth": "same_target",
+      "surface": "task",
+      "observed_document_utf8": "# Doc\n\n- [ ] stable token\n- [ ] tail\n",
+      "current_document_utf8": "# Doc\n\n- [ ] stable token\n- [ ] tail\n",
+      "observed_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_domain_query": {
+        "type": "tasks_domain",
+        "surface": "task",
+        "command": "md tasks FILE --json"
+      }
+    },
+    {
+      "case_id": "task-duplicate-cross-target-copy",
+      "case_class": "duplicate_cross_target_copy",
+      "identity_truth": "wrong_target",
+      "surface": "task",
+      "observed_document_utf8": "# Doc\n\n- [ ] stable token\n- [ ] stable token\n",
+      "current_document_utf8": "# Doc\n\n- [ ] stable token\n- [ ] stable token\n",
+      "observed_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 1
+      },
+      "current_domain_query": {
+        "type": "tasks_domain",
+        "surface": "task",
+        "command": "md tasks FILE --json"
+      }
+    },
+    {
+      "case_id": "task-same-locator-duplicate-shift",
+      "case_class": "same_locator_duplicate_shift",
+      "identity_truth": "wrong_target",
+      "surface": "task",
+      "observed_document_utf8": "# Doc\n\n- [ ] stable token\n- [ ] remove me\n- [ ] stable token\n",
+      "current_document_utf8": "# Doc\n\n- [ ] stable token\n",
+      "observed_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_domain_query": {
+        "type": "tasks_domain",
+        "surface": "task",
+        "command": "md tasks FILE --json"
+      },
+      "same_locator_preconditions": {
+        "require_target_bytes_equal": true,
+        "require_canonical_descriptor_equal": true,
+        "require_document_bytes_different": true,
+        "mechanical_failure_on_violation": true
+      },
+      "same_locator_lineage": {
+        "require_observed_match_count": 2,
+        "require_current_match_count": 1,
+        "require_distinct_increasing_byte_starts": true,
+        "require_reconstructed_current_document_sha256": "bd99a3386bdc46b0f0c7834389b54b62083224737834d002d93d0eff04b6484e",
+        "require_reconstruction_equality": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target"
+      }
+    },
+    {
+      "case_id": "task-unrelated-edit-false-conflict",
+      "case_class": "unrelated_edit_after_unchanged_target",
+      "identity_truth": "same_target",
+      "surface": "task",
+      "observed_document_utf8": "# Doc\n\n- [ ] stable token\n\nNotes.\n",
+      "current_document_utf8": "# Doc\n\n- [ ] stable token\n\nNotes changed elsewhere.\n",
+      "observed_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_target_query": {
+        "type": "task_target",
+        "surface": "task",
+        "command": "md tasks FILE --json",
+        "result_index": 0,
+        "task_index": 0
+      },
+      "current_domain_query": {
+        "type": "tasks_domain",
+        "surface": "task",
+        "command": "md tasks FILE --json"
+      }
+    }
+  ]
+}
