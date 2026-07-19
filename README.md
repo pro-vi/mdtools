@@ -26,6 +26,20 @@ cargo install --path .
 
 Binary name is `md`.
 
+## Use it from the Pi agent
+
+[`pi-mdtools`](https://github.com/pro-vi/pi-rov/tree/main/packages/pi-mdtools) is a
+[Pi](https://github.com/earendil-works/pi) extension that exposes these commands as typed native
+tools (`md_outline`, `md_section`, `md_tasks`, `md_set_task`, `md_move_section`, …) instead of bash
+strings — query structure, mutate by address, re-query. It is a pure projection of this binary's
+contract (`md schema --json` + the structured error envelope + `--expect-etag` guards; see
+[binary-owned contract](https://github.com/pro-vi/pi-rov/blob/main/packages/pi-mdtools/docs/adr/0003-binary-owned-contract.md)),
+kept honest by cross-repo parity tests that run this exact binary. It needs `md` on PATH.
+
+```bash
+pi install npm:pi-mdtools
+```
+
 ## Quick tour
 
 ### Read structure
