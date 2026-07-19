@@ -164,6 +164,17 @@ impl SelectorRole {
             Self::Destination => "--dest-occurrence",
         }
     }
+
+    /// The etag-guard flag for this role (move-section uses
+    /// --expect-source-etag / --expect-dest-etag; plain --expect-etag does not
+    /// exist there).
+    fn guard_flag(self) -> &'static str {
+        match self {
+            Self::Target => "--expect-etag",
+            Self::Source => "--expect-source-etag",
+            Self::Destination => "--expect-dest-etag",
+        }
+    }
 }
 
 const MATCHES_CAP: usize = 20;
@@ -453,12 +464,15 @@ impl CommandError {
                 count
             )
         } else {
-            // Name the role-correct disambiguator (--source-occurrence /
-            // --dest-occurrence / --occurrence) rather than a generic phrase.
-            let flag = role.map(SelectorRole::occurrence_flag).unwrap_or("--occurrence");
+            // Name BOTH role-correct flags: the disambiguator
+            // (--source-occurrence / --dest-occurrence / --occurrence) and the
+            // guard flag to drop (--expect-source-etag / --expect-dest-etag /
+            // --expect-etag), rather than a generic phrase.
+            let occ = role.map(SelectorRole::occurrence_flag).unwrap_or("--occurrence");
+            let guard = role.map(SelectorRole::guard_flag).unwrap_or("--expect-etag");
             format!(
-                "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by {} WITHOUT --expect-etag",
-                count, noun, flag
+                "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by {} WITHOUT {}",
+                count, noun, occ, guard
             )
         })
         .with_context(ErrorContext {
