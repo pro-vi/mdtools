@@ -36,18 +36,22 @@ EXPECTED_CASE_CLASSES = (
     "unchanged_task_descriptor",
     "unrelated_edit_after_unchanged_target",
 )
-EXPECTED_CASE_IDS = (
-    "block-unchanged-reread",
-    "block-duplicate-cross-target-copy",
-    "block-same-locator-duplicate-shift",
-    "block-unrelated-edit-false-conflict",
-    "block-exact-byte-reversion",
-    "block-unchanged-crlf-bytes",
-    "block-unchanged-multibyte-utf8-bytes",
-    "section-unchanged-real-descriptor",
-    "table-unchanged-real-descriptor",
-    "task-unchanged-real-descriptor",
+EXPECTED_CASE_MATRIX = (
+    ("block-unchanged-reread", "same_target"),
+    ("block-duplicate-cross-target-copy", "wrong_target"),
+    ("block-same-locator-duplicate-shift", "wrong_target"),
+    ("block-unrelated-edit-false-conflict", "same_target"),
+    ("block-exact-byte-reversion", "same_target"),
+    ("block-unchanged-crlf-bytes", "same_target"),
+    ("block-unchanged-multibyte-utf8-bytes", "same_target"),
+    ("section-unchanged-real-descriptor", "same_target"),
+    ("table-unchanged-real-descriptor", "same_target"),
+    ("task-unchanged-real-descriptor", "same_target"),
 )
+EXPECTED_CASE_IDS = tuple(case_id for case_id, _identity_truth in EXPECTED_CASE_MATRIX)
+EXPECTED_CASE_IDENTITY_TRUTHS = {
+    case_id: identity_truth for case_id, identity_truth in EXPECTED_CASE_MATRIX
+}
 EXPECTED_SAME_LOCATOR_CASE_ID = "block-same-locator-duplicate-shift"
 EXPECTED_SAME_LOCATOR_PRECONDITIONS = {
     "require_target_bytes_equal": True,
@@ -240,6 +244,7 @@ def validate_case(
         surface,
         query_shapes,
     )
+    identity_truth = validate_identity_truth(case_id, case.get("identity_truth"))
     normalized = {
         "case_class": expect_choice(
             case.get("case_class"),
@@ -251,11 +256,7 @@ def validate_case(
         "current_domain_query": current_domain_query,
         "current_target_query": current_target_query,
         "expected": expected,
-        "identity_truth": expect_choice(
-            case.get("identity_truth"),
-            f"{case_id}.identity_truth",
-            EXPECTED_IDENTITY_TRUTHS,
-        ),
+        "identity_truth": identity_truth,
         "observed_document_utf8": observed_document_utf8,
         "observed_target_query": observed_target_query,
         "surface": surface,
@@ -267,6 +268,21 @@ def validate_case(
     if "notes" in case:
         normalized["notes"] = expect_string(case.get("notes"), f"{case_id}.notes")
     return normalized
+
+
+def validate_identity_truth(case_id: str, identity_truth_value: Any) -> str:
+    identity_truth = expect_choice(
+        identity_truth_value,
+        f"{case_id}.identity_truth",
+        EXPECTED_IDENTITY_TRUTHS,
+    )
+    expected_identity_truth = EXPECTED_CASE_IDENTITY_TRUTHS.get(case_id)
+    if expected_identity_truth is not None and identity_truth != expected_identity_truth:
+        raise ProbeError(
+            f"{case_id}.identity_truth: runner-owned identity truth mismatch for case "
+            f"{case_id}: got {identity_truth!r}, expected {expected_identity_truth!r}"
+        )
+    return expected_identity_truth or identity_truth
 
 
 def validate_query(
