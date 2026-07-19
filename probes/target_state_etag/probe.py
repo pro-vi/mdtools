@@ -36,6 +36,18 @@ EXPECTED_CASE_CLASSES = (
     "unchanged_task_descriptor",
     "unrelated_edit_after_unchanged_target",
 )
+EXPECTED_CASE_IDS = (
+    "block-unchanged-reread",
+    "block-duplicate-cross-target-copy",
+    "block-same-locator-duplicate-shift",
+    "block-unrelated-edit-false-conflict",
+    "block-exact-byte-reversion",
+    "block-unchanged-crlf-bytes",
+    "block-unchanged-multibyte-utf8-bytes",
+    "section-unchanged-real-descriptor",
+    "table-unchanged-real-descriptor",
+    "task-unchanged-real-descriptor",
+)
 
 
 class ProbeError(RuntimeError):
@@ -141,10 +153,14 @@ def load_manifest() -> dict[str, Any]:
         manifest_map.get("required_case_ids"),
         "manifest.required_case_ids",
     )
-    required_case_id_values = [
+    required_case_id_values = tuple(
         expect_string(value, f"manifest.required_case_ids[{index}]")
         for index, value in enumerate(required_case_ids)
-    ]
+    )
+    if required_case_id_values != EXPECTED_CASE_IDS:
+        raise ProbeError(
+            "manifest.required_case_ids must match the runner-owned case matrix exactly in protocol order"
+        )
     cases = expect_list(manifest_map.get("cases"), "manifest.cases")
     normalized_cases = []
     seen_case_ids: set[str] = set()
@@ -155,8 +171,11 @@ def load_manifest() -> dict[str, Any]:
             raise ProbeError(f"duplicate manifest case_id: {case_id}")
         seen_case_ids.add(case_id)
         normalized_cases.append(case)
-    if seen_case_ids != set(required_case_id_values):
-        raise ProbeError("manifest cases must match required_case_ids exactly")
+    normalized_case_ids = tuple(case["case_id"] for case in normalized_cases)
+    if normalized_case_ids != EXPECTED_CASE_IDS:
+        raise ProbeError(
+            "manifest.cases case_id order must match the runner-owned case matrix exactly in protocol order"
+        )
     return {
         "cases": normalized_cases,
         "query_shapes": query_shapes,

@@ -113,6 +113,21 @@ Frontmatter is excluded. This probe does not reinterpret `md frontmatter`.
 - `current_domain_query`
 - per-candidate expected `decision` and `credit`
 
+The runner owns the fixed required ten-case vocabulary and protocol order. The
+manifest does not define that authority; it must declare and realize this exact
+ordered matrix:
+
+1. `block-unchanged-reread`
+2. `block-duplicate-cross-target-copy`
+3. `block-same-locator-duplicate-shift`
+4. `block-unrelated-edit-false-conflict`
+5. `block-exact-byte-reversion`
+6. `block-unchanged-crlf-bytes`
+7. `block-unchanged-multibyte-utf8-bytes`
+8. `section-unchanged-real-descriptor`
+9. `table-unchanged-real-descriptor`
+10. `task-unchanged-real-descriptor`
+
 Closed vocabularies are fixed at the manifest boundary:
 
 - `identity_truth`: `same_target`, `wrong_target`
@@ -125,6 +140,8 @@ Closed vocabularies are fixed at the manifest boundary:
 
 Validation is mechanical and fail-closed:
 
+- reject `required_case_ids` unless it matches the runner-owned ten-case
+  vocabulary exactly in protocol order
 - reject missing required keys
 - reject duplicate `case_id` values
 - reject case IDs that do not match `^[a-z0-9]+(?:-[a-z0-9]+)*$`
@@ -136,6 +153,9 @@ Validation is mechanical and fail-closed:
 - reject out-of-range block, table, result, or task indexes
 - reject section queries whose selector or occurrence inputs do not resolve
 - reject cases whose candidate matrix omits any of the four candidate names
+- reject the actual `cases` matrix unless its normalized `case_id` sequence
+  matches the runner-owned ten-case vocabulary exactly in protocol order before
+  scoring
 
 `observed_document_utf8` and `current_document_utf8` must use standard JSON
 escapes only. `json.load` must yield the exact LF, CRLF, and multibyte UTF-8
