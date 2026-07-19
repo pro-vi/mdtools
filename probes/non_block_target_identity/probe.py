@@ -13,6 +13,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent.parent
 MANIFEST_PATH = SCRIPT_DIR / "cases.json"
 PROBE_SCHEMA_VERSION = "non-block-target-identity-probe.v1"
 CANONICAL_DESCRIPTOR_SCHEMA_VERSION = "non-block-target-identity-descriptor.v1"
@@ -35,6 +36,7 @@ EXPECTED_CASE_CLASSES = (
     "same_locator_duplicate_shift",
     "unrelated_edit_after_unchanged_target",
 )
+EXPECTED_SURFACES = ("section", "table", "task")
 EXPECTED_CASE_MATRIX = (
     ("section-unchanged-reread", "same_target"),
     ("section-duplicate-cross-target-copy", "wrong_target"),
@@ -96,8 +98,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Byte-compare canonical JSON against an existing file without rewriting it.",
     )
     args = parser.parse_args(argv)
-    if args.output is not None and args.check is not None:
-        parser.error("--output and --check are mutually exclusive")
+    if (args.output is None) == (args.check is None):
+        parser.error("exactly one of --output PATH or --check PATH is required")
     return args
 
 
@@ -107,10 +109,8 @@ def main(argv: list[str] | None = None) -> int:
         report_bytes = build_report_bytes(args.md_binary)
         if args.check is not None:
             verify_check_file(args.check, report_bytes)
-        elif args.output is not None:
-            atomic_write(args.output, report_bytes)
         else:
-            sys.stdout.buffer.write(report_bytes)
+            atomic_write(args.output, report_bytes)
         return 0
     except ProbeError as exc:
         print(str(exc), file=sys.stderr)
@@ -122,7 +122,11 @@ def build_report_bytes(md_binary_arg: Path) -> bytes:
     manifest = load_manifest()
     with TemporaryDirectory(prefix="non-block-target-identity-") as workspace_str:
         workspace = Path(workspace_str)
-        case_reports = [evaluate_case(case, manifest["query_shapes"], md_binary, workspace) for case in manifest["cases"]]
+        case_reports = [
+            evaluate_case(case, manifest["query_shapes"], md_binary, workspace)
+            for case in manifest["cases"]
+        ]
+    surface_summaries = build_surface_summaries(case_reports)
     candidate_summary = build_candidate_summary(case_reports)
     report = {
         "case_count": len(case_reports),
@@ -131,22 +135,24 @@ def build_report_bytes(md_binary_arg: Path) -> bytes:
         "cases": case_reports,
         "descriptor_schema_version": CANONICAL_DESCRIPTOR_SCHEMA_VERSION,
         "manifest_path": "cases.json",
+        "manifest_semantic_sha256": manifest["manifest_semantic_sha256"],
         "manifest_schema_version": manifest["schema_version"],
-        "overall_graduation_verdict": build_overall_graduation_verdict(candidate_summary),
+        "overall_graduation_verdict": build_overall_graduation_verdict(
+            candidate_summary,
+            surface_summaries,
+        ),
         "schema_version": PROBE_SCHEMA_VERSION,
+        "surface_summaries": surface_summaries,
     }
     return canonical_json_bytes(report)
 
 
 def ensure_md_binary(md_binary_arg: Path) -> Path:
-    try:
-        md_binary = md_binary_arg.resolve(strict=True)
-    except FileNotFoundError as exc:
-        raise ProbeError(f"md binary not found: {md_binary_arg}") from exc
-    except OSError as exc:
-        raise ProbeError(f"failed to resolve md binary: {md_binary_arg}") from exc
+    md_binary = resolve_repo_local_path(md_binary_arg, "md binary", strict=True)
     if not md_binary.is_file():
         raise ProbeError(f"md binary is not a file: {md_binary_arg}")
+    if not os.access(md_binary, os.X_OK):
+        raise ProbeError(f"md binary is not executable: {md_binary_arg}")
     return md_binary
 
 
@@ -203,6 +209,7 @@ def load_manifest() -> dict[str, Any]:
         )
     return {
         "cases": normalized_cases,
+        "manifest_semantic_sha256": actual_manifest_semantic_sha256,
         "query_shapes": query_shapes,
         "schema_version": schema_version,
     }
@@ -513,8 +520,37 @@ def evaluate_case(
         "current_domain_match_count": len(current_matches),
         "current_target": payload_record(current_target["target_text"], current_target["target_bytes"]),
         "identity_truth": case["identity_truth"],
+        "live_commands": {
+            "current_domain": build_report_domain_commands(
+                md_binary,
+                case["surface"],
+                case["current_domain_query"],
+                current_path.name,
+                len(current_domain),
+            ),
+            "current_target": build_report_target_command(
+                md_binary,
+                case["surface"],
+                case["current_target_query"],
+                current_path.name,
+            ),
+            "observed_domain": build_report_domain_commands(
+                md_binary,
+                case["surface"],
+                case["current_domain_query"],
+                observed_path.name,
+                len(observed_domain),
+            ),
+            "observed_target": build_report_target_command(
+                md_binary,
+                case["surface"],
+                case["observed_target_query"],
+                observed_path.name,
+            ),
+        },
         "observed_descriptor": observed_target["descriptor"],
         "observed_document": payload_record(observed_document_utf8, observed_document_bytes),
+        "observed_domain_descriptors": [entry["descriptor"] for entry in observed_domain],
         "observed_domain_match_count": len(observed_matches),
         "observed_target": payload_record(observed_target["target_text"], observed_target["target_bytes"]),
         "schema_version": PROBE_SCHEMA_VERSION,
@@ -827,11 +863,18 @@ def build_candidate_results(
         else:
             decision = "accept" if observed_token == current_token else "reject"
         wrong_identity_accept = decision == "accept" and case["identity_truth"] == "wrong_target"
-        required_same_state_reject = decision == "reject" and case["identity_truth"] == "same_target"
+        false_conflict = decision == "reject" and case["identity_truth"] == "same_target"
+        required_same_state_reject = false_conflict
         unrelated_edit_conflict = (
-            decision == "reject"
+            false_conflict
             and case["case_class"] == "unrelated_edit_after_unchanged_target"
         )
+        if wrong_identity_accept:
+            credit = "wrong_identity"
+        elif false_conflict:
+            credit = "false_conflict"
+        else:
+            credit = "correct"
         if wrong_identity_accept:
             graduation_verdict = "fails_wrong_identity"
         elif candidate_name_value == "document_target_state" and unrelated_edit_conflict:
@@ -841,8 +884,10 @@ def build_candidate_results(
         else:
             graduation_verdict = "graduates"
         results[candidate_name_value] = {
+            "credit": credit,
             "current_token_sha256": current_token,
             "decision": decision,
+            "false_conflict": false_conflict,
             "graduation_verdict": graduation_verdict,
             "observed_token_sha256": observed_token,
             "required_same_state_reject": required_same_state_reject,
@@ -853,9 +898,15 @@ def build_candidate_results(
 
 
 def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any]:
+    return build_scope_candidate_summary(case_reports)
+
+
+def build_scope_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {}
     for candidate_name_value in EXPECTED_CANDIDATES:
         accepts = 0
+        correct = 0
+        false_conflicts = 0
         rejects = 0
         wrong_identity_accepts = 0
         required_same_state_rejects = 0
@@ -866,6 +917,10 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
                 accepts += 1
             else:
                 rejects += 1
+            if result["credit"] == "correct":
+                correct += 1
+            elif result["credit"] == "false_conflict":
+                false_conflicts += 1
             if result["wrong_identity_accept"]:
                 wrong_identity_accepts += 1
             if result["required_same_state_reject"]:
@@ -880,7 +935,9 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
         )
         summary[candidate_name_value] = {
             "accepts": accepts,
+            "correct": correct,
             "disposition": "promote" if graduation_verdict == "graduates" else "demote",
+            "false_conflicts": false_conflicts,
             "graduation_verdict": graduation_verdict,
             "rejects": rejects,
             "required_same_state_rejects": required_same_state_rejects,
@@ -888,6 +945,24 @@ def build_candidate_summary(case_reports: list[dict[str, Any]]) -> dict[str, Any
             "wrong_identity_accepts": wrong_identity_accepts,
         }
     return summary
+
+
+def build_surface_summaries(case_reports: list[dict[str, Any]]) -> dict[str, Any]:
+    summaries: dict[str, Any] = {}
+    for surface in EXPECTED_SURFACES:
+        surface_case_reports = [case_report for case_report in case_reports if case_report["surface"] == surface]
+        candidate_summary = build_scope_candidate_summary(surface_case_reports)
+        verdict = build_scope_verdict(candidate_summary)
+        summaries[surface] = {
+            "candidate_summary": candidate_summary,
+            "candidate_verdicts": verdict["candidate_verdicts"],
+            "case_ids": [case_report["case_id"] for case_report in surface_case_reports],
+            "demoted_candidates": verdict["demoted_candidates"],
+            "graduating_candidates": verdict["graduating_candidates"],
+            "selected_candidate": verdict["selected_candidate"],
+            "verdict": verdict["verdict"],
+        }
+    return summaries
 
 
 def select_graduation_verdict(
@@ -905,7 +980,7 @@ def select_graduation_verdict(
     return "graduates"
 
 
-def build_overall_graduation_verdict(candidate_summary: dict[str, Any]) -> dict[str, Any]:
+def build_scope_verdict(candidate_summary: dict[str, Any]) -> dict[str, Any]:
     candidate_verdicts = {
         candidate_name_value: candidate_summary[candidate_name_value]["graduation_verdict"]
         for candidate_name_value in EXPECTED_CANDIDATES
@@ -935,10 +1010,79 @@ def build_overall_graduation_verdict(candidate_summary: dict[str, Any]) -> dict[
         "graduating_candidates": graduating_candidates,
         "selected_candidate": selected_candidate,
         "verdict": verdict,
+    }
+
+
+def build_overall_graduation_verdict(
+    candidate_summary: dict[str, Any],
+    surface_summaries: dict[str, Any],
+) -> dict[str, Any]:
+    verdict = build_scope_verdict(candidate_summary)
+    candidate_verdicts = {
+        candidate_name_value: candidate_summary[candidate_name_value]["graduation_verdict"]
+        for candidate_name_value in EXPECTED_CANDIDATES
+    }
+    return {
+        "candidate_verdicts": candidate_verdicts,
+        "demoted_candidates": verdict["demoted_candidates"],
+        "graduating_candidates": verdict["graduating_candidates"],
+        "selected_candidate": verdict["selected_candidate"],
+        "surface_selected_candidates": {
+            surface: surface_summaries[surface]["selected_candidate"] for surface in EXPECTED_SURFACES
+        },
+        "surface_verdicts": {surface: surface_summaries[surface]["verdict"] for surface in EXPECTED_SURFACES},
+        "verdict": verdict["verdict"],
         "whole_document_false_conflict_cost": candidate_summary["document_target_state"][
             "unrelated_edit_conflicts"
         ],
     }
+
+
+def build_report_target_command(
+    md_binary: Path,
+    surface: str,
+    query: dict[str, Any],
+    document_name: str,
+) -> list[str]:
+    if surface == "section":
+        args = build_section_command(query, document_name)
+    elif surface == "table":
+        args = build_table_read_command(query, document_name)
+    elif surface == "task":
+        args = build_tasks_command(document_name)
+    else:
+        raise ProbeError(f"unsupported surface {surface!r} for target command reporting")
+    return [repo_relative_path_text(md_binary), *args]
+
+
+def build_report_domain_commands(
+    md_binary: Path,
+    surface: str,
+    query: dict[str, Any],
+    document_name: str,
+    resolved_entry_count: int,
+) -> list[list[str]]:
+    if surface == "section":
+        return [
+            [
+                repo_relative_path_text(md_binary),
+                *build_section_command(
+                    {
+                        "selector": query["selector"],
+                        "occurrence": query["occurrence_start"] + index,
+                        "contains": query["contains"],
+                        "ignore_case": query["ignore_case"],
+                    },
+                    document_name,
+                ),
+            ]
+            for index in range(resolved_entry_count)
+        ]
+    if surface == "table":
+        return [[repo_relative_path_text(md_binary), *build_tables_command(document_name)]]
+    if surface == "task":
+        return [[repo_relative_path_text(md_binary), *build_tasks_command(document_name)]]
+    raise ProbeError(f"unsupported surface {surface!r} for domain command reporting")
 
 
 def build_section_command(query: dict[str, Any], document_name: str) -> list[str]:
@@ -1217,6 +1361,7 @@ def canonical_json_bytes(value: dict[str, Any]) -> bytes:
 
 
 def verify_check_file(check_path: Path, report_bytes: bytes) -> None:
+    check_path = resolve_repo_local_path(check_path, "--check path", strict=True)
     try:
         existing = check_path.read_bytes()
     except OSError as exc:
@@ -1226,6 +1371,7 @@ def verify_check_file(check_path: Path, report_bytes: bytes) -> None:
 
 
 def atomic_write(output_path: Path, report_bytes: bytes) -> None:
+    output_path = resolve_repo_local_output_path(output_path)
     parent = output_path.parent
     if not parent.exists():
         raise ProbeError(f"--output parent directory does not exist: {parent}")
@@ -1265,6 +1411,33 @@ def decode_utf8(payload: bytes, where: str) -> str:
         return payload.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ProbeError(f"{where}: invalid UTF-8") from exc
+
+
+def resolve_repo_local_path(path_arg: Path, where: str, *, strict: bool) -> Path:
+    try:
+        resolved = path_arg.resolve(strict=strict)
+    except FileNotFoundError as exc:
+        raise ProbeError(f"{where} not found: {path_arg}") from exc
+    except OSError as exc:
+        raise ProbeError(f"failed to resolve {where}: {path_arg}") from exc
+    try:
+        resolved.relative_to(REPO_ROOT)
+    except ValueError as exc:
+        raise ProbeError(f"{where} must resolve inside the repository root: {path_arg}") from exc
+    return resolved
+
+
+def resolve_repo_local_output_path(output_path: Path) -> Path:
+    parent_arg = output_path.parent if output_path.parent != Path("") else Path(".")
+    parent = resolve_repo_local_path(parent_arg, "--output parent", strict=True)
+    return parent / output_path.name
+
+
+def repo_relative_path_text(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def expect_mapping(value: Any, where: str) -> dict[str, Any]:

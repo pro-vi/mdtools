@@ -258,14 +258,20 @@ Promotion and demotion are deterministic:
 ## Deterministic Artifact Contract
 
 The canonical report is deterministic JSON emitted only by the authorized
-`--output PATH` mode. `--check PATH` compares bytes in memory and never
-rewrites.
+`--output PATH` mode. `probe.py` must require `--md-binary` and exactly one of
+`--output PATH` or `--check PATH`. `--check PATH` compares bytes in memory and
+never rewrites.
 
 The report must preserve:
 
+- top-level `manifest_semantic_sha256`
 - top-level `candidate_summary`
+- top-level `surface_summaries`
 - top-level `cases`
 - top-level `overall_graduation_verdict`
+- per-surface candidate graduation summaries across `section`, `table`, and
+  `task`
+- per-case live command vectors for observed/current target and domain reads
 - per-case candidate token digests
 - per-case wrong-identity and same-target-reject evidence
 - per-case same-locator lineage evidence when applicable
@@ -276,11 +282,12 @@ two-space indentation, UTF-8, and a trailing newline.
 ## Security Boundary
 
 `probe.py` is local-only and Python-stdlib-only. It may run only an explicit
-caller-supplied repository-local `md` binary via `subprocess.run` with an
-argument vector, `shell=False`, `env={}`, captured output, and an ephemeral
-temporary working directory.
+caller-supplied repository-local `md` binary that resolves to a regular
+executable inside the repository root via `subprocess.run` with an argument
+vector, `shell=False`, `env={}`, captured output, and an ephemeral temporary
+working directory.
 
 The only durable write mode is `--output PATH` via atomic same-directory
-replacement. The probe must not write any other durable artifacts and must not
-perform network access, dependency installation, or environment-derived
-authority lookup.
+replacement. `--check PATH` is read-only and non-mutating. The probe must not
+write any other durable artifacts and must not perform network access,
+dependency installation, or environment-derived authority lookup.
