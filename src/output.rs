@@ -352,14 +352,17 @@ mod tests {
         use std::os::unix::fs::MetadataExt;
         let dir = unique_dir("substitution");
         let tmp = dir.join("staging");
-        std::fs::write(&tmp, "the temp we created\n").unwrap();
-        let created = entry_identity(&tmp);
+        let mut staging = std::fs::File::create(&tmp).unwrap();
+        staging.write_all(b"the temp we created\n").unwrap();
+        let created_meta = staging.metadata().unwrap();
+        let created = Some((created_meta.dev(), created_meta.ino()));
 
         // Simulate a substitution: replace the entry with a different inode.
         std::fs::remove_file(&tmp).unwrap();
         std::fs::write(&tmp, "attacker file at same path\n").unwrap();
-        let substituted_ino = std::fs::symlink_metadata(&tmp).unwrap().ino();
-        assert_ne!(created.map(|(_, ino)| ino), Some(substituted_ino));
+        let substituted_meta = std::fs::symlink_metadata(&tmp).unwrap();
+        let substituted = Some((substituted_meta.dev(), substituted_meta.ino()));
+        assert_ne!(created, substituted);
 
         // Cleanup keyed on OUR created identity must not touch the foreign inode.
         cleanup_owned_temp(&tmp, created);
@@ -371,6 +374,7 @@ mod tests {
             std::fs::read_to_string(&tmp).unwrap(),
             "attacker file at same path\n"
         );
+        drop(staging);
     }
 
     #[cfg(unix)]
