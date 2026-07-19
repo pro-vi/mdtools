@@ -1,21 +1,30 @@
 # Target-State Etag Results Ledger
 
-- Date: 2026-07-18
+- Date: 2026-07-19
 - Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
+- Accepted integration base commit for this ledger refresh: `706b4679dfc943ed9967147e378e623b5064b12d`
 - Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
 - Historical execution lineage base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
 
 ## Immutable Inputs And Exact Commands
 
-- `probes/target_state_etag/probe.py` SHA-256: `be59924665a50bd3c38317f8b146a9a9a73b13a049a4ce15ba2dcab12a30faa7`
+- `probes/target_state_etag/probe.py` SHA-256: `5bbd9e115cad323e7427009c842c1664b9b872d2d6de0bcdd79b2e701fbc7589`
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
 - historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
-- current `PROTOCOL.md` SHA-256: `8f40e63bcbad6e5a283e2831732055099f8931578dbbba4b11c1e6c056933b2d`
+- current `PROTOCOL.md` SHA-256: `4d3c62aa49601c22b529da7703f47a588287cb1f7371b4672ce2e3721cc03e0b`
 - Historical execution build command: `cargo build --release`
 - Current exact locked regeneration build command: `cargo build --release --locked --offline`
 - Exact regeneration command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --output probes/target_state_etag/results.json`
 - Exact non-mutating check command: `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json`
 - `probes/target_state_etag/results.json` SHA-256: `4a6a3e4c7ec410cd98aa7ab35e55553012dcfc287e9116b1fe8949ee3ba1c98a`
+
+## Current Validation Evidence
+
+- `cargo build --release --locked --offline` completed for this inspection run at accepted head `706b4679dfc943ed9967147e378e623b5064b12d`.
+- The exact non-mutating check command `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json` passed byte-identically against the committed canonical report.
+- Invalid `identity_truth` label rejection was exercised through the real normalization path: `block-unchanged-reread.identity_truth` rejected `same-target`; allowed values are `same_target` and `wrong_target`.
+- Invalid `credit` label rejection was exercised through the real normalization path: `block-unchanged-reread.expected.content_only.credit` rejected `wrong-identiy`; allowed values are `correct`, `wrong_identity`, and `false-conflict`.
+- Invalid `case_class` label rejection was exercised through the real normalization path: `block-unchanged-reread.case_class` rejected `unchanged-rereaad`; allowed values are `duplicate_cross_target_copy`, `exact_byte_reversion`, `same_locator_duplicate_shift`, `unchanged_crlf_bytes`, `unchanged_multibyte_utf8_bytes`, `unchanged_reread`, `unchanged_section_descriptor`, `unchanged_table_descriptor`, `unchanged_task_descriptor`, and `unrelated_edit_after_unchanged_target`.
 
 ## Order-Only Regeneration Facts
 
