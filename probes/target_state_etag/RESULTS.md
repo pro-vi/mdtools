@@ -2,14 +2,15 @@
 
 - Date: 2026-07-19
 - Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
-- Accepted integration base commit for this ledger refresh: `1c0f61acc03ae8f94ff2f95adeb4b61aa44a6d9b`
-- Prior ledger refresh accepted integration base commit: `49d40083c14890935a8828dbccfec6f0fa2364bb`
+- Accepted integration base commit for this ledger refresh: `37ee4c40c30a1743d1718f699251c101ed9d911b`
+- Prior ledger refresh accepted integration base commit: `1c0f61acc03ae8f94ff2f95adeb4b61aa44a6d9b`
+- Earlier ledger refresh accepted integration base commit: `49d40083c14890935a8828dbccfec6f0fa2364bb`
 - Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
 - Historical execution lineage base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
 
 ## Immutable Inputs And Exact Commands
 
-- `probes/target_state_etag/probe.py` SHA-256: `1614d540629d6236ff5d15e2f1fa09fa584b77e1e84cac0f12d461f8e4c8ac74`
+- `probes/target_state_etag/probe.py` SHA-256: `08ca02fe3a595780d44b65bc46a2fc1df8b564e871bfbfcdfe17a6c86c2ca615`
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
 - historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
 - current `PROTOCOL.md` SHA-256: `04362c7e1bd2fd82e2233933c15d1d84b3bb491891b4cf6fed110581d8feda2d`
@@ -21,9 +22,12 @@
 
 ## Current Validation Evidence
 
-- `cargo build --release --locked --offline` completed for this inspection run at accepted head `1c0f61acc03ae8f94ff2f95adeb4b61aa44a6d9b`.
-- The committed manifest still loads with exactly ten cases in the runner-owned protocol order: `block-unchanged-reread`, `block-duplicate-cross-target-copy`, `block-same-locator-duplicate-shift`, `block-unrelated-edit-false-conflict`, `block-exact-byte-reversion`, `block-unchanged-crlf-bytes`, `block-unchanged-multibyte-utf8-bytes`, `section-unchanged-real-descriptor`, `table-unchanged-real-descriptor`, and `task-unchanged-real-descriptor`.
+- `cargo build --release --locked --offline` completed for this inspection run at accepted head `37ee4c40c30a1743d1718f699251c101ed9d911b`.
+- The committed manifest still loads with exactly ten cases in the runner-owned protocol order, and the accepted case-id to `identity_truth` matrix is exact: `block-unchanged-reread=same_target`, `block-duplicate-cross-target-copy=wrong_target`, `block-same-locator-duplicate-shift=wrong_target`, `block-unrelated-edit-false-conflict=same_target`, `block-exact-byte-reversion=same_target`, `block-unchanged-crlf-bytes=same_target`, `block-unchanged-multibyte-utf8-bytes=same_target`, `section-unchanged-real-descriptor=same_target`, `table-unchanged-real-descriptor=same_target`, and `task-unchanged-real-descriptor=same_target`.
 - The exact non-mutating check command `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json` passed byte-identically against the committed canonical report.
+- Flipping `identity_truth` for each of the ten fixed case IDs is rejected before scoring with deterministic field-specific actual/expected errors of the form ``<case_id>.identity_truth: runner-owned identity truth mismatch for case <case_id>: got <actual>, expected <expected>``.
+- Relabeling `block-same-locator-duplicate-shift.identity_truth` to `same_target` is rejected before scoring at `block-same-locator-duplicate-shift.identity_truth: runner-owned identity truth mismatch for case block-same-locator-duplicate-shift: got 'same_target', expected 'wrong_target'`.
+- The canonical non-mutating check target remains byte-identical at `probes/target_state_etag/results.json` SHA-256 `4a6a3e4c7ec410cd98aa7ab35e55553012dcfc287e9116b1fe8949ee3ba1c98a`.
 - The committed valid mapping for `block-same-locator-duplicate-shift` still equals runner authority exactly: `require_target_bytes_equal=true`, `require_canonical_descriptor_equal=true`, `require_current_match_count=1`, `require_document_bytes_different=true`, and `mechanical_failure_on_violation=true`.
 - Deleting `same_locator_preconditions` from `block-same-locator-duplicate-shift` fails before scoring at `block-same-locator-duplicate-shift.same_locator_preconditions must be an object`.
 - Replacing `same_locator_preconditions` with a non-mapping fails before scoring at `block-same-locator-duplicate-shift.same_locator_preconditions must be an object`.
