@@ -1017,6 +1017,366 @@ fn replace_table_row_preserves_no_final_newline() {
     std::fs::remove_file(&tmp).unwrap();
 }
 
+// --- insert-table-row ---
+
+#[test]
+fn insert_table_row_stdout_preserves_non_target_bytes_for_prepend_middle_and_append() {
+    let source = "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n";
+    let cases = [
+        (
+            "0",
+            "| Prelude | 050 |\n",
+            "# Data\n\n| Name | Value |\n|------|-------|\n| Prelude | 050 |\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n",
+            serde_json::json!([
+                ["Prelude", "050"],
+                ["Alpha", "100"],
+                ["Beta", "200"],
+                ["Gamma", "300"]
+            ]),
+        ),
+        (
+            "1",
+            "| Between | 150 |\n",
+            "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Between | 150 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n",
+            serde_json::json!([
+                ["Alpha", "100"],
+                ["Between", "150"],
+                ["Beta", "200"],
+                ["Gamma", "300"]
+            ]),
+        ),
+        (
+            "3",
+            "| Tail | 999 |\n",
+            "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n| Tail | 999 |\n\nSummary paragraph.\n",
+            serde_json::json!([
+                ["Alpha", "100"],
+                ["Beta", "200"],
+                ["Gamma", "300"],
+                ["Tail", "999"]
+            ]),
+        ),
+    ];
+
+    for (row_index, payload, expected, expected_rows) in cases {
+        let tmp = tempfile(source);
+        let out = md_with_stdin(&["insert-table-row", "1", row_index, &tmp], payload);
+        assert!(
+            out.status.success(),
+            "row {} stderr: {}",
+            row_index,
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(String::from_utf8(out.stdout).unwrap(), expected);
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), source);
+
+        let in_place = md_with_stdin(&["insert-table-row", "1", row_index, &tmp, "-i"], payload);
+        assert!(
+            in_place.status.success(),
+            "row {} stderr: {}",
+            row_index,
+            String::from_utf8_lossy(&in_place.stderr)
+        );
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), expected);
+        assert_eq!(table_json(&tmp, 1)["rows"], expected_rows);
+        std::fs::remove_file(&tmp).unwrap();
+    }
+}
+
+#[test]
+fn insert_table_row_json_reports_typed_target() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let table_before = table_json(&tmp, 1);
+    let out = md_with_stdin(
+        &["insert-table-row", "1", "1", &tmp, "-i", "--json"],
+        "| Gamma | 300 |\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["command"], "InsertTableRow");
+    assert_eq!(json["disposition"], "Inserted");
+    assert_eq!(json["changed"], true);
+    assert_eq!(
+        json["target"]["TableRowInsertion"]["kind"],
+        "TableRowInsertion"
+    );
+    assert_eq!(json["target"]["TableRowInsertion"]["table_block_index"], 1);
+    assert_eq!(json["target"]["TableRowInsertion"]["row_index"], 1);
+    assert_eq!(
+        json["target"]["TableRowInsertion"]["table_span"],
+        table_before["span"]
+    );
+    assert!(json["invariant"]["target_span_before"].is_null());
+    assert_eq!(json["invariant"]["preserves_non_target_bytes"], true);
+    assert!(json["content"].is_null());
+
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    let after = &json["invariant"]["target_span_after"];
+    let bs = after["byte_start"].as_u64().unwrap() as usize;
+    let be = after["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(&updated[bs..be], "| Gamma | 300 |");
+    assert_eq!(
+        table_json(&tmp, 1)["rows"],
+        serde_json::json!([["Alpha", "100"], ["Gamma", "300"], ["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_from_file_inserts_middle_row_in_place() {
+    let source = "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n";
+    let tmp = tempfile(source);
+    let payload = tempfile("| Mid | 150 |\n");
+    let out = md()
+        .args(["insert-table-row", "1", "1", &tmp, "-i", "--from", &payload])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Mid | 150 |\n| Beta | 200 |\n| Gamma | 300 |\n\nSummary paragraph.\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 1)["rows"],
+        serde_json::json!([
+            ["Alpha", "100"],
+            ["Mid", "150"],
+            ["Beta", "200"],
+            ["Gamma", "300"]
+        ])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+    std::fs::remove_file(&payload).unwrap();
+}
+
+#[test]
+fn insert_table_row_zero_row_tables_preserve_body_and_eof_boundaries() {
+    let with_body = "| Name | Value |\n|---|---|\n\nSummary paragraph.\n";
+    let tmp = tempfile(with_body);
+    let out = md_with_stdin(
+        &["insert-table-row", "0", "0", &tmp, "-i"],
+        "| Alpha | 100 |\n",
+    );
+    assert!(out.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\nSummary paragraph.\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["Alpha", "100"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+
+    let eof = "| Name | Value |\n|---|---|";
+    let tmp = tempfile(eof);
+    let out = md_with_stdin(
+        &["insert-table-row", "0", "0", &tmp, "-i"],
+        "| Alpha | 100 |\n",
+    );
+    assert!(out.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["Alpha", "100"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_invalid_payloads_exit_3_without_writing() {
+    let cases = [
+        ("", "must not be empty"),
+        ("| Alpha | 100 |\n| Beta | 200 |\n", "exactly one line"),
+        ("not a row\n", "exactly one GFM table data row"),
+        (
+            "| Only one |\n",
+            "column count 1 does not match table column count 2",
+        ),
+    ];
+
+    for (payload, needle) in cases {
+        let tmp = tempfile(include_str!("fixtures/table.md"));
+        let out = md_with_stdin(&["insert-table-row", "1", "0", &tmp, "-i"], payload);
+        assert_eq!(
+            out.status.code(),
+            Some(3),
+            "payload {:?} should exit 3",
+            payload
+        );
+        let stderr = String::from_utf8(out.stderr).unwrap();
+        assert!(stderr.contains(needle), "stderr was: {}", stderr);
+        assert_eq!(
+            std::fs::read_to_string(&tmp).unwrap(),
+            include_str!("fixtures/table.md")
+        );
+        std::fs::remove_file(&tmp).unwrap();
+    }
+}
+
+#[test]
+fn insert_table_row_out_of_range_is_not_found() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let out = md_with_stdin(
+        &["insert-table-row", "1", "9", &tmp, "-i"],
+        "| Gamma | 300 |\n",
+    );
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("valid resulting row range: 0..=2"));
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        include_str!("fixtures/table.md")
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_matching_expect_etag_succeeds() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let list = md().args(["table", &tmp, "--json"]).output().unwrap();
+    assert!(list.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list.stdout).unwrap();
+    assert_eq!(list_json["tables"][0]["block_index"], 1);
+    let etag = list_json["tables"][0]["etag"].as_str().unwrap().to_string();
+
+    let out = md_with_stdin(
+        &[
+            "insert-table-row",
+            "1",
+            "1",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "| Gamma | 300 |\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "# Data\n\n| Name | Value |\n|------|-------|\n| Alpha | 100 |\n| Gamma | 300 |\n| Beta | 200 |\n\nSummary paragraph.\n"
+    );
+
+    let read_json = table_json(&tmp, 1);
+    assert_eq!(read_json["rows"][1], serde_json::json!(["Gamma", "300"]));
+    assert_eq!(
+        read_json["rows"],
+        serde_json::json!([["Alpha", "100"], ["Gamma", "300"], ["Beta", "200"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_expect_etag_conflicts_before_stdin_decode() {
+    let tmp = tempfile(include_str!("fixtures/table.md"));
+    let read = md()
+        .args(["table", &tmp, "--index", "1", "--json"])
+        .output()
+        .unwrap();
+    assert!(read.status.success());
+    let read_json: serde_json::Value = serde_json::from_slice(&read.stdout).unwrap();
+    let etag = read_json["etag"].as_str().unwrap().to_string();
+
+    let drifted =
+        include_str!("fixtures/table.md").replace("| Beta | 200 |\n", "| Beta2 | 250 |\n");
+    std::fs::write(&tmp, &drifted).unwrap();
+
+    let out = md_with_stdin_bytes(
+        &[
+            "insert-table-row",
+            "1",
+            "1",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        &[0xff],
+    );
+    assert_eq!(out.status.code(), Some(4));
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("etag mismatch"));
+    assert_eq!(std::fs::read_to_string(&tmp).unwrap(), drifted);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_preserves_crlf_line_endings() {
+    let tmp = tempfile(
+        "# Data\r\n\r\n| Name | Value |\r\n|------|-------|\r\n| Alpha | 100 |\r\n| Beta | 200 |\r\n\r\nSummary paragraph.\r\n",
+    );
+    let out = md_with_stdin(
+        &["insert-table-row", "1", "1", &tmp, "-i"],
+        "| Gamma | 300 |\n",
+    );
+    assert!(out.status.success());
+    let updated = std::fs::read_to_string(&tmp).unwrap();
+    assert_eq!(
+        updated,
+        "# Data\r\n\r\n| Name | Value |\r\n|------|-------|\r\n| Alpha | 100 |\r\n| Gamma | 300 |\r\n| Beta | 200 |\r\n\r\nSummary paragraph.\r\n"
+    );
+    assert!(!has_bare_lf(&updated));
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_preserves_mixed_local_boundaries() {
+    let tmp = tempfile(
+        "| Name | Value |\n|---|---|\r\n| Alpha | 100 |\r\n| Gamma | 300 |\n\nSummary paragraph.\r\n",
+    );
+    let out = md_with_stdin(
+        &["insert-table-row", "0", "1", &tmp, "-i"],
+        "| Beta | 200 |\n",
+    );
+    assert!(out.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\r\n| Alpha | 100 |\r\n| Beta | 200 |\r\n| Gamma | 300 |\n\nSummary paragraph.\r\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["Alpha", "100"], ["Beta", "200"], ["Gamma", "300"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_handles_utf8_lf_boundary_without_panic() {
+    let tmp = tempfile("| Name |\n|---|\n| café\n| Beta |\n");
+    let out = md_with_stdin(&["insert-table-row", "0", "1", &tmp, "-i"], "| Gamma |\n");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name |\n|---|\n| café\n| Gamma |\n| Beta |\n"
+    );
+    assert_eq!(
+        table_json(&tmp, 0)["rows"],
+        serde_json::json!([["café"], ["Gamma"], ["Beta"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
 // --- delete-table-row ---
 
 #[test]

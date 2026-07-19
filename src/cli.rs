@@ -58,6 +58,7 @@ pub enum Command {
     Set(SetArgs),
     Table(TableArgs),
     ReplaceTableRow(ReplaceTableRowArgs),
+    InsertTableRow(InsertTableRowArgs),
     DeleteTableRow(DeleteTableRowArgs),
     Tasks(TasksArgs),
     SetTask(SetTaskArgs),
@@ -290,6 +291,20 @@ pub struct TableArgs {
 
 #[derive(Args)]
 pub struct ReplaceTableRowArgs {
+    pub table_block_index: u32,
+    pub row_index: u32,
+    pub file: PathBuf,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    /// Read content from file instead of stdin (use "-" for stdin)
+    #[arg(long)]
+    pub from: Option<PathBuf>,
+    #[command(flatten)]
+    pub etag_guard: TableEtagGuardArgs,
+}
+
+#[derive(Args)]
+pub struct InsertTableRowArgs {
     pub table_block_index: u32,
     pub row_index: u32,
     pub file: PathBuf,

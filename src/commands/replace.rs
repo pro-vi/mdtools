@@ -460,7 +460,7 @@ pub(crate) fn replacement_span_after(span_before: SourceSpan, replacement: &str)
     }
 }
 
-fn inserted_span_after(
+pub(crate) fn inserted_span_after(
     output_doc: &str,
     payload_start: usize,
     payload_end: usize,
