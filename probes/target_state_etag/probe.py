@@ -52,6 +52,9 @@ EXPECTED_CASE_IDS = tuple(case_id for case_id, _identity_truth in EXPECTED_CASE_
 EXPECTED_CASE_IDENTITY_TRUTHS = {
     case_id: identity_truth for case_id, identity_truth in EXPECTED_CASE_MATRIX
 }
+EXPECTED_MANIFEST_SEMANTIC_SHA256 = (
+    "ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19"
+)
 EXPECTED_SAME_LOCATOR_CASE_ID = "block-same-locator-duplicate-shift"
 EXPECTED_SAME_LOCATOR_PRECONDITIONS = {
     "require_target_bytes_equal": True,
@@ -154,6 +157,13 @@ def load_manifest() -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise ProbeError(f"invalid manifest JSON in {MANIFEST_PATH.name}: {exc}") from exc
     manifest_map = expect_mapping(manifest, "manifest")
+    actual_manifest_semantic_sha256 = manifest_semantic_sha256(manifest_map)
+    if actual_manifest_semantic_sha256 != EXPECTED_MANIFEST_SEMANTIC_SHA256:
+        raise ProbeError(
+            f"{MANIFEST_PATH.name} runner-owned canonical semantic digest mismatch: "
+            f"actual {actual_manifest_semantic_sha256}, "
+            f"expected {EXPECTED_MANIFEST_SEMANTIC_SHA256}"
+        )
     schema_version = expect_string(manifest_map.get("schema_version"), "manifest.schema_version")
     candidates = expect_list(manifest_map.get("candidates"), "manifest.candidates")
     if [candidate_name(entry, index) for index, entry in enumerate(candidates)] != list(
@@ -1188,6 +1198,16 @@ def payload_record(text: str, payload: bytes) -> dict[str, Any]:
 
 def sha256_hex(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+def manifest_semantic_sha256(manifest_map: dict[str, Any]) -> str:
+    canonical_manifest = json.dumps(
+        manifest_map,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return sha256_hex(canonical_manifest)
 
 
 def order_report_value(value: Any) -> Any:
