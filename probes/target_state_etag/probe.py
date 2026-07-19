@@ -48,6 +48,14 @@ EXPECTED_CASE_IDS = (
     "table-unchanged-real-descriptor",
     "task-unchanged-real-descriptor",
 )
+EXPECTED_SAME_LOCATOR_CASE_ID = "block-same-locator-duplicate-shift"
+EXPECTED_SAME_LOCATOR_PRECONDITIONS = {
+    "require_target_bytes_equal": True,
+    "require_canonical_descriptor_equal": True,
+    "require_current_match_count": 1,
+    "require_document_bytes_different": True,
+    "mechanical_failure_on_violation": True,
+}
 
 
 class ProbeError(RuntimeError):
@@ -252,7 +260,9 @@ def validate_case(
         "observed_target_query": observed_target_query,
         "surface": surface,
     }
-    if "same_locator_preconditions" in case:
+    if case_id == EXPECTED_SAME_LOCATOR_CASE_ID:
+        normalized["same_locator_preconditions"] = validate_same_locator(case_id, case)
+    elif "same_locator_preconditions" in case:
         normalized["same_locator_preconditions"] = validate_same_locator(case_id, case)
     if "notes" in case:
         normalized["notes"] = expect_string(case.get("notes"), f"{case_id}.notes")
@@ -353,11 +363,11 @@ def validate_expected(case_id: str, expected_value: Any) -> dict[str, Any]:
 
 
 def validate_same_locator(case_id: str, case: dict[str, Any]) -> dict[str, Any]:
-    same_locator = expect_mapping(
+    raw_same_locator = expect_mapping(
         case.get("same_locator_preconditions"),
         f"{case_id}.same_locator_preconditions",
     )
-    normalized: dict[str, Any] = {}
+    same_locator: dict[str, Any] = {}
     for key in (
         "require_target_bytes_equal",
         "require_canonical_descriptor_equal",
@@ -366,16 +376,29 @@ def validate_same_locator(case_id: str, case: dict[str, Any]) -> dict[str, Any]:
         "mechanical_failure_on_violation",
     ):
         if key == "require_current_match_count":
-            normalized[key] = expect_nonnegative_int(
-                same_locator.get(key),
+            same_locator[key] = expect_nonnegative_int(
+                raw_same_locator.get(key),
                 f"{case_id}.same_locator_preconditions.{key}",
             )
         else:
-            normalized[key] = expect_bool(
-                same_locator.get(key),
+            same_locator[key] = expect_bool(
+                raw_same_locator.get(key),
                 f"{case_id}.same_locator_preconditions.{key}",
             )
-    return normalized
+    if case_id == EXPECTED_SAME_LOCATOR_CASE_ID:
+        if same_locator != EXPECTED_SAME_LOCATOR_PRECONDITIONS:
+            for key, expected_value in EXPECTED_SAME_LOCATOR_PRECONDITIONS.items():
+                actual_value = same_locator[key]
+                if actual_value != expected_value:
+                    raise ProbeError(
+                        f"{case_id}.same_locator_preconditions.{key}: "
+                        "runner-owned same-locator precondition contract requires "
+                        f"{expected_value!r}, got {actual_value!r}"
+                    )
+            raise ProbeError(
+                f"{case_id}.same_locator_preconditions: runner-owned same-locator precondition contract mismatch"
+            )
+    return same_locator
 
 
 def evaluate_case(
