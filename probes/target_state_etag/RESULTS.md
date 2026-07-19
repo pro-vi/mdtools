@@ -2,16 +2,18 @@
 
 - Date: 2026-07-19
 - Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
-- Accepted integration base commit for this ledger refresh: `37ee4c40c30a1743d1718f699251c101ed9d911b`
-- Prior ledger refresh accepted integration base commit: `1c0f61acc03ae8f94ff2f95adeb4b61aa44a6d9b`
-- Earlier ledger refresh accepted integration base commit: `49d40083c14890935a8828dbccfec6f0fa2364bb`
+- Accepted integration base commit for this ledger refresh: `efdd8e6ef9e44262d7ca728084ec5cb57f28a039`
+- Prior ledger refresh accepted integration base commit: `37ee4c40c30a1743d1718f699251c101ed9d911b`
+- Earlier ledger refresh accepted integration base commit: `1c0f61acc03ae8f94ff2f95adeb4b61aa44a6d9b`
+- Earlier lineage integration base commit: `49d40083c14890935a8828dbccfec6f0fa2364bb`
 - Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
 - Historical execution lineage base commit: `2891a3e1454ef0c88481f4cf3e389a423f1c0319`
 
 ## Immutable Inputs And Exact Commands
 
-- `probes/target_state_etag/probe.py` SHA-256: `08ca02fe3a595780d44b65bc46a2fc1df8b564e871bfbfcdfe17a6c86c2ca615`
+- `probes/target_state_etag/probe.py` SHA-256: `b202a60f39e9315a6622749075a38ad5f4ef1a3b5d54b7b7c150f56d52e167b9`
 - `probes/target_state_etag/cases.json` SHA-256: `287031f5e85d6ab32f394eaac0245fde4177eb4fb88d1049d79b242463f11d56`
+- canonical manifest semantic SHA-256: `ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`
 - historical execution-time `PROTOCOL.md` authority hash (SHA-256): `1c891a9f46fcb0cf0fca916a1a78efc3da008254246d9932698039e00095c3b5`
 - current `PROTOCOL.md` SHA-256: `04362c7e1bd2fd82e2233933c15d1d84b3bb491891b4cf6fed110581d8feda2d`
 - Historical execution build command: `cargo build --release`
@@ -22,7 +24,11 @@
 
 ## Current Validation Evidence
 
-- `cargo build --release --locked --offline` completed for this inspection run at accepted head `37ee4c40c30a1743d1718f699251c101ed9d911b`.
+- `cargo build --release --locked --offline` completed for this inspection run at accepted head `efdd8e6ef9e44262d7ca728084ec5cb57f28a039`.
+- The exact committed manifest is accepted by the runner-owned canonical semantic digest at `ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`.
+- A formatting/object-key-order-only reserialization is also accepted: reversing top-level JSON object key order still loads all ten cases and reproduces semantic SHA-256 `ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`.
+- A reproduced coordinated unrelated-edit weakening of `block-unrelated-edit-false-conflict` fails at the canonical semantic digest before case normalization or scoring with `cases.json runner-owned canonical semantic digest mismatch: actual 64741a9d202216d977edb04e61eb156a713adf0531416d115f15504bacd441e0, expected ddbe17cf9cc8e39e858c51a6f61f93388ab375cbb736273c9ad1dbba23d22b19`.
+- The semantic pin covers every semantic value and list order in the complete fixed manifest while ignoring only JSON object formatting and key order.
 - The committed manifest still loads with exactly ten cases in the runner-owned protocol order, and the accepted case-id to `identity_truth` matrix is exact: `block-unchanged-reread=same_target`, `block-duplicate-cross-target-copy=wrong_target`, `block-same-locator-duplicate-shift=wrong_target`, `block-unrelated-edit-false-conflict=same_target`, `block-exact-byte-reversion=same_target`, `block-unchanged-crlf-bytes=same_target`, `block-unchanged-multibyte-utf8-bytes=same_target`, `section-unchanged-real-descriptor=same_target`, `table-unchanged-real-descriptor=same_target`, and `task-unchanged-real-descriptor=same_target`.
 - The exact non-mutating check command `python3 probes/target_state_etag/probe.py --md-binary target/release/md --check probes/target_state_etag/results.json` passed byte-identically against the committed canonical report.
 - Flipping `identity_truth` for each of the ten fixed case IDs is rejected before scoring with deterministic field-specific actual/expected errors of the form ``<case_id>.identity_truth: runner-owned identity truth mismatch for case <case_id>: got <actual>, expected <expected>``.
