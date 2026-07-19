@@ -1,6 +1,6 @@
 # Target-State Etag Results Ledger
 
-- Date: 2026-07-19
+- Date: 2026-07-18
 - Purpose: Factual ledger for the ten-case stateless-candidate target-state etag probe recorded in `probes/target_state_etag/results.json`.
 - Accepted integration base commit for this ledger refresh: `706b4679dfc943ed9967147e378e623b5064b12d`
 - Accepted semantic-comparison base commit: `c7f08c9e1cfa4803617256c0f943a852c7d6703a`
