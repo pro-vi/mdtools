@@ -39,22 +39,74 @@ EXPECTED_CASE_CLASSES = (
 )
 EXPECTED_SURFACES = ("section", "table", "task")
 EXPECTED_CASE_MATRIX = (
-    ("section-unchanged-reread", "same_target"),
-    ("section-duplicate-cross-target-copy", "wrong_target"),
-    ("section-same-locator-duplicate-shift", "wrong_target"),
-    ("section-unrelated-edit-false-conflict", "same_target"),
-    ("table-unchanged-reread", "same_target"),
-    ("table-duplicate-cross-target-copy", "wrong_target"),
-    ("table-same-locator-duplicate-shift", "wrong_target"),
-    ("table-unrelated-edit-false-conflict", "same_target"),
-    ("task-unchanged-reread", "same_target"),
-    ("task-duplicate-cross-target-copy", "wrong_target"),
-    ("task-same-locator-duplicate-shift", "wrong_target"),
-    ("task-unrelated-edit-false-conflict", "same_target"),
+    ("section-unchanged-reread", "section", "unchanged_reread", "same_target"),
+    (
+        "section-duplicate-cross-target-copy",
+        "section",
+        "duplicate_cross_target_copy",
+        "wrong_target",
+    ),
+    (
+        "section-same-locator-duplicate-shift",
+        "section",
+        "same_locator_duplicate_shift",
+        "wrong_target",
+    ),
+    (
+        "section-unrelated-edit-false-conflict",
+        "section",
+        "unrelated_edit_after_unchanged_target",
+        "same_target",
+    ),
+    ("table-unchanged-reread", "table", "unchanged_reread", "same_target"),
+    (
+        "table-duplicate-cross-target-copy",
+        "table",
+        "duplicate_cross_target_copy",
+        "wrong_target",
+    ),
+    (
+        "table-same-locator-duplicate-shift",
+        "table",
+        "same_locator_duplicate_shift",
+        "wrong_target",
+    ),
+    (
+        "table-unrelated-edit-false-conflict",
+        "table",
+        "unrelated_edit_after_unchanged_target",
+        "same_target",
+    ),
+    ("task-unchanged-reread", "task", "unchanged_reread", "same_target"),
+    (
+        "task-duplicate-cross-target-copy",
+        "task",
+        "duplicate_cross_target_copy",
+        "wrong_target",
+    ),
+    (
+        "task-same-locator-duplicate-shift",
+        "task",
+        "same_locator_duplicate_shift",
+        "wrong_target",
+    ),
+    (
+        "task-unrelated-edit-false-conflict",
+        "task",
+        "unrelated_edit_after_unchanged_target",
+        "same_target",
+    ),
 )
-EXPECTED_CASE_IDS = tuple(case_id for case_id, _identity_truth in EXPECTED_CASE_MATRIX)
+EXPECTED_CASE_IDS = tuple(case_id for case_id, _surface, _case_class, _identity_truth in EXPECTED_CASE_MATRIX)
+EXPECTED_CASE_SURFACES = {
+    case_id: surface for case_id, surface, _case_class, _identity_truth in EXPECTED_CASE_MATRIX
+}
+EXPECTED_CASE_CLASSES_BY_ID = {
+    case_id: case_class for case_id, _surface, case_class, _identity_truth in EXPECTED_CASE_MATRIX
+}
 EXPECTED_CASE_IDENTITY_TRUTHS = {
-    case_id: identity_truth for case_id, identity_truth in EXPECTED_CASE_MATRIX
+    case_id: identity_truth
+    for case_id, _surface, _case_class, identity_truth in EXPECTED_CASE_MATRIX
 }
 EXPECTED_MANIFEST_SEMANTIC_SHA256 = "6fd0197bdc6691f2d6e54247b5801c187208738f411d6695b71b423bfd530209"
 EXPECTED_MECHANICAL_PRECONDITION_CASE_CLASSES = (
@@ -304,16 +356,27 @@ def validate_case(
         raise ProbeError(f"invalid manifest case_id: {case_id}")
     if "expected" in case:
         raise ProbeError(f"{case_id}: manifest must not contain candidate expected decisions")
-    surface = expect_string(case.get("surface"), f"{case_id}.surface")
-    if surface not in {"section", "table", "task"}:
-        raise ProbeError(f"{case_id}: unsupported surface {surface!r}")
+    surface = expect_choice(case.get("surface"), f"{case_id}.surface", EXPECTED_SURFACES)
+    expected_surface = EXPECTED_CASE_SURFACES.get(case_id)
+    if expected_surface is not None and surface != expected_surface:
+        raise ProbeError(
+            f"{case_id}.surface: runner-owned surface mismatch for case "
+            f"{case_id}: got {surface!r}, expected {expected_surface!r}"
+        )
+    case_class = expect_choice(
+        case.get("case_class"),
+        f"{case_id}.case_class",
+        EXPECTED_CASE_CLASSES,
+    )
+    expected_case_class = EXPECTED_CASE_CLASSES_BY_ID.get(case_id)
+    if expected_case_class is not None and case_class != expected_case_class:
+        raise ProbeError(
+            f"{case_id}.case_class: runner-owned case class mismatch for case "
+            f"{case_id}: got {case_class!r}, expected {expected_case_class!r}"
+        )
     identity_truth = validate_identity_truth(case_id, case.get("identity_truth"))
     normalized = {
-        "case_class": expect_choice(
-            case.get("case_class"),
-            f"{case_id}.case_class",
-            EXPECTED_CASE_CLASSES,
-        ),
+        "case_class": case_class,
         "case_id": case_id,
         "current_document_utf8": expect_string(
             case.get("current_document_utf8"),
@@ -1809,12 +1872,16 @@ def expect_bool(value: Any, where: str) -> bool:
 
 
 def expect_nonnegative_int(value: Any, where: str) -> int:
+    if isinstance(value, bool):
+        raise ProbeError(f"{where}: expected non-negative integer")
     if not isinstance(value, int) or value < 0:
         raise ProbeError(f"{where}: expected non-negative integer")
     return value
 
 
 def expect_positive_int(value: Any, where: str) -> int:
+    if isinstance(value, bool):
+        raise ProbeError(f"{where}: expected positive integer")
     if not isinstance(value, int) or value <= 0:
         raise ProbeError(f"{where}: expected positive integer")
     return value
