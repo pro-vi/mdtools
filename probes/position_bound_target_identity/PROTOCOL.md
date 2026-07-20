@@ -2,20 +2,20 @@
 
 Date locked: 2026-07-20
 Initial authored base commit: `3771409a39c5554a011349c3abf25ee6c73f2cf1`
-Accepted repair base commit: `edea9e24de21ac178c003b8ce282f1aed32008e3`
+Accepted repair base commit: `845b52cc986aa86760166fda38e91c8b523f44d6`
 Accepted branch: `probe/position-bound-target-identity-3771409`
 
 ## Scope And Grounding
 
 This phase is source-only at accepted repair base
-`edea9e24de21ac178c003b8ce282f1aed32008e3` on branch
+`845b52cc986aa86760166fda38e91c8b523f44d6` on branch
 `probe/position-bound-target-identity-3771409`. The initial authored base for
 this protocol file remains
 `3771409a39c5554a011349c3abf25ee6c73f2cf1`; that is where the file first
 entered the PR. In the full authored range
 `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`, the PR adds exactly one
 tracked file: `probes/position_bound_target_identity/PROTOCOL.md`. In this
-repair range `edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD`, the phase
+repair range `845b52cc986aa86760166fda38e91c8b523f44d6..HEAD`, the phase
 modifies exactly that existing tracked file and no other path.
 
 It does not authorize any other tracked change, any `.braid/` artifact, any
@@ -107,6 +107,18 @@ For every case, the future runner must:
 5. derive exact block bytes only by slicing the raw document bytes at live
    `span.byte_start..span.byte_end`
 
+For each observed and current document independently, let `D` be the exact
+document bytes and let `block_domain_start` be the minimum live
+`span.byte_start` among top-level block entries returned by the authenticated
+`md blocks` projection for that same document. The future runner must derive
+that boundary only from the live block projection plus source bytes. No
+`md frontmatter`, handwritten frontmatter parser, manifest-owned spans, or
+extra child-process invocation may derive or adjust it.
+
+If the target block or any required neighboring block cannot be resolved from
+the canonical live block descriptor projection, the runner must hard-fail
+before token construction or scoring.
+
 Forbidden authority is explicit:
 
 - manifest-owned spans
@@ -130,8 +142,13 @@ The canonical live block descriptor is mechanical evidence only and is never a
 candidate token field or production identity primitive.
 
 Context is raw bytes. Byte windows may split multibyte UTF-8 sequences without
-decoding, CRLF is preserved byte-for-byte, and frontmatter stays excluded
-exactly as the top-level block domain from `md blocks` excludes it.
+decoding, CRLF is preserved byte-for-byte, and bytes before
+`block_domain_start`, including frontmatter and leading non-block bytes, never
+enter a candidate token preimage. Those excluded bytes are outside the logical
+block domain even when they appear earlier in the physical file. Raw target
+bytes remain eligible candidate token payload exactly as sliced from the live
+target span, and bytes at or after `block_domain_start` remain eligible
+byte-window context.
 
 The exact bounded candidate family is fixed now:
 
@@ -180,13 +197,18 @@ The candidate payload fields are exact:
 `eof` or `present`. When a boundary state is `bof` or `eof`, the corresponding
 byte field is empty bytes, not an invented placeholder string.
 
-`prefix_window_bytes` is the last at most 64 raw bytes immediately preceding
-the target span. `suffix_window_bytes` is the first at most 64 raw bytes
-immediately following the target span. `prefix_hits_bof` and `suffix_hits_eof`
-are explicit boolean fields. Each boolean payload is exactly one byte: `0x00`
-for false and `0x01` for true, with a length prefix equal to the unsigned
-64-bit big-endian encoding of `1`. No JSON token, ASCII spelling, alternate
-integer width, or other byte value is authorized.
+For each document independently, let the live target span be `[a:b)` over
+document bytes `D`. `prefix_window_bytes` is exactly
+`D[max(block_domain_start, a - 64):a]`. `suffix_window_bytes` is exactly
+`D[b:min(len(D), b + 64)]`. `prefix_hits_bof` is true exactly when the prefix
+reaches `block_domain_start`; that BOF is the logical block-domain BOF rather
+than physical byte zero. `suffix_hits_eof` remains true exactly when the
+suffix reaches the physical document EOF. `prefix_hits_bof` and
+`suffix_hits_eof` are explicit boolean fields. Each boolean payload is exactly
+one byte: `0x00` for false and `0x01` for true, with a length prefix equal to
+the unsigned 64-bit big-endian encoding of `1`. No JSON token, ASCII spelling,
+alternate integer width, or other byte value is authorized. Bytes before
+`block_domain_start`, including frontmatter, never enter a candidate token preimage.
 
 If a later artifact records SHA-256 as a compact token digest, that SHA-256
 must hash exactly this framed preimage and never replaces byte-equality as the
@@ -488,6 +510,26 @@ Canonical JSON rules are fixed:
 - trailing newline
 - sorted object keys except for the fixed candidate and case orderings
 
+The future canonical report must serialize canonical reported command vectors
+as normalized evidence and not literal OS argv. Each canonical reported
+command vector is a JSON array of exactly four strings in this order:
+repository-relative authenticated binary path, `blocks`, canonical case path,
+and `--json`.
+
+The reported binary path must be mechanically derived from the already accepted
+resolved binary path under the repository root, normalized as UTF-8 with
+forward slashes, no leading `./`, no empty component, and no `.` or `..`
+component. The existing strict resolution-under-repository check remains the
+authoritative execution boundary; canonicalization changes only the reported
+evidence bytes.
+
+The only authorized canonical case paths are `cases/{case_id}/observed.md` and
+`cases/{case_id}/current.md`, derived mechanically from the runner-owned fixed
+case ID and the two runner-owned absolute temporary file paths. Those logical
+labels, plus the separate binary SHA-256 field, are the only canonical command
+evidence; caller-selected absolute paths and other location-dependent argv
+bytes must never enter canonical report bytes.
+
 ## Future Runner Security Boundary
 
 A later runner must be Python-standard-library-only and local-only.
@@ -551,7 +593,7 @@ the substantive assertions.
 
 After authorship, native Codex review is required over the exact repair range:
 
-`edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD`
+`845b52cc986aa86760166fda38e91c8b523f44d6..HEAD`
 
 Any repair-range finding must be repaired and re-reviewed before durable
 `RunCompleted`.
@@ -568,9 +610,9 @@ Completion requires all of the following:
 
 - the focused task verifier
 - native Codex review over
-  `edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD`
+  `845b52cc986aa86760166fda38e91c8b523f44d6..HEAD`
 - the repair-range git proof over
-  `edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD`
+  `845b52cc986aa86760166fda38e91c8b523f44d6..HEAD`
 - the full authored range git proof over
   `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`
 - the exact phase oracle
@@ -579,7 +621,7 @@ Completion requires all of the following:
 Historical two-run coverage remains supporting evidence only. The current
 self-contained authority is the dual-range proof set above plus the phase
 oracle pass, repaired native Codex review over
-`edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD`, and durable
+`845b52cc986aa86760166fda38e91c8b523f44d6..HEAD`, and durable
 `RunCompleted`.
 
 Repair-range review, path proof, whitespace proof, historical review, CI pass,
@@ -591,14 +633,14 @@ The focused task verifier bytes are exact and must not be broadened,
 substituted, or rewritten:
 
 ```bash
-python3 -c 'from pathlib import Path; import sys; text = Path("probes/position_bound_target_identity/PROTOCOL.md").read_text(encoding="utf-8"); authority = text.split("## Block Authority And Candidate Framing\n", 1)[1].split("\nThe exact bounded candidate family", 1)[0]; framing = text.split("### Collision-Safe Token Framing\n", 1)[1].split("\n## Future Manifest Contract", 1)[0]; lineage = text.split("### Wrong-Target Lineage Rules\n", 1)[1].split("\n## Candidate Decisions", 1)[0]; security = text.split("## Future Runner Security Boundary\n", 1)[1].split("\nSource construction, source inspection", 1)[0]; review = text.split("## Review And Completion Policy\n", 1)[1].split("\nThe focused task verifier bytes", 1)[0]; checks = [all(marker in authority for marker in ["canonical live block descriptor", "descriptor-only exclusion", "raw target bytes remain", "candidate token payload", "authorized construction inputs"]), all(marker in framing for marker in ["position-bound-target-identity-token", "ASCII schema version", "unsigned 64-bit big-endian", "0x00", "0x01"]), all(marker in lineage for marker in ["backward_prefix_insertion_bytes", "D[0:a] + I + D[a:b] + D[d:]", "D[0:a] + D[c:]"]), all(marker in security for marker in ["trusted md binary", "--md-binary-sha256", "SHA-256", "shell=False", "env={}", "process hygiene", "not a hostile-code sandbox", "operator OS authority", "outer VM or container"]), all(marker in review for marker in ["edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD", "3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD", "full authored range", "no unresolved review thread"]), "command text cannot satisfy" in text.split("## Review And Completion Policy\n", 1)[0]]; sys.exit(not all(checks))' && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+python3 -c 'from pathlib import Path; import sys; text = Path("probes/position_bound_target_identity/PROTOCOL.md").read_text(encoding="utf-8"); authority = text.split("## Block Authority And Candidate Framing\n", 1)[1].split("\nThe exact bounded candidate family", 1)[0]; framing = text.split("### Collision-Safe Token Framing\n", 1)[1].split("\n## Future Manifest Contract", 1)[0]; lineage = text.split("### Wrong-Target Lineage Rules\n", 1)[1].split("\n## Candidate Decisions", 1)[0]; artifact = text.split("## Future Deterministic Artifact Shape\n", 1)[1].split("\n## Future Runner Security Boundary", 1)[0]; security = text.split("## Future Runner Security Boundary\n", 1)[1].split("\nSource construction, source inspection", 1)[0]; review = text.split("## Review And Completion Policy\n", 1)[1].split("\nThe focused task verifier bytes", 1)[0]; checks = [all(marker in authority for marker in ["canonical live block descriptor", "descriptor-only exclusion", "raw target bytes remain", "candidate token payload", "authorized construction inputs"]), all(marker in framing for marker in ["position-bound-target-identity-token", "unsigned 64-bit big-endian", "0x00", "0x01", "block_domain_start", "D[max(block_domain_start, a - 64):a]", "logical block-domain BOF", "frontmatter", "never enter a candidate token preimage"]), all(marker in lineage for marker in ["backward_prefix_insertion_bytes", "D[0:a] + I + D[a:b] + D[d:]", "D[0:a] + D[c:]"]), all(marker in artifact for marker in ["canonical reported command vectors", "repository-relative", "forward slashes", "cases/{case_id}/observed.md", "cases/{case_id}/current.md", "not literal OS argv"]), all(marker in security for marker in ["trusted md binary", "--md-binary-sha256", "SHA-256", "shell=False", "env={}", "process hygiene", "not a hostile-code sandbox", "operator OS authority", "outer VM or container"]), all(marker in review for marker in ["845b52cc986aa86760166fda38e91c8b523f44d6..HEAD", "3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD", "full authored range", "no unresolved review thread"]), "command text cannot satisfy" in text.split("## Review And Completion Policy\n", 1)[0]]; sys.exit(not all(checks))' && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 The phase oracle bytes are exact and must not be broadened, substituted, or
 rewritten:
 
 ```bash
-git diff --check edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD && git diff --name-only edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && python3 -c 'from pathlib import Path; import sys; text = Path("probes/position_bound_target_identity/PROTOCOL.md").read_text(encoding="utf-8"); authority = text.split("## Block Authority And Candidate Framing\n", 1)[1].split("\nThe exact bounded candidate family", 1)[0]; framing = text.split("### Collision-Safe Token Framing\n", 1)[1].split("\n## Future Manifest Contract", 1)[0]; lineage = text.split("### Wrong-Target Lineage Rules\n", 1)[1].split("\n## Candidate Decisions", 1)[0]; security = text.split("## Future Runner Security Boundary\n", 1)[1].split("\nSource construction, source inspection", 1)[0]; review = text.split("## Review And Completion Policy\n", 1)[1].split("\nThe focused task verifier bytes", 1)[0]; checks = [all(marker in authority for marker in ["canonical live block descriptor", "descriptor-only exclusion", "raw target bytes remain", "candidate token payload", "authorized construction inputs"]), all(marker in framing for marker in ["position-bound-target-identity-token", "ASCII schema version", "unsigned 64-bit big-endian", "0x00", "0x01"]), all(marker in lineage for marker in ["backward_prefix_insertion_bytes", "D[0:a] + I + D[a:b] + D[d:]", "D[0:a] + D[c:]"]), all(marker in security for marker in ["trusted md binary", "--md-binary-sha256", "SHA-256", "shell=False", "env={}", "process hygiene", "not a hostile-code sandbox", "operator OS authority", "outer VM or container"]), all(marker in review for marker in ["edea9e24de21ac178c003b8ce282f1aed32008e3..HEAD", "3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD", "full authored range", "no unresolved review thread"]), "command text cannot satisfy" in text.split("## Review And Completion Policy\n", 1)[0]]; sys.exit(not all(checks))' && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+git diff --check 845b52cc986aa86760166fda38e91c8b523f44d6..HEAD && git diff --name-only 845b52cc986aa86760166fda38e91c8b523f44d6..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && python3 -c 'from pathlib import Path; import sys; text = Path("probes/position_bound_target_identity/PROTOCOL.md").read_text(encoding="utf-8"); authority = text.split("## Block Authority And Candidate Framing\n", 1)[1].split("\nThe exact bounded candidate family", 1)[0]; framing = text.split("### Collision-Safe Token Framing\n", 1)[1].split("\n## Future Manifest Contract", 1)[0]; lineage = text.split("### Wrong-Target Lineage Rules\n", 1)[1].split("\n## Candidate Decisions", 1)[0]; artifact = text.split("## Future Deterministic Artifact Shape\n", 1)[1].split("\n## Future Runner Security Boundary", 1)[0]; security = text.split("## Future Runner Security Boundary\n", 1)[1].split("\nSource construction, source inspection", 1)[0]; review = text.split("## Review And Completion Policy\n", 1)[1].split("\nThe focused task verifier bytes", 1)[0]; checks = [all(marker in authority for marker in ["canonical live block descriptor", "descriptor-only exclusion", "raw target bytes remain", "candidate token payload", "authorized construction inputs"]), all(marker in framing for marker in ["position-bound-target-identity-token", "unsigned 64-bit big-endian", "0x00", "0x01", "block_domain_start", "D[max(block_domain_start, a - 64):a]", "logical block-domain BOF", "frontmatter", "never enter a candidate token preimage"]), all(marker in lineage for marker in ["backward_prefix_insertion_bytes", "D[0:a] + I + D[a:b] + D[d:]", "D[0:a] + D[c:]"]), all(marker in artifact for marker in ["canonical reported command vectors", "repository-relative", "forward slashes", "cases/{case_id}/observed.md", "cases/{case_id}/current.md", "not literal OS argv"]), all(marker in security for marker in ["trusted md binary", "--md-binary-sha256", "SHA-256", "shell=False", "env={}", "process hygiene", "not a hostile-code sandbox", "operator OS authority", "outer VM or container"]), all(marker in review for marker in ["845b52cc986aa86760166fda38e91c8b523f44d6..HEAD", "3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD", "full authored range", "no unresolved review thread"]), "command text cannot satisfy" in text.split("## Review And Completion Policy\n", 1)[0]]; sys.exit(not all(checks))' && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 ## Honest Conclusion Boundary
