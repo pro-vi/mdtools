@@ -97,7 +97,10 @@ incidental serialization noise while retaining every semantically public field.
 That canonicalization must also erase caller-selected absolute temporary-path,
 working-directory, and equivalent path-serialization noise so that only the
 runner-owned logical relative path and other explicitly enumerated canonical
-components remain observable.
+components remain observable. The two worlds must therefore share the same
+mutation verb, the same complete ordered option surface, the same payload
+transport, the same logical payload path when applicable, the same payload
+bytes, and the same canonical `mutation_request` component.
 Unknown or future public fields must be included canonically or the experiment
 must fail closed rather than silently discarding them.
 
@@ -110,35 +113,44 @@ must fail closed rather than silently discarding them.
 3. `selectors`: the same explicit read or mutation selector inputs, including
    the observed selector, the current selector, target kind, occurrence
    choices, and any fixed CLI arguments.
-4. `D_obs`: the exact observed Markdown document bytes.
-5. `J_obs`: the complete deterministic public `md` structural JSON projection
+4. `mutation_request`: the authoritative canonical complete pending mutation
+   request record, including the exact mutation verb, the complete ordered
+   argv and flag surface with selectors, occurrences, guard flags, and all
+   option values, the payload transport mode, the runner-owned logical
+   relative payload path when `--from` is used, the exact payload bytes
+   including empty bytes for a payload-free mutation, and a request
+   schema/version. If `selectors` is retained as a narrower projection, every
+   repeated selector field must be mechanically equal to its counterpart in
+   `mutation_request`.
+5. `D_obs`: the exact observed Markdown document bytes.
+6. `J_obs`: the complete deterministic public `md` structural JSON projection
    family derived from `D_obs` through explicit live authenticated
    `md ... --json` reads under the locked public contract, the same
    authenticated binary, the same runner-owned relative path, and the fixed
    explicit inputs.
-6. `target_obs_bytes`: the exact observed target bytes derived only from live
+7. `target_obs_bytes`: the exact observed target bytes derived only from live
    spans plus checked raw-byte slicing.
-7. `target_obs_descriptor`: the canonical observed live target descriptor
+8. `target_obs_descriptor`: the canonical observed live target descriptor
    derived only from the public projections plus checked raw-byte slicing.
-8. `A_obs`: the expected token or other deterministic artifact derived from the
+9. `A_obs`: the expected token or other deterministic artifact derived from the
    observed components under the fixed candidate framing and decision rule.
-9. `D_cur`: the exact current Markdown document bytes.
-10. `J_cur`: the complete deterministic public `md` structural JSON projection
+10. `D_cur`: the exact current Markdown document bytes.
+11. `J_cur`: the complete deterministic public `md` structural JSON projection
     family derived from `D_cur` through the same authenticated binary, the same
     runner-owned relative path, and the same explicit live `md ... --json`
     reads and fixed inputs.
-11. `target_cur_bytes`: the exact current target bytes derived only from live
+12. `target_cur_bytes`: the exact current target bytes derived only from live
     spans plus checked raw-byte slicing.
-12. `target_cur_descriptor`: the canonical current live descriptor derived only
+13. `target_cur_descriptor`: the canonical current live descriptor derived only
     from the public projections plus checked raw-byte slicing.
-13. `match_domain_cur`: the same-kind live match domain for the current target
+14. `match_domain_cur`: the same-kind live match domain for the current target
     resolution.
-14. `match_counts_cur`: the live current match counts required by the selector
+15. `match_counts_cur`: the live current match counts required by the selector
     and match domain.
-15. `R_other`: all other in-scope repository file bytes that the later runner
+16. `R_other`: all other in-scope repository file bytes that the later runner
     authorizes as readable input under the locked public contract, held
     byte-identical across the two worlds.
-16. `candidate_spec`: the deterministic candidate name, version, framing, and
+17. `candidate_spec`: the deterministic candidate name, version, framing, and
     decision rule.
 
 The complete deterministic public projection family in `J_obs` and `J_cur`
@@ -234,7 +246,11 @@ The current selector must be identical in both worlds, must resolve exactly one
 same-kind exact-byte target, and must produce the same complete current
 projection, target bytes, descriptor, match domain, and match counts. The
 observed document, observed selector, and complete observed projection must
-also be identical across worlds.
+also be identical across worlds. The complete pending mutation request must
+also be identical across worlds, including the mutation verb, the complete
+ordered option surface, the payload transport mode, the logical relative
+payload path when applicable, the payload bytes, and the authoritative
+canonical `mutation_request` record.
 
 ## Mechanical lineage proof
 
@@ -279,13 +295,24 @@ The later runner requirements are exact:
   `shell=False`, an empty child environment, no `PATH` lookup, and no network.
 - Materialize `D0`, execute each exact deletion construction in memory, and
   materialize the two `D1` worlds at the same logical path sequentially.
+- Construct a complete canonical `mutation_request` record for the pending
+  mutation from the locked public contract before any conclusion check. It
+  must bind the exact mutation verb, the complete ordered argv and flag
+  surface, payload transport, logical relative payload path when `--from` is
+  used, and exact payload bytes.
 - Obtain complete public structural projections from explicit live `md` JSON
   reads, validating JSON shapes, UTF-8, spans, byte bounds, field types, and
   unknown fields.
 - Derive target bytes and descriptors only from live spans plus raw bytes.
+- Canonicalize any `--from` payload reference by keeping only the runner-owned
+  logical relative payload path plus the exact referenced file bytes, and by
+  excluding absolute temporary placement noise.
 - Prove independently that lineage truths differ and that the complete
   canonical tuples are byte-equal before emitting a validated observability
   result.
+- Record the pending request canonically, but must not execute the pending
+  mutation in this phase design or treat the pending mutation payload as
+  lineage truth or mechanical survivor proof.
 - Emit a mechanically derived deterministic canonical JSON result.
 - Provide a non-mutating byte-identical `--check` mode.
 
@@ -301,6 +328,11 @@ checks, tuple-equality checks, and independent lineage proofs pass, and
 `O_same == O_wrong` while the mechanically derived truths differ, conclude that
 no deterministic stateless function of the enumerated tuple can both accept the
 same-lineage world and reject the wrong-lineage world.
+
+Equal input in this rule includes the complete pending mutation request, with
+authoritative equality over the exact mutation verb, complete ordered option
+surface, payload transport, logical payload path when applicable, exact payload
+bytes, and canonical `mutation_request` record.
 
 The forced tradeoff must be stated explicitly:
 
@@ -328,6 +360,9 @@ Disconfirming evidence narrows or kills the hypothesis. At minimum it includes:
 - a legitimate in-contract deterministic distinguishing input inside the closed
   tuple that yields a different canonical component across the two worlds
   before hidden input is invoked
+- any semantically public request field reachable under the locked `mdtools`
+  contract that was omitted from canonical `mutation_request` construction or
+  was duplicated inconsistently against `selectors`
 - a supposedly equal tuple component that is not equal after canonicalization
 - failure to establish lineage truth independently
 - an apparent different decision from genuinely byte-equal tuples that must
@@ -345,7 +380,10 @@ The later evidence log must record at least:
 - exact base commit and exact head commit
 - protocol, manifest, runner, and result hashes
 - authenticated `md` binary path and SHA-256
+- request schema/version
 - command argv schema
+- payload transport mode
+- canonical request SHA-256
 - observed and current document hashes
 - both deletion ranges
 - survivor ordinals
@@ -357,7 +395,8 @@ The later evidence log must record at least:
 - independent review ranges and gate outcomes
 
 Tracked artifacts must not contain absolute temporary paths, environment dumps,
-credentials, personal telemetry, or machine-specific configuration.
+credentials, personal telemetry, machine-specific configuration, or duplicated
+potentially large payload bytes in the ledger.
 
 ## Promotion, demotion, and next-decision path
 
