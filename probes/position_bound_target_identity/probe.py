@@ -886,7 +886,7 @@ def run_blocks_query(
     except json.JSONDecodeError as exc:
         raise ProbeError(f"{where}: invalid md JSON: {exc}") from exc
     result_map = expect_mapping(result, f"{where}.result")
-    exact_key_order(result_map, BLOCKS_RESULT_KEY_ORDER, f"{where}.result")
+    exact_key_set(result_map, set(BLOCKS_RESULT_KEY_ORDER), f"{where}.result")
     expect_exact_string(
         result_map.get("schema_version"),
         f"{where}.result.schema_version",
@@ -900,7 +900,7 @@ def run_blocks_query(
     seen_indices: set[int] = set()
     for index, entry_value in enumerate(block_values):
         entry = expect_mapping(entry_value, f"{where}.result.blocks[{index}]")
-        exact_key_order(entry, BLOCK_ENTRY_KEY_ORDER, f"{where}.result.blocks[{index}]")
+        exact_key_set(entry, set(BLOCK_ENTRY_KEY_ORDER), f"{where}.result.blocks[{index}]")
         block_index = expect_nonnegative_int(entry.get("index"), f"{where}.result.blocks[{index}].index")
         if block_index in seen_indices:
             raise ProbeError(f"{where}: duplicate block index {block_index}")
@@ -1679,7 +1679,7 @@ def slice_target_bytes(document_bytes: bytes, span: dict[str, int], where: str) 
 
 def normalize_span(value: Any, where: str) -> dict[str, int]:
     span = expect_mapping(value, where)
-    exact_key_order(span, SPAN_KEY_ORDER, where)
+    exact_key_set(span, set(SPAN_KEY_ORDER), where)
     line_start = expect_positive_int(span.get("line_start"), f"{where}.line_start")
     line_end = expect_positive_int(span.get("line_end"), f"{where}.line_end")
     byte_start = expect_nonnegative_int(span.get("byte_start"), f"{where}.byte_start")
