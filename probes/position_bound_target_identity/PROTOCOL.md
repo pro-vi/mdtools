@@ -155,6 +155,13 @@ least:
 - runner-owned lineage proof inputs when the case is wrong-target
 - runner-owned pinned transformation bytes when needed to reconstruct lineage
 
+The two same-locator wrong-target cases must also carry runner-owned exact:
+
+- literal `same-locator: true`
+- `observed_target_duplicate_ordinal`
+- `survivor_duplicate_ordinal`
+- `require_reconstructed_current_document_sha256`
+
 The manifest must not contain:
 
 - manifest-owned expected candidate decisions
@@ -258,6 +265,50 @@ mechanically proven:
 The forward and backward same-locator cases must carry the literal
 `same-locator` property in the future manifest and must prove it from live
 observed and current block descriptors rather than by narration.
+
+For the two same-locator cases, the runner must sort the observed exact-target
+matches by increasing `span.byte_start` and name them
+`observed_duplicate_0` and `observed_duplicate_1`. No other duplicate ordering
+is authorized.
+
+The forward same-locator case is exact:
+
+- the observed target selector must resolve to `observed_duplicate_0`
+- `observed_target_duplicate_ordinal` must be `0`
+- `survivor_duplicate_ordinal` must be `1`
+- the only authorized reconstructed current document bytes are:
+  `observed_document_bytes[0:observed_duplicate_0.span.byte_start] +
+  observed_document_bytes[observed_duplicate_1.span.byte_start:]`
+- the SHA-256 of those reconstructed current document bytes must equal
+  `require_reconstructed_current_document_sha256`
+- the live current document bytes must equal those reconstructed current
+  document bytes exactly
+
+The backward same-locator case is exact:
+
+- the observed target selector must resolve to `observed_duplicate_1`
+- `observed_target_duplicate_ordinal` must be `1`
+- `survivor_duplicate_ordinal` must be `0`
+- the only authorized reconstructed current document bytes are:
+  `observed_document_bytes[0:observed_duplicate_0.span.byte_end] +
+  observed_document_bytes[observed_duplicate_1.span.byte_end:]`
+- the SHA-256 of those reconstructed current document bytes must equal
+  `require_reconstructed_current_document_sha256`
+- the live current document bytes must equal those reconstructed current
+  document bytes exactly
+
+For both same-locator cases, the runner must hard-fail before scoring unless
+all of the following are mechanically true:
+
+- the observed target selector resolves to the required duplicate ordinal
+- the survivor ordinal is the opposite observed duplicate and not a narrated
+  alias
+- the reconstructed current document bytes produce exactly one current
+  exact-byte match for the target bytes
+- the live current target resolves from that lone current exact-byte match
+- the live current target descriptor equals the live observed target descriptor,
+  proving that the surviving opposite duplicate now occupies the observed
+  locator
 
 The cloned-adjacent and byte-identical bounded-neighborhood cases must prove
 wrong-target lineage even though ordinary bounded evidence is partially or fully
