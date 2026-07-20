@@ -1,13 +1,15 @@
 # Position-Bound Target Identity Source-Only Protocol
 
 Date locked: 2026-07-20
-Accepted base commit: `3771409a39c5554a011349c3abf25ee6c73f2cf1`
+Accepted base commit: `69bb6aee7fb3e5ec61b861c73953b43900603609`
 Accepted branch: `probe/position-bound-target-identity-3771409`
 
 ## Scope And Grounding
 
-This phase is source-only and authors exactly one new tracked file:
-`probes/position_bound_target_identity/PROTOCOL.md`.
+This phase is source-only at accepted repair base
+`69bb6aee7fb3e5ec61b861c73953b43900603609` on branch
+`probe/position-bound-target-identity-3771409` and modifies exactly one
+tracked file: `probes/position_bound_target_identity/PROTOCOL.md`.
 
 It does not authorize any other tracked change, any `.braid/` artifact, any
 fixture, any manifest, any runner, any result artifact, any test, any
@@ -34,9 +36,13 @@ forward honestly:
 This protocol therefore forbids overclaiming. It does not claim that bounded
 context is durable identity, does not propose a production token, does not
 propose persistent state, and does not authorize production position-bound
-identity work from protocol authorship alone. If the bounded family fails, the
-evidence-only conclusion is exact: no production position-bound identity token
-is earned by this probe.
+identity work from protocol authorship alone. This protocol does not treat
+identical target bytes alone as observational proof of durable lineage. In
+these fixtures, lineage comes only from runner-owned exact construction from a
+named observed slice plus live reconstruction equality. If the bounded family
+fails, the evidence-only conclusion is exact: no production position-bound
+identity token is earned by this probe, and any successful lineage result
+remains probe evidence, not a production identity primitive.
 
 The experiment is block-only. `probes/non_block_target_identity` already
 exercised the same stateless failure mechanism on section, table, and task
@@ -47,9 +53,9 @@ decision-relevant yet.
 
 This phase is a static contract only.
 
-- create exactly one new tracked file:
+- modify exactly one tracked file:
   `probes/position_bound_target_identity/PROTOCOL.md`
-- do not modify any existing tracked file
+- do not modify any other tracked file
 - do not author `probe.py`, `cases.json`, `results.json`, `RESULTS.md`,
   fixtures, tests, scripts, or production code in
   `probes/position_bound_target_identity/`
@@ -155,12 +161,23 @@ least:
 - runner-owned lineage proof inputs when the case is wrong-target
 - runner-owned pinned transformation bytes when needed to reconstruct lineage
 
-The two same-locator wrong-target cases must also carry runner-owned exact:
+All four wrong-target cases must also carry runner-owned exact:
 
 - literal `same-locator: true`
 - `observed_target_duplicate_ordinal`
 - `survivor_duplicate_ordinal`
 - `require_reconstructed_current_document_sha256`
+
+Case 8 must also carry runner-owned exact
+`backward_prefix_insertion_bytes`, or a semantic digest that pins its exact
+bytes. The manifest does not gain discretion over
+`backward_prefix_insertion_bytes`; the future runner pins and validates its
+exact case-specific bytes or semantic digest and rejects omission, extra
+insertion fields on other cases, or coordinated weakening.
+
+The future runner owns and enforces the case mapping, reconstruction formula,
+ordinals, context relations, and required lineage field shape before scoring.
+Missing, extra, or weakened lineage fields hard-fail.
 
 The manifest must not contain:
 
@@ -225,10 +242,10 @@ The required preconditions are exact:
 | `block-outside-context-unrelated-edit` | `outside_context_unrelated_edit` | `same_target` | equal | equal | different | 1 | 1 | `preceding_block=equal`, `following_block=equal`, `adjacent_blocks=equal`, `byte_window_64=equal` | runner proves changed bytes are outside the target block, outside the live preceding and following blocks, and outside both 64-byte windows |
 | `block-preceding-neighbor-edit-inside-prefix-window` | `preceding_neighbor_edit_inside_prefix_window` | `same_target` | equal | equal | different | 1 | 1 | `preceding_block=different`, `following_block=equal`, `adjacent_blocks=different`, `byte_window_64=different` | runner proves changed bytes lie inside the live preceding adjacent block and inside the target's 64-byte prefix window while target lineage stays unchanged |
 | `block-following-neighbor-edit-inside-suffix-window` | `following_neighbor_edit_inside_suffix_window` | `same_target` | equal | equal | different | 1 | 1 | `preceding_block=equal`, `following_block=different`, `adjacent_blocks=different`, `byte_window_64=different` | runner proves changed bytes lie inside the live following adjacent block and inside the target's 64-byte suffix window while target lineage stays unchanged |
-| `block-forward-survivor-same-locator-duplicate-substitution` | `forward_survivor_same_locator_duplicate_substitution` | `wrong_target` | equal | equal | different | 2 | 1 | `preceding_block=equal`, `following_block=different`, `adjacent_blocks=different`, `byte_window_64=different` | runner proves same-locator lineage: the current target descends from the later observed duplicate at a greater observed byte start and now occupies the observed locator |
-| `block-backward-survivor-same-locator-duplicate-substitution` | `backward_survivor_same_locator_duplicate_substitution` | `wrong_target` | equal | equal | different | 2 | 1 | `preceding_block=different`, `following_block=equal`, `adjacent_blocks=different`, `byte_window_64=different` | runner proves same-locator lineage: the current target descends from the earlier observed duplicate at a smaller observed byte start and now occupies the observed locator |
-| `block-cloned-adjacent-blocks-distinguishing-byte-window` | `cloned_adjacent_blocks_distinguishing_byte_window` | `wrong_target` | equal | different | different | 2 | 1 | `preceding_block=equal`, `following_block=equal`, `adjacent_blocks=equal`, `byte_window_64=different` | runner proves wrong-target lineage from observed duplicate spans plus pinned transformation bytes while both adjacent live blocks are byte-identical clones |
-| `block-byte-identical-bounded-neighborhood-duplicate-substitution` | `byte_identical_bounded_neighborhood_duplicate_substitution` | `wrong_target` | equal | different | different | 2 | 1 | `preceding_block=equal`, `following_block=equal`, `adjacent_blocks=equal`, `byte_window_64=equal` | runner proves wrong-target lineage from observed duplicate spans plus pinned transformation bytes even though the complete bounded neighborhood is byte-identical |
+| `block-forward-survivor-same-locator-duplicate-substitution` | `forward_survivor_same_locator_duplicate_substitution` | `wrong_target` | equal | equal | different | 2 | 1 | `preceding_block=equal`, `following_block=different`, `adjacent_blocks=different`, `byte_window_64=different` | runner proves exact forward-survivor same-locator lineage: the current target descends from the later observed duplicate at a greater observed byte start and now occupies the observed locator |
+| `block-backward-survivor-same-locator-duplicate-substitution` | `backward_survivor_same_locator_duplicate_substitution` | `wrong_target` | equal | equal | different | 2 | 1 | `preceding_block=different`, `following_block=equal`, `adjacent_blocks=different`, `byte_window_64=different` | runner proves exact backward-survivor same-locator lineage: the current target descends from the earlier observed duplicate at a smaller observed byte start and now occupies the observed locator |
+| `block-cloned-adjacent-blocks-distinguishing-byte-window` | `cloned_adjacent_blocks_distinguishing_byte_window` | `wrong_target` | equal | equal | different | 2 | 1 | `preceding_block=equal`, `following_block=equal`, `adjacent_blocks=equal`, `byte_window_64=different` | runner proves exact forward-survivor same-locator lineage even though both adjacent live blocks are byte-identical clones |
+| `block-byte-identical-bounded-neighborhood-duplicate-substitution` | `byte_identical_bounded_neighborhood_duplicate_substitution` | `wrong_target` | equal | equal | different | 2 | 1 | `preceding_block=equal`, `following_block=equal`, `adjacent_blocks=equal`, `byte_window_64=equal` | runner proves exact forward-survivor same-locator lineage even though the complete bounded neighborhood is byte-identical |
 
 ### Same-Target Boundary Proofs
 
@@ -250,70 +267,71 @@ of weakening the case.
 
 ### Wrong-Target Lineage Rules
 
-All four wrong-target cases require deterministic runner-owned lineage
-reconstruction from observed duplicate spans and any pinned transformation
-bytes.
+All four wrong-target cases require deterministic runner-owned exact
+construction from named observed slices and any pinned transformation bytes.
 
 The runner must hard-fail before scoring if any of the following is not
 mechanically proven:
 
 - lineage reconstruction
-- same-locator status when the case requires same-locator
+- same-locator status
 - survivor identity
 - candidate-relevant context relation
 
-The forward and backward same-locator cases must carry the literal
-`same-locator` property in the future manifest and must prove it from live
-observed and current block descriptors rather than by narration.
+All four wrong-target cases must carry the literal `same-locator` property in
+the future manifest and must prove it from live observed and current block
+descriptors rather than by narration.
 
-For the two same-locator cases, the runner must sort the observed exact-target
-matches by increasing `span.byte_start` and name them
-`observed_duplicate_0` and `observed_duplicate_1`. No other duplicate ordering
-is authorized.
+The runner must sort the observed exact-target matches by increasing
+`span.byte_start` and name them `duplicate_0=[a,b)` and `duplicate_1=[c,d)`.
+No other duplicate ordering is authorized. The runner must require
+`a < b <= c < d`, prove that `duplicate_0` and `duplicate_1` have equal exact
+target bytes, and therefore prove `b-a = d-c`.
 
-The forward same-locator case is exact:
+Let `D` be the observed document bytes and let
+`I = backward_prefix_insertion_bytes`.
 
-- the observed target selector must resolve to `observed_duplicate_0`
+Cases 7, 9, and 10 are exact forward-survivor same-locator substitutions:
+
+- the observed target selector must resolve to `duplicate_0`
 - `observed_target_duplicate_ordinal` must be `0`
 - `survivor_duplicate_ordinal` must be `1`
-- the only authorized reconstructed current document bytes are:
-  `observed_document_bytes[0:observed_duplicate_0.span.byte_start] +
-  observed_document_bytes[observed_duplicate_1.span.byte_start:]`
+- the only authorized reconstructed current document bytes are `D[0:a] + D[c:]`
 - the SHA-256 of those reconstructed current document bytes must equal
   `require_reconstructed_current_document_sha256`
 - the live current document bytes must equal those reconstructed current
   document bytes exactly
+- the reconstructed current document bytes must produce exactly one live current
+  exact-target match
+- the live current target must resolve from that lone current exact-target match
+- the live current target descriptor equals the live observed `duplicate_0`
+  descriptor
 
-The backward same-locator case is exact:
+Case 8 is an exact backward-survivor same-locator substitution:
 
-- the observed target selector must resolve to `observed_duplicate_1`
+- the observed target selector must resolve to `duplicate_1`
 - `observed_target_duplicate_ordinal` must be `1`
 - `survivor_duplicate_ordinal` must be `0`
-- the only authorized reconstructed current document bytes are:
-  `observed_document_bytes[0:observed_duplicate_0.span.byte_end] +
-  observed_document_bytes[observed_duplicate_1.span.byte_end:]`
+- the only authorized reconstructed current document bytes are
+  `D[0:a] + I + D[a:b] + D[d:]`
+- `len(I) = c - a`
+- `I` contains zero exact target-byte matches
+- the future runner must prove from live parsing that `I` shifts `D[a:b]` to
+  the observed `duplicate_1` top-level block index and byte span
 - the SHA-256 of those reconstructed current document bytes must equal
   `require_reconstructed_current_document_sha256`
 - the live current document bytes must equal those reconstructed current
   document bytes exactly
+- the reconstructed current document bytes must produce exactly one live current
+  exact-target match sourced from `D[a:b]`
+- the live current target must resolve from that lone current exact-target match
 
-For both same-locator cases, the runner must hard-fail before scoring unless
-all of the following are mechanically true:
-
-- the observed target selector resolves to the required duplicate ordinal
-- the survivor ordinal is the opposite observed duplicate and not a narrated
-  alias
-- the reconstructed current document bytes produce exactly one current
-  exact-byte match for the target bytes
-- the live current target resolves from that lone current exact-byte match
-- the live current target descriptor equals the live observed target descriptor,
-  proving that the surviving opposite duplicate now occupies the observed
-  locator
-
-The cloned-adjacent and byte-identical bounded-neighborhood cases must prove
-wrong-target lineage even though ordinary bounded evidence is partially or fully
-cloned. Those two cases exist to test whether bounded context is merely useful
-sometimes or whether it collapses under duplicate substitution.
+The future runner owns and enforces mapping, reconstruction formula, ordinals,
+relations, and required lineage field shape before scoring. Missing, extra, or
+weakened lineage fields hard-fail. Cases 9 and 10 remain same-locator
+wrong-target substitutions even when adjacent evidence or the full bounded
+neighborhood is cloned; they do not downgrade into a separate pinned-
+transformation family.
 
 ## Candidate Decisions
 
@@ -450,7 +468,7 @@ promotion are separately authorized phases.
 
 After authorship, native Codex review is required over the exact range:
 
-`3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`
+`69bb6aee7fb3e5ec61b861c73953b43900603609..HEAD`
 
 Any finding must be repaired and re-reviewed before phase completion.
 
@@ -465,14 +483,14 @@ The focused task verifier bytes are exact and must not be broadened,
 substituted, or rewritten:
 
 ```bash
-test -s probes/position_bound_target_identity/PROTOCOL.md && rg -n 'preceding_block|following_block|adjacent_blocks|byte_window_64' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'no_bounded_context_candidate_graduates|same-locator|lineage|source-only' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'shell=False|env=\{\}' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+test -s probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'cases 7, 9, and 10|forward-survivor|same-locator' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'live_descriptor.*equal|descriptor.*equals' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 The phase oracle bytes are exact and must not be broadened, substituted, or
 rewritten:
 
 ```bash
-git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -n 'preceding_block|following_block|adjacent_blocks|byte_window_64' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'no_bounded_context_candidate_graduates|same-locator|lineage|source-only' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'shell=False|env=\{\}' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md && git diff --name-only 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)'
+git diff --check 69bb6aee7fb3e5ec61b861c73953b43900603609..HEAD && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'cases 7, 9, and 10|forward-survivor|same-locator' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'live_descriptor.*equal|descriptor.*equals' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md && git diff --name-only 69bb6aee7fb3e5ec61b861c73953b43900603609..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)'
 ```
 
 ## Honest Conclusion Boundary
