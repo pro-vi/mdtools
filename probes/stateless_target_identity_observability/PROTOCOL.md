@@ -136,7 +136,8 @@ must fail closed rather than silently discarding them.
 14. `match_counts_cur`: the live current match counts required by the selector
     and match domain.
 15. `R_other`: all other in-scope repository file bytes that the later runner
-    authorizes as readable input, held byte-identical across the two worlds.
+    authorizes as readable input under the locked public contract, held
+    byte-identical across the two worlds.
 16. `candidate_spec`: the deterministic candidate name, version, framing, and
     decision rule.
 
@@ -152,6 +153,13 @@ including full-document hashes, unbounded context hashes, Merkle structures,
 cryptographic digests, `loc`s, `etag`s, ambiguity counts, and reformatted
 structural projections.
 
+`R_other` is closed as well. It must include only repository-local file bytes
+that are already readable through the locked public contract or explicitly
+named by this protocol as in-scope source bytes. It must not silently absorb
+sidecars, journals, caches, hidden identity stores, VCS administrative data,
+watcher state, allocator state, runtime service outputs, or any other
+out-of-contract file family just because those bytes exist beside the document.
+
 ## Excluded authority and non-claims
 
 The later execution must exclude all authority outside the closed tuple.
@@ -159,11 +167,27 @@ The later execution must exclude all authority outside the closed tuple.
 - No persistent ID, history database, receipt log, embedded marker, VCS
   ancestry, editor metadata, filesystem timestamp, external service, or human
   assertion may supply target identity truth.
+- No sidecar, journal, cache, hidden-ID file, shadow index, per-user state
+  file, or similar out-of-contract repository-adjacent artifact may supply
+  target identity truth, whether stored inside the checkout or in colocated
+  tool state.
+- No VCS reflog, diff, blame view, object ID, packfile, index, reference, or
+  other Git administrative or object-identity surface may supply target
+  identity truth.
 - No absolute temporary path, checkout location, working-directory path,
   environment variable, `PATH` resolution, machine-specific configuration,
   credential source, process ID, clock, scheduler timing, file-descriptor
   layout, inode/device identity, or other filesystem/runtime/process detail
   outside the closed tuple may supply target identity truth.
+- No allocation pattern, watcher event stream, file-notify subscription state,
+  directory-entry ordering, hard-link count, ownership bits, extended
+  attributes, ACLs, birthtime, ctime/mtime/atime, sparse-layout detail, block
+  allocation, or other named filesystem metadata family outside the closed
+  tuple may supply target identity truth.
+- No randomness source, PRNG state, nonce, temp-name chooser, network service,
+  hostname, DNS result, remote cache, metrics sink, analytics stream, crash
+  reporter, personal telemetry, or similar runtime/service side channel may
+  supply target identity truth.
 - No manifest-owned span, expected verdict, lineage truth, candidate credit,
   or aggregate conclusion is trusted.
 - No hidden input or nondeterministic side channel may distinguish the two
