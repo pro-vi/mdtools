@@ -466,12 +466,22 @@ impl CommandError {
     ) -> Self {
         Self::new(
             DiagnosticCode::EtagAmbiguous,
-            format!(
-                "{} etag {:?} is ambiguous: {} same-content {}s share this fingerprint \
-                 (a content match cannot prove identity, and the guard will keep failing \
-                 while the duplicates are byte-identical)",
-                noun, expected, count, noun
-            ),
+            match noun {
+                "table" => format!(
+                    "table etag {:?} is ambiguous: {} identical whole tables share this fingerprint \
+                     (a content match cannot prove identity, and the guard will keep failing \
+                     while the duplicates are byte-identical; re-run `md table --json <FILE>`, \
+                     confirm the intended `--index`, then retry without `--expect-etag` or edit \
+                     one duplicate first so the fingerprints diverge)",
+                    expected, count
+                ),
+                _ => format!(
+                    "{} etag {:?} is ambiguous: {} same-content {}s share this fingerprint \
+                     (a content match cannot prove identity, and the guard will keep failing \
+                     while the duplicates are byte-identical)",
+                    noun, expected, count, noun
+                ),
+            },
         )
         .with_hint(match noun {
             "task" => format!(
