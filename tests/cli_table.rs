@@ -1013,6 +1013,7 @@ fn replace_table_row_expect_etag_ambiguous_conflicts_before_stdin_decode() {
     assert_eq!(out.status.code(), Some(4));
     let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(env["error"]["code"], "etag_ambiguous");
+    assert_eq!(env["error"]["context"]["total_matches"], 2);
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("ambiguous"));
     assert_eq!(
@@ -1419,6 +1420,7 @@ fn insert_table_row_expect_etag_ambiguous_conflicts_before_stdin_decode() {
     assert_eq!(out.status.code(), Some(4));
     let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(env["error"]["code"], "etag_ambiguous");
+    assert_eq!(env["error"]["context"]["total_matches"], 2);
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("ambiguous"));
     assert_eq!(
@@ -1796,6 +1798,7 @@ fn delete_table_row_expect_etag_ambiguous_conflicts_before_row_lookup() {
     assert_eq!(out.status.code(), Some(4));
     let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(env["error"]["code"], "etag_ambiguous");
+    assert_eq!(env["error"]["context"]["total_matches"], 2);
     assert_eq!(
         std::fs::read_to_string(&tmp).unwrap(),
         "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n"
