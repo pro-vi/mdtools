@@ -140,3 +140,47 @@ execution RunCompleted sequence: 83
 Overall verdict: `no_candidate_graduates`.
 This appendix is evidence-only: no candidate graduates, and no identity token
 is implemented or promoted.
+
+## Exact Adversarial Replay Evidence
+
+- task anchor commit during replay: `b9b132f8269aedcc0a4d5629c24cdad08f7ecd83`
+- exact in-memory adversarial manifest checks: passed
+- fail-closed mismatch evidence:
+  `section-unchanged-reread` replaced with the table duplicate case failed with
+  `ProbeError("runner-owned surface mismatch")`
+- fail-closed case-class evidence:
+  `section-unchanged-reread` replaced with the section duplicate-cross-target
+  case failed with `ProbeError("runner-owned case class mismatch")`
+- integer guard evidence:
+  `expect_nonnegative_int(False, "demo.nonnegative")` and
+  `expect_nonnegative_int(True, "demo.nonnegative")` both failed with
+  `ProbeError("expected non-negative integer")`
+- integer guard evidence:
+  `expect_positive_int(True, "demo.positive")` failed with
+  `ProbeError("expected positive integer")`
+- integer pass evidence:
+  `expect_nonnegative_int(0, "demo.nonnegative") == 0` and
+  `expect_positive_int(1, "demo.positive") == 1`
+- offline replay build:
+  `CARGO_NET_OFFLINE=true cargo build --release` passed
+- canonical replay check:
+  `python3 probes/non_block_target_identity/probe.py --md-binary target/release/md --check probes/non_block_target_identity/results.json`
+  passed
+- pinned SHA-256 values preserved:
+  `target/release/md`:
+  `be3ed8d0555233f6e4db5b0cde7a1fe42ce0e24708c60757e53803ec7c7543b9`
+- pinned SHA-256 values preserved:
+  `probe.py`:
+  `86534e49f7306f75f2e1be415a9341736e79f8f74001276980f4ded9d12d197e`
+- pinned SHA-256 values preserved:
+  `results.json`:
+  `e9efed5b9d57c3b45399d7c8f684a943536b18f1b2786bd2de22bd0ebee16153`
+- supporting SHA-256 values preserved:
+  `PROTOCOL.md`:
+  `9612eb3b268c20f87dd428a40a0db8a63d4a8da0f80f2ecbb7e2f28b684f2d7b`
+- supporting SHA-256 values preserved:
+  `cases.json`:
+  `01e42dff414ca6491b6013243b9b6233e1b42f813fa67669bdbefa9ac92084a3`
+- evidence-only boundary:
+  `results.json` stayed byte-identical under `--check`, and this appendix is the
+  only intended worktree delta for the replay.
