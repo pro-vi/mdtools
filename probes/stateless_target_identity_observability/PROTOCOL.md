@@ -186,11 +186,13 @@ make the tuple unequal or fail closed before any conclusion. The finite domain
 must be runner-owned and closed before scoring, and any unlisted read,
 unrecognized public path field, unknown discovery result, repository-root
 escape, or ambiguous canonical path must hard-fail. The manifest must not own
-the accepted list, ordering, presence, or identity truth; it may pin
-construction bytes and expected logical inputs only through its complete
-authenticated source contract, while later execution must reconstruct public
-lists live. Logical repository-relative paths, presence, and ordering remain
-observation inputs only and must not supply lineage truth or survivor mapping.
+the accepted list, ordering, presence, or identity truth. If a later source
+phase authors a manifest, it may carry only authenticated source bytes; the
+later runner must authenticate the complete source contract, pin any
+construction bytes and expected logical inputs through that runner-owned
+contract boundary, and reconstruct public lists live during later execution.
+Logical repository-relative paths, presence, and ordering remain observation
+inputs only and must not supply lineage truth or survivor mapping.
 `R_other` must not silently absorb sidecars, journals, caches, hidden identity
 stores, VCS administrative data, watcher state, allocator state, runtime
 service outputs, or any other out-of-contract file family just because those
