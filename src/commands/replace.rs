@@ -345,7 +345,7 @@ fn verify_etag(
     )
 }
 
-/// Like verify_expected_etag, but fails closed when the matching fingerprint
+/// Verifies the expected etag and additionally fails closed when the matching fingerprint
 /// is NON-UNIQUE among the same-kind candidates in the document: identical
 /// duplicates share a content etag, and a content match cannot prove the
 /// guard is bound to the intended target. `candidates` is called lazily,
