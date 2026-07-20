@@ -987,6 +987,47 @@ fn replace_table_row_stale_etag_conflicts_before_no_change_short_circuit() {
 }
 
 #[test]
+fn replace_table_row_expect_etag_ambiguous_conflicts_before_stdin_decode() {
+    let tmp = tempfile(
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n",
+    );
+    let list = md().args(["table", &tmp, "--json"]).output().unwrap();
+    assert!(list.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list.stdout).unwrap();
+    let block_index = list_json["tables"][0]["block_index"].as_u64().unwrap();
+    let etag = list_json["tables"][0]["etag"].as_str().unwrap().to_string();
+
+    let out = md_with_stdin_bytes(
+        &[
+            "replace-table-row",
+            &block_index.to_string(),
+            "0",
+            &tmp,
+            "-i",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ],
+        &[0xff],
+    );
+    assert_eq!(out.status.code(), Some(4));
+    let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(env["error"]["code"], "etag_ambiguous");
+    assert_eq!(env["error"]["context"]["total_matches"], 2);
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("ambiguous"));
+    assert!(stderr.contains("md table --json"));
+    assert!(stderr.contains("--index"));
+    assert!(stderr.contains("--expect-etag"));
+    assert!(!stderr.contains("--occurrence"));
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n"
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn replace_table_row_preserves_crlf_line_endings() {
     let tmp = tempfile(
         "# Data\r\n\r\n| Name | Value |\r\n|------|-------|\r\n| Alpha | 100 |\r\n| Beta | 200 |\r\n\r\nSummary paragraph.\r\n",
@@ -1283,6 +1324,45 @@ fn insert_table_row_matching_expect_etag_succeeds() {
 }
 
 #[test]
+fn insert_table_row_matching_expect_etag_succeeds_with_multiple_tables_when_match_is_unique() {
+    let tmp = tempfile(
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Beta | 200 |\n",
+    );
+    let list = md().args(["table", &tmp, "--json"]).output().unwrap();
+    assert!(list.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list.stdout).unwrap();
+    let block_index = list_json["tables"][1]["block_index"].as_u64().unwrap();
+    let etag = list_json["tables"][1]["etag"].as_str().unwrap().to_string();
+
+    let out = md_with_stdin(
+        &[
+            "insert-table-row",
+            &block_index.to_string(),
+            "1",
+            &tmp,
+            "-i",
+            "--expect-etag",
+            &etag,
+        ],
+        "| Gamma | 300 |\n",
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Beta | 200 |\n| Gamma | 300 |\n"
+    );
+    assert_eq!(
+        table_json(&tmp, block_index as u32)["rows"],
+        serde_json::json!([["Beta", "200"], ["Gamma", "300"]])
+    );
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
 fn insert_table_row_expect_etag_conflicts_before_stdin_decode() {
     let tmp = tempfile(include_str!("fixtures/table.md"));
     let read = md()
@@ -1314,6 +1394,47 @@ fn insert_table_row_expect_etag_conflicts_before_stdin_decode() {
         .unwrap()
         .contains("etag mismatch"));
     assert_eq!(std::fs::read_to_string(&tmp).unwrap(), drifted);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn insert_table_row_expect_etag_ambiguous_conflicts_before_stdin_decode() {
+    let tmp = tempfile(
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n",
+    );
+    let list = md().args(["table", &tmp, "--json"]).output().unwrap();
+    assert!(list.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list.stdout).unwrap();
+    let block_index = list_json["tables"][0]["block_index"].as_u64().unwrap();
+    let etag = list_json["tables"][0]["etag"].as_str().unwrap().to_string();
+
+    let out = md_with_stdin_bytes(
+        &[
+            "insert-table-row",
+            &block_index.to_string(),
+            "1",
+            &tmp,
+            "-i",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ],
+        &[0xff],
+    );
+    assert_eq!(out.status.code(), Some(4));
+    let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(env["error"]["code"], "etag_ambiguous");
+    assert_eq!(env["error"]["context"]["total_matches"], 2);
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("ambiguous"));
+    assert!(stderr.contains("md table --json"));
+    assert!(stderr.contains("--index"));
+    assert!(stderr.contains("--expect-etag"));
+    assert!(!stderr.contains("--occurrence"));
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n"
+    );
     std::fs::remove_file(&tmp).unwrap();
 }
 
@@ -1655,6 +1776,47 @@ fn delete_table_row_expect_etag_conflict_leaves_bytes_unchanged() {
         .unwrap()
         .contains("etag mismatch"));
     assert_eq!(std::fs::read_to_string(&tmp).unwrap(), drifted);
+    std::fs::remove_file(&tmp).unwrap();
+}
+
+#[test]
+fn delete_table_row_expect_etag_ambiguous_conflicts_before_row_lookup() {
+    let tmp = tempfile(
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n",
+    );
+    let list = md().args(["table", &tmp, "--json"]).output().unwrap();
+    assert!(list.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list.stdout).unwrap();
+    let block_index = list_json["tables"][0]["block_index"].as_u64().unwrap();
+    let etag = list_json["tables"][0]["etag"].as_str().unwrap().to_string();
+
+    let out = md()
+        .args([
+            "delete-table-row",
+            &block_index.to_string(),
+            "0",
+            &tmp,
+            "-i",
+            "--json",
+            "--expect-etag",
+            &etag,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(4));
+    let env: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(env["error"]["code"], "etag_ambiguous");
+    assert_eq!(env["error"]["context"]["total_matches"], 2);
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("ambiguous"));
+    assert!(stderr.contains("md table --json"));
+    assert!(stderr.contains("--index"));
+    assert!(stderr.contains("--expect-etag"));
+    assert!(!stderr.contains("--occurrence"));
+    assert_eq!(
+        std::fs::read_to_string(&tmp).unwrap(),
+        "| Name | Value |\n|---|---|\n| Alpha | 100 |\n\n| Name | Value |\n|---|---|\n| Alpha | 100 |\n"
+    );
     std::fs::remove_file(&tmp).unwrap();
 }
 

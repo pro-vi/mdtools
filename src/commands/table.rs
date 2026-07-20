@@ -1,6 +1,6 @@
 use crate::cli::{DeleteTableRowArgs, InsertTableRowArgs, ReplaceTableRowArgs, TableArgs};
 use crate::commands::replace::{
-    emit_mutation, inserted_span_after, strip_one_trailing_newline, verify_expected_etag,
+    emit_mutation, inserted_span_after, strip_one_trailing_newline, verify_expected_etag_unique,
     MutationEmission,
 };
 use crate::errors::CommandError;
@@ -70,9 +70,12 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
     }
 
     let table_source = doc.slice(&block.span);
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         table_source,
+        "table",
+        None,
+        || all_table_etags(&doc),
         |expected, actual| {
             CommandError::table_etag_mismatch(args.table_block_index, expected, actual)
         },
@@ -147,9 +150,12 @@ pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(),
     }
 
     let table_source = doc.slice(&block.span);
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         table_source,
+        "table",
+        None,
+        || all_table_etags(&doc),
         |expected, actual| {
             CommandError::table_etag_mismatch(args.table_block_index, expected, actual)
         },
@@ -232,9 +238,12 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
     }
 
     let table_source = doc.slice(&block.span);
-    verify_expected_etag(
+    verify_expected_etag_unique(
         args.etag_guard.expect_etag.as_deref(),
         table_source,
+        "table",
+        None,
+        || all_table_etags(&doc),
         |expected, actual| {
             CommandError::table_etag_mismatch(args.table_block_index, expected, actual)
         },
@@ -275,6 +284,14 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
         span_after: None,
         output_doc: &output_doc,
     })
+}
+
+fn all_table_etags(doc: &ParsedDocument) -> Vec<String> {
+    doc.blocks
+        .iter()
+        .filter(|block| block.kind == BlockKind::Table)
+        .map(|block| output::content_etag(doc.slice(&block.span).as_bytes()))
+        .collect()
 }
 
 struct TableRowInsertionPlan<'a> {

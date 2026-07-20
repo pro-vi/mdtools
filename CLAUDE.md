@@ -35,7 +35,7 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
   discovered Markdown file, requested-field order preserved, missing metadata kept as
   blank/null cells, and partial per-file parse failures reported without turning it
   into a mutation/query engine.
-- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint). `md frontmatter --json` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata, and the field-projection JSON path keeps the same state token. `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`/`insert-table-row`/`delete-table-row`, `set`, and `set-task` accept `--expect-etag <hash>`, while `move-section` accepts `--expect-source-etag <hash>` and `--expect-dest-etag <hash>`, to fail-closed (exit 4, `EtagMismatch`) when the current fingerprint differs. `set` checks the frontmatter guard before any mutation, no-op, stdout, or write path; `move-section` checks source first and destination second before any no-op or write path. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
+- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, and `md tasks --json` expose a target `etag` (FNV-1a exact-byte content fingerprint). `md frontmatter --json` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata, and the field-projection JSON path keeps the same state token. `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`/`insert-table-row`/`delete-table-row`, `set`, and `set-task` accept `--expect-etag <hash>`, while `move-section` accepts `--expect-source-etag <hash>` and `--expect-dest-etag <hash>`, to fail-closed (exit 4) as `EtagMismatch` when the current fingerprint differs or `EtagAmbiguous` when that fingerprint is non-unique among current same-kind targets. `set` checks the frontmatter guard before any mutation, no-op, stdout, or write path; `move-section` checks source first and destination second before any no-op or write path; table-row ambiguity recovery runs through `md table --json` plus the intended `--index`, not section occurrence flags. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
 - **Re-query pattern is the moat.** Agents query `md tasks --json` or `md frontmatter --json`, mutate, then re-query for fresh locs or frontmatter etags. Design new commands to support this cycle. Locs must be cheap to re-derive.
 - **Payload-bearing vs payload-free mutations.** `replace-section`, `replace-block`, `replace-table-row`, `insert-table-row`, and `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `delete-table-row` is intentionally payload-free: selector only, no stdin or `--from`. `replace-block`, `replace-table-row`, and `insert-table-row` strip one trailing line-ending from the content (matching the newline-excluded target-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code), while table-row replacement preserves the row's existing line ending by keeping it outside the replaced span and table-row insertion keeps any copied separator outside the inserted payload span.
 - **Hybrid > pure.** Agents perform best with both `md` and unix tools. Don't try to replace `sed` for simple edits.
@@ -51,14 +51,14 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 - `section --ignore-case` uses Rust lowercase projection, not Unicode normalization or full case folding; composed and decomposed spellings still differ unless lowercase alone makes them equal
 - T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
 - `--expect-etag` / `--expect-source-etag` / `--expect-dest-etag` are
-  **content-addressed, not identity-addressed**, but block, section, and task guards
-  now **fail closed on hash ambiguity**: when the expected fingerprint matches more
-  than one same-kind target in the document (identical duplicates), the mutation
+  **content-addressed, not identity-addressed**, but block, section, table, and task
+  guards now **fail closed on hash ambiguity**: when the expected fingerprint matches
+  more than one same-kind target in the document (identical duplicates), the mutation
   exits 4 with `etag_ambiguous` instead of silently authorizing the wrong duplicate.
-  Residual: `replace-table-row`/`delete-table-row` guards are still plain
-  content-compares (no ambiguity check), and true identity binding (neighbor-aware /
-  context-sensitive anchors) remains follow-up — it trades against "loc carries no
-  identity". Re-query-before-mutate remains the recommended pattern.
+  Table-row ambiguity is scoped to current top-level whole-table matches and recovery
+  runs through `md table --json` plus the intended `--index`. True identity binding
+  (neighbor-aware / context-sensitive anchors) remains follow-up — it trades against
+  "loc carries no identity". Re-query-before-mutate remains the recommended pattern.
   **Concurrency boundary (do not overclaim):** the guard is a *same-invocation
   drift check* — md reads the target, checks the fingerprint, and splices+renames
   within one process. It is **not a cross-process compare-and-swap and not a

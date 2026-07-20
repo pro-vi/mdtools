@@ -466,29 +466,44 @@ impl CommandError {
     ) -> Self {
         Self::new(
             DiagnosticCode::EtagAmbiguous,
-            format!(
-                "{} etag {:?} is ambiguous: {} same-content {}s share this fingerprint \
-                 (a content match cannot prove identity, and the guard will keep failing \
-                 while the duplicates are byte-identical)",
-                noun, expected, count, noun
-            ),
+            match noun {
+                "table" => format!(
+                    "table etag {:?} is ambiguous: {} identical whole tables share this fingerprint \
+                     (a content match cannot prove identity, and the guard will keep failing \
+                     while the duplicates are byte-identical; re-run `md table --json <FILE>`, \
+                     confirm the intended `--index`, then retry without `--expect-etag` or edit \
+                     one duplicate first so the fingerprints diverge)",
+                    expected, count
+                ),
+                _ => format!(
+                    "{} etag {:?} is ambiguous: {} same-content {}s share this fingerprint \
+                     (a content match cannot prove identity, and the guard will keep failing \
+                     while the duplicates are byte-identical)",
+                    noun, expected, count, noun
+                ),
+            },
         )
-        .with_hint(if noun == "task" {
-            format!(
+        .with_hint(match noun {
+            "task" => format!(
                 "{} identical task lines share this etag and locs already pin position; re-run `md tasks --json`, confirm the intended loc, then retry without --expect-etag or edit one duplicate first",
                 count
-            )
-        } else {
-            // Name BOTH role-correct flags: the disambiguator
-            // (--source-occurrence / --dest-occurrence / --occurrence) and the
-            // guard flag to drop (--expect-source-etag / --expect-dest-etag /
-            // --expect-etag), rather than a generic phrase.
-            let occ = role.map(SelectorRole::occurrence_flag).unwrap_or("--occurrence");
-            let guard = role.map(SelectorRole::guard_flag).unwrap_or("--expect-etag");
-            format!(
-                "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by {} WITHOUT {}",
-                count, noun, occ, guard
-            )
+            ),
+            "table" => format!(
+                "{} identical whole tables share this etag; re-run `md table --json <FILE>`, confirm the intended `--index`, then retry without `--expect-etag` or edit one duplicate first so the fingerprints diverge",
+                count
+            ),
+            _ => {
+                // Name BOTH role-correct flags: the disambiguator
+                // (--source-occurrence / --dest-occurrence / --occurrence) and the
+                // guard flag to drop (--expect-source-etag / --expect-dest-etag /
+                // --expect-etag), rather than a generic phrase.
+                let occ = role.map(SelectorRole::occurrence_flag).unwrap_or("--occurrence");
+                let guard = role.map(SelectorRole::guard_flag).unwrap_or("--expect-etag");
+                format!(
+                    "{} identical {}s share this etag; either edit one duplicate first so the fingerprints diverge, or re-read and mutate the intended target by {} WITHOUT {}",
+                    count, noun, occ, guard
+                )
+            }
         })
         .with_context(ErrorContext {
             role: role.map(|r| r.as_str()),
