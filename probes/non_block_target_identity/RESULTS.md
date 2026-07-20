@@ -141,6 +141,35 @@ Overall verdict: `no_candidate_graduates`.
 This appendix is evidence-only: no candidate graduates, and no identity token
 is implemented or promoted.
 
+## Exact Review Repair Replay
+
+- original reviewed head: `b3246b0a4a54a4752c08b964bce3c2a4a4970c89`
+- Codex review thread IDs: `PRRT_kwDOR1UUic6SIeVx`,
+  `PRRT_kwDOR1UUic6SIeVy`
+- source intention SHA-256:
+  `99bc169daf54aee0c556db239a3b18f652063b9a33b13c8809193f23503ac33b`
+- source run: `run-1784515045.184854000`
+- repaired source commit: `b9b132f8269aedcc0a4d5629c24cdad08f7ecd83`
+- native-review range:
+  `b3246b0a4a54a4752c08b964bce3c2a4a4970c89..b9b132f8269aedcc0a4d5629c24cdad08f7ecd83`
+- task-oracle sequences: `116`, `125`
+- completion sequences: `117`, `126`
+- review sequences: `130-133`
+- phase-oracle sequence: `134`
+- RunCompleted sequence: `135`
+- historical `probe.py` SHA-256:
+  `060170d2527db7e20f1d23367a8601b209b2de7c61a46d3e72216eaa6d1cbc16`
+- repaired `probe.py` SHA-256:
+  `86534e49f7306f75f2e1be415a9341736e79f8f74001276980f4ded9d12d197e`
+- byte-identical `results.json` SHA-256:
+  `e9efed5b9d57c3b45399d7c8f684a943536b18f1b2786bd2de22bd0ebee16153`
+
+Overall verdict: `no_candidate_graduates`.
+This review-repair replay is evidence-only: no candidate graduates, the
+repaired probe hash differs from the historical hash exactly as recorded
+above, the results hash remains byte-identical, and no identity token is
+implemented or promoted.
+
 ## Exact Adversarial Replay Evidence
 
 - task anchor commit during replay: `b9b132f8269aedcc0a4d5629c24cdad08f7ecd83`
