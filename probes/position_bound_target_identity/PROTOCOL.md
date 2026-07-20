@@ -521,6 +521,11 @@ controls. Those controls are not a hostile-code sandbox, do not contain the
 child process, and do not transform the trusted md binary into a capability-
 limited runtime.
 
+Local-only still constrains runner-authored behavior. The Python runner itself
+must forbid network access, dependency installation, environment-derived
+authority, credential reads, unrelated traversal, and persistence outside the
+explicit output path.
+
 The trusted child still executes with operator OS authority. The Python runner
 cannot prevent socket access, absolute-path reads, traversal, credential
 access, or writes elsewhere. Any local-only prohibition is honest only about
