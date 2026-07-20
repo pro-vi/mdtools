@@ -115,3 +115,28 @@ No candidate graduates. `content_only`, `target_local`, and
 fails on whole-document false conflict under unrelated edits. The evidence-only
 conclusion is to demote all four candidates and not promote an identity token
 from this run.
+
+## Exact Execution Replay
+
+- accepted Git review range preserved for this replay:
+  `ca2d2e022696d5464edb2b334b284787e4d88323..73755939c0d8d94a07a165420750418312cd5858`
+- execution intention SHA-256:
+  `04020d97334f9800fa2c70694ddc05c820d6d08f420ff529dc91bbe1f1928933`
+- sealed Weave draft: `weave-draft-1784511267401121000-61120-00000000`
+- execution run: `run-1784511608.078778000`
+- results commit: `f4b5904706be8f2a44834ab87319d32f83cac579`
+- ledger commit: `73755939c0d8d94a07a165420750418312cd5858`
+- independent offline canonical `--check`: passed at
+  `73755939c0d8d94a07a165420750418312cd5858`
+- results.json SHA-256 before and after:
+  `e9efed5b9d57c3b45399d7c8f684a943536b18f1b2786bd2de22bd0ebee16153`
+
+execution task-oracle sequences: 64, 73
+execution completion sequences: 65, 74
+execution review sequences: 78-81
+execution phase-oracle sequence: 82
+execution RunCompleted sequence: 83
+
+Overall verdict: `no_candidate_graduates`.
+This appendix is evidence-only: no candidate graduates, and no identity token
+is implemented or promoted.
