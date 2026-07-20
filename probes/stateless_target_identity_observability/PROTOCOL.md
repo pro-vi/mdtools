@@ -147,9 +147,17 @@ must fail closed rather than silently discarding them.
     resolution.
 15. `match_counts_cur`: the live current match counts required by the selector
     and match domain.
-16. `R_other`: all other in-scope repository file bytes that the later runner
-    authorizes as readable input under the locked public contract, held
-    byte-identical across the two worlds.
+16. `R_other`: the canonical runner-owned finite ordered support-file domain for
+    every other in-scope repository input that the later runner authorizes as
+    readable under the locked public contract. `R_other` must carry a
+    schema/version, the exact ordered explicit operand vector, and the exact
+    ordered entry sequence. Every entry must bind `path_rel` as a canonical
+    repository-relative slash path, `present` as an explicit boolean, `bytes`
+    as exact file bytes when present and exact empty bytes when absent, and
+    `public_position` as the exact zero-based position in the relevant
+    deterministic public projection or authorized operand domain. Tuple
+    equality for `R_other` is sequence equality over the full ordered-domain
+    record, not byte-multiset equality or unordered-map equality.
 17. `candidate_spec`: the deterministic candidate name, version, framing, and
     decision rule.
 
@@ -165,12 +173,28 @@ including full-document hashes, unbounded context hashes, Merkle structures,
 cryptographic digests, `loc`s, `etag`s, ambiguity counts, and reformatted
 structural projections.
 
-`R_other` is closed as well. It must include only repository-local file bytes
+`R_other` is closed as well. It must include only repository-local file inputs
 that are already readable through the locked public contract or explicitly
-named by this protocol as in-scope source bytes. It must not silently absorb
-sidecars, journals, caches, hidden identity stores, VCS administrative data,
-watcher state, allocator state, runtime service outputs, or any other
-out-of-contract file family just because those bytes exist beside the document.
+named by this protocol as in-scope source bytes. The later runner must bind and
+compare the exact ordered explicit operand vector and every deterministic public
+file-list or projection ordering reachable under the locked inputs. Directory
+operands must bind their logical relative operand path and the complete ordered
+discovered file list; the domain must not be normalized into a set or unordered
+map. Duplicate paths, duplicate operands, omissions, extras, renames, reordered
+entries, and presence changes must be preserved at exact positions and must
+make the tuple unequal or fail closed before any conclusion. The finite domain
+must be runner-owned and closed before scoring, and any unlisted read,
+unrecognized public path field, unknown discovery result, repository-root
+escape, or ambiguous canonical path must hard-fail. The manifest must not own
+the accepted list, ordering, presence, or identity truth; it may pin
+construction bytes and expected logical inputs only through its complete
+authenticated source contract, while later execution must reconstruct public
+lists live. Logical repository-relative paths, presence, and ordering remain
+observation inputs only and must not supply lineage truth or survivor mapping.
+`R_other` must not silently absorb sidecars, journals, caches, hidden identity
+stores, VCS administrative data, watcher state, allocator state, runtime
+service outputs, or any other out-of-contract file family just because those
+bytes exist beside the document.
 
 ## Excluded authority and non-claims
 
@@ -227,7 +251,9 @@ Requirements for the construction are exact:
   locked-contract `md ... --json` reads and checked slicing.
 - The live observed projection must prove exactly two same-kind exact-byte
   target matches at pinned ordinals and must prove their ranges and ordering.
-- All non-target repository files remain byte-identical across both worlds.
+- All non-target support-file operands and entries remain identical across both
+  worlds in logical operand topology, logical path, presence, bytes, duplicate
+  position, public ordering, and canonical `R_other` ordered-domain content.
 
 Define the two histories by exact deletion on `D0`:
 
@@ -250,7 +276,9 @@ also be identical across worlds. The complete pending mutation request must
 also be identical across worlds, including the mutation verb, the complete
 ordered option surface, the payload transport mode, the logical relative
 payload path when applicable, the payload bytes, and the authoritative
-canonical `mutation_request` record.
+canonical `mutation_request` record. The canonical `R_other` schema/version,
+ordered explicit operand vector, and ordered entry sequence must also be
+identical across worlds.
 
 ## Mechanical lineage proof
 
@@ -307,6 +335,12 @@ The later runner requirements are exact:
 - Canonicalize any `--from` payload reference by keeping only the runner-owned
   logical relative payload path plus the exact referenced file bytes, and by
   excluding absolute temporary placement noise.
+- Build `R_other` as a runner-owned finite ordered domain from the locked
+  logical operands plus live deterministic public file projections before any
+  conclusion check. It must compare exact schema/version, ordered explicit
+  operand vector, ordered entry sequence, canonical logical paths, presence,
+  bytes, duplicates, and `public_position`, remain read-only while doing so,
+  and must not execute the pending mutation.
 - Prove independently that lineage truths differ and that the complete
   canonical tuples are byte-equal before emitting a validated observability
   result.
@@ -332,7 +366,10 @@ same-lineage world and reject the wrong-lineage world.
 Equal input in this rule includes the complete pending mutation request, with
 authoritative equality over the exact mutation verb, complete ordered option
 surface, payload transport, logical payload path when applicable, exact payload
-bytes, and canonical `mutation_request` record.
+bytes, and canonical `mutation_request` record. Equal input also includes exact
+`R_other` ordered-domain equality: schema/version equality, ordered explicit
+operand equality, and ordered entry sequence equality over canonical logical
+paths, presence, bytes, duplicates, and `public_position`.
 
 The forced tradeoff must be stated explicitly:
 
@@ -363,6 +400,9 @@ Disconfirming evidence narrows or kills the hypothesis. At minimum it includes:
 - any semantically public request field reachable under the locked `mdtools`
   contract that was omitted from canonical `mutation_request` construction or
   was duplicated inconsistently against `selectors`
+- any omitted or unequal `R_other` path, presence, duplicate, order,
+  `public_position`, or ordered public file-list component that should have
+  been bound inside the closed ordered domain
 - a supposedly equal tuple component that is not equal after canonicalization
 - failure to establish lineage truth independently
 - an apparent different decision from genuinely byte-equal tuples that must
@@ -384,6 +424,9 @@ The later evidence log must record at least:
 - command argv schema
 - payload transport mode
 - canonical request SHA-256
+- `R_other` schema/version
+- `R_other` entry count
+- `R_other` ordered domain SHA-256
 - observed and current document hashes
 - both deletion ranges
 - survivor ordinals
@@ -393,6 +436,11 @@ The later evidence log must record at least:
 - mechanical preconditions and their pass or fail status
 - result label
 - independent review ranges and gate outcomes
+
+For each `R_other` entry, the later evidence log must record the canonical
+logical `path_rel`, `present`, `public_position`, and a content hash for the
+bound bytes, without absolute paths and without duplicating potentially large
+file bytes in the ledger.
 
 Tracked artifacts must not contain absolute temporary paths, environment dumps,
 credentials, personal telemetry, machine-specific configuration, or duplicated
