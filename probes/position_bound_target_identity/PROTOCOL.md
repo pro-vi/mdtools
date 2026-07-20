@@ -1,15 +1,22 @@
 # Position-Bound Target Identity Source-Only Protocol
 
 Date locked: 2026-07-20
-Accepted base commit: `69bb6aee7fb3e5ec61b861c73953b43900603609`
+Initial authored base commit: `3771409a39c5554a011349c3abf25ee6c73f2cf1`
+Accepted repair base commit: `d134cee1fef621cfe795cecb079e5ce8fe239a92`
 Accepted branch: `probe/position-bound-target-identity-3771409`
 
 ## Scope And Grounding
 
 This phase is source-only at accepted repair base
-`69bb6aee7fb3e5ec61b861c73953b43900603609` on branch
-`probe/position-bound-target-identity-3771409` and modifies exactly one
-tracked file: `probes/position_bound_target_identity/PROTOCOL.md`.
+`d134cee1fef621cfe795cecb079e5ce8fe239a92` on branch
+`probe/position-bound-target-identity-3771409`. The initial authored base for
+this protocol file remains
+`3771409a39c5554a011349c3abf25ee6c73f2cf1`; that is where the file first
+entered the PR. In the full authored range
+`3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`, the PR adds exactly one
+tracked file: `probes/position_bound_target_identity/PROTOCOL.md`. In this
+repair range `d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`, the phase
+modifies exactly that existing tracked file and no other path.
 
 It does not authorize any other tracked change, any `.braid/` artifact, any
 fixture, any manifest, any runner, any result artifact, any test, any
@@ -470,7 +477,7 @@ promotion are separately authorized phases.
 
 After authorship, native Codex review is required over the exact range:
 
-`69bb6aee7fb3e5ec61b861c73953b43900603609..HEAD`
+`d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`
 
 Any finding must be repaired and re-reviewed before phase completion.
 
@@ -478,21 +485,31 @@ Completion requires all of the following:
 
 - the focused task verifier
 - native review
+- the repair-range git proof over
+  `d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`
+- the full authored range git proof over
+  `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`
 - the exact phase oracle
 - durable `RunCompleted`
+
+Historical two-run coverage remains supporting evidence only. The current
+self-contained authority is the dual-range proof set above plus the phase
+oracle pass, repaired native review over
+`d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`, and durable
+`RunCompleted`.
 
 The focused task verifier bytes are exact and must not be broadened,
 substituted, or rewritten:
 
 ```bash
-test -s probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'cases 7, 9, and 10|forward-survivor|same-locator' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'live_descriptor.*equal|descriptor.*equals' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'd134cee1fef621cfe795cecb079e5ce8fe239a92' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 The phase oracle bytes are exact and must not be broadened, substituted, or
 rewritten:
 
 ```bash
-git diff --check 69bb6aee7fb3e5ec61b861c73953b43900603609..HEAD && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'cases 7, 9, and 10|forward-survivor|same-locator' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'live_descriptor.*equal|descriptor.*equals' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md && git diff --name-only 69bb6aee7fb3e5ec61b861c73953b43900603609..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)'
+git diff --check d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD && git diff --name-only d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'd134cee1fef621cfe795cecb079e5ce8fe239a92' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 ## Honest Conclusion Boundary
