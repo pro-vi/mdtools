@@ -56,7 +56,7 @@ EXPECTED_CASE_IDS = tuple(case_id for case_id, _identity_truth in EXPECTED_CASE_
 EXPECTED_CASE_IDENTITY_TRUTHS = {
     case_id: identity_truth for case_id, identity_truth in EXPECTED_CASE_MATRIX
 }
-EXPECTED_MANIFEST_SEMANTIC_SHA256 = "149ac4d3ddb9abc01ffca9a6f65a5dcebfa9b64fac6ba75e5328eef68fb8d7dc"
+EXPECTED_MANIFEST_SEMANTIC_SHA256 = "6fd0197bdc6691f2d6e54247b5801c187208738f411d6695b71b423bfd530209"
 EXPECTED_MECHANICAL_PRECONDITION_CASE_CLASSES = (
     "unchanged_reread",
     "duplicate_cross_target_copy",
@@ -121,7 +121,7 @@ EXPECTED_SAME_LOCATOR_LINEAGE = {
         "require_observed_match_count": 2,
         "require_current_match_count": 1,
         "require_distinct_increasing_byte_starts": True,
-        "require_reconstructed_current_document_sha256": "9717f942e03bb6f16df1850333808f9530c2766587f06f1419c8e748baf80796",
+        "require_reconstructed_current_document_sha256": "07ef74b35df03c90d8876c3bbefbac08f606e373fc16d993cb285f0bfe132dce",
         "require_reconstruction_equality": RECONSTRUCTION_FORMULA,
     },
     "table-same-locator-duplicate-shift": {

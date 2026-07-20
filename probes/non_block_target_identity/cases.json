@@ -154,8 +154,8 @@
       "case_class": "duplicate_cross_target_copy",
       "identity_truth": "wrong_target",
       "surface": "section",
-      "observed_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n",
-      "current_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n",
+      "observed_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n\n## Tail\nomega\n",
+      "current_document_utf8": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n\n## Tail\nomega\n",
       "observed_target_query": {
         "type": "section_target",
         "surface": "section",
@@ -198,8 +198,8 @@
       "case_class": "same_locator_duplicate_shift",
       "identity_truth": "wrong_target",
       "surface": "section",
-      "observed_document_utf8": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n\n## Gap\nremove me\n\n## Target\nstable token\n",
-      "current_document_utf8": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n",
+      "observed_document_utf8": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n\n## Gap\nremove me\n\n## Target\nstable token\n\n## Tail\nomega\n",
+      "current_document_utf8": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n\n## Tail\nomega\n",
       "observed_target_query": {
         "type": "section_target",
         "surface": "section",
@@ -238,7 +238,7 @@
         "require_observed_match_count": 2,
         "require_current_match_count": 1,
         "require_distinct_increasing_byte_starts": true,
-        "require_reconstructed_current_document_sha256": "9717f942e03bb6f16df1850333808f9530c2766587f06f1419c8e748baf80796",
+        "require_reconstructed_current_document_sha256": "07ef74b35df03c90d8876c3bbefbac08f606e373fc16d993cb285f0bfe132dce",
         "require_reconstruction_equality": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target"
       }
     },
