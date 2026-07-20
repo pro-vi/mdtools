@@ -2,20 +2,20 @@
 
 Date locked: 2026-07-20
 Initial authored base commit: `3771409a39c5554a011349c3abf25ee6c73f2cf1`
-Accepted repair base commit: `d134cee1fef621cfe795cecb079e5ce8fe239a92`
+Accepted repair base commit: `f35a5111f2f7b7e3f064373b161bd27d3f94d386`
 Accepted branch: `probe/position-bound-target-identity-3771409`
 
 ## Scope And Grounding
 
 This phase is source-only at accepted repair base
-`d134cee1fef621cfe795cecb079e5ce8fe239a92` on branch
+`f35a5111f2f7b7e3f064373b161bd27d3f94d386` on branch
 `probe/position-bound-target-identity-3771409`. The initial authored base for
 this protocol file remains
 `3771409a39c5554a011349c3abf25ee6c73f2cf1`; that is where the file first
 entered the PR. In the full authored range
 `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`, the PR adds exactly one
 tracked file: `probes/position_bound_target_identity/PROTOCOL.md`. In this
-repair range `d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`, the phase
+repair range `f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`, the phase
 modifies exactly that existing tracked file and no other path.
 
 It does not authorize any other tracked change, any `.braid/` artifact, any
@@ -117,17 +117,22 @@ evidence inputs. They are never candidate payload fields.
 
 ### Collision-Safe Token Framing
 
-Every candidate token preimage must use collision-safe framing with:
+Every candidate token preimage is one exact byte sequence formed by
+concatenating these framed fields in this order and no other order:
 
-- fixed ASCII domain label:
-  `position-bound-target-identity-token`
-- probe schema version
-- candidate name
-- surface name, fixed to `block`
-- unsigned 64-bit big-endian byte lengths before every raw payload field
+1. fixed ASCII domain label
+   `position-bound-target-identity-token`
+2. fixed ASCII schema version `1`
+3. the exact ASCII candidate name
+4. fixed ASCII surface name `block`
+5. the candidate payload fields for that candidate, in the documented order
 
-Boundary state must be explicit, not encoded as magic Markdown strings. The
-runner must carry BOF and EOF information in explicit fields and boundary flags.
+Every field, including metadata, enum, raw-byte, and boolean fields, is framed
+as an unsigned 64-bit big-endian byte length immediately followed by exactly
+that many payload bytes. No field may omit its length prefix, change width,
+change endianness, or insert extra separators. Boundary state must be explicit,
+not encoded as magic Markdown strings. The runner must carry BOF and EOF
+information in explicit fields and boundary flags.
 
 The candidate payload fields are exact:
 
@@ -150,7 +155,14 @@ byte field is empty bytes, not an invented placeholder string.
 `prefix_window_bytes` is the last at most 64 raw bytes immediately preceding
 the target span. `suffix_window_bytes` is the first at most 64 raw bytes
 immediately following the target span. `prefix_hits_bof` and `suffix_hits_eof`
-are explicit boolean fields.
+are explicit boolean fields. Each boolean payload is exactly one byte: `0x00`
+for false and `0x01` for true, with a length prefix equal to the unsigned
+64-bit big-endian encoding of `1`. No JSON token, ASCII spelling, alternate
+integer width, or other byte value is authorized.
+
+If a later artifact records SHA-256 as a compact token digest, that SHA-256
+must hash exactly this framed preimage and never replaces byte-equality as the
+acceptance rule.
 
 ## Future Manifest Contract
 
@@ -475,18 +487,28 @@ promotion are separately authorized phases.
 
 ## Review And Completion Policy
 
-After authorship, native Codex review is required over the exact range:
+After authorship, native Codex review is required over the exact repair range:
 
-`d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`
+`f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`
 
-Any finding must be repaired and re-reviewed before phase completion.
+Any repair-range finding must be repaired and re-reviewed before durable
+`RunCompleted`.
+
+PR completion or merge eligibility separately requires a fresh exact-head
+native Codex review over the full authored range:
+
+`3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`
+
+Every full-authored-range finding must be repaired and re-reviewed at the final
+pushed head, and no unresolved review thread may remain.
 
 Completion requires all of the following:
 
 - the focused task verifier
-- native review
+- native Codex review over
+  `f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`
 - the repair-range git proof over
-  `d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`
+  `f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`
 - the full authored range git proof over
   `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`
 - the exact phase oracle
@@ -494,22 +516,27 @@ Completion requires all of the following:
 
 Historical two-run coverage remains supporting evidence only. The current
 self-contained authority is the dual-range proof set above plus the phase
-oracle pass, repaired native review over
-`d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD`, and durable
+oracle pass, repaired native Codex review over
+`f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`, and durable
 `RunCompleted`.
+
+Repair-range review, path proof, whitespace proof, historical review, CI pass,
+or reviewer silence cannot substitute for the mandatory fresh exact-head native
+Codex review over the complete authored range
+`3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`.
 
 The focused task verifier bytes are exact and must not be broadened,
 substituted, or rewritten:
 
 ```bash
-test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'd134cee1fef621cfe795cecb079e5ce8fe239a92' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'f35a5111f2f7b7e3f064373b161bd27d3f94d386' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x00' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x01' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'unsigned 64-bit big-endian' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'native Codex review|Codex review' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 The phase oracle bytes are exact and must not be broadened, substituted, or
 rewritten:
 
 ```bash
-git diff --check d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD && git diff --name-only d134cee1fef621cfe795cecb079e5ce8fe239a92..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'd134cee1fef621cfe795cecb079e5ce8fe239a92' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+git diff --check f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD && git diff --name-only f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'f35a5111f2f7b7e3f064373b161bd27d3f94d386' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x00' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x01' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'unsigned 64-bit big-endian' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'native Codex review|Codex review' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 ## Honest Conclusion Boundary
