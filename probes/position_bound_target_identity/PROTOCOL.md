@@ -325,6 +325,8 @@ Case 8 is an exact backward-survivor same-locator substitution:
 - the reconstructed current document bytes must produce exactly one live current
   exact-target match sourced from `D[a:b]`
 - the live current target must resolve from that lone current exact-target match
+- the live current target descriptor equals the live observed `duplicate_1`
+  descriptor
 
 The future runner owns and enforces mapping, reconstruction formula, ordinals,
 relations, and required lineage field shape before scoring. Missing, extra, or
