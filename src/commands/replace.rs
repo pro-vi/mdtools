@@ -345,23 +345,6 @@ fn verify_etag(
     )
 }
 
-pub(crate) fn verify_expected_etag<F>(
-    expect: Option<&str>,
-    current: &str,
-    mismatch: F,
-) -> Result<(), CommandError>
-where
-    F: FnOnce(&str, &str) -> CommandError,
-{
-    if let Some(expected) = expect {
-        let actual = output::content_etag(current.as_bytes());
-        if expected != actual {
-            return Err(mismatch(expected, &actual));
-        }
-    }
-    Ok(())
-}
-
 /// Like verify_expected_etag, but fails closed when the matching fingerprint
 /// is NON-UNIQUE among the same-kind candidates in the document: identical
 /// duplicates share a content etag, and a content match cannot prove the
