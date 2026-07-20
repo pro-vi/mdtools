@@ -18,6 +18,7 @@ MANIFEST_PATH = SCRIPT_DIR / "cases.json"
 PROBE_SCHEMA_VERSION = "position-bound-target-identity-probe.v1"
 REPORT_SCHEMA_VERSION = "position-bound-target-identity-report.v1"
 CANONICAL_DESCRIPTOR_SCHEMA_VERSION = "position-bound-target-identity-descriptor.v1"
+PROTOCOL_VERSION = "position-bound-target-identity-protocol.v1"
 TOKEN_DOMAIN_LABEL = b"position-bound-target-identity-token"
 EXPECTED_MD_SCHEMA_VERSION = "mdtools.v1"
 EXPECTED_MANIFEST_SCHEMA_VERSION = "position-bound-target-identity-manifest.v1"
@@ -66,8 +67,8 @@ EXPECTED_GRADUATION_VERDICTS = (
 )
 EXPECTED_AGGREGATE_VERDICTS = (
     "no_bounded_context_candidate_graduates",
-    "single_candidate_graduates",
-    "multiple_candidates_graduate",
+    "single_bounded_context_candidate_graduates",
+    "multiple_bounded_context_candidates_graduate",
 )
 EXPECTED_PRECEDING_BOUNDARY_STATES = ("bof", "present")
 EXPECTED_FOLLOWING_BOUNDARY_STATES = ("eof", "present")
@@ -344,28 +345,47 @@ EXPECTED_CASE_RESULT_KEYS = (
     "schema_version",
     "target_bytes_evidence",
 )
-BLOCK_ENTRY_KEYS = {"etag", "index", "kind", "preview", "span"}
-BLOCKS_RESULT_KEYS = {"blocks", "file", "schema_version"}
-MANIFEST_TOP_LEVEL_KEYS = {
-    "candidate_order",
-    "cases",
-    "date_locked",
-    "manifest_kind",
-    "protocol_sha256",
-    "required_case_ids",
+BLOCK_ENTRY_KEY_ORDER = ("index", "kind", "span", "etag", "preview")
+BLOCKS_RESULT_KEY_ORDER = ("schema_version", "file", "blocks")
+MANIFEST_TOP_LEVEL_KEY_ORDER = (
     "schema_version",
-}
-MECHANICAL_PRECONDITION_KEYS = {
-    "candidate_context_relations",
-    "current_exact_target_match_count",
-    "document_bytes_relation",
-    "live_descriptor_relation",
-    "mechanical_failure_on_violation",
-    "observed_exact_target_match_count",
+    "manifest_kind",
+    "date_locked",
+    "protocol_sha256",
+    "candidate_order",
+    "required_case_ids",
+    "cases",
+)
+CASE_COMMON_KEY_ORDER = (
+    "case_id",
+    "case_class",
+    "identity_truth",
+    "observed_document_utf8",
+    "current_document_utf8",
+    "observed_target_selector",
+    "current_target_selector",
+    "mechanical_preconditions",
+)
+CASE_WRONG_TARGET_KEY_ORDER = CASE_COMMON_KEY_ORDER + (
+    "same-locator",
+    "observed_target_duplicate_ordinal",
+    "survivor_duplicate_ordinal",
+    "require_reconstructed_current_document_sha256",
+)
+CASE_BACKWARD_WRONG_TARGET_KEY_ORDER = CASE_WRONG_TARGET_KEY_ORDER + (
+    "backward_prefix_insertion_bytes",
+)
+MECHANICAL_PRECONDITION_KEY_ORDER = (
     "target_bytes_relation",
-}
-TARGET_SELECTOR_KEYS = {"block_index"}
-SPAN_KEYS = {"byte_end", "byte_start", "line_end", "line_start"}
+    "live_descriptor_relation",
+    "document_bytes_relation",
+    "observed_exact_target_match_count",
+    "current_exact_target_match_count",
+    "candidate_context_relations",
+    "mechanical_failure_on_violation",
+)
+TARGET_SELECTOR_KEY_ORDER = ("block_index",)
+SPAN_KEY_ORDER = ("line_start", "line_end", "byte_start", "byte_end")
 
 
 class ProbeError(RuntimeError):
@@ -453,7 +473,7 @@ def build_report_bytes(md_binary_arg: Path, expected_md_binary_sha256: str) -> b
         "manifest_schema_version": manifest["schema_version"],
         "md_binary_sha256": md_binary_sha256,
         "protocol_sha256": EXPECTED_PROTOCOL_SHA256,
-        "protocol_version": REPORT_SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
         "report_schema_version": REPORT_SCHEMA_VERSION,
         "required_case_ids": list(EXPECTED_CASE_ORDER),
         "schema_version": PROBE_SCHEMA_VERSION,
@@ -492,7 +512,7 @@ def load_manifest() -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise ProbeError(f"invalid manifest JSON in {MANIFEST_PATH.name}: {exc}") from exc
     manifest_map = expect_mapping(manifest, "manifest")
-    exact_key_set(manifest_map, MANIFEST_TOP_LEVEL_KEYS, "manifest")
+    exact_key_order(manifest_map, MANIFEST_TOP_LEVEL_KEY_ORDER, "manifest")
     manifest_semantic_sha256 = manifest_semantic_sha256_hex(manifest_map)
     if manifest_semantic_sha256 != EXPECTED_MANIFEST_SEMANTIC_SHA256:
         raise ProbeError(
@@ -552,28 +572,12 @@ def validate_case(case_value: Any, index: int) -> dict[str, Any]:
             f"manifest case order mismatch at index {index}: expected {expected_case_id!r}, got {case_id!r}"
         )
     contract = EXPECTED_CASE_CONTRACTS[case_id]
-    expected_keys = {
-        "case_class",
-        "case_id",
-        "current_document_utf8",
-        "current_target_selector",
-        "identity_truth",
-        "mechanical_preconditions",
-        "observed_document_utf8",
-        "observed_target_selector",
-    }
+    expected_key_order = CASE_COMMON_KEY_ORDER
     if "same-locator" in contract:
-        expected_keys.update(
-            {
-                "observed_target_duplicate_ordinal",
-                "require_reconstructed_current_document_sha256",
-                "same-locator",
-                "survivor_duplicate_ordinal",
-            }
-        )
+        expected_key_order = CASE_WRONG_TARGET_KEY_ORDER
     if "backward_prefix_insertion_bytes" in contract:
-        expected_keys.add("backward_prefix_insertion_bytes")
-    exact_key_set(case, expected_keys, case_id)
+        expected_key_order = CASE_BACKWARD_WRONG_TARGET_KEY_ORDER
+    exact_key_order(case, expected_key_order, case_id)
     normalized = {
         "case_class": expect_exact_string(case.get("case_class"), f"{case_id}.case_class", contract["case_class"]),
         "case_id": case_id,
@@ -658,7 +662,7 @@ def validate_target_selector(
     expected_selector: dict[str, int],
 ) -> dict[str, int]:
     selector = expect_mapping(selector_value, f"{case_id}.{field_name}")
-    exact_key_set(selector, TARGET_SELECTOR_KEYS, f"{case_id}.{field_name}")
+    exact_key_order(selector, TARGET_SELECTOR_KEY_ORDER, f"{case_id}.{field_name}")
     block_index = expect_nonnegative_int(selector.get("block_index"), f"{case_id}.{field_name}.block_index")
     if block_index != expected_selector["block_index"]:
         raise ProbeError(
@@ -673,14 +677,18 @@ def validate_mechanical_preconditions(
     expected: dict[str, Any],
 ) -> dict[str, Any]:
     preconditions = expect_mapping(value, f"{case_id}.mechanical_preconditions")
-    exact_key_set(preconditions, MECHANICAL_PRECONDITION_KEYS, f"{case_id}.mechanical_preconditions")
+    exact_key_order(
+        preconditions,
+        MECHANICAL_PRECONDITION_KEY_ORDER,
+        f"{case_id}.mechanical_preconditions",
+    )
     candidate_context_relations = expect_mapping(
         preconditions.get("candidate_context_relations"),
         f"{case_id}.mechanical_preconditions.candidate_context_relations",
     )
-    exact_key_set(
+    exact_key_order(
         candidate_context_relations,
-        set(EXPECTED_CANDIDATE_ORDER),
+        EXPECTED_CANDIDATE_ORDER,
         f"{case_id}.mechanical_preconditions.candidate_context_relations",
     )
     normalized = {
@@ -831,8 +839,20 @@ def evaluate_case(
             "measured_relations": measured_relations,
         },
         "reported_command_vectors": {
-            "current": build_report_command_vector(md_binary, case_id, "current"),
-            "observed": build_report_command_vector(md_binary, case_id, "observed"),
+            "current": build_report_command_vector(
+                md_binary,
+                current_path,
+                case_dir,
+                case_id,
+                "current",
+            ),
+            "observed": build_report_command_vector(
+                md_binary,
+                observed_path,
+                case_dir,
+                case_id,
+                "observed",
+            ),
         },
         "schema_version": PROBE_SCHEMA_VERSION,
         "target_bytes_evidence": {
@@ -840,7 +860,7 @@ def evaluate_case(
             "observed": payload_record(observed_context["target_bytes"]),
         },
     }
-    exact_key_set(result, set(EXPECTED_CASE_RESULT_KEYS), f"{case_id}.result")
+    exact_key_order(result, EXPECTED_CASE_RESULT_KEYS, f"{case_id}.result")
     return result
 
 
@@ -866,7 +886,7 @@ def run_blocks_query(
     except json.JSONDecodeError as exc:
         raise ProbeError(f"{where}: invalid md JSON: {exc}") from exc
     result_map = expect_mapping(result, f"{where}.result")
-    exact_key_set(result_map, BLOCKS_RESULT_KEYS, f"{where}.result")
+    exact_key_order(result_map, BLOCKS_RESULT_KEY_ORDER, f"{where}.result")
     expect_exact_string(
         result_map.get("schema_version"),
         f"{where}.result.schema_version",
@@ -880,7 +900,7 @@ def run_blocks_query(
     seen_indices: set[int] = set()
     for index, entry_value in enumerate(block_values):
         entry = expect_mapping(entry_value, f"{where}.result.blocks[{index}]")
-        exact_key_set(entry, BLOCK_ENTRY_KEYS, f"{where}.result.blocks[{index}]")
+        exact_key_order(entry, BLOCK_ENTRY_KEY_ORDER, f"{where}.result.blocks[{index}]")
         block_index = expect_nonnegative_int(entry.get("index"), f"{where}.result.blocks[{index}].index")
         if block_index in seen_indices:
             raise ProbeError(f"{where}: duplicate block index {block_index}")
@@ -1308,10 +1328,10 @@ def build_aggregate_verdict(candidate_summary: dict[str, Any]) -> dict[str, Any]
         verdict = "no_bounded_context_candidate_graduates"
         selected_candidate = None
     elif len(graduating_candidates) == 1:
-        verdict = "single_candidate_graduates"
-        selected_candidate = graduating_candidates[0]
+        verdict = "single_bounded_context_candidate_graduates"
+        selected_candidate = None
     else:
-        verdict = "multiple_candidates_graduate"
+        verdict = "multiple_bounded_context_candidates_graduate"
         selected_candidate = None
     expect_choice(verdict, "aggregate_verdict.verdict", EXPECTED_AGGREGATE_VERDICTS)
     return {
@@ -1334,12 +1354,24 @@ def descriptor_evidence_record(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_report_command_vector(md_binary: Path, case_id: str, role: str) -> list[str]:
-    if role not in {"observed", "current"}:
-        raise ProbeError(f"unsupported report role: {role}")
+def build_report_command_vector(
+    md_binary: Path,
+    document_path: Path,
+    case_dir: Path,
+    case_id: str,
+    expected_role: str,
+) -> list[str]:
+    if expected_role not in {"observed", "current"}:
+        raise ProbeError(f"unsupported report role: {expected_role}")
+    expected_document_path = (case_dir / f"{expected_role}.md").resolve()
+    if document_path != expected_document_path:
+        raise ProbeError(
+            f"{case_id}: canonical command path/role mismatch for {expected_role}: "
+            f"expected {expected_document_path}, got {document_path}"
+        )
     logical_path = (
         CANONICAL_OBSERVED_CASE_PATH_TEMPLATE.format(case_id=case_id)
-        if role == "observed"
+        if expected_role == "observed"
         else CANONICAL_CURRENT_CASE_PATH_TEMPLATE.format(case_id=case_id)
     )
     return [
@@ -1647,7 +1679,7 @@ def slice_target_bytes(document_bytes: bytes, span: dict[str, int], where: str) 
 
 def normalize_span(value: Any, where: str) -> dict[str, int]:
     span = expect_mapping(value, where)
-    exact_key_set(span, SPAN_KEYS, where)
+    exact_key_order(span, SPAN_KEY_ORDER, where)
     line_start = expect_positive_int(span.get("line_start"), f"{where}.line_start")
     line_end = expect_positive_int(span.get("line_end"), f"{where}.line_end")
     byte_start = expect_nonnegative_int(span.get("byte_start"), f"{where}.byte_start")
@@ -1670,6 +1702,20 @@ def exact_key_set(mapping: dict[str, Any], expected_keys: set[str], where: str) 
         missing = sorted(expected_keys - actual_keys)
         extra = sorted(actual_keys - expected_keys)
         raise ProbeError(f"{where}: unexpected key set; missing={missing}, extra={extra}")
+
+
+def exact_key_order(mapping: dict[str, Any], expected_keys: tuple[str, ...], where: str) -> None:
+    actual_keys = tuple(mapping.keys())
+    expected_key_set = set(expected_keys)
+    actual_key_set = set(actual_keys)
+    if actual_key_set != expected_key_set:
+        missing = sorted(expected_key_set - actual_key_set)
+        extra = sorted(actual_key_set - expected_key_set)
+        raise ProbeError(f"{where}: unexpected key set; missing={missing}, extra={extra}")
+    if actual_keys != expected_keys:
+        raise ProbeError(
+            f"{where}: key order mismatch; expected={list(expected_keys)!r}, got={list(actual_keys)!r}"
+        )
 
 
 def decode_utf8(payload: bytes, where: str) -> str:
