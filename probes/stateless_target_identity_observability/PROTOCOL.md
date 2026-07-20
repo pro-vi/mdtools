@@ -45,6 +45,9 @@ proposal, and not a production identity architecture decision. It does not
 claim that persistent IDs, history, operation receipts, embedded markers, VCS
 ancestry, external coordination, or newly discovered public input cannot
 distinguish lineage.
+Any later review must reject purported distinguishing power that arises only
+from excluded filesystem placement, runtime state, process details, or other
+out-of-contract authority rather than from the closed tuple itself.
 
 ## Source-only boundary
 
@@ -91,6 +94,10 @@ observations.
 Define one closed canonical stateless observation tuple `O`. The later runner
 must compare `O_same` and `O_wrong` only after canonicalization removes
 incidental serialization noise while retaining every semantically public field.
+That canonicalization must also erase caller-selected absolute temporary-path,
+working-directory, and equivalent path-serialization noise so that only the
+runner-owned logical relative path and other explicitly enumerated canonical
+components remain observable.
 Unknown or future public fields must be included canonically or the experiment
 must fail closed rather than silently discarding them.
 
@@ -152,6 +159,11 @@ The later execution must exclude all authority outside the closed tuple.
 - No persistent ID, history database, receipt log, embedded marker, VCS
   ancestry, editor metadata, filesystem timestamp, external service, or human
   assertion may supply target identity truth.
+- No absolute temporary path, checkout location, working-directory path,
+  environment variable, `PATH` resolution, machine-specific configuration,
+  credential source, process ID, clock, scheduler timing, file-descriptor
+  layout, inode/device identity, or other filesystem/runtime/process detail
+  outside the closed tuple may supply target identity truth.
 - No manifest-owned span, expected verdict, lineage truth, candidate credit,
   or aggregate conclusion is trusted.
 - No hidden input or nondeterministic side channel may distinguish the two
