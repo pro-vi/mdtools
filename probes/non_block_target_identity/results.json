@@ -1,0 +1,2913 @@
+{
+  "candidate_names": [
+    "content_only",
+    "target_local",
+    "ambiguity_reject",
+    "document_target_state"
+  ],
+  "candidate_summary": {
+    "content_only": {
+      "accepts": 12,
+      "correct": 6,
+      "disposition": "demote",
+      "false_conflicts": 0,
+      "graduation_verdict": "fails_wrong_identity",
+      "rejects": 0,
+      "required_same_state_rejects": 0,
+      "unrelated_edit_conflicts": 0,
+      "wrong_identity_accepts": 6
+    },
+    "target_local": {
+      "accepts": 9,
+      "correct": 9,
+      "disposition": "demote",
+      "false_conflicts": 0,
+      "graduation_verdict": "fails_wrong_identity",
+      "rejects": 3,
+      "required_same_state_rejects": 0,
+      "unrelated_edit_conflicts": 0,
+      "wrong_identity_accepts": 3
+    },
+    "ambiguity_reject": {
+      "accepts": 9,
+      "correct": 9,
+      "disposition": "demote",
+      "false_conflicts": 0,
+      "graduation_verdict": "fails_wrong_identity",
+      "rejects": 3,
+      "required_same_state_rejects": 0,
+      "unrelated_edit_conflicts": 0,
+      "wrong_identity_accepts": 3
+    },
+    "document_target_state": {
+      "accepts": 3,
+      "correct": 9,
+      "disposition": "demote",
+      "false_conflicts": 3,
+      "graduation_verdict": "fails_whole_document_false_conflict",
+      "rejects": 9,
+      "required_same_state_rejects": 3,
+      "unrelated_edit_conflicts": 3,
+      "wrong_identity_accepts": 0
+    }
+  },
+  "case_count": 12,
+  "cases": [
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md section SELECTOR FILE --occurrence N --json",
+        "current_target": "md section SELECTOR FILE --occurrence N --json",
+        "observed_target": "md section SELECTOR FILE --occurrence N --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "correct",
+          "current_token_sha256": "3b70f167fc50b9fa402d74cfe2b54f6e54b8767f6c52a52ad8e3d2e76b250173",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "3b70f167fc50b9fa402d74cfe2b54f6e54b8767f6c52a52ad8e3d2e76b250173",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "97ed656544085c485e22dabdec007e8749b485639e7e0b69655b0882a0ceb7ce",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "97ed656544085c485e22dabdec007e8749b485639e7e0b69655b0882a0ceb7ce",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "b4c799fe85231ca75bc816fb379d11307af34a20f7e3ce53e8731b765eb54dbf",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "b4c799fe85231ca75bc816fb379d11307af34a20f7e3ce53e8731b765eb54dbf",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "a21c4b628d256e4310d9eb5de9a8db74810120c29d014794353b699e7bab175e",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "a21c4b628d256e4310d9eb5de9a8db74810120c29d014794353b699e7bab175e",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "unchanged_reread",
+      "case_id": "section-unchanged-reread",
+      "current_descriptor": {
+        "heading": {
+          "block_index": 1,
+          "level": 2,
+          "span": {
+            "byte_end": 16,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 24,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "f936a21fb63924b37751f1721acd86d8dc11f42f6d8317298d0a4aecea2c480a",
+        "text": "# Doc\n\n## Target\nalpha\n\n## Tail\nomega\n",
+        "utf8_len": 38
+      },
+      "current_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 1,
+            "level": 2,
+            "span": {
+              "byte_end": 16,
+              "byte_start": 7,
+              "line_end": 3,
+              "line_start": 3
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 24,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "674c534f7269f66b096b86439c26f993a94035c8929480196e691aa02ba1a049",
+        "text": "## Target\nalpha\n\n",
+        "utf8_len": 17
+      },
+      "identity_truth": "same_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-unchanged-reread.current.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-unchanged-reread.current.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-unchanged-reread.observed.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-unchanged-reread.observed.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "canonical_descriptor_relation": "equal",
+        "current_match_count": 1,
+        "document_bytes_relation": "equal",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 1,
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "heading": {
+          "block_index": 1,
+          "level": 2,
+          "span": {
+            "byte_end": 16,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 24,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "f936a21fb63924b37751f1721acd86d8dc11f42f6d8317298d0a4aecea2c480a",
+        "text": "# Doc\n\n## Target\nalpha\n\n## Tail\nomega\n",
+        "utf8_len": 38
+      },
+      "observed_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 1,
+            "level": 2,
+            "span": {
+              "byte_end": 16,
+              "byte_start": 7,
+              "line_end": 3,
+              "line_start": 3
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 24,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "observed_domain_match_count": 1,
+      "observed_target": {
+        "sha256": "674c534f7269f66b096b86439c26f993a94035c8929480196e691aa02ba1a049",
+        "text": "## Target\nalpha\n\n",
+        "utf8_len": 17
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "section"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md section SELECTOR FILE --occurrence N --json",
+        "current_target": "md section SELECTOR FILE --occurrence N --json",
+        "observed_target": "md section SELECTOR FILE --occurrence N --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "f7cbee24b2a47470fb7ea3eb47a1a3322256b2397e2eeae2995e88a78964b0e7",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "f7cbee24b2a47470fb7ea3eb47a1a3322256b2397e2eeae2995e88a78964b0e7",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "adc1d3a6f71e836560c967e2a39d229c1bddae1f5ca91b7708dce02c6956a87b",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "b0c607bc7955d25310f84abe88a5da4f99b4060cfd465a7455301f6fdfe204a5",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "30eb0dc9653184459de4748bb74f3091c072e615ec8d71b60ee647335283df30",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "30eb0dc9653184459de4748bb74f3091c072e615ec8d71b60ee647335283df30",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "8229b739339f963feb026af76c74a349e2a25c21aa3073bc221d563120abc9da",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "bc0661468e72af76965a21572cd1935d0a3e880e360673ef3566d262c7ae1c70",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "duplicate_cross_target_copy",
+      "case_id": "section-duplicate-cross-target-copy",
+      "current_descriptor": {
+        "heading": {
+          "block_index": 3,
+          "level": 2,
+          "span": {
+            "byte_end": 40,
+            "byte_start": 31,
+            "line_end": 6,
+            "line_start": 6
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 2
+        },
+        "span": {
+          "byte_end": 55,
+          "byte_start": 31,
+          "line_end": 8,
+          "line_start": 6
+        }
+      },
+      "current_document": {
+        "sha256": "c14bfb7b0bdeaef38e0ae958567da15e04899ea3d4cb7d4a8708617555cf98b6",
+        "text": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n\n## Tail\nomega\n",
+        "utf8_len": 69
+      },
+      "current_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 1,
+            "level": 2,
+            "span": {
+              "byte_end": 16,
+              "byte_start": 7,
+              "line_end": 3,
+              "line_start": 3
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 31,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        },
+        {
+          "heading": {
+            "block_index": 3,
+            "level": 2,
+            "span": {
+              "byte_end": 40,
+              "byte_start": 31,
+              "line_end": 6,
+              "line_start": 6
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 2
+          },
+          "span": {
+            "byte_end": 55,
+            "byte_start": 31,
+            "line_end": 8,
+            "line_start": 6
+          }
+        }
+      ],
+      "current_domain_match_count": 2,
+      "current_target": {
+        "sha256": "1f8636d1e2575c5512f31584b708e183b35106232a2e7c125f238ab0710fcf89",
+        "text": "## Target\nstable token\n\n",
+        "utf8_len": 24
+      },
+      "identity_truth": "wrong_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-duplicate-cross-target-copy.current.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ],
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-duplicate-cross-target-copy.current.md",
+            "--occurrence",
+            "2",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-duplicate-cross-target-copy.current.md",
+          "--occurrence",
+          "2",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-duplicate-cross-target-copy.observed.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ],
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-duplicate-cross-target-copy.observed.md",
+            "--occurrence",
+            "2",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-duplicate-cross-target-copy.observed.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "canonical_descriptor_relation": "different",
+        "current_match_count": 2,
+        "document_bytes_relation": "equal",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 2,
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "heading": {
+          "block_index": 1,
+          "level": 2,
+          "span": {
+            "byte_end": 16,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 31,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "c14bfb7b0bdeaef38e0ae958567da15e04899ea3d4cb7d4a8708617555cf98b6",
+        "text": "# Doc\n\n## Target\nstable token\n\n## Target\nstable token\n\n## Tail\nomega\n",
+        "utf8_len": 69
+      },
+      "observed_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 1,
+            "level": 2,
+            "span": {
+              "byte_end": 16,
+              "byte_start": 7,
+              "line_end": 3,
+              "line_start": 3
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 31,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        },
+        {
+          "heading": {
+            "block_index": 3,
+            "level": 2,
+            "span": {
+              "byte_end": 40,
+              "byte_start": 31,
+              "line_end": 6,
+              "line_start": 6
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 2
+          },
+          "span": {
+            "byte_end": 55,
+            "byte_start": 31,
+            "line_end": 8,
+            "line_start": 6
+          }
+        }
+      ],
+      "observed_domain_match_count": 2,
+      "observed_target": {
+        "sha256": "1f8636d1e2575c5512f31584b708e183b35106232a2e7c125f238ab0710fcf89",
+        "text": "## Target\nstable token\n\n",
+        "utf8_len": 24
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "section"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md section SELECTOR FILE --occurrence N --json",
+        "current_target": "md section SELECTOR FILE --occurrence N --json",
+        "observed_target": "md section SELECTOR FILE --occurrence N --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "f7cbee24b2a47470fb7ea3eb47a1a3322256b2397e2eeae2995e88a78964b0e7",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "f7cbee24b2a47470fb7ea3eb47a1a3322256b2397e2eeae2995e88a78964b0e7",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "target_local": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "8292d3b0fcaab49ed53c1f8201064a6571fa1217e764905a317b639ee27f1598",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "8292d3b0fcaab49ed53c1f8201064a6571fa1217e764905a317b639ee27f1598",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "ambiguity_reject": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "30eb0dc9653184459de4748bb74f3091c072e615ec8d71b60ee647335283df30",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "30eb0dc9653184459de4748bb74f3091c072e615ec8d71b60ee647335283df30",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "8eaf59f12f215a44abb7819ec3a363709d566ade2a0eb8585cd0a9e9f79952d2",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "e686e5b65492b2b76c55724b239b42c5e7857278e58d8fa0c0366d0a717ad97f",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "same_locator_duplicate_shift",
+      "case_id": "section-same-locator-duplicate-shift",
+      "current_descriptor": {
+        "heading": {
+          "block_index": 3,
+          "level": 2,
+          "span": {
+            "byte_end": 32,
+            "byte_start": 23,
+            "line_end": 6,
+            "line_start": 6
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 47,
+          "byte_start": 23,
+          "line_end": 8,
+          "line_start": 6
+        }
+      },
+      "current_document": {
+        "sha256": "07ef74b35df03c90d8876c3bbefbac08f606e373fc16d993cb285f0bfe132dce",
+        "text": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n\n## Tail\nomega\n",
+        "utf8_len": 61
+      },
+      "current_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 3,
+            "level": 2,
+            "span": {
+              "byte_end": 32,
+              "byte_start": 23,
+              "line_end": 6,
+              "line_start": 6
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 47,
+            "byte_start": 23,
+            "line_end": 8,
+            "line_start": 6
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "1f8636d1e2575c5512f31584b708e183b35106232a2e7c125f238ab0710fcf89",
+        "text": "## Target\nstable token\n\n",
+        "utf8_len": 24
+      },
+      "identity_truth": "wrong_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-same-locator-duplicate-shift.current.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-same-locator-duplicate-shift.current.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-same-locator-duplicate-shift.observed.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ],
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-same-locator-duplicate-shift.observed.md",
+            "--occurrence",
+            "2",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-same-locator-duplicate-shift.observed.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ]
+      },
+      "observed_descriptor": {
+        "heading": {
+          "block_index": 3,
+          "level": 2,
+          "span": {
+            "byte_end": 32,
+            "byte_start": 23,
+            "line_end": 6,
+            "line_start": 6
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 47,
+          "byte_start": 23,
+          "line_end": 8,
+          "line_start": 6
+        }
+      },
+      "observed_document": {
+        "sha256": "f563851459a868c416ff5527c394d679e8b1029ba637cc8f0e6001dde67e0d44",
+        "text": "# Doc\n\n## Anchor\nlead\n\n## Target\nstable token\n\n## Gap\nremove me\n\n## Target\nstable token\n\n## Tail\nomega\n",
+        "utf8_len": 103
+      },
+      "observed_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 3,
+            "level": 2,
+            "span": {
+              "byte_end": 32,
+              "byte_start": 23,
+              "line_end": 6,
+              "line_start": 6
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 47,
+            "byte_start": 23,
+            "line_end": 8,
+            "line_start": 6
+          }
+        },
+        {
+          "heading": {
+            "block_index": 7,
+            "level": 2,
+            "span": {
+              "byte_end": 74,
+              "byte_start": 65,
+              "line_end": 12,
+              "line_start": 12
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 2
+          },
+          "span": {
+            "byte_end": 89,
+            "byte_start": 65,
+            "line_end": 14,
+            "line_start": 12
+          }
+        }
+      ],
+      "observed_domain_match_count": 2,
+      "observed_target": {
+        "sha256": "1f8636d1e2575c5512f31584b708e183b35106232a2e7c125f238ab0710fcf89",
+        "text": "## Target\nstable token\n\n",
+        "utf8_len": 24
+      },
+      "same_locator_lineage": {
+        "canonical_descriptor_equal": true,
+        "current_match_count": 1,
+        "current_match_spans": [
+          {
+            "byte_end": 47,
+            "byte_start": 23,
+            "line_end": 8,
+            "line_start": 6
+          }
+        ],
+        "distinct_increasing_byte_starts": true,
+        "document_bytes_different": true,
+        "first_observed_matching_span": {
+          "byte_end": 47,
+          "byte_start": 23,
+          "line_end": 8,
+          "line_start": 6
+        },
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 2,
+        "reconstructed_current_document_sha256": "07ef74b35df03c90d8876c3bbefbac08f606e373fc16d993cb285f0bfe132dce",
+        "reconstruction_equality": true,
+        "reconstruction_formula": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target",
+        "second_observed_matching_span": {
+          "byte_end": 89,
+          "byte_start": 65,
+          "line_end": 14,
+          "line_start": 12
+        },
+        "target_bytes_equal": true
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "section"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md section SELECTOR FILE --occurrence N --json",
+        "current_target": "md section SELECTOR FILE --occurrence N --json",
+        "observed_target": "md section SELECTOR FILE --occurrence N --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "correct",
+          "current_token_sha256": "f7cbee24b2a47470fb7ea3eb47a1a3322256b2397e2eeae2995e88a78964b0e7",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "f7cbee24b2a47470fb7ea3eb47a1a3322256b2397e2eeae2995e88a78964b0e7",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "b0c607bc7955d25310f84abe88a5da4f99b4060cfd465a7455301f6fdfe204a5",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "b0c607bc7955d25310f84abe88a5da4f99b4060cfd465a7455301f6fdfe204a5",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "30eb0dc9653184459de4748bb74f3091c072e615ec8d71b60ee647335283df30",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "30eb0dc9653184459de4748bb74f3091c072e615ec8d71b60ee647335283df30",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "false_conflict",
+          "current_token_sha256": "b04938ddc3006b58d012dec033a3dd9e58d715a7b3607dd3208bc9c9a75376d5",
+          "decision": "reject",
+          "false_conflict": true,
+          "graduation_verdict": "fails_whole_document_false_conflict",
+          "observed_token_sha256": "bbf1b757fee5ca0d0c93b5720680f1f211f06031d18a245cf44ba0e674f8f35a",
+          "required_same_state_reject": true,
+          "unrelated_edit_conflict": true,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "unrelated_edit_after_unchanged_target",
+      "case_id": "section-unrelated-edit-false-conflict",
+      "current_descriptor": {
+        "heading": {
+          "block_index": 1,
+          "level": 2,
+          "span": {
+            "byte_end": 16,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 31,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "dbe96f3372d4b18e2e7f26a88d51dae79d1d16d35d0b93ed6285f653b3df1f36",
+        "text": "# Doc\n\n## Target\nstable token\n\n## Notes\nafter elsewhere\n",
+        "utf8_len": 56
+      },
+      "current_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 1,
+            "level": 2,
+            "span": {
+              "byte_end": 16,
+              "byte_start": 7,
+              "line_end": 3,
+              "line_start": 3
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 31,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "1f8636d1e2575c5512f31584b708e183b35106232a2e7c125f238ab0710fcf89",
+        "text": "## Target\nstable token\n\n",
+        "utf8_len": 24
+      },
+      "identity_truth": "same_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-unrelated-edit-false-conflict.current.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-unrelated-edit-false-conflict.current.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "section",
+            "Target",
+            "section-unrelated-edit-false-conflict.observed.md",
+            "--occurrence",
+            "1",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "section",
+          "Target",
+          "section-unrelated-edit-false-conflict.observed.md",
+          "--occurrence",
+          "1",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "all_changed_bytes_outside_pinned_target_span": true,
+        "all_current_changes_outside_pinned_target_span": true,
+        "all_observed_changes_outside_pinned_target_span": true,
+        "canonical_descriptor_relation": "equal",
+        "changed_byte_ranges": [
+          {
+            "change_kind": "replace",
+            "current_byte_range": {
+              "byte_end": 43,
+              "byte_start": 40
+            },
+            "observed_byte_range": {
+              "byte_end": 41,
+              "byte_start": 40
+            }
+          },
+          {
+            "change_kind": "replace",
+            "current_byte_range": {
+              "byte_end": 53,
+              "byte_start": 44
+            },
+            "observed_byte_range": {
+              "byte_end": 44,
+              "byte_start": 42
+            }
+          }
+        ],
+        "current_match_count": 1,
+        "document_bytes_relation": "different",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 1,
+        "pinned_target_span": {
+          "byte_end": 31,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        },
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "heading": {
+          "block_index": 1,
+          "level": 2,
+          "span": {
+            "byte_end": 16,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          },
+          "text": "Target"
+        },
+        "selector": {
+          "heading_text": "Target",
+          "kind": "HeadingText",
+          "match_mode": "Exact",
+          "occurrence": 1
+        },
+        "span": {
+          "byte_end": 31,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "7b66311652d7a42ef755f00a3d7dad3d20dfd2ae29d817df6a6c7b1923491bf5",
+        "text": "# Doc\n\n## Target\nstable token\n\n## Notes\nbefore\n",
+        "utf8_len": 47
+      },
+      "observed_domain_descriptors": [
+        {
+          "heading": {
+            "block_index": 1,
+            "level": 2,
+            "span": {
+              "byte_end": 16,
+              "byte_start": 7,
+              "line_end": 3,
+              "line_start": 3
+            },
+            "text": "Target"
+          },
+          "selector": {
+            "heading_text": "Target",
+            "kind": "HeadingText",
+            "match_mode": "Exact",
+            "occurrence": 1
+          },
+          "span": {
+            "byte_end": 31,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "observed_domain_match_count": 1,
+      "observed_target": {
+        "sha256": "1f8636d1e2575c5512f31584b708e183b35106232a2e7c125f238ab0710fcf89",
+        "text": "## Target\nstable token\n\n",
+        "utf8_len": 24
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "section"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md table FILE --json",
+        "current_target": "md table FILE --index BLOCK_INDEX --json",
+        "observed_target": "md table FILE --index BLOCK_INDEX --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "correct",
+          "current_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "f19bc256c182fb341b37351ed9b882c965d275ce43f19ba4eeece322f989cad4",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "f19bc256c182fb341b37351ed9b882c965d275ce43f19ba4eeece322f989cad4",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "c942504b0baef08d248a667f2293b4e8a60f6a759fbaf80c189e0f1787fc6edf",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "c942504b0baef08d248a667f2293b4e8a60f6a759fbaf80c189e0f1787fc6edf",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "unchanged_reread",
+      "case_id": "table-unchanged-reread",
+      "current_descriptor": {
+        "block_index": 1,
+        "span": {
+          "byte_end": 53,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "260c99abede06a0f0c034c4e420363173123a2d97bea8f19cf557240e32498d9",
+        "text": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nTail.\n",
+        "utf8_len": 61
+      },
+      "current_domain_descriptors": [
+        {
+          "block_index": 1,
+          "span": {
+            "byte_end": 53,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "identity_truth": "same_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-unchanged-reread.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "table",
+          "table-unchanged-reread.current.md",
+          "--index",
+          "1",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-unchanged-reread.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "table",
+          "table-unchanged-reread.observed.md",
+          "--index",
+          "1",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "canonical_descriptor_relation": "equal",
+        "current_match_count": 1,
+        "document_bytes_relation": "equal",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 1,
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "block_index": 1,
+        "span": {
+          "byte_end": 53,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "260c99abede06a0f0c034c4e420363173123a2d97bea8f19cf557240e32498d9",
+        "text": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nTail.\n",
+        "utf8_len": 61
+      },
+      "observed_domain_descriptors": [
+        {
+          "block_index": 1,
+          "span": {
+            "byte_end": 53,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "observed_domain_match_count": 1,
+      "observed_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "table"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md table FILE --json",
+        "current_target": "md table FILE --index BLOCK_INDEX --json",
+        "observed_target": "md table FILE --index BLOCK_INDEX --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "54497d53e0bedf6c770c81cb04a132dcfb6f6d189ec06390963d56fca5b992a0",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "f19bc256c182fb341b37351ed9b882c965d275ce43f19ba4eeece322f989cad4",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "74f30fddf379db5fdb83770e9d8d51309611e4a8423271d6a99954e67f0fb3e4",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "43621e3a715fbe83016d99d74cb98458e5df660d4a0eec85c4875a6d2acf8a47",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "duplicate_cross_target_copy",
+      "case_id": "table-duplicate-cross-target-copy",
+      "current_descriptor": {
+        "block_index": 2,
+        "span": {
+          "byte_end": 101,
+          "byte_start": 55,
+          "line_end": 9,
+          "line_start": 7
+        }
+      },
+      "current_document": {
+        "sha256": "da2f2324ffb053526546e77fa5fc9774ed8f399b1dbfa7647f748a1ccaf4782a",
+        "text": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+        "utf8_len": 102
+      },
+      "current_domain_descriptors": [
+        {
+          "block_index": 1,
+          "span": {
+            "byte_end": 53,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        },
+        {
+          "block_index": 2,
+          "span": {
+            "byte_end": 101,
+            "byte_start": 55,
+            "line_end": 9,
+            "line_start": 7
+          }
+        }
+      ],
+      "current_domain_match_count": 2,
+      "current_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "identity_truth": "wrong_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-duplicate-cross-target-copy.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "table",
+          "table-duplicate-cross-target-copy.current.md",
+          "--index",
+          "2",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-duplicate-cross-target-copy.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "table",
+          "table-duplicate-cross-target-copy.observed.md",
+          "--index",
+          "1",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "canonical_descriptor_relation": "different",
+        "current_match_count": 2,
+        "document_bytes_relation": "equal",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 2,
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "block_index": 1,
+        "span": {
+          "byte_end": 53,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "da2f2324ffb053526546e77fa5fc9774ed8f399b1dbfa7647f748a1ccaf4782a",
+        "text": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+        "utf8_len": 102
+      },
+      "observed_domain_descriptors": [
+        {
+          "block_index": 1,
+          "span": {
+            "byte_end": 53,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        },
+        {
+          "block_index": 2,
+          "span": {
+            "byte_end": 101,
+            "byte_start": 55,
+            "line_end": 9,
+            "line_start": 7
+          }
+        }
+      ],
+      "observed_domain_match_count": 2,
+      "observed_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "table"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md table FILE --json",
+        "current_target": "md table FILE --index BLOCK_INDEX --json",
+        "observed_target": "md table FILE --index BLOCK_INDEX --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "target_local": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "1583b3791544917ecb06097fbd384d7d51529a6812bc3c8d8553358989a3bae5",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "1583b3791544917ecb06097fbd384d7d51529a6812bc3c8d8553358989a3bae5",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "ambiguity_reject": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "f67571108c497c9512bc8251ad39f9a17af99f891d913bd1315ad2a3d9e0b6a5",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "88e79d9acdc28652aa3634801767ead123d57d0e013394aa0522216cc4b15fd4",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "same_locator_duplicate_shift",
+      "case_id": "table-same-locator-duplicate-shift",
+      "current_descriptor": {
+        "block_index": 2,
+        "span": {
+          "byte_end": 60,
+          "byte_start": 14,
+          "line_end": 7,
+          "line_start": 5
+        }
+      },
+      "current_document": {
+        "sha256": "1cb04e31f967dc328dfef286412ae53f08bb01fa7481d1dd29858bf8c85f7c69",
+        "text": "# Doc\n\nLead.\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+        "utf8_len": 61
+      },
+      "current_domain_descriptors": [
+        {
+          "block_index": 2,
+          "span": {
+            "byte_end": 60,
+            "byte_start": 14,
+            "line_end": 7,
+            "line_start": 5
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "identity_truth": "wrong_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-same-locator-duplicate-shift.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "table",
+          "table-same-locator-duplicate-shift.current.md",
+          "--index",
+          "2",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-same-locator-duplicate-shift.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "table",
+          "table-same-locator-duplicate-shift.observed.md",
+          "--index",
+          "2",
+          "--json"
+        ]
+      },
+      "observed_descriptor": {
+        "block_index": 2,
+        "span": {
+          "byte_end": 60,
+          "byte_start": 14,
+          "line_end": 7,
+          "line_start": 5
+        }
+      },
+      "observed_document": {
+        "sha256": "b4f6d01763b8692ccaba4c7af2c98c0ad53fea81067a5df1d1f7605ee604ed61",
+        "text": "# Doc\n\nLead.\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nBetween.\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n",
+        "utf8_len": 119
+      },
+      "observed_domain_descriptors": [
+        {
+          "block_index": 2,
+          "span": {
+            "byte_end": 60,
+            "byte_start": 14,
+            "line_end": 7,
+            "line_start": 5
+          }
+        },
+        {
+          "block_index": 4,
+          "span": {
+            "byte_end": 118,
+            "byte_start": 72,
+            "line_end": 13,
+            "line_start": 11
+          }
+        }
+      ],
+      "observed_domain_match_count": 2,
+      "observed_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "same_locator_lineage": {
+        "canonical_descriptor_equal": true,
+        "current_match_count": 1,
+        "current_match_spans": [
+          {
+            "byte_end": 60,
+            "byte_start": 14,
+            "line_end": 7,
+            "line_start": 5
+          }
+        ],
+        "distinct_increasing_byte_starts": true,
+        "document_bytes_different": true,
+        "first_observed_matching_span": {
+          "byte_end": 60,
+          "byte_start": 14,
+          "line_end": 7,
+          "line_start": 5
+        },
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 2,
+        "reconstructed_current_document_sha256": "1cb04e31f967dc328dfef286412ae53f08bb01fa7481d1dd29858bf8c85f7c69",
+        "reconstruction_equality": true,
+        "reconstruction_formula": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target",
+        "second_observed_matching_span": {
+          "byte_end": 118,
+          "byte_start": 72,
+          "line_end": 13,
+          "line_start": 11
+        },
+        "target_bytes_equal": true
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "table"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md table FILE --json",
+        "current_target": "md table FILE --index BLOCK_INDEX --json",
+        "observed_target": "md table FILE --index BLOCK_INDEX --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "correct",
+          "current_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "51cb9b91f65300fdde1bf84ba7baf72e9095ab687b4a6e6abdd1d074df1ad1cd",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "f19bc256c182fb341b37351ed9b882c965d275ce43f19ba4eeece322f989cad4",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "f19bc256c182fb341b37351ed9b882c965d275ce43f19ba4eeece322f989cad4",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "caad0af9d846e9387bb77cd6f8574fa8177f2a08ffd44c54610a3401621d7ef0",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "false_conflict",
+          "current_token_sha256": "8d32808dcb2cd5a9e28187058cfc17d56ee64ee3291af2d174c51d0b88e779ab",
+          "decision": "reject",
+          "false_conflict": true,
+          "graduation_verdict": "fails_whole_document_false_conflict",
+          "observed_token_sha256": "2c1dd2ddbf2f00938822942abc9148f3db4e61185dc898a3f1951fdcfefa4c0b",
+          "required_same_state_reject": true,
+          "unrelated_edit_conflict": true,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "unrelated_edit_after_unchanged_target",
+      "case_id": "table-unrelated-edit-false-conflict",
+      "current_descriptor": {
+        "block_index": 1,
+        "span": {
+          "byte_end": 53,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "4c1f6d9382c799617087c3c25177a4adbb89080e1fa9001a4e8cd57b729b2194",
+        "text": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nNotes changed elsewhere.\n",
+        "utf8_len": 80
+      },
+      "current_domain_descriptors": [
+        {
+          "block_index": 1,
+          "span": {
+            "byte_end": 53,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "identity_truth": "same_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-unrelated-edit-false-conflict.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "table",
+          "table-unrelated-edit-false-conflict.current.md",
+          "--index",
+          "1",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "table",
+            "table-unrelated-edit-false-conflict.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "table",
+          "table-unrelated-edit-false-conflict.observed.md",
+          "--index",
+          "1",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "all_changed_bytes_outside_pinned_target_span": true,
+        "all_current_changes_outside_pinned_target_span": true,
+        "all_observed_changes_outside_pinned_target_span": true,
+        "canonical_descriptor_relation": "equal",
+        "changed_byte_ranges": [
+          {
+            "change_kind": "insert",
+            "current_byte_range": {
+              "byte_end": 78,
+              "byte_start": 60
+            },
+            "observed_byte_range": {
+              "byte_end": 60,
+              "byte_start": 60
+            }
+          }
+        ],
+        "current_match_count": 1,
+        "document_bytes_relation": "different",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 1,
+        "pinned_target_span": {
+          "byte_end": 53,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        },
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "block_index": 1,
+        "span": {
+          "byte_end": 53,
+          "byte_start": 7,
+          "line_end": 5,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "58dddd5bc3a48735b37b2ef47256f6f48ac0f256bd75e569d58798277ffd1365",
+        "text": "# Doc\n\n| Name | Value |\n| --- | --- |\n| alpha | one |\n\nNotes.\n",
+        "utf8_len": 62
+      },
+      "observed_domain_descriptors": [
+        {
+          "block_index": 1,
+          "span": {
+            "byte_end": 53,
+            "byte_start": 7,
+            "line_end": 5,
+            "line_start": 3
+          }
+        }
+      ],
+      "observed_domain_match_count": 1,
+      "observed_target": {
+        "sha256": "c54882ce1bd28f631a5110be5f79dfe3a666238d4db646fdff429f6d7ec1f922",
+        "text": "| Name | Value |\n| --- | --- |\n| alpha | one |",
+        "utf8_len": 46
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "table"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md tasks FILE --json",
+        "current_target": "md tasks FILE --json",
+        "observed_target": "md tasks FILE --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "correct",
+          "current_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "3c023279fa45fce8d913933921a50413ddec4e273ef09ee2b952a372da1d3c96",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "3c023279fa45fce8d913933921a50413ddec4e273ef09ee2b952a372da1d3c96",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "unchanged_reread",
+      "case_id": "task-unchanged-reread",
+      "current_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "064c69c39ff331dba03c9fc66b1869ba3b75379b75cfbbc63d51b5691635427d",
+        "text": "# Doc\n\n- [ ] stable token\n- [ ] tail\n",
+        "utf8_len": 37
+      },
+      "current_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        },
+        {
+          "child_path": [
+            1
+          ],
+          "loc": "1.1",
+          "span": {
+            "byte_end": 36,
+            "byte_start": 26,
+            "line_end": 4,
+            "line_start": 4
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "identity_truth": "same_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-unchanged-reread.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "tasks",
+          "task-unchanged-reread.current.md",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-unchanged-reread.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "tasks",
+          "task-unchanged-reread.observed.md",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "canonical_descriptor_relation": "equal",
+        "current_match_count": 1,
+        "document_bytes_relation": "equal",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 1,
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "064c69c39ff331dba03c9fc66b1869ba3b75379b75cfbbc63d51b5691635427d",
+        "text": "# Doc\n\n- [ ] stable token\n- [ ] tail\n",
+        "utf8_len": 37
+      },
+      "observed_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        },
+        {
+          "child_path": [
+            1
+          ],
+          "loc": "1.1",
+          "span": {
+            "byte_end": 36,
+            "byte_start": 26,
+            "line_end": 4,
+            "line_start": 4
+          }
+        }
+      ],
+      "observed_domain_match_count": 1,
+      "observed_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "task"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md tasks FILE --json",
+        "current_target": "md tasks FILE --json",
+        "observed_target": "md tasks FILE --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "0053c9d4cb7f3db96541b994af1d9ed2f0ff4332d06914b5984ebf920ca590f9",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "5290143b47f52782dfa49fe94e92314ce6a77780ebba6e0830e705a59d8266e4",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "b9640bff3fb1b36ec6793cabac93de5cba4a21068ef940cb2947164cde392980",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "duplicate_cross_target_copy",
+      "case_id": "task-duplicate-cross-target-copy",
+      "current_descriptor": {
+        "child_path": [
+          1
+        ],
+        "loc": "1.1",
+        "span": {
+          "byte_end": 44,
+          "byte_start": 26,
+          "line_end": 4,
+          "line_start": 4
+        }
+      },
+      "current_document": {
+        "sha256": "d3e494803d911dc1eba08beca40a30aa006eb5b3e4abfae6571bcc030b598240",
+        "text": "# Doc\n\n- [ ] stable token\n- [ ] stable token\n",
+        "utf8_len": 45
+      },
+      "current_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        },
+        {
+          "child_path": [
+            1
+          ],
+          "loc": "1.1",
+          "span": {
+            "byte_end": 44,
+            "byte_start": 26,
+            "line_end": 4,
+            "line_start": 4
+          }
+        }
+      ],
+      "current_domain_match_count": 2,
+      "current_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "identity_truth": "wrong_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-duplicate-cross-target-copy.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "tasks",
+          "task-duplicate-cross-target-copy.current.md",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-duplicate-cross-target-copy.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "tasks",
+          "task-duplicate-cross-target-copy.observed.md",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "canonical_descriptor_relation": "different",
+        "current_match_count": 2,
+        "document_bytes_relation": "equal",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 2,
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "d3e494803d911dc1eba08beca40a30aa006eb5b3e4abfae6571bcc030b598240",
+        "text": "# Doc\n\n- [ ] stable token\n- [ ] stable token\n",
+        "utf8_len": 45
+      },
+      "observed_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        },
+        {
+          "child_path": [
+            1
+          ],
+          "loc": "1.1",
+          "span": {
+            "byte_end": 44,
+            "byte_start": 26,
+            "line_end": 4,
+            "line_start": 4
+          }
+        }
+      ],
+      "observed_domain_match_count": 2,
+      "observed_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "task"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md tasks FILE --json",
+        "current_target": "md tasks FILE --json",
+        "observed_target": "md tasks FILE --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "target_local": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "ambiguity_reject": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "fails_wrong_identity",
+          "observed_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": true
+        },
+        "document_target_state": {
+          "credit": "correct",
+          "current_token_sha256": "bbbf9b84969e2549917674ea6caeb14bb0a09457f8acb58c7ca852ee33b421bb",
+          "decision": "reject",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "dc5875db578a28afa61f57df9a8a78afd841bad5d5019e472f5a434442f760f1",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "same_locator_duplicate_shift",
+      "case_id": "task-same-locator-duplicate-shift",
+      "current_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "bd99a3386bdc46b0f0c7834389b54b62083224737834d002d93d0eff04b6484e",
+        "text": "# Doc\n\n- [ ] stable token\n",
+        "utf8_len": 26
+      },
+      "current_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "identity_truth": "wrong_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-same-locator-duplicate-shift.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "tasks",
+          "task-same-locator-duplicate-shift.current.md",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-same-locator-duplicate-shift.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "tasks",
+          "task-same-locator-duplicate-shift.observed.md",
+          "--json"
+        ]
+      },
+      "observed_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "1e2a578b9ba3f1f9e8cdada801462de01143e2875cd40483fe6f9988bd843c8e",
+        "text": "# Doc\n\n- [ ] stable token\n- [ ] remove me\n- [ ] stable token\n",
+        "utf8_len": 61
+      },
+      "observed_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        },
+        {
+          "child_path": [
+            1
+          ],
+          "loc": "1.1",
+          "span": {
+            "byte_end": 41,
+            "byte_start": 26,
+            "line_end": 4,
+            "line_start": 4
+          }
+        },
+        {
+          "child_path": [
+            2
+          ],
+          "loc": "1.2",
+          "span": {
+            "byte_end": 60,
+            "byte_start": 42,
+            "line_end": 5,
+            "line_start": 5
+          }
+        }
+      ],
+      "observed_domain_match_count": 2,
+      "observed_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "same_locator_lineage": {
+        "canonical_descriptor_equal": true,
+        "current_match_count": 1,
+        "current_match_spans": [
+          {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        ],
+        "distinct_increasing_byte_starts": true,
+        "document_bytes_different": true,
+        "first_observed_matching_span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        },
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 2,
+        "reconstructed_current_document_sha256": "bd99a3386bdc46b0f0c7834389b54b62083224737834d002d93d0eff04b6484e",
+        "reconstruction_equality": true,
+        "reconstruction_formula": "observed_prefix_before_first_matching_target + observed_suffix_starting_at_second_matching_target",
+        "second_observed_matching_span": {
+          "byte_end": 60,
+          "byte_start": 42,
+          "line_end": 5,
+          "line_start": 5
+        },
+        "target_bytes_equal": true
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "task"
+    },
+    {
+      "abstract_projection_commands": {
+        "current_domain": "md tasks FILE --json",
+        "current_target": "md tasks FILE --json",
+        "observed_target": "md tasks FILE --json"
+      },
+      "candidate_results": {
+        "content_only": {
+          "credit": "correct",
+          "current_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "689c6cc6b011613cc1242ee220a678d4569877b7fcee5d1ee2202d1602ae039b",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "target_local": {
+          "credit": "correct",
+          "current_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "a5e88ba3eb2e50f5ec3de0d88e9319ea641b8769815fd50d9c531253a7cd17a6",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "ambiguity_reject": {
+          "credit": "correct",
+          "current_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "decision": "accept",
+          "false_conflict": false,
+          "graduation_verdict": "graduates",
+          "observed_token_sha256": "56b59471e60f09771aceca338784ce5065c9ddc199e5b847bedf096d3b27d15a",
+          "required_same_state_reject": false,
+          "unrelated_edit_conflict": false,
+          "wrong_identity_accept": false
+        },
+        "document_target_state": {
+          "credit": "false_conflict",
+          "current_token_sha256": "52f76ec34a22b37329e16a4c19f92ea058e14024ed3032465c9f3d274e0d2e6d",
+          "decision": "reject",
+          "false_conflict": true,
+          "graduation_verdict": "fails_whole_document_false_conflict",
+          "observed_token_sha256": "e4e411efae92aa001ba9e3fa3a7fea4a2919255edfc191276ee05aa17c207b3e",
+          "required_same_state_reject": true,
+          "unrelated_edit_conflict": true,
+          "wrong_identity_accept": false
+        }
+      },
+      "case_class": "unrelated_edit_after_unchanged_target",
+      "case_id": "task-unrelated-edit-false-conflict",
+      "current_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "current_document": {
+        "sha256": "8f44402e717e0501c9308e08b28ce95aa5ac0eb61152ba0a6675863e1fee0a68",
+        "text": "# Doc\n\n- [ ] stable token\n\nNotes changed elsewhere.\n",
+        "utf8_len": 52
+      },
+      "current_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        }
+      ],
+      "current_domain_match_count": 1,
+      "current_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "identity_truth": "same_target",
+      "live_commands": {
+        "current_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-unrelated-edit-false-conflict.current.md",
+            "--json"
+          ]
+        ],
+        "current_target": [
+          "target/release/md",
+          "tasks",
+          "task-unrelated-edit-false-conflict.current.md",
+          "--json"
+        ],
+        "observed_domain": [
+          [
+            "target/release/md",
+            "tasks",
+            "task-unrelated-edit-false-conflict.observed.md",
+            "--json"
+          ]
+        ],
+        "observed_target": [
+          "target/release/md",
+          "tasks",
+          "task-unrelated-edit-false-conflict.observed.md",
+          "--json"
+        ]
+      },
+      "mechanical_preconditions": {
+        "all_changed_bytes_outside_pinned_target_span": true,
+        "all_current_changes_outside_pinned_target_span": true,
+        "all_observed_changes_outside_pinned_target_span": true,
+        "canonical_descriptor_relation": "equal",
+        "changed_byte_ranges": [
+          {
+            "change_kind": "insert",
+            "current_byte_range": {
+              "byte_end": 50,
+              "byte_start": 32
+            },
+            "observed_byte_range": {
+              "byte_end": 32,
+              "byte_start": 32
+            }
+          }
+        ],
+        "current_match_count": 1,
+        "document_bytes_relation": "different",
+        "mechanical_failure_on_violation": true,
+        "observed_match_count": 1,
+        "pinned_target_span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        },
+        "target_bytes_relation": "equal"
+      },
+      "observed_descriptor": {
+        "child_path": [
+          0
+        ],
+        "loc": "1.0",
+        "span": {
+          "byte_end": 25,
+          "byte_start": 7,
+          "line_end": 3,
+          "line_start": 3
+        }
+      },
+      "observed_document": {
+        "sha256": "aa701c5c41c1ed2d85af25995f994084f94c475e4eb07a3ae92ead862210ddea",
+        "text": "# Doc\n\n- [ ] stable token\n\nNotes.\n",
+        "utf8_len": 34
+      },
+      "observed_domain_descriptors": [
+        {
+          "child_path": [
+            0
+          ],
+          "loc": "1.0",
+          "span": {
+            "byte_end": 25,
+            "byte_start": 7,
+            "line_end": 3,
+            "line_start": 3
+          }
+        }
+      ],
+      "observed_domain_match_count": 1,
+      "observed_target": {
+        "sha256": "b4819bbb13d9d8b2872bdc0524a8d472470af8c181a456d08890d4c89f8389fe",
+        "text": "- [ ] stable token",
+        "utf8_len": 18
+      },
+      "schema_version": "non-block-target-identity-probe.v1",
+      "surface": "task"
+    }
+  ],
+  "descriptor_schema_version": "non-block-target-identity-descriptor.v1",
+  "manifest_path": "cases.json",
+  "manifest_schema_version": "non-block-target-identity.v1",
+  "manifest_semantic_sha256": "6fd0197bdc6691f2d6e54247b5801c187208738f411d6695b71b423bfd530209",
+  "overall_graduation_verdict": {
+    "candidate_verdicts": {
+      "content_only": "fails_wrong_identity",
+      "target_local": "fails_wrong_identity",
+      "ambiguity_reject": "fails_wrong_identity",
+      "document_target_state": "fails_whole_document_false_conflict"
+    },
+    "demoted_candidates": [
+      "content_only",
+      "target_local",
+      "ambiguity_reject",
+      "document_target_state"
+    ],
+    "graduating_candidates": [],
+    "selected_candidate": null,
+    "surface_selected_candidates": {
+      "section": null,
+      "table": null,
+      "task": null
+    },
+    "surface_verdicts": {
+      "section": "no_candidate_graduates",
+      "table": "no_candidate_graduates",
+      "task": "no_candidate_graduates"
+    },
+    "verdict": "no_candidate_graduates",
+    "whole_document_false_conflict_cost": 3
+  },
+  "schema_version": "non-block-target-identity-probe.v1",
+  "surface_summaries": {
+    "section": {
+      "candidate_summary": {
+        "content_only": {
+          "accepts": 4,
+          "correct": 2,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 0,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 2
+        },
+        "target_local": {
+          "accepts": 3,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 1,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 1
+        },
+        "ambiguity_reject": {
+          "accepts": 3,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 1,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 1
+        },
+        "document_target_state": {
+          "accepts": 1,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 1,
+          "graduation_verdict": "fails_whole_document_false_conflict",
+          "rejects": 3,
+          "required_same_state_rejects": 1,
+          "unrelated_edit_conflicts": 1,
+          "wrong_identity_accepts": 0
+        }
+      },
+      "candidate_verdicts": {
+        "content_only": "fails_wrong_identity",
+        "target_local": "fails_wrong_identity",
+        "ambiguity_reject": "fails_wrong_identity",
+        "document_target_state": "fails_whole_document_false_conflict"
+      },
+      "case_ids": [
+        "section-unchanged-reread",
+        "section-duplicate-cross-target-copy",
+        "section-same-locator-duplicate-shift",
+        "section-unrelated-edit-false-conflict"
+      ],
+      "demoted_candidates": [
+        "content_only",
+        "target_local",
+        "ambiguity_reject",
+        "document_target_state"
+      ],
+      "graduating_candidates": [],
+      "selected_candidate": null,
+      "verdict": "no_candidate_graduates"
+    },
+    "table": {
+      "candidate_summary": {
+        "content_only": {
+          "accepts": 4,
+          "correct": 2,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 0,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 2
+        },
+        "target_local": {
+          "accepts": 3,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 1,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 1
+        },
+        "ambiguity_reject": {
+          "accepts": 3,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 1,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 1
+        },
+        "document_target_state": {
+          "accepts": 1,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 1,
+          "graduation_verdict": "fails_whole_document_false_conflict",
+          "rejects": 3,
+          "required_same_state_rejects": 1,
+          "unrelated_edit_conflicts": 1,
+          "wrong_identity_accepts": 0
+        }
+      },
+      "candidate_verdicts": {
+        "content_only": "fails_wrong_identity",
+        "target_local": "fails_wrong_identity",
+        "ambiguity_reject": "fails_wrong_identity",
+        "document_target_state": "fails_whole_document_false_conflict"
+      },
+      "case_ids": [
+        "table-unchanged-reread",
+        "table-duplicate-cross-target-copy",
+        "table-same-locator-duplicate-shift",
+        "table-unrelated-edit-false-conflict"
+      ],
+      "demoted_candidates": [
+        "content_only",
+        "target_local",
+        "ambiguity_reject",
+        "document_target_state"
+      ],
+      "graduating_candidates": [],
+      "selected_candidate": null,
+      "verdict": "no_candidate_graduates"
+    },
+    "task": {
+      "candidate_summary": {
+        "content_only": {
+          "accepts": 4,
+          "correct": 2,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 0,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 2
+        },
+        "target_local": {
+          "accepts": 3,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 1,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 1
+        },
+        "ambiguity_reject": {
+          "accepts": 3,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 0,
+          "graduation_verdict": "fails_wrong_identity",
+          "rejects": 1,
+          "required_same_state_rejects": 0,
+          "unrelated_edit_conflicts": 0,
+          "wrong_identity_accepts": 1
+        },
+        "document_target_state": {
+          "accepts": 1,
+          "correct": 3,
+          "disposition": "demote",
+          "false_conflicts": 1,
+          "graduation_verdict": "fails_whole_document_false_conflict",
+          "rejects": 3,
+          "required_same_state_rejects": 1,
+          "unrelated_edit_conflicts": 1,
+          "wrong_identity_accepts": 0
+        }
+      },
+      "candidate_verdicts": {
+        "content_only": "fails_wrong_identity",
+        "target_local": "fails_wrong_identity",
+        "ambiguity_reject": "fails_wrong_identity",
+        "document_target_state": "fails_whole_document_false_conflict"
+      },
+      "case_ids": [
+        "task-unchanged-reread",
+        "task-duplicate-cross-target-copy",
+        "task-same-locator-duplicate-shift",
+        "task-unrelated-edit-false-conflict"
+      ],
+      "demoted_candidates": [
+        "content_only",
+        "target_local",
+        "ambiguity_reject",
+        "document_target_state"
+      ],
+      "graduating_candidates": [],
+      "selected_candidate": null,
+      "verdict": "no_candidate_graduates"
+    }
+  }
+}
