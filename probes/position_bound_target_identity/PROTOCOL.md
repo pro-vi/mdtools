@@ -525,10 +525,14 @@ evidence bytes.
 
 The only authorized canonical case paths are `cases/{case_id}/observed.md` and
 `cases/{case_id}/current.md`, derived mechanically from the runner-owned fixed
-case ID and the two runner-owned absolute temporary file paths. Those logical
-labels, plus the separate binary SHA-256 field, are the only canonical command
-evidence; caller-selected absolute paths and other location-dependent argv
-bytes must never enter canonical report bytes.
+case ID and the two runner-owned absolute temporary file paths. The mapping is
+exclusive: only the runner-owned observed temporary path may map to
+`cases/{case_id}/observed.md`, and only the runner-owned current temporary path
+may map to `cases/{case_id}/current.md`. Any other canonical command-vector
+mapping, including swapped labels or any third logical path, is forbidden.
+Those logical labels, plus the separate binary SHA-256 field, are the only
+canonical command evidence; caller-selected absolute paths and other
+location-dependent argv bytes must never enter canonical report bytes.
 
 ## Future Runner Security Boundary
 
