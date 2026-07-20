@@ -820,9 +820,9 @@ def evaluate_case(
         current_context,
     )
     result = {
-        "candidate_results": candidate_results,
         "case_class": case["case_class"],
         "case_id": case_id,
+        "candidate_results": candidate_results,
         "descriptor_evidence": {
             "current": descriptor_evidence_record(current_context),
             "observed": descriptor_evidence_record(observed_context),
