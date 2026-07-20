@@ -310,9 +310,9 @@ The later runner requirements are exact:
 - Prove independently that lineage truths differ and that the complete
   canonical tuples are byte-equal before emitting a validated observability
   result.
-- Record the pending request canonically, but must not execute the pending mutation
-  in this phase design or treat the pending mutation payload as lineage truth
-  or mechanical survivor proof.
+- The later runner must record the pending request canonically but must not
+  execute the pending mutation or treat its payload as lineage truth or
+  mechanical survivor proof.
 - Emit a mechanically derived deterministic canonical JSON result.
 - Provide a non-mutating byte-identical `--check` mode.
 
