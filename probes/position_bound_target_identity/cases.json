@@ -1,0 +1,313 @@
+{
+  "schema_version": "position-bound-target-identity-manifest.v1",
+  "manifest_kind": "deterministic-position-bound-query-matrix",
+  "date_locked": "2026-07-20",
+  "protocol_sha256": "579dd0bc5eb8cfa2e65834fd976517af10c008c2006e3687e124c911b2b77445",
+  "candidate_order": [
+    "preceding_block",
+    "following_block",
+    "adjacent_blocks",
+    "byte_window_64"
+  ],
+  "required_case_ids": [
+    "block-unchanged-lf-reread",
+    "block-unchanged-crlf-reread",
+    "block-unchanged-multibyte-utf8-reread",
+    "block-outside-context-unrelated-edit",
+    "block-preceding-neighbor-edit-inside-prefix-window",
+    "block-following-neighbor-edit-inside-suffix-window",
+    "block-forward-survivor-same-locator-duplicate-substitution",
+    "block-backward-survivor-same-locator-duplicate-substitution",
+    "block-cloned-adjacent-blocks-distinguishing-byte-window",
+    "block-byte-identical-bounded-neighborhood-duplicate-substitution"
+  ],
+  "cases": [
+    {
+      "case_id": "block-unchanged-lf-reread",
+      "case_class": "unchanged_reread",
+      "identity_truth": "same_target",
+      "observed_document_utf8": "# Doc\n\nbefore stable block\n\ntarget lf bytes\n\nafter stable block\n",
+      "current_document_utf8": "# Doc\n\nbefore stable block\n\ntarget lf bytes\n\nafter stable block\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "observed_exact_target_match_count": 1,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "mechanical_failure_on_violation": true
+      }
+    },
+    {
+      "case_id": "block-unchanged-crlf-reread",
+      "case_class": "unchanged_reread",
+      "identity_truth": "same_target",
+      "observed_document_utf8": "# Doc\r\n\r\nbefore crlf block\r\n\r\ntarget crlf bytes\r\n\r\nafter crlf block\r\n",
+      "current_document_utf8": "# Doc\r\n\r\nbefore crlf block\r\n\r\ntarget crlf bytes\r\n\r\nafter crlf block\r\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "observed_exact_target_match_count": 1,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "mechanical_failure_on_violation": true
+      }
+    },
+    {
+      "case_id": "block-unchanged-multibyte-utf8-reread",
+      "case_class": "unchanged_reread",
+      "identity_truth": "same_target",
+      "observed_document_utf8": "# Doc\n\nbefore cafe\n\ntarget UTF-8 bytes: café 你好\n\nafter resume\n",
+      "current_document_utf8": "# Doc\n\nbefore cafe\n\ntarget UTF-8 bytes: café 你好\n\nafter resume\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "equal",
+        "observed_exact_target_match_count": 1,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "mechanical_failure_on_violation": true
+      }
+    },
+    {
+      "case_id": "block-outside-context-unrelated-edit",
+      "case_class": "outside_context_unrelated_edit",
+      "identity_truth": "same_target",
+      "observed_document_utf8": "# Doc\n\nlead block remains outside the bounded prefix window\n\npreceding neighbor remains unchanged\n\nposition bound target bytes remain stable\n\nfollowing block keeps the first sixty four bytes identical by design and still has extra room\n\nfar tail keeps the old outside-context wording\n",
+      "current_document_utf8": "# Doc\n\nlead block remains outside the bounded prefix window\n\npreceding neighbor remains unchanged\n\nposition bound target bytes remain stable\n\nfollowing block keeps the first sixty four bytes identical by design and still has extra room\n\nfar tail changes only after the bounded context ends\n",
+      "observed_target_selector": {
+        "block_index": 3
+      },
+      "current_target_selector": {
+        "block_index": 3
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 1,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "mechanical_failure_on_violation": true
+      }
+    },
+    {
+      "case_id": "block-preceding-neighbor-edit-inside-prefix-window",
+      "case_class": "preceding_neighbor_edit_inside_prefix_window",
+      "identity_truth": "same_target",
+      "observed_document_utf8": "# Doc\n\nprefix window old marker 12345\n\nstable target for prefix edit\n\nsuffix stays unchanged\n",
+      "current_document_utf8": "# Doc\n\nprefix window new marker 12345\n\nstable target for prefix edit\n\nsuffix stays unchanged\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 1,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "different",
+          "following_block": "equal",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "mechanical_failure_on_violation": true
+      }
+    },
+    {
+      "case_id": "block-following-neighbor-edit-inside-suffix-window",
+      "case_class": "following_neighbor_edit_inside_suffix_window",
+      "identity_truth": "same_target",
+      "observed_document_utf8": "# Doc\n\nprefix stays unchanged\n\nstable target for suffix edit\n\nsuffix window old marker 12345\n",
+      "current_document_utf8": "# Doc\n\nprefix stays unchanged\n\nstable target for suffix edit\n\nsuffix window new marker 12345\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 1,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "different",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "mechanical_failure_on_violation": true
+      }
+    },
+    {
+      "case_id": "block-forward-survivor-same-locator-duplicate-substitution",
+      "case_class": "forward_survivor_same_locator_duplicate_substitution",
+      "identity_truth": "wrong_target",
+      "observed_document_utf8": "# Doc\n\nshared lead context\n\nduplicate target bytes\n\nfirst following context\n\nbridge block removed with first duplicate\n\nduplicate target bytes\n\nsurvivor following context\n",
+      "current_document_utf8": "# Doc\n\nshared lead context\n\nduplicate target bytes\n\nsurvivor following context\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 2,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "different",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "mechanical_failure_on_violation": true
+      },
+      "same-locator": true,
+      "observed_target_duplicate_ordinal": 0,
+      "survivor_duplicate_ordinal": 1,
+      "require_reconstructed_current_document_sha256": "cbfb3cdc1da5cb66407d750f0091a6c65e1a983d6185c9510b0e62dc5fde36b1"
+    },
+    {
+      "case_id": "block-backward-survivor-same-locator-duplicate-substitution",
+      "case_class": "backward_survivor_same_locator_duplicate_substitution",
+      "identity_truth": "wrong_target",
+      "observed_document_utf8": "# Doc\n\nprelude stable\n\nduplicate target bytes\n\nmiddle bridge block\n\nlate observed prefix\n\nduplicate target bytes\n\nfollowing stable after survivor\n",
+      "current_document_utf8": "# Doc\n\nprelude stable\n\ninserted lead shard\n\noffset filler path\n\nnew local prefix marker!\n\nduplicate target bytes\n\nfollowing stable after survivor\n",
+      "observed_target_selector": {
+        "block_index": 5
+      },
+      "current_target_selector": {
+        "block_index": 5
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 2,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "different",
+          "following_block": "equal",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "mechanical_failure_on_violation": true
+      },
+      "same-locator": true,
+      "observed_target_duplicate_ordinal": 1,
+      "survivor_duplicate_ordinal": 0,
+      "require_reconstructed_current_document_sha256": "9b27a84f80ae4405acf6bcf4b34be1936179db10494b632fa6dfe163109d9979",
+      "backward_prefix_insertion_bytes": "inserted lead shard\n\noffset filler path\n\nnew local prefix marker!\n\n"
+    },
+    {
+      "case_id": "block-cloned-adjacent-blocks-distinguishing-byte-window",
+      "case_class": "cloned_adjacent_blocks_distinguishing_byte_window",
+      "identity_truth": "wrong_target",
+      "observed_document_utf8": "# Doc\n\nshared lead context\n\nduplicate target bytes\n\ncloned adjacent block\n\ntail alpha differs\n\nremoved spacer before survivor\n\nduplicate target bytes\n\ncloned adjacent block\n\ntail beta differs!\n",
+      "current_document_utf8": "# Doc\n\nshared lead context\n\nduplicate target bytes\n\ncloned adjacent block\n\ntail beta differs!\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 2,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "different"
+        },
+        "mechanical_failure_on_violation": true
+      },
+      "same-locator": true,
+      "observed_target_duplicate_ordinal": 0,
+      "survivor_duplicate_ordinal": 1,
+      "require_reconstructed_current_document_sha256": "223a515ca423c99cc32466dfeef9743f55ba990306cec0c3b7c425b29f6efe7d"
+    },
+    {
+      "case_id": "block-byte-identical-bounded-neighborhood-duplicate-substitution",
+      "case_class": "byte_identical_bounded_neighborhood_duplicate_substitution",
+      "identity_truth": "wrong_target",
+      "observed_document_utf8": "# Doc\n\nshared lead context\n\nduplicate target bytes\n\ncloned adjacent block\n\ncloned bounded tail bytes remain equal for the window\n\nremoved spacer before survivor\n\nduplicate target bytes\n\ncloned adjacent block\n\ncloned bounded tail bytes remain equal for the window\n",
+      "current_document_utf8": "# Doc\n\nshared lead context\n\nduplicate target bytes\n\ncloned adjacent block\n\ncloned bounded tail bytes remain equal for the window\n",
+      "observed_target_selector": {
+        "block_index": 2
+      },
+      "current_target_selector": {
+        "block_index": 2
+      },
+      "mechanical_preconditions": {
+        "target_bytes_relation": "equal",
+        "live_descriptor_relation": "equal",
+        "document_bytes_relation": "different",
+        "observed_exact_target_match_count": 2,
+        "current_exact_target_match_count": 1,
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "mechanical_failure_on_violation": true
+      },
+      "same-locator": true,
+      "observed_target_duplicate_ordinal": 0,
+      "survivor_duplicate_ordinal": 1,
+      "require_reconstructed_current_document_sha256": "c9dfe514e84de3773fbd73fc48e7d9504c024a6852a601dc77d564b0611d4070"
+    }
+  ]
+}
