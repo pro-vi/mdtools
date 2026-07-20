@@ -502,23 +502,29 @@ def ensure_md_binary(md_binary_arg: Path, expected_sha256: str) -> tuple[Path, s
     return md_binary, actual_sha256
 
 
+def load_json_with_unique_object_keys(raw: str, where: str) -> Any:
+    def reject_duplicate_object_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        mapping: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in mapping:
+                raise ProbeError(f"{where}: duplicate JSON object key {key!r}")
+            mapping[key] = value
+        return mapping
+
+    return json.loads(raw, object_pairs_hook=reject_duplicate_object_keys)
+
+
 def load_manifest() -> dict[str, Any]:
     try:
         raw = MANIFEST_PATH.read_text(encoding="utf-8")
     except OSError as exc:
         raise ProbeError(f"failed to read manifest: {MANIFEST_PATH.name}") from exc
     try:
-        manifest = json.loads(raw)
+        manifest = load_json_with_unique_object_keys(raw, f"manifest JSON in {MANIFEST_PATH.name}")
     except json.JSONDecodeError as exc:
         raise ProbeError(f"invalid manifest JSON in {MANIFEST_PATH.name}: {exc}") from exc
     manifest_map = expect_mapping(manifest, "manifest")
     exact_key_order(manifest_map, MANIFEST_TOP_LEVEL_KEY_ORDER, "manifest")
-    manifest_semantic_sha256 = manifest_semantic_sha256_hex(manifest_map)
-    if manifest_semantic_sha256 != EXPECTED_MANIFEST_SEMANTIC_SHA256:
-        raise ProbeError(
-            f"{MANIFEST_PATH.name} canonical semantic digest mismatch: "
-            f"expected {EXPECTED_MANIFEST_SEMANTIC_SHA256}, got {manifest_semantic_sha256}"
-        )
     schema_version = expect_exact_string(
         manifest_map.get("schema_version"),
         "manifest.schema_version",
@@ -554,6 +560,12 @@ def load_manifest() -> dict[str, Any]:
     cases = []
     for index, case_value in enumerate(case_values):
         cases.append(validate_case(case_value, index))
+    manifest_semantic_sha256 = manifest_semantic_sha256_hex(manifest_map)
+    if manifest_semantic_sha256 != EXPECTED_MANIFEST_SEMANTIC_SHA256:
+        raise ProbeError(
+            f"{MANIFEST_PATH.name} canonical semantic digest mismatch: "
+            f"expected {EXPECTED_MANIFEST_SEMANTIC_SHA256}, got {manifest_semantic_sha256}"
+        )
     return {
         "cases": cases,
         "manifest_semantic_sha256": manifest_semantic_sha256,
@@ -873,6 +885,7 @@ def run_blocks_query(
 ) -> list[dict[str, Any]]:
     outcome = run_md_command(
         md_binary,
+        document_path,
         [str(md_binary), "blocks", str(document_path), "--json"],
         workspace,
         where,
@@ -882,7 +895,7 @@ def run_blocks_query(
         raise ProbeError(f"{where}: md exited with code {outcome['returncode']}: {stderr_text}")
     stdout_text = decode_utf8(outcome["stdout"], f"{where}.stdout")
     try:
-        result = json.loads(stdout_text)
+        result = load_json_with_unique_object_keys(stdout_text, f"{where}.result")
     except json.JSONDecodeError as exc:
         raise ProbeError(f"{where}: invalid md JSON: {exc}") from exc
     result_map = expect_mapping(result, f"{where}.result")
@@ -898,15 +911,26 @@ def run_blocks_query(
         raise ProbeError(f"{where}: md blocks returned no top-level blocks")
     blocks = []
     seen_indices: set[int] = set()
+    previous_span_end: int | None = None
     for index, entry_value in enumerate(block_values):
         entry = expect_mapping(entry_value, f"{where}.result.blocks[{index}]")
         exact_key_set(entry, set(BLOCK_ENTRY_KEY_ORDER), f"{where}.result.blocks[{index}]")
         block_index = expect_nonnegative_int(entry.get("index"), f"{where}.result.blocks[{index}].index")
         if block_index in seen_indices:
             raise ProbeError(f"{where}: duplicate block index {block_index}")
+        if block_index != index:
+            raise ProbeError(
+                f"{where}: block index/order mismatch: expected list position {index}, got {block_index}"
+            )
         seen_indices.add(block_index)
         kind = expect_string(entry.get("kind"), f"{where}.result.blocks[{index}].kind")
         span = normalize_span(entry.get("span"), f"{where}.result.blocks[{index}].span")
+        if previous_span_end is not None and span["byte_start"] < previous_span_end:
+            raise ProbeError(
+                f"{where}: block span order/overlap mismatch: "
+                f"block at list position {index} starts at {span['byte_start']} before prior end {previous_span_end}"
+            )
+        previous_span_end = span["byte_end"]
         expect_string(entry.get("etag"), f"{where}.result.blocks[{index}].etag")
         expect_string(entry.get("preview"), f"{where}.result.blocks[{index}].preview")
         target_bytes = slice_target_bytes(document_bytes, span, f"{where}.result.blocks[{index}]")
@@ -970,44 +994,13 @@ def derive_candidate_context_relations(
     observed_context: dict[str, Any],
     current_context: dict[str, Any],
 ) -> dict[str, str]:
-    preceding_block = equality_relation(
-        boundary_state_bytes(observed_context["preceding_boundary_state"])
-        + observed_context["preceding_block_bytes"],
-        boundary_state_bytes(current_context["preceding_boundary_state"])
-        + current_context["preceding_block_bytes"],
-    )
-    following_block = equality_relation(
-        boundary_state_bytes(observed_context["following_boundary_state"])
-        + observed_context["following_block_bytes"],
-        boundary_state_bytes(current_context["following_boundary_state"])
-        + current_context["following_block_bytes"],
-    )
-    adjacent_blocks = equality_relation(
-        boundary_state_bytes(observed_context["preceding_boundary_state"])
-        + observed_context["preceding_block_bytes"]
-        + boundary_state_bytes(observed_context["following_boundary_state"])
-        + observed_context["following_block_bytes"],
-        boundary_state_bytes(current_context["preceding_boundary_state"])
-        + current_context["preceding_block_bytes"]
-        + boundary_state_bytes(current_context["following_boundary_state"])
-        + current_context["following_block_bytes"],
-    )
-    byte_window_64 = equality_relation(
-        observed_context["prefix_window_bytes"]
-        + boolean_payload(observed_context["prefix_hits_bof"])
-        + observed_context["suffix_window_bytes"]
-        + boolean_payload(observed_context["suffix_hits_eof"]),
-        current_context["prefix_window_bytes"]
-        + boolean_payload(current_context["prefix_hits_bof"])
-        + current_context["suffix_window_bytes"]
-        + boolean_payload(current_context["suffix_hits_eof"]),
-    )
-    return {
-        "preceding_block": preceding_block,
-        "following_block": following_block,
-        "adjacent_blocks": adjacent_blocks,
-        "byte_window_64": byte_window_64,
-    }
+    relations: dict[str, str] = {}
+    for candidate_name in EXPECTED_CANDIDATE_ORDER:
+        relations[candidate_name] = equality_relation(
+            token_preimage(candidate_name, observed_context),
+            token_preimage(candidate_name, current_context),
+        )
+    return relations
 
 
 def enforce_mechanical_preconditions(case: dict[str, Any], measured: dict[str, Any]) -> None:
@@ -1423,18 +1416,41 @@ def candidate_field_bytes(context: dict[str, Any], field_name: str) -> bytes:
 
 def run_md_command(
     md_binary: Path,
+    document_path: Path,
     command: list[str],
     workspace: Path,
     where: str,
 ) -> dict[str, Any]:
-    if command != [str(md_binary), "blocks", command[2], "--json"]:
+    try:
+        resolved_workspace = workspace.resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ProbeError(f"{where}: workspace path not found: {workspace}") from exc
+    except OSError as exc:
+        raise ProbeError(f"{where}: failed to resolve workspace path: {workspace}") from exc
+    if not resolved_workspace.is_dir():
+        raise ProbeError(f"{where}: workspace path is not a directory: {workspace}")
+    try:
+        resolved_document_path = document_path.resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ProbeError(f"{where}: document path not found: {document_path}") from exc
+    except OSError as exc:
+        raise ProbeError(f"{where}: failed to resolve document path: {document_path}") from exc
+    if not resolved_document_path.is_file():
+        raise ProbeError(f"{where}: document path is not a regular file: {document_path}")
+    try:
+        resolved_document_path.relative_to(resolved_workspace)
+    except ValueError as exc:
+        raise ProbeError(
+            f"{where}: document path must resolve strictly beneath the workspace: {document_path}"
+        ) from exc
+    if command != [str(md_binary), "blocks", str(resolved_document_path), "--json"]:
         raise ProbeError(f"{where}: child invocation deviated from the only authorized argv shape")
     try:
         completed = subprocess.run(
             command,
             capture_output=True,
             check=False,
-            cwd=str(workspace),
+            cwd=str(resolved_workspace),
             env={},
             shell=False,
         )
@@ -1685,9 +1701,9 @@ def normalize_span(value: Any, where: str) -> dict[str, int]:
     byte_start = expect_nonnegative_int(span.get("byte_start"), f"{where}.byte_start")
     byte_end = expect_nonnegative_int(span.get("byte_end"), f"{where}.byte_end")
     if line_end < line_start:
-        raise ProbeError(f"{where}.line_end must be >= line_start")
+        raise ProbeError(f"{where}: block span order/overlap mismatch: line_end must be >= line_start")
     if byte_end < byte_start:
-        raise ProbeError(f"{where}.byte_end must be >= byte_start")
+        raise ProbeError(f"{where}: block span order/overlap mismatch: byte_end must be >= byte_start")
     return {
         "byte_end": byte_end,
         "byte_start": byte_start,
