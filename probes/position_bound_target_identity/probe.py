@@ -376,29 +376,38 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run the local block-only position-bound target-identity probe against an "
-            "authenticated md binary."
+            "operator-designated md binary authenticated by a supplied byte digest."
         )
     )
     parser.add_argument(
         "--md-binary",
         type=Path,
         required=True,
-        help="Repository-local path to the trusted md binary.",
+        help="Repository-local path to the operator-designated md binary bytes to authenticate.",
     )
     parser.add_argument(
         "--md-binary-sha256",
         required=True,
-        help="Expected SHA-256 for the exact trusted md binary bytes.",
+        help=(
+            "Expected SHA-256 for the exact operator-designated md binary bytes only; "
+            "this authenticates those bytes and does not attest provenance."
+        ),
     )
     parser.add_argument(
         "--check",
         type=Path,
-        help="Byte-compare canonical JSON against an existing file without rewriting it.",
+        help=(
+            "Repository-local path to an existing file for byte-comparison without "
+            "rewriting it."
+        ),
     )
     parser.add_argument(
         "--output",
         type=Path,
-        help="Write canonical JSON to this path by atomic same-directory replacement.",
+        help=(
+            "Repository-local path where canonical JSON is written by atomic "
+            "same-directory replacement."
+        ),
     )
     args = parser.parse_args(argv)
     if args.check is not None and args.output is not None:
@@ -453,6 +462,8 @@ def build_report_bytes(md_binary_arg: Path, expected_md_binary_sha256: str) -> b
 
 
 def ensure_md_binary(md_binary_arg: Path, expected_sha256: str) -> tuple[Path, str]:
+    # This digest authenticates only the operator-designated file bytes at the resolved
+    # repository-local path. It does not establish provenance, publisher identity, or trust.
     if SHA256_PATTERN.fullmatch(expected_sha256) is None:
         raise ProbeError("--md-binary-sha256 must be exactly 64 lowercase hexadecimal characters")
     md_binary = resolve_repo_local_path(md_binary_arg, "md binary", strict=True)
@@ -1591,8 +1602,9 @@ def write_bytes(path: Path, payload: bytes) -> None:
 
 
 def resolve_repo_local_path(path_arg: Path, where: str, *, strict: bool) -> Path:
+    candidate = path_arg if path_arg.is_absolute() else REPO_ROOT / path_arg
     try:
-        resolved = path_arg.resolve(strict=strict)
+        resolved = candidate.resolve(strict=strict)
     except FileNotFoundError as exc:
         raise ProbeError(f"{where} not found: {path_arg}") from exc
     except OSError as exc:
