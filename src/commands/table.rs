@@ -1,7 +1,7 @@
 use crate::cli::{DeleteTableRowArgs, InsertTableRowArgs, ReplaceTableRowArgs, TableArgs};
 use crate::commands::replace::{
-    emit_mutation, inserted_span_after, strip_one_trailing_newline,
-    verify_expected_etag_unique, MutationEmission,
+    emit_mutation, inserted_span_after, strip_one_trailing_newline, verify_expected_etag_unique,
+    MutationEmission,
 };
 use crate::errors::CommandError;
 use crate::model::*;
