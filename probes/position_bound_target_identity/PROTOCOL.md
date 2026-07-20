@@ -2,20 +2,20 @@
 
 Date locked: 2026-07-20
 Initial authored base commit: `3771409a39c5554a011349c3abf25ee6c73f2cf1`
-Accepted repair base commit: `f35a5111f2f7b7e3f064373b161bd27d3f94d386`
+Accepted repair base commit: `2103bca4477763d41c5781407897c675018b30e3`
 Accepted branch: `probe/position-bound-target-identity-3771409`
 
 ## Scope And Grounding
 
 This phase is source-only at accepted repair base
-`f35a5111f2f7b7e3f064373b161bd27d3f94d386` on branch
+`2103bca4477763d41c5781407897c675018b30e3` on branch
 `probe/position-bound-target-identity-3771409`. The initial authored base for
 this protocol file remains
 `3771409a39c5554a011349c3abf25ee6c73f2cf1`; that is where the file first
 entered the PR. In the full authored range
 `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`, the PR adds exactly one
 tracked file: `probes/position_bound_target_identity/PROTOCOL.md`. In this
-repair range `f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`, the phase
+repair range `2103bca4477763d41c5781407897c675018b30e3..HEAD`, the phase
 modifies exactly that existing tracked file and no other path.
 
 It does not authorize any other tracked change, any `.braid/` artifact, any
@@ -80,6 +80,21 @@ All target and neighbor authority comes from live `md blocks FILE --json` reads
 over temporary observed and current documents materialized by a later runner.
 No other block authority is trusted.
 
+The canonical live block descriptor is a runner-owned six-field projection taken
+from each live `md blocks FILE --json` block entry and only from that entry:
+`index`, `kind`, `span.line_start`, `span.line_end`, `span.byte_start`, and
+`span.byte_end`. The runner must require `kind` to be the exact JSON string
+from the live block entry, require `span` to be a mapping with all four named
+coordinates, and require `index` plus all four span coordinates to be
+non-boolean, non-negative JSON integers.
+
+Descriptor equality is field-by-field equality across exactly those six
+projected values. Whenever this protocol names a canonical live block
+descriptor, a live target or neighbor descriptor, same-locator descriptor
+equality, a `live_descriptor` relation, or observed and current descriptor
+evidence, it means only that six-field projection and that field-by-field
+comparison.
+
 For every case, the future runner must:
 
 1. materialize the observed and current documents exactly as UTF-8 byte
@@ -100,6 +115,13 @@ Forbidden authority is explicit:
 - etag strings
 - filesystem metadata
 - handwritten Markdown parsing
+
+Top-level `schema_version` and `file`, block `etag` and `preview`, returned
+content, raw target bytes, manifest values, filesystem metadata, and any
+unknown or future fields are explicitly excluded from descriptor equality,
+candidate identity truth, candidate decisions, and scoring. The canonical live
+block descriptor is mechanical evidence only and is never a candidate token
+field or production identity primitive.
 
 Context is raw bytes. Byte windows may split multibyte UTF-8 sequences without
 decoding, CRLF is preserved byte-for-byte, and frontmatter stays excluded
@@ -485,11 +507,15 @@ same-directory replacement.
 Source construction, source inspection, execution, regeneration, and result
 promotion are separately authorized phases.
 
+Every extracted slice used by the section-bounded substantive checker terminates
+before the displayed verifier and oracle fences, so command text cannot satisfy
+the substantive assertions.
+
 ## Review And Completion Policy
 
 After authorship, native Codex review is required over the exact repair range:
 
-`f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`
+`2103bca4477763d41c5781407897c675018b30e3..HEAD`
 
 Any repair-range finding must be repaired and re-reviewed before durable
 `RunCompleted`.
@@ -506,9 +532,9 @@ Completion requires all of the following:
 
 - the focused task verifier
 - native Codex review over
-  `f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`
+  `2103bca4477763d41c5781407897c675018b30e3..HEAD`
 - the repair-range git proof over
-  `f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`
+  `2103bca4477763d41c5781407897c675018b30e3..HEAD`
 - the full authored range git proof over
   `3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD`
 - the exact phase oracle
@@ -517,7 +543,7 @@ Completion requires all of the following:
 Historical two-run coverage remains supporting evidence only. The current
 self-contained authority is the dual-range proof set above plus the phase
 oracle pass, repaired native Codex review over
-`f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD`, and durable
+`2103bca4477763d41c5781407897c675018b30e3..HEAD`, and durable
 `RunCompleted`.
 
 Repair-range review, path proof, whitespace proof, historical review, CI pass,
@@ -529,14 +555,14 @@ The focused task verifier bytes are exact and must not be broadened,
 substituted, or rewritten:
 
 ```bash
-test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'f35a5111f2f7b7e3f064373b161bd27d3f94d386' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x00' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x01' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'unsigned 64-bit big-endian' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'native Codex review|Codex review' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+python3 -c 'from pathlib import Path; import sys; text = Path("probes/position_bound_target_identity/PROTOCOL.md").read_text(encoding="utf-8"); authority = text.split("## Block Authority And Candidate Framing\n", 1)[1].split("\nThe exact bounded candidate family", 1)[0]; framing = text.split("### Collision-Safe Token Framing\n", 1)[1].split("\n## Future Manifest Contract", 1)[0]; lineage = text.split("### Wrong-Target Lineage Rules\n", 1)[1].split("\n## Candidate Decisions", 1)[0]; review = text.split("## Review And Completion Policy\n", 1)[1].split("\nThe focused task verifier bytes", 1)[0]; checks = [all(marker in authority for marker in ["canonical live block descriptor", "index", "kind", "span.line_start", "span.line_end", "span.byte_start", "span.byte_end", "etag", "preview", "field-by-field"]), all(marker in framing for marker in ["position-bound-target-identity-token", "ASCII schema version", "unsigned 64-bit big-endian", "0x00", "0x01"]), all(marker in lineage for marker in ["backward_prefix_insertion_bytes", "D[0:a] + I + D[a:b] + D[d:]", "D[0:a] + D[c:]"]), all(marker in review for marker in ["2103bca4477763d41c5781407897c675018b30e3..HEAD", "3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD", "full authored range", "no unresolved review thread"]), "command text cannot satisfy" in text.split("## Review And Completion Policy\n", 1)[0]]; sys.exit(not all(checks))' && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 The phase oracle bytes are exact and must not be broadened, substituted, or
 rewritten:
 
 ```bash
-git diff --check f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD && git diff --name-only f35a5111f2f7b7e3f064373b161bd27d3f94d386..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && test -s probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'f35a5111f2f7b7e3f064373b161bd27d3f94d386' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '3771409a39c5554a011349c3abf25ee6c73f2cf1' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x00' probes/position_bound_target_identity/PROTOCOL.md && rg -nF '0x01' probes/position_bound_target_identity/PROTOCOL.md && rg -nF 'unsigned 64-bit big-endian' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'full authored range|full-authored-range|complete authored' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'native Codex review|Codex review' probes/position_bound_target_identity/PROTOCOL.md && rg -n 'backward_prefix_insertion_bytes|D\\[0:a\\].*I.*D\\[a:b\\].*D\\[d:' probes/position_bound_target_identity/PROTOCOL.md && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
+git diff --check 2103bca4477763d41c5781407897c675018b30e3..HEAD && git diff --name-only 2103bca4477763d41c5781407897c675018b30e3..HEAD | python3 -c 'import sys; expected = ["probes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && git diff --check 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD && git diff --name-status 3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD | python3 -c 'import sys; expected = ["A\tprobes/position_bound_target_identity/PROTOCOL.md"]; actual = [line.rstrip("\n") for line in sys.stdin]; raise SystemExit(actual != expected)' && python3 -c 'from pathlib import Path; import sys; text = Path("probes/position_bound_target_identity/PROTOCOL.md").read_text(encoding="utf-8"); authority = text.split("## Block Authority And Candidate Framing\n", 1)[1].split("\nThe exact bounded candidate family", 1)[0]; framing = text.split("### Collision-Safe Token Framing\n", 1)[1].split("\n## Future Manifest Contract", 1)[0]; lineage = text.split("### Wrong-Target Lineage Rules\n", 1)[1].split("\n## Candidate Decisions", 1)[0]; review = text.split("## Review And Completion Policy\n", 1)[1].split("\nThe focused task verifier bytes", 1)[0]; checks = [all(marker in authority for marker in ["canonical live block descriptor", "index", "kind", "span.line_start", "span.line_end", "span.byte_start", "span.byte_end", "etag", "preview", "field-by-field"]), all(marker in framing for marker in ["position-bound-target-identity-token", "ASCII schema version", "unsigned 64-bit big-endian", "0x00", "0x01"]), all(marker in lineage for marker in ["backward_prefix_insertion_bytes", "D[0:a] + I + D[a:b] + D[d:]", "D[0:a] + D[c:]"]), all(marker in review for marker in ["2103bca4477763d41c5781407897c675018b30e3..HEAD", "3771409a39c5554a011349c3abf25ee6c73f2cf1..HEAD", "full authored range", "no unresolved review thread"]), "command text cannot satisfy" in text.split("## Review And Completion Policy\n", 1)[0]]; sys.exit(not all(checks))' && test ! -e probes/position_bound_target_identity/probe.py && test ! -e probes/position_bound_target_identity/cases.json && test ! -e probes/position_bound_target_identity/results.json && test ! -e probes/position_bound_target_identity/RESULTS.md
 ```
 
 ## Honest Conclusion Boundary
