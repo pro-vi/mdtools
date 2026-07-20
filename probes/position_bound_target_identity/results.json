@@ -1,0 +1,1820 @@
+{
+  "aggregate_verdict": {
+    "candidate_verdicts": {
+      "preceding_block": "demoted_wrong_identity",
+      "following_block": "demoted_wrong_identity",
+      "adjacent_blocks": "demoted_wrong_identity",
+      "byte_window_64": "demoted_wrong_identity"
+    },
+    "demoted_candidates": [
+      "preceding_block",
+      "following_block",
+      "adjacent_blocks",
+      "byte_window_64"
+    ],
+    "graduating_candidates": [],
+    "selected_candidate": null,
+    "verdict": "no_bounded_context_candidate_graduates"
+  },
+  "candidate_order": [
+    "preceding_block",
+    "following_block",
+    "adjacent_blocks",
+    "byte_window_64"
+  ],
+  "candidate_summary": {
+    "preceding_block": {
+      "accepts": 8,
+      "disposition": "demote",
+      "graduation_verdict": "demoted_wrong_identity",
+      "neighbor_false_conflicts": 1,
+      "rejects": 2,
+      "same_target_rejects": 1,
+      "wrong_identity_accepts": 3
+    },
+    "following_block": {
+      "accepts": 8,
+      "disposition": "demote",
+      "graduation_verdict": "demoted_wrong_identity",
+      "neighbor_false_conflicts": 1,
+      "rejects": 2,
+      "same_target_rejects": 1,
+      "wrong_identity_accepts": 3
+    },
+    "adjacent_blocks": {
+      "accepts": 6,
+      "disposition": "demote",
+      "graduation_verdict": "demoted_wrong_identity",
+      "neighbor_false_conflicts": 2,
+      "rejects": 4,
+      "same_target_rejects": 2,
+      "wrong_identity_accepts": 2
+    },
+    "byte_window_64": {
+      "accepts": 5,
+      "disposition": "demote",
+      "graduation_verdict": "demoted_wrong_identity",
+      "neighbor_false_conflicts": 2,
+      "rejects": 5,
+      "same_target_rejects": 2,
+      "wrong_identity_accepts": 1
+    }
+  },
+  "cases": [
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "correct",
+          "current_token_sha256": "43d1e45b717422d38807245480115a379f7e94c708045b624b431e5e44a38268",
+          "decision": "accept",
+          "observed_token_sha256": "43d1e45b717422d38807245480115a379f7e94c708045b624b431e5e44a38268",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "correct",
+          "current_token_sha256": "a649ec775c380948859c670005544d601e01084388f046df898c426de4363eac",
+          "decision": "accept",
+          "observed_token_sha256": "a649ec775c380948859c670005544d601e01084388f046df898c426de4363eac",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "correct",
+          "current_token_sha256": "38610b336d9d10510bf1c5918788591df62e6acdb46dc2e1fd7c148da646b8c5",
+          "decision": "accept",
+          "observed_token_sha256": "38610b336d9d10510bf1c5918788591df62e6acdb46dc2e1fd7c148da646b8c5",
+          "token_byte_equality": true
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "5811ea061ed4072e7dd3cb6573dd05be57c1772e8c6b0cdef3e2123d619d3a06",
+          "decision": "accept",
+          "observed_token_sha256": "5811ea061ed4072e7dd3cb6573dd05be57c1772e8c6b0cdef3e2123d619d3a06",
+          "token_byte_equality": true
+        }
+      },
+      "case_class": "unchanged_reread",
+      "case_id": "block-unchanged-lf-reread",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 43,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 43,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        }
+      },
+      "identity_truth": "same_target",
+      "lineage_evidence": null,
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 43,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "observed_span": {
+            "byte_end": 43,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "174a824f61ac1074faa5cfa368b5b4f38ea4c1352de6d2e89e0ead2b3f116acf",
+            "observed_sha256": "174a824f61ac1074faa5cfa368b5b4f38ea4c1352de6d2e89e0ead2b3f116acf"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "c4ff359f8d932f06e234e8b6dcf7fa35defe6ff688e3ec4da5ad9dd5466712c1",
+            "observed_sha256": "c4ff359f8d932f06e234e8b6dcf7fa35defe6ff688e3ec4da5ad9dd5466712c1"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 43,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 43,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "equal",
+            "adjacent_blocks": "equal",
+            "byte_window_64": "equal"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "equal",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 1,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-unchanged-lf-reread/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-unchanged-lf-reread/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 15,
+          "sha256": "f78bc5890a66e31825173fc28954029c1f17d3d7199628a512bf584fa75f9eb2",
+          "utf8": "target lf bytes"
+        },
+        "observed": {
+          "byte_length": 15,
+          "sha256": "f78bc5890a66e31825173fc28954029c1f17d3d7199628a512bf584fa75f9eb2",
+          "utf8": "target lf bytes"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "correct",
+          "current_token_sha256": "7ce0b2be3a5cf4de4a31576e152a5eb03a59ff9c68a22ea8ae1027724c1cb14a",
+          "decision": "accept",
+          "observed_token_sha256": "7ce0b2be3a5cf4de4a31576e152a5eb03a59ff9c68a22ea8ae1027724c1cb14a",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "correct",
+          "current_token_sha256": "3a8aab97c2935266fd1d90178db887c14a5422a65192ea1149e787b8545a9ed4",
+          "decision": "accept",
+          "observed_token_sha256": "3a8aab97c2935266fd1d90178db887c14a5422a65192ea1149e787b8545a9ed4",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "correct",
+          "current_token_sha256": "6d7624deaa6a12509588f3ce88933a27edd82db344425680cae4891302d58fd1",
+          "decision": "accept",
+          "observed_token_sha256": "6d7624deaa6a12509588f3ce88933a27edd82db344425680cae4891302d58fd1",
+          "token_byte_equality": true
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "2bdce31d0a6b61715f0d8b52d27f63149c739d2de58f07980e89d59c849b3204",
+          "decision": "accept",
+          "observed_token_sha256": "2bdce31d0a6b61715f0d8b52d27f63149c739d2de58f07980e89d59c849b3204",
+          "token_byte_equality": true
+        }
+      },
+      "case_class": "unchanged_reread",
+      "case_id": "block-unchanged-crlf-reread",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 47,
+              "byte_start": 30,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 47,
+              "byte_start": 30,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        }
+      },
+      "identity_truth": "same_target",
+      "lineage_evidence": null,
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 47,
+            "byte_start": 30,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "observed_span": {
+            "byte_end": 47,
+            "byte_start": 30,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "55c543591185368914260d5b276048ffe0d69ae6fae9515c148835dcf3f0c690",
+            "observed_sha256": "55c543591185368914260d5b276048ffe0d69ae6fae9515c148835dcf3f0c690"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "f86b1b68c8106fb269c623a99321595ca4b81bfb9aa374a2a3e6b49b1ac9de01",
+            "observed_sha256": "f86b1b68c8106fb269c623a99321595ca4b81bfb9aa374a2a3e6b49b1ac9de01"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 47,
+              "byte_start": 30,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 47,
+              "byte_start": 30,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "equal",
+            "adjacent_blocks": "equal",
+            "byte_window_64": "equal"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "equal",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 1,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-unchanged-crlf-reread/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-unchanged-crlf-reread/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 17,
+          "sha256": "12c10f3ad04b9dce12f388053ff578ac14dd0e59d76c203377e51f42a1cf8c5d",
+          "utf8": "target crlf bytes"
+        },
+        "observed": {
+          "byte_length": 17,
+          "sha256": "12c10f3ad04b9dce12f388053ff578ac14dd0e59d76c203377e51f42a1cf8c5d",
+          "utf8": "target crlf bytes"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "correct",
+          "current_token_sha256": "0a822b51b7293593d9b2295c2c855df2ebf84cbd529f470a3842eb46dd1beda1",
+          "decision": "accept",
+          "observed_token_sha256": "0a822b51b7293593d9b2295c2c855df2ebf84cbd529f470a3842eb46dd1beda1",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "correct",
+          "current_token_sha256": "789da5f3b605b003a2651acbcb94a5fff825929d6fbdc5b07752fc366319d24b",
+          "decision": "accept",
+          "observed_token_sha256": "789da5f3b605b003a2651acbcb94a5fff825929d6fbdc5b07752fc366319d24b",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "correct",
+          "current_token_sha256": "cebd78169221e59ec12fac20fe626bf28e600d001ff19b3635a87eed685d77a9",
+          "decision": "accept",
+          "observed_token_sha256": "cebd78169221e59ec12fac20fe626bf28e600d001ff19b3635a87eed685d77a9",
+          "token_byte_equality": true
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "993ac9a41e0ef0c1c13221e650da5e772cf7e6cbd92e0469db632ccdad551dc4",
+          "decision": "accept",
+          "observed_token_sha256": "993ac9a41e0ef0c1c13221e650da5e772cf7e6cbd92e0469db632ccdad551dc4",
+          "token_byte_equality": true
+        }
+      },
+      "case_class": "unchanged_reread",
+      "case_id": "block-unchanged-multibyte-utf8-reread",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 52,
+              "byte_start": 20,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 52,
+              "byte_start": 20,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        }
+      },
+      "identity_truth": "same_target",
+      "lineage_evidence": null,
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 52,
+            "byte_start": 20,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "observed_span": {
+            "byte_end": 52,
+            "byte_start": 20,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "f75d1cca15aa63ddffe3a1d6762b65ce3761dbcf9eb5fe1a881f283db13660ff",
+            "observed_sha256": "f75d1cca15aa63ddffe3a1d6762b65ce3761dbcf9eb5fe1a881f283db13660ff"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "427a58d06da996c11e57c23b2c83824ccf6817b2b172636840d44b3bfa1f5d86",
+            "observed_sha256": "427a58d06da996c11e57c23b2c83824ccf6817b2b172636840d44b3bfa1f5d86"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 52,
+              "byte_start": 20,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 52,
+              "byte_start": 20,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "equal",
+            "adjacent_blocks": "equal",
+            "byte_window_64": "equal"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "equal",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 1,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-unchanged-multibyte-utf8-reread/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-unchanged-multibyte-utf8-reread/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 32,
+          "sha256": "e69406e049965e7d764973bcee9188bf5ac4fc66150179d353ff5e1122bef17e",
+          "utf8": "target UTF-8 bytes: café 你好"
+        },
+        "observed": {
+          "byte_length": 32,
+          "sha256": "e69406e049965e7d764973bcee9188bf5ac4fc66150179d353ff5e1122bef17e",
+          "utf8": "target UTF-8 bytes: café 你好"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "correct",
+          "current_token_sha256": "0b12b223f78b7d5dd619d0bf224d27249429e4c48fd5f72f681337cc508592c4",
+          "decision": "accept",
+          "observed_token_sha256": "0b12b223f78b7d5dd619d0bf224d27249429e4c48fd5f72f681337cc508592c4",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "correct",
+          "current_token_sha256": "489212a4dc5644743c677e4147a9b5275eeebccd6f38aaf1c0196a3d97fa9bbb",
+          "decision": "accept",
+          "observed_token_sha256": "489212a4dc5644743c677e4147a9b5275eeebccd6f38aaf1c0196a3d97fa9bbb",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "correct",
+          "current_token_sha256": "3fe7c217d23462b0ccea201c50a7c006cd5ff26ce58a501d3aa34f6ca33289c1",
+          "decision": "accept",
+          "observed_token_sha256": "3fe7c217d23462b0ccea201c50a7c006cd5ff26ce58a501d3aa34f6ca33289c1",
+          "token_byte_equality": true
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "d7c76fd20eaa23a282f3c9ef9e95045fbad4a81d6cdb2019c7182688983201ff",
+          "decision": "accept",
+          "observed_token_sha256": "d7c76fd20eaa23a282f3c9ef9e95045fbad4a81d6cdb2019c7182688983201ff",
+          "token_byte_equality": true
+        }
+      },
+      "case_class": "outside_context_unrelated_edit",
+      "case_id": "block-outside-context-unrelated-edit",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 3,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 140,
+              "byte_start": 99,
+              "line_end": 7,
+              "line_start": 7
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": false,
+          "suffix_hits_eof": false
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 3,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 140,
+              "byte_start": 99,
+              "line_end": 7,
+              "line_start": 7
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": false,
+          "suffix_hits_eof": false
+        }
+      },
+      "identity_truth": "same_target",
+      "lineage_evidence": null,
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 140,
+            "byte_start": 99,
+            "line_end": 7,
+            "line_start": 7
+          },
+          "observed_span": {
+            "byte_end": 140,
+            "byte_start": 99,
+            "line_end": 7,
+            "line_start": 7
+          },
+          "outside_context_difference": {
+            "current_change": {
+              "end": 289,
+              "start": 246
+            },
+            "observed_change": {
+              "end": 283,
+              "start": 246
+            }
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "7d8ab387e27685f202b0aefd9f3cf323935cdc3066a61a11809e9e4bdd621857",
+            "observed_sha256": "7d8ab387e27685f202b0aefd9f3cf323935cdc3066a61a11809e9e4bdd621857"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "a87d0ee3435ee5b2cddb4a43d966888e73646c6f66598427822eb93d84abfa97",
+            "observed_sha256": "a87d0ee3435ee5b2cddb4a43d966888e73646c6f66598427822eb93d84abfa97"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 140,
+              "byte_start": 99,
+              "line_end": 7,
+              "line_start": 7
+            },
+            "observed": {
+              "byte_end": 140,
+              "byte_start": 99,
+              "line_end": 7,
+              "line_start": 7
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "equal",
+            "adjacent_blocks": "equal",
+            "byte_window_64": "equal"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 1,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-outside-context-unrelated-edit/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-outside-context-unrelated-edit/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 41,
+          "sha256": "a1eed8a37f35e6e415673910e602e0c8d3d3126cc3b4524f589e669d928ba905",
+          "utf8": "position bound target bytes remain stable"
+        },
+        "observed": {
+          "byte_length": 41,
+          "sha256": "a1eed8a37f35e6e415673910e602e0c8d3d3126cc3b4524f589e669d928ba905",
+          "utf8": "position bound target bytes remain stable"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "false_conflict",
+          "current_token_sha256": "8751a79724fdfdc48a261c330f1b00795b8044aed68bd5eeba35c259cd589a59",
+          "decision": "reject",
+          "observed_token_sha256": "f9c9f121ebc3805951d539c44690873a605911054344b0ff6687478c3d863f01",
+          "token_byte_equality": false
+        },
+        "following_block": {
+          "credit": "correct",
+          "current_token_sha256": "7f66975f61e310f62baa0885b6a2b3de64686a159e456dcd8cc0fe671d666c3a",
+          "decision": "accept",
+          "observed_token_sha256": "7f66975f61e310f62baa0885b6a2b3de64686a159e456dcd8cc0fe671d666c3a",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "false_conflict",
+          "current_token_sha256": "a4266635d305eb3cdaf2483d5e47c4b11184d4da989e10ee855b258ae87033f7",
+          "decision": "reject",
+          "observed_token_sha256": "31f34428b17accda3ebf35a2cafb404f75f572b6600538135cab043d7284a8ad",
+          "token_byte_equality": false
+        },
+        "byte_window_64": {
+          "credit": "false_conflict",
+          "current_token_sha256": "217e64e1f15cbeac95b82bcd99139726bc014e8754569ecbf78727fca3444325",
+          "decision": "reject",
+          "observed_token_sha256": "d308ad74986503978e9fa9871969f86f08c5ea78561148830d830767931e7073",
+          "token_byte_equality": false
+        }
+      },
+      "case_class": "preceding_neighbor_edit_inside_prefix_window",
+      "case_id": "block-preceding-neighbor-edit-inside-prefix-window",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 68,
+              "byte_start": 39,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 68,
+              "byte_start": 39,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        }
+      },
+      "identity_truth": "same_target",
+      "lineage_evidence": null,
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 68,
+            "byte_start": 39,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "neighbor_edit": {
+            "current_change": {
+              "end": 24,
+              "start": 21
+            },
+            "current_neighbor": {
+              "end": 37,
+              "start": 7
+            },
+            "observed_change": {
+              "end": 24,
+              "start": 21
+            },
+            "observed_neighbor": {
+              "end": 37,
+              "start": 7
+            }
+          },
+          "observed_span": {
+            "byte_end": 68,
+            "byte_start": 39,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "cf1777b248698482e8624ec425395da647e8ff3d75bc14389b69460f25cd0398",
+            "observed_sha256": "e7c8af0ec533467c6144abb9d10d23bd5da89697b69836ecb29cd8f25b21d490"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "ee796ace7aaa11a7095719ee1f3cea539537414e16f6c032290b6922d5b73f14",
+            "observed_sha256": "ee796ace7aaa11a7095719ee1f3cea539537414e16f6c032290b6922d5b73f14"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 68,
+              "byte_start": 39,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 68,
+              "byte_start": 39,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "different",
+          "following_block": "equal",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "different",
+            "following_block": "equal",
+            "adjacent_blocks": "different",
+            "byte_window_64": "different"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 1,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-preceding-neighbor-edit-inside-prefix-window/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-preceding-neighbor-edit-inside-prefix-window/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 29,
+          "sha256": "ab66ebd65d9dd2989fcb64ece65e636f0c1d0a7a29158b973053ac99f4de06af",
+          "utf8": "stable target for prefix edit"
+        },
+        "observed": {
+          "byte_length": 29,
+          "sha256": "ab66ebd65d9dd2989fcb64ece65e636f0c1d0a7a29158b973053ac99f4de06af",
+          "utf8": "stable target for prefix edit"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "correct",
+          "current_token_sha256": "c233006bfc8e9d8791cb03763c55b7388a8bbc003c4f6a54b7bfdb2f2244b11e",
+          "decision": "accept",
+          "observed_token_sha256": "c233006bfc8e9d8791cb03763c55b7388a8bbc003c4f6a54b7bfdb2f2244b11e",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "false_conflict",
+          "current_token_sha256": "082795ebedd3b7b3b769c96fb1cbf8e508187f16c880d2a784584ee0be8fd1d1",
+          "decision": "reject",
+          "observed_token_sha256": "9b31ab997971664ae55eb05990b1361e14ad10cb741559b38a9593bf87a30225",
+          "token_byte_equality": false
+        },
+        "adjacent_blocks": {
+          "credit": "false_conflict",
+          "current_token_sha256": "86a672d4752ccedf2105b2c3083b64fee5cad14c22718436a7afc4fed7cbaf02",
+          "decision": "reject",
+          "observed_token_sha256": "4e499d0c0d8c7cde976cc16d19d42a0f50aabb04775b8a8a06dfdbfa0e661a58",
+          "token_byte_equality": false
+        },
+        "byte_window_64": {
+          "credit": "false_conflict",
+          "current_token_sha256": "b916533f4b6ba6bff8c3335095c038cb28bb9c1fe34f9fd397204ec75dd430c9",
+          "decision": "reject",
+          "observed_token_sha256": "d14b10541493ca40ebbc6fd6b8a7dcb6eb5e900f5f67ebb305a60fb60fc9f8f5",
+          "token_byte_equality": false
+        }
+      },
+      "case_class": "following_neighbor_edit_inside_suffix_window",
+      "case_id": "block-following-neighbor-edit-inside-suffix-window",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 60,
+              "byte_start": 31,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 60,
+              "byte_start": 31,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        }
+      },
+      "identity_truth": "same_target",
+      "lineage_evidence": null,
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 60,
+            "byte_start": 31,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "neighbor_edit": {
+            "current_change": {
+              "end": 79,
+              "start": 76
+            },
+            "current_neighbor": {
+              "end": 92,
+              "start": 62
+            },
+            "observed_change": {
+              "end": 79,
+              "start": 76
+            },
+            "observed_neighbor": {
+              "end": 92,
+              "start": 62
+            }
+          },
+          "observed_span": {
+            "byte_end": 60,
+            "byte_start": 31,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "067627cfd03442719200681b5a3a9f8c7c44b85d888c4770c3f637734e48aa4c",
+            "observed_sha256": "067627cfd03442719200681b5a3a9f8c7c44b85d888c4770c3f637734e48aa4c"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "4e12ef45efc87f5dc60dbd0bafc054864a686669f89fcc0895ab5932fee389b6",
+            "observed_sha256": "dc1fc4ed542db6144341aae9238f773c21201b378ba444bfff4145897411d507"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 60,
+              "byte_start": 31,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 60,
+              "byte_start": 31,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "different",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "different",
+            "adjacent_blocks": "different",
+            "byte_window_64": "different"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 1,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-following-neighbor-edit-inside-suffix-window/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-following-neighbor-edit-inside-suffix-window/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 29,
+          "sha256": "e8ec6ffa2dc4744fcb406071a7355507919c50773b597c50dbcff3f7ec614ebd",
+          "utf8": "stable target for suffix edit"
+        },
+        "observed": {
+          "byte_length": 29,
+          "sha256": "e8ec6ffa2dc4744fcb406071a7355507919c50773b597c50dbcff3f7ec614ebd",
+          "utf8": "stable target for suffix edit"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "f308926af6001fd111b96867c8e1cdd2ac662e435189499daf1e7cb50eed61fe",
+          "decision": "accept",
+          "observed_token_sha256": "f308926af6001fd111b96867c8e1cdd2ac662e435189499daf1e7cb50eed61fe",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "correct",
+          "current_token_sha256": "2d7f277c6f37a276ce913ca6ad4cd5960c99124cefcb604adb6907b2479a1b5a",
+          "decision": "reject",
+          "observed_token_sha256": "0e976e78166f0f8aa58f4479f9a0e4f7b497e25db8474f4a3b9e2eec630f84db",
+          "token_byte_equality": false
+        },
+        "adjacent_blocks": {
+          "credit": "correct",
+          "current_token_sha256": "c48231d79b814ddb67f3538d9c073ceea7f621de46dce625366594c958f491c7",
+          "decision": "reject",
+          "observed_token_sha256": "11606b3e1284c6a2538bb443e29125f3c67d91de7f5e387f54a6bcf9f86efc59",
+          "token_byte_equality": false
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "f108fb482dfd3383b568478f3eb63db83ac6782acf2ea08d58f924fd414001ef",
+          "decision": "reject",
+          "observed_token_sha256": "eee4ddae272bafd65adbb82d0a6a29ac55f527d3f2c7dab31c3719a24f930839",
+          "token_byte_equality": false
+        }
+      },
+      "case_class": "forward_survivor_same_locator_duplicate_substitution",
+      "case_id": "block-forward-survivor-same-locator-duplicate-substitution",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": false
+        }
+      },
+      "identity_truth": "wrong_target",
+      "lineage_evidence": {
+        "duplicate_ordinals": {
+          "observed_target_duplicate_ordinal": 0,
+          "survivor_duplicate_ordinal": 1
+        },
+        "duplicate_spans": {
+          "duplicate_0": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "duplicate_1": {
+            "byte_end": 142,
+            "byte_start": 120,
+            "line_end": 11,
+            "line_start": 11
+          }
+        },
+        "reconstructed_current_document_sha256": "cbfb3cdc1da5cb66407d750f0091a6c65e1a983d6185c9510b0e62dc5fde36b1",
+        "reconstruction_family": "D[0:a] + D[c:]",
+        "same-locator": true
+      },
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "observed_span": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "0a9a2fb9148aaf869d808dd28b12ba5f68a8c4ad4b962e95eb298789eb929697",
+            "observed_sha256": "0a9a2fb9148aaf869d808dd28b12ba5f68a8c4ad4b962e95eb298789eb929697"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "9d365b05bb54e93d056fb2c7056e7c5c9f365dc30ed6815188d4a47474a9fbfc",
+            "observed_sha256": "7f805b112f29500af439ce8a514331f688a4a23bb2a70131dede93a983375cf0"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "different",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "different",
+            "adjacent_blocks": "different",
+            "byte_window_64": "different"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 2,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-forward-survivor-same-locator-duplicate-substitution/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-forward-survivor-same-locator-duplicate-substitution/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        },
+        "observed": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "correct",
+          "current_token_sha256": "ed2d868f69e146d79954fac920a0d6aed80b9c50254393bb82ec6bbe98ee15f8",
+          "decision": "reject",
+          "observed_token_sha256": "f9280113ee6e8fc0c545f50951632ce7fa82d6f6c7eaab0c4a6c8f077e35a7a2",
+          "token_byte_equality": false
+        },
+        "following_block": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "825701009cfe8bfafcc138ddc32eb0231057993b2e0bc816f12a8a975ff4eca7",
+          "decision": "accept",
+          "observed_token_sha256": "825701009cfe8bfafcc138ddc32eb0231057993b2e0bc816f12a8a975ff4eca7",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "correct",
+          "current_token_sha256": "561b6df572954cb740023596a8909dc96b2718495951adfd4dc6f6a9cc138825",
+          "decision": "reject",
+          "observed_token_sha256": "c05072fce1757cfc7cc99d2110821315c6c6408575c9bbdc24d43db9678d98dd",
+          "token_byte_equality": false
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "2292950e7b057086ed9dbc0ccead30ef23682200b785a14dd53480ab9b97dd39",
+          "decision": "reject",
+          "observed_token_sha256": "9255a90c3303448ea1e6bed4283341e4f56afbdffc689adcfc40371689753223",
+          "token_byte_equality": false
+        }
+      },
+      "case_class": "backward_survivor_same_locator_duplicate_substitution",
+      "case_id": "block-backward-survivor-same-locator-duplicate-substitution",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 5,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 112,
+              "byte_start": 90,
+              "line_end": 11,
+              "line_start": 11
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": false,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 5,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 112,
+              "byte_start": 90,
+              "line_end": 11,
+              "line_start": 11
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": false,
+          "suffix_hits_eof": true
+        }
+      },
+      "identity_truth": "wrong_target",
+      "lineage_evidence": {
+        "duplicate_ordinals": {
+          "observed_target_duplicate_ordinal": 1,
+          "survivor_duplicate_ordinal": 0
+        },
+        "duplicate_spans": {
+          "duplicate_0": {
+            "byte_end": 45,
+            "byte_start": 23,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "duplicate_1": {
+            "byte_end": 112,
+            "byte_start": 90,
+            "line_end": 11,
+            "line_start": 11
+          }
+        },
+        "reconstructed_current_document_sha256": "9b27a84f80ae4405acf6bcf4b34be1936179db10494b632fa6dfe163109d9979",
+        "reconstruction_family": "D[0:a] + I + D[a:b] + D[d:]",
+        "same-locator": true
+      },
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 112,
+            "byte_start": 90,
+            "line_end": 11,
+            "line_start": 11
+          },
+          "observed_span": {
+            "byte_end": 112,
+            "byte_start": 90,
+            "line_end": 11,
+            "line_start": 11
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "01065c2ebc6084752cadd3c0eebc3bb7b4d9f7199123d3e4a60b29775c7cc7e4",
+            "observed_sha256": "9098d1ab5a855fdbe128ba0892b7ac7bb10c21051320d9f8218e2b1db46f71f0"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "7b8e64fe8b522f157117907e55e18e4a79d9d850a5be187dc8f7ea2efc2ddd13",
+            "observed_sha256": "7b8e64fe8b522f157117907e55e18e4a79d9d850a5be187dc8f7ea2efc2ddd13"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 112,
+              "byte_start": 90,
+              "line_end": 11,
+              "line_start": 11
+            },
+            "observed": {
+              "byte_end": 112,
+              "byte_start": 90,
+              "line_end": 11,
+              "line_start": 11
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "different",
+          "following_block": "equal",
+          "adjacent_blocks": "different",
+          "byte_window_64": "different"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "different",
+            "following_block": "equal",
+            "adjacent_blocks": "different",
+            "byte_window_64": "different"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 2,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-backward-survivor-same-locator-duplicate-substitution/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-backward-survivor-same-locator-duplicate-substitution/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        },
+        "observed": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "f308926af6001fd111b96867c8e1cdd2ac662e435189499daf1e7cb50eed61fe",
+          "decision": "accept",
+          "observed_token_sha256": "f308926af6001fd111b96867c8e1cdd2ac662e435189499daf1e7cb50eed61fe",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "05226cd76df0d84ed1d8f4818dcb92d17275aa8722a3227b55989abf5c06fc0e",
+          "decision": "accept",
+          "observed_token_sha256": "05226cd76df0d84ed1d8f4818dcb92d17275aa8722a3227b55989abf5c06fc0e",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "86e302b612a5ba99b3e35df54efad4a3934713eb4da61819f3503dc0688d28b6",
+          "decision": "accept",
+          "observed_token_sha256": "86e302b612a5ba99b3e35df54efad4a3934713eb4da61819f3503dc0688d28b6",
+          "token_byte_equality": true
+        },
+        "byte_window_64": {
+          "credit": "correct",
+          "current_token_sha256": "85c4cb2c6ed780230021685de554ccfdd8974d5b30e4c4e9c55c82f64fb649bd",
+          "decision": "reject",
+          "observed_token_sha256": "e3cbdf816e0cc69767fdb36ddb4296c76eed0c7430afa6d71826f99ffae5ed4b",
+          "token_byte_equality": false
+        }
+      },
+      "case_class": "cloned_adjacent_blocks_distinguishing_byte_window",
+      "case_id": "block-cloned-adjacent-blocks-distinguishing-byte-window",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": true
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": false
+        }
+      },
+      "identity_truth": "wrong_target",
+      "lineage_evidence": {
+        "duplicate_ordinals": {
+          "observed_target_duplicate_ordinal": 0,
+          "survivor_duplicate_ordinal": 1
+        },
+        "duplicate_spans": {
+          "duplicate_0": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "duplicate_1": {
+            "byte_end": 149,
+            "byte_start": 127,
+            "line_end": 13,
+            "line_start": 13
+          }
+        },
+        "reconstructed_current_document_sha256": "223a515ca423c99cc32466dfeef9743f55ba990306cec0c3b7c425b29f6efe7d",
+        "reconstruction_family": "D[0:a] + D[c:]",
+        "same-locator": true
+      },
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "observed_span": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "0a9a2fb9148aaf869d808dd28b12ba5f68a8c4ad4b962e95eb298789eb929697",
+            "observed_sha256": "0a9a2fb9148aaf869d808dd28b12ba5f68a8c4ad4b962e95eb298789eb929697"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "a8e8dbf3f778cf4d65b1c70caaf06ebb72d1faa11a3884854afda3d32a5426e1",
+            "observed_sha256": "1b515329b11e9c171153ddd6b2d63c534ead4d88608ef7df2b32852cf094cac5"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "different"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "equal",
+            "adjacent_blocks": "equal",
+            "byte_window_64": "different"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 2,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-cloned-adjacent-blocks-distinguishing-byte-window/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-cloned-adjacent-blocks-distinguishing-byte-window/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        },
+        "observed": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        }
+      }
+    },
+    {
+      "candidate_results": {
+        "preceding_block": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "f308926af6001fd111b96867c8e1cdd2ac662e435189499daf1e7cb50eed61fe",
+          "decision": "accept",
+          "observed_token_sha256": "f308926af6001fd111b96867c8e1cdd2ac662e435189499daf1e7cb50eed61fe",
+          "token_byte_equality": true
+        },
+        "following_block": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "05226cd76df0d84ed1d8f4818dcb92d17275aa8722a3227b55989abf5c06fc0e",
+          "decision": "accept",
+          "observed_token_sha256": "05226cd76df0d84ed1d8f4818dcb92d17275aa8722a3227b55989abf5c06fc0e",
+          "token_byte_equality": true
+        },
+        "adjacent_blocks": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "86e302b612a5ba99b3e35df54efad4a3934713eb4da61819f3503dc0688d28b6",
+          "decision": "accept",
+          "observed_token_sha256": "86e302b612a5ba99b3e35df54efad4a3934713eb4da61819f3503dc0688d28b6",
+          "token_byte_equality": true
+        },
+        "byte_window_64": {
+          "credit": "wrong_identity",
+          "current_token_sha256": "11878c2b969fcdf1ecf85dc5c67d1746b9819f934ba2a64753c47dd905f7f9ee",
+          "decision": "accept",
+          "observed_token_sha256": "11878c2b969fcdf1ecf85dc5c67d1746b9819f934ba2a64753c47dd905f7f9ee",
+          "token_byte_equality": true
+        }
+      },
+      "case_class": "byte_identical_bounded_neighborhood_duplicate_substitution",
+      "case_id": "block-byte-identical-bounded-neighborhood-duplicate-substitution",
+      "descriptor_evidence": {
+        "current": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": false
+        },
+        "observed": {
+          "block_domain_start": 0,
+          "descriptor": {
+            "index": 2,
+            "kind": "Paragraph",
+            "span": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          },
+          "following_boundary_state": "present",
+          "preceding_boundary_state": "present",
+          "prefix_hits_bof": true,
+          "suffix_hits_eof": false
+        }
+      },
+      "identity_truth": "wrong_target",
+      "lineage_evidence": {
+        "duplicate_ordinals": {
+          "observed_target_duplicate_ordinal": 0,
+          "survivor_duplicate_ordinal": 1
+        },
+        "duplicate_spans": {
+          "duplicate_0": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "duplicate_1": {
+            "byte_end": 184,
+            "byte_start": 162,
+            "line_end": 13,
+            "line_start": 13
+          }
+        },
+        "reconstructed_current_document_sha256": "c9dfe514e84de3773fbd73fc48e7d9504c024a6852a601dc77d564b0611d4070",
+        "reconstruction_family": "D[0:a] + D[c:]",
+        "same-locator": true
+      },
+      "mechanical_proofs": {
+        "block_domain_start": {
+          "current": 0,
+          "observed": 0
+        },
+        "boundary_proofs": {
+          "current_span": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "observed_span": {
+            "byte_end": 50,
+            "byte_start": 28,
+            "line_end": 5,
+            "line_start": 5
+          },
+          "prefix_window_bytes": {
+            "current_sha256": "0a9a2fb9148aaf869d808dd28b12ba5f68a8c4ad4b962e95eb298789eb929697",
+            "observed_sha256": "0a9a2fb9148aaf869d808dd28b12ba5f68a8c4ad4b962e95eb298789eb929697"
+          },
+          "suffix_window_bytes": {
+            "current_sha256": "55ca7d15f6361da30fa7d3cc1582930fcf83cd4b2eb37dcd7b10a61f0d509975",
+            "observed_sha256": "55ca7d15f6361da30fa7d3cc1582930fcf83cd4b2eb37dcd7b10a61f0d509975"
+          },
+          "target_boundaries": {
+            "current": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            },
+            "observed": {
+              "byte_end": 50,
+              "byte_start": 28,
+              "line_end": 5,
+              "line_start": 5
+            }
+          }
+        },
+        "candidate_context_relations": {
+          "preceding_block": "equal",
+          "following_block": "equal",
+          "adjacent_blocks": "equal",
+          "byte_window_64": "equal"
+        },
+        "measured_relations": {
+          "candidate_context_relations": {
+            "preceding_block": "equal",
+            "following_block": "equal",
+            "adjacent_blocks": "equal",
+            "byte_window_64": "equal"
+          },
+          "current_exact_target_match_count": 1,
+          "document_bytes_relation": "different",
+          "live_descriptor_relation": "equal",
+          "observed_exact_target_match_count": 2,
+          "target_bytes_relation": "equal"
+        }
+      },
+      "reported_command_vectors": {
+        "current": [
+          "target/release/md",
+          "blocks",
+          "cases/block-byte-identical-bounded-neighborhood-duplicate-substitution/current.md",
+          "--json"
+        ],
+        "observed": [
+          "target/release/md",
+          "blocks",
+          "cases/block-byte-identical-bounded-neighborhood-duplicate-substitution/observed.md",
+          "--json"
+        ]
+      },
+      "schema_version": "position-bound-target-identity-probe.v1",
+      "target_bytes_evidence": {
+        "current": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        },
+        "observed": {
+          "byte_length": 22,
+          "sha256": "cd4ace300fd89ddbdaed1e0ead6f72609f03746563eb4c6eb24998c0133a6a63",
+          "utf8": "duplicate target bytes"
+        }
+      }
+    }
+  ],
+  "descriptor_schema_version": "position-bound-target-identity-descriptor.v1",
+  "manifest_path": "cases.json",
+  "manifest_schema_version": "position-bound-target-identity-manifest.v1",
+  "manifest_semantic_sha256": "6de55bce9445bfa9c1011b466579cbc380b7704ebb6f9b76d36fc524b0543584",
+  "md_binary_sha256": "058277f003303200618ae58c52cba86ce3d78ce403e5a50bb5bbca2460819cd8",
+  "protocol_sha256": "579dd0bc5eb8cfa2e65834fd976517af10c008c2006e3687e124c911b2b77445",
+  "protocol_version": "position-bound-target-identity-protocol.v1",
+  "report_schema_version": "position-bound-target-identity-report.v1",
+  "required_case_ids": [
+    "block-unchanged-lf-reread",
+    "block-unchanged-crlf-reread",
+    "block-unchanged-multibyte-utf8-reread",
+    "block-outside-context-unrelated-edit",
+    "block-preceding-neighbor-edit-inside-prefix-window",
+    "block-following-neighbor-edit-inside-suffix-window",
+    "block-forward-survivor-same-locator-duplicate-substitution",
+    "block-backward-survivor-same-locator-duplicate-substitution",
+    "block-cloned-adjacent-blocks-distinguishing-byte-window",
+    "block-byte-identical-bounded-neighborhood-duplicate-substitution"
+  ],
+  "schema_version": "position-bound-target-identity-probe.v1"
+}
