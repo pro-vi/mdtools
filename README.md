@@ -347,7 +347,7 @@ Current v3 result: `md` shows large directional weak-model lifts with clean no-m
 
 Supported claim: `md` helps weak/tool-poor agents read and target Markdown structure more reliably, mainly reducing wrong-target, format, and quoting failures; effects on multistep failures are mixed. Not supported: a certified broad benchmark headline, a frontier-native-tool edge, a >10k-line document edge, or a proven agent advantage from `--expect-etag`.
 
-See [`bench/RESULTS.md`](bench/RESULTS.md) for the generated tables, [`bench/V3.md`](bench/V3.md) for the protocol, and [`docs/decisions/2026-07-04-md-positioning-after-probes.md`](docs/decisions/2026-07-04-md-positioning-after-probes.md) for the positioning decision.
+See [`bench/RESULTS.md`](bench/RESULTS.md) for the generated tables, [`bench/V3.md`](bench/V3.md) for the protocol, and [`docs/decisions/2026-07-04-md-positioning-after-probes.md`](docs/decisions/2026-07-04-md-positioning-after-probes.md) for the positioning decision. The [`probes` portfolio](probes/README.md) records every probe's lifecycle, evidence verdict, product disposition, and reopening gate without rewriting its historical protocol or result artifacts.
 
 ### Corpus
 

@@ -1,11 +1,13 @@
 # md positioning after v3 and evidence probes
 
 **Date:** 2026-07-04
-**Status:** proposed decision pending owner acceptance
+**Status:** accepted 2026-07-21
 **Method:** bench v3 close-out + Plan B probes U1-field, U2 taxonomy, U3 long-document
-regime, U4 transactional multifile regime.
+regime, and U4 transactional multifile regime; later target-state, non-block,
+position-bound, and stateless-observability probe lineage.
 **Question:** after the honest v3 ruler and the remaining evidence probes, what may
-mdtools claim publicly, and does Plan C corpus growth activate?
+mdtools claim publicly, does Plan C corpus growth activate, and which target-identity
+research remains product-relevant?
 
 ## Answer
 
@@ -81,6 +83,28 @@ family-scoped benchmark headline as a product/marketing asset. If activated late
 must be gap-blind, spec-sampled, native-adversary gated, and preregistered before data
 collection.
 
+## Target Identity Research Disposition
+
+The target-identity probe line is closed as an active product-research line for now:
+
+- the target-state etag candidates all failed to graduate;
+- the same candidate family failed to graduate across non-block surfaces; and
+- every tested bounded positional-context candidate was demoted.
+
+Those results support the current re-query plus fail-closed ambiguity contract. They do
+not prove that durable target identity is impossible.
+
+The final stateless observability-limit protocol was specified but stopped before
+execution. Its closed-tuple hypothesis remains untested: none of the protocol's result
+labels was earned, and no production identity architecture is authorized from protocol
+authorship.
+
+Reopen target-identity research only when a concrete consumer demonstrates a failure
+that re-query and current ambiguity handling cannot resolve. Any stateful follow-up must
+first compare authority, lifecycle, corruption, portability, cleanup, and concurrency
+costs. The canonical lifecycle and evidence links live in
+[`probes/README.md`](../../probes/README.md).
+
 ## Product And Follow-Up Disposition
 
 - **MCP read probe:** stays shelved. U1-field already answered the adoption question:
@@ -106,16 +130,20 @@ Allowed:
   multistep targeting failures in weak/tool-poor models."
 - "Frontier native-tool agents do not show a robust md edge; long-document and
   transactional-drift probes are closed as benchmark claims."
+- "No tested stateless target-identity candidate graduated; re-query and fail-closed
+  ambiguity remain the current contract."
 
 Not allowed:
 
 - "md has a certified +28-31pp benchmark lift."
 - "md beats native Edit on large documents."
 - "etag safety is proven as an agent advantage."
+- "Durable target identity is impossible."
+- "The stateless observability limit was validated."
 - "Plan C is active."
 
-## Review Check
+## Owner Acceptance
 
-Before marking this accepted, the owner should confirm one positioning choice: whether
-to leave the public claim as scoped mechanism prose, or spend Plan C later to certify a
-new broad/family-scoped numeric headline.
+Accepted on 2026-07-21. The public claim remains scoped mechanism prose, Plan C stays
+parked, and the target-identity research line stays closed unless the reopening gate
+above is met.

@@ -31,6 +31,14 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 ## Design rules
 
 - **Markdown primitives only.** If it's in the GFM spec or comrak AST, it's our domain. Task IDs (`0.1`), phase headings, metadata patterns — consumer's job via `jq`.
+- **Probe lifecycle is portfolio-owned.** `probes/README.md` is the canonical mutable
+  status surface and `probes/TEMPLATE.md` is the starting contract. One evidence
+  question maps to one PR by default, with protocol, inspected source, and execution
+  kept as separate commits and authority transitions inside that PR. Never execute
+  newly authored probe code before source inspection. A protocol-only PR requires an
+  explicit owner decision or an independently reusable contract. Every probe PR
+  updates the portfolio before merge; stopped-before-execution work earns no result
+  label and authorizes no production architecture.
 - **Keep `collect` narrow.** `md collect` is frontmatter aggregation only: one row per
   discovered Markdown file, requested-field order preserved, missing metadata kept as
   blank/null cells, and partial per-file parse failures reported without turning it
