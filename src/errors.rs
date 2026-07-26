@@ -79,8 +79,9 @@ impl DiagnosticCode {
             Self::OccurrenceOutOfRange => "pass a 1-based occurrence within the reported match count",
             Self::BlockIndexOutOfRange => "re-run `md blocks --json <FILE>` for current block indices",
             Self::DuplicateHeadingMatch => "pass a 1-based occurrence flag to pick one match",
-            // Domain-NEUTRAL: invalid_selector is shared by section, table, and
-            // move-section. Each construction attaches a domain-specific hint;
+            // Domain-NEUTRAL: invalid_selector is shared by section, table,
+            // move-section, and move-block. Each construction attaches a
+            // domain-specific hint;
             // this fallback must not assume any one command's vocabulary.
             Self::InvalidSelector => {
                 "the selector is not valid for this command; re-check the accepted selector forms in the command's usage"
@@ -535,33 +536,17 @@ impl CommandError {
         .with_context(Self::etag_ctx(expected, actual))
     }
 
-    pub fn move_block_source_etag_mismatch(index: u32, expected: &str, actual: &str) -> Self {
-        Self::block_move_etag_mismatch_for(
-            "source block",
-            SelectorRole::Source,
-            index,
-            expected,
-            actual,
-        )
-    }
-
-    pub fn move_block_dest_etag_mismatch(index: u32, expected: &str, actual: &str) -> Self {
-        Self::block_move_etag_mismatch_for(
-            "destination block",
-            SelectorRole::Destination,
-            index,
-            expected,
-            actual,
-        )
-    }
-
-    fn block_move_etag_mismatch_for(
-        noun: &str,
+    pub fn move_block_etag_mismatch(
         role: SelectorRole,
         index: u32,
         expected: &str,
         actual: &str,
     ) -> Self {
+        let noun = match role {
+            SelectorRole::Source => "source block",
+            SelectorRole::Destination => "destination block",
+            SelectorRole::Target => "block",
+        };
         let mut ctx = Self::etag_ctx(expected, actual);
         ctx.role = Some(role.as_str());
         Self::new(
@@ -579,38 +564,22 @@ impl CommandError {
         .with_context(ctx)
     }
 
-    pub fn move_block_source_etag_ambiguous(index: u32, expected: &str, count: usize) -> Self {
-        Self::block_move_etag_ambiguous_for(
-            "source block",
-            SelectorRole::Source,
-            index,
-            expected,
-            count,
-        )
-    }
-
-    pub fn move_block_dest_etag_ambiguous(index: u32, expected: &str, count: usize) -> Self {
-        Self::block_move_etag_ambiguous_for(
-            "destination block",
-            SelectorRole::Destination,
-            index,
-            expected,
-            count,
-        )
-    }
-
-    fn block_move_etag_ambiguous_for(
-        noun: &str,
+    pub fn move_block_etag_ambiguous(
         role: SelectorRole,
         index: u32,
         expected: &str,
         count: usize,
     ) -> Self {
+        let noun = match role {
+            SelectorRole::Source => "source block",
+            SelectorRole::Destination => "destination block",
+            SelectorRole::Target => "block",
+        };
         Self::new(
             DiagnosticCode::EtagAmbiguous,
             format!(
                 "{} {} etag {:?} is ambiguous: {} same-content blocks share this fingerprint \
-                 (a content match cannot prove identity, and the guard will keep failing \
+                (a content match cannot prove identity, and the guard will keep failing \
                  while the duplicates are byte-identical)",
                 noun, index, expected, count
             ),

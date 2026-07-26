@@ -345,6 +345,34 @@ fn verify_etag(
     )
 }
 
+pub(crate) fn verify_expected_etag_unique_with<F, A, C>(
+    expect: Option<&str>,
+    current: &str,
+    candidates: C,
+    mismatch: F,
+    ambiguous: A,
+) -> Result<(), CommandError>
+where
+    F: FnOnce(&str, &str) -> CommandError,
+    A: FnOnce(&str, usize) -> CommandError,
+    C: FnOnce() -> Vec<String>,
+{
+    if let Some(expected) = expect {
+        let actual = output::content_etag(current.as_bytes());
+        if expected != actual {
+            return Err(mismatch(expected, &actual));
+        }
+        let duplicates = candidates()
+            .iter()
+            .filter(|etag| etag.as_str() == expected)
+            .count();
+        if duplicates > 1 {
+            return Err(ambiguous(expected, duplicates));
+        }
+    }
+    Ok(())
+}
+
 /// Verifies the expected etag and additionally fails closed when the matching fingerprint
 /// is NON-UNIQUE among the same-kind candidates in the document: identical
 /// duplicates share a content etag, and a content match cannot prove the
@@ -362,22 +390,9 @@ where
     F: FnOnce(&str, &str) -> CommandError,
     C: FnOnce() -> Vec<String>,
 {
-    if let Some(expected) = expect {
-        let actual = output::content_etag(current.as_bytes());
-        if expected != actual {
-            return Err(mismatch(expected, &actual));
-        }
-        let duplicates = candidates()
-            .iter()
-            .filter(|etag| etag.as_str() == expected)
-            .count();
-        if duplicates > 1 {
-            return Err(CommandError::etag_ambiguous(
-                noun, expected, duplicates, role,
-            ));
-        }
-    }
-    Ok(())
+    verify_expected_etag_unique_with(expect, current, candidates, mismatch, |expected, count| {
+        CommandError::etag_ambiguous(noun, expected, count, role)
+    })
 }
 
 /// Content etags of every top-level block, for block-guard ambiguity checks.

@@ -1,8 +1,9 @@
 use crate::cli::MoveBlockArgs;
-use crate::commands::replace::{all_block_etags, emit_mutation, MutationEmission};
-use crate::errors::{CommandError, DiagnosticCode};
+use crate::commands::replace::{
+    all_block_etags, emit_mutation, verify_expected_etag_unique_with, MutationEmission,
+};
+use crate::errors::{CommandError, DiagnosticCode, SelectorRole};
 use crate::model::*;
-use crate::output;
 use crate::parser::ParsedDocument;
 
 pub fn run_move_block(args: &MoveBlockArgs, json: bool) -> Result<(), CommandError> {
@@ -28,14 +29,14 @@ pub fn run_move_block(args: &MoveBlockArgs, json: bool) -> Result<(), CommandErr
     verify_expected_block_move_etag(
         args.expect_source_etag.as_deref(),
         args.source_index,
-        crate::errors::SelectorRole::Source,
+        SelectorRole::Source,
         &doc,
         doc.slice(&source_block.span),
     )?;
     verify_expected_block_move_etag(
         args.expect_dest_etag.as_deref(),
         dest_index,
-        crate::errors::SelectorRole::Destination,
+        SelectorRole::Destination,
         &doc,
         doc.slice(&dest_block.span),
     )?;
@@ -201,46 +202,15 @@ fn structural_closure_error() -> CommandError {
 fn verify_expected_block_move_etag(
     expect: Option<&str>,
     index: u32,
-    role: crate::errors::SelectorRole,
+    role: SelectorRole,
     doc: &ParsedDocument,
     current: &str,
 ) -> Result<(), CommandError> {
-    let Some(expected) = expect else {
-        return Ok(());
-    };
-
-    let actual = output::content_etag(current.as_bytes());
-    if expected != actual {
-        return Err(match role {
-            crate::errors::SelectorRole::Source => {
-                CommandError::move_block_source_etag_mismatch(index, expected, &actual)
-            }
-            crate::errors::SelectorRole::Destination => {
-                CommandError::move_block_dest_etag_mismatch(index, expected, &actual)
-            }
-            crate::errors::SelectorRole::Target => {
-                CommandError::etag_mismatch(index, expected, &actual)
-            }
-        });
-    }
-
-    let duplicates = all_block_etags(doc)
-        .iter()
-        .filter(|etag| etag.as_str() == expected)
-        .count();
-    if duplicates > 1 {
-        return Err(match role {
-            crate::errors::SelectorRole::Source => {
-                CommandError::move_block_source_etag_ambiguous(index, expected, duplicates)
-            }
-            crate::errors::SelectorRole::Destination => {
-                CommandError::move_block_dest_etag_ambiguous(index, expected, duplicates)
-            }
-            crate::errors::SelectorRole::Target => {
-                CommandError::etag_ambiguous("block", expected, duplicates, None)
-            }
-        });
-    }
-
-    Ok(())
+    verify_expected_etag_unique_with(
+        expect,
+        current,
+        || all_block_etags(doc),
+        |expected, actual| CommandError::move_block_etag_mismatch(role, index, expected, actual),
+        |expected, count| CommandError::move_block_etag_ambiguous(role, index, expected, count),
+    )
 }
