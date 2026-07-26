@@ -17,6 +17,13 @@ fn tempfile_bytes(bytes: &[u8]) -> String {
     path
 }
 
+#[cfg(unix)]
+fn inode(path: &str) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+
+    std::fs::metadata(path).unwrap().ino()
+}
+
 fn blocks_json(path: &str) -> serde_json::Value {
     let output = md().args(["blocks", path, "--json"]).output().unwrap();
     assert!(
@@ -181,6 +188,103 @@ fn move_block_adjacent_noops_report_nochange_and_skip_writes() {
 }
 
 #[test]
+fn move_block_duplicate_permutation_stdout_json_reports_nochange() {
+    let original = "# Doc\n\nsame\n\nsame\n\nsame\n\n## Tail\n";
+    let path = tempfile_str(original);
+    let output = md()
+        .args(["move-block", "3", &path, "--before", "1", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["command"], "MoveBlock");
+    assert_eq!(json["disposition"], "NoChange");
+    assert_eq!(json["changed"], false);
+    assert_eq!(json["guarded"], false);
+    assert_eq!(json["content"], original);
+    assert_eq!(
+        json["invariant"]["target_span_before"],
+        json["invariant"]["target_span_after"]
+    );
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_duplicate_permutation_in_place_json_skips_atomic_write() {
+    let original = "# Doc\n\nsame\n\nsame\n\nsame\n\n## Tail\n";
+    let path = tempfile_str(original);
+    let before_bytes = std::fs::read(&path).unwrap();
+    #[cfg(unix)]
+    let before_inode = inode(&path);
+
+    let output = md()
+        .args(["move-block", "3", &path, "--before", "1", "-i", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["command"], "MoveBlock");
+    assert_eq!(json["disposition"], "NoChange");
+    assert_eq!(json["changed"], false);
+    assert_eq!(json["guarded"], false);
+    assert!(json["content"].is_null());
+    assert_eq!(
+        json["invariant"]["target_span_before"],
+        json["invariant"]["target_span_after"]
+    );
+    let after_bytes = std::fs::read(&path).unwrap();
+    assert_eq!(after_bytes, before_bytes);
+    #[cfg(unix)]
+    assert_eq!(inode(&path), before_inode);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_crlf_code_fence_has_literal_expected_bytes() {
+    let path =
+        tempfile_str("# Doc\r\n\r\npara\r\n\r\n```rust\r\nfn main() {}\r\n```\r\n\r\n## Tail\r\n");
+    let output = md()
+        .args(["move-block", "2", &path, "--before", "1"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"# Doc\r\n\r\n```rust\r\nfn main() {}\r\n```\r\n\r\npara\r\n\r\n## Tail\r\n"
+    );
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_no_final_newline_has_literal_expected_bytes() {
+    let path = tempfile_str("# Doc\n\nalpha\n\nbeta");
+    let output = md()
+        .args(["move-block", "2", &path, "--before", "1"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"# Doc\n\nbeta\n\nalpha");
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn move_block_is_exact_permutation_across_required_edge_cases() {
     struct Case {
         label: &'static str,
@@ -199,13 +303,6 @@ fn move_block_is_exact_permutation_across_required_edge_cases() {
             mode: "after",
         },
         Case {
-            label: "crlf_code_fence",
-            source: "# Doc\r\n\r\npara\r\n\r\n```rust\r\nfn main() {}\r\n```\r\n\r\n## Tail\r\n",
-            source_index: 2,
-            dest_index: 1,
-            mode: "before",
-        },
-        Case {
             label: "mixed_list",
             source: "# Doc\r\n\r\n- one\n- two\n\r\nplain\n\n## Tail\r\n",
             source_index: 1,
@@ -215,13 +312,6 @@ fn move_block_is_exact_permutation_across_required_edge_cases() {
         Case {
             label: "indented_heading",
             source: "# Doc\n\nbody\n\n  ## Indented\n\ntext\n",
-            source_index: 2,
-            dest_index: 1,
-            mode: "before",
-        },
-        Case {
-            label: "no_final_newline",
-            source: "# Doc\n\nalpha\n\nbeta",
             source_index: 2,
             dest_index: 1,
             mode: "before",

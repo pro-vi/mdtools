@@ -47,17 +47,13 @@ pub fn run_move_block(args: &MoveBlockArgs, json: bool) -> Result<(), CommandErr
         dest_index,
         destination_mode,
     );
-    let changed = order
-        .iter()
-        .enumerate()
-        .any(|(position, &block_index)| position != block_index as usize);
+    let output_doc = reconstruct_document(&doc, &order);
+    let changed = output_doc != doc.source;
     let disposition = if changed {
         MutationDisposition::Replaced
     } else {
         MutationDisposition::NoChange
     };
-
-    let output_doc = reconstruct_document(&doc, &order);
     let span_after = verify_structural_closure(&doc, &output_doc, &order, args.source_index)?;
 
     let target = MutationTargetRef::BlockMove(BlockMoveTargetRef {
