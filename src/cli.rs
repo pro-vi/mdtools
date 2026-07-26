@@ -12,6 +12,12 @@ const MOVE_SECTION_SOURCE_EXPECT_ETAG_HELP: &str =
 const MOVE_SECTION_DEST_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the selected destination section's current etag (from `md section --json`)\n\
      differs — guards against moving relative to a stale destination after intervening edits.";
+const MOVE_BLOCK_SOURCE_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the selected source block's current etag (from `md blocks --json`)\n\
+     differs — guards against moving a stale source after intervening edits.";
+const MOVE_BLOCK_DEST_EXPECT_ETAG_HELP: &str =
+    "Fail-closed if the selected destination block's current etag (from `md blocks --json`)\n\
+     differs — guards against moving relative to a stale destination after intervening edits.";
 const TASK_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the task item's current etag (from `md tasks --json`)\n\
      differs — guards against a stale loc after intervening edits.";
@@ -50,6 +56,7 @@ pub enum Command {
     ReplaceBlock(ReplaceBlockArgs),
     InsertBlock(InsertBlockArgs),
     DeleteBlock(DeleteBlockArgs),
+    MoveBlock(MoveBlockArgs),
     Search(SearchArgs),
     Links(LinksArgs),
     Frontmatter(FrontmatterArgs),
@@ -189,6 +196,31 @@ pub struct DeleteBlockArgs {
     /// differs — guards against a stale index after intervening edits.
     #[arg(long = "expect-etag", value_name = "ETAG")]
     pub expect_etag: Option<String>,
+}
+
+#[derive(Args)]
+#[command(group = clap::ArgGroup::new("dest").required(true).args(["after", "before"]))]
+pub struct MoveBlockArgs {
+    pub source_index: u32,
+    pub file: PathBuf,
+    #[arg(long = "before", value_name = "DEST_INDEX")]
+    pub before: Option<u32>,
+    #[arg(long = "after", value_name = "DEST_INDEX")]
+    pub after: Option<u32>,
+    #[arg(long = "in-place", short = 'i')]
+    pub in_place: bool,
+    #[arg(
+        long = "expect-source-etag",
+        value_name = "ETAG",
+        long_help = MOVE_BLOCK_SOURCE_EXPECT_ETAG_HELP
+    )]
+    pub expect_source_etag: Option<String>,
+    #[arg(
+        long = "expect-dest-etag",
+        value_name = "ETAG",
+        long_help = MOVE_BLOCK_DEST_EXPECT_ETAG_HELP
+    )]
+    pub expect_dest_etag: Option<String>,
 }
 
 #[derive(Args)]

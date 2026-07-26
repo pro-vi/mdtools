@@ -45,6 +45,8 @@ class MdInventoryValidationTests(unittest.TestCase):
         self.assertEqual(inventory.display_commands, MD_DISPLAY_COMMANDS)
         self.assertEqual(inventory.query_commands, QUERY_MD_COMMANDS)
         self.assertEqual(inventory.mutation_commands, MUTATION_MD_COMMANDS)
+        self.assertIn("move-block", inventory.mutation_commands)
+        self.assertNotIn("move-block", inventory.query_commands)
         self.assertIn("move-section", inventory.mutation_commands)
         self.assertNotIn("move-section", inventory.query_commands)
 

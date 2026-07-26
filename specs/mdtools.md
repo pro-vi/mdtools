@@ -21,6 +21,7 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `src/commands/outline.rs` | `md outline` contract implementation |
 | `src/commands/blocks.rs` | `md blocks` and `md block` contract implementation |
 | `src/commands/section.rs` | `md section`, `md replace-section`, and `md delete-section` contract implementation |
+| `src/commands/move_block.rs` | `md move-block` contract implementation |
 | `src/commands/move_section.rs` | `md move-section` contract implementation |
 | `src/commands/replace.rs` | `md replace-block`, `md insert-block`, and `md delete-block` contract implementation |
 | `src/commands/search.rs` | `md search` contract implementation |
@@ -35,6 +36,7 @@ Phase 1 defines the command surface, document model, mutation contracts, and edg
 | `tests/cli_read.rs` | Integration tests for read-only commands |
 | `tests/cli_write.rs` | Integration tests for section and block mutation commands |
 | `tests/cli_multifile.rs` | Integration tests for multi-file read commands, including `md collect` |
+| `tests/cli_move_block.rs` | Integration tests for `md move-block` |
 | `tests/cli_move_section.rs` | Integration tests for `md move-section` |
 | `tests/cli_search.rs` | Integration tests for `md search` filters and match envelopes |
 | `tests/cli_contracts.rs` | Contract-level CLI tests, including `md collect` JSON/schema regressions |
@@ -441,6 +443,7 @@ pub enum MutationCommandKind { // [id:contract-mutation-command-kind]
     DeleteTableRow,
     InsertBlock,
     DeleteBlock,
+    MoveBlock,
     DeleteSection,
     MoveSection,
     SetFrontmatter,
@@ -508,13 +511,26 @@ pub enum MutationTargetRef { // [id:contract-mutation-target-ref]
     TaskItem(TaskItemTargetRef),
     TableRow(TableRowTargetRef),
     TableRowInsertion(TableRowInsertionTargetRef),
+    BlockMove(BlockMoveTargetRef),
     SectionMove(SectionMoveTargetRef),
+}
+
+pub enum BlockMoveMode { // [id:contract-block-move-mode]
+    Before,
+    After,
 }
 
 pub enum InsertMode { // [id:contract-insert-mode]
     AfterSibling,
     BeforeSibling,
     IntoAsChild,
+}
+
+pub struct BlockMoveTargetRef { // [id:contract-block-move-target-ref]
+    pub kind: MutationTargetKind,
+    pub source: BlockTargetRef,
+    pub destination: BlockTargetRef,
+    pub destination_mode: BlockMoveMode,
 }
 
 pub struct SectionMoveTargetRef { // [id:contract-section-move-target-ref]
@@ -859,13 +875,14 @@ CLI I/O rules:
 - Successful command output is written to stdout only. [id:rule-cli-stdout]
 - For single-diagnostic command failures, stderr is exactly one human-readable line derived from `Diagnostic.message`. The preserved `md collect` multi-file aggregation exception is documented at `[id:edge-collect-partial-failure]` and remains grounded by the existing assertions in `tests/cli_multifile.rs`. [id:rule-cli-stderr]
 - `frontmatter` emits `FrontmatterReadResult` JSON in both default and `--json` modes; full reads expose top-level `present` and whole-frontmatter-state `etag` metadata plus `frontmatter`, and `--field ... --json` emits `FrontmatterFieldProjectionResult` with the same top-level `present`/`etag` metadata and a `fields` map. Distinct projected field keys are emitted in requested order; repeated requests for the same key overwrite the earlier object entry rather than coexisting as duplicate JSON keys. [id:rule-cli-frontmatter-json]
-- `md replace-block`, `md replace-section`, `md replace-table-row`, `md insert-table-row`, `md delete-table-row`, `md insert-block`, and `md delete-block` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
+- `md replace-block`, `md replace-section`, `md replace-table-row`, `md insert-table-row`, `md delete-table-row`, `md insert-block`, `md delete-block`, `md move-block`, and `md move-section` accept `--in-place` / `-i` to write the successful mutation result back to the input path. [id:rule-cli-in-place]
 - `md set <KEY_PATH> <FILE> [VALUE] [--delete] [--in-place] [--expect-etag <ETAG>]` mutates a frontmatter mapping field selected by dot-path. It preserves the existing mapping-root requirement, creates YAML frontmatter when absent, and when `--expect-etag` is supplied compares the current whole-frontmatter exact-byte fingerprint from `md frontmatter --json` after closed parser-state projection but before semantic frontmatter parsing, mapping-root validation, any mutation, no-change shortcut, stdout emission, or in-place write; stale mismatches fail closed with `EtagMismatch` / exit code `Conflict`, while unguarded or current malformed frontmatter still fails as `FrontmatterParseFailed`. [id:rule-cli-set]
 - `md section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` maps directly to `SectionSelector`; without `--contains`, heading selectors stay exact, and an empty heading selector keeps that exact-default behavior. With `--contains`, empty heading selectors are invalid input. `SELECTOR=:preamble` maps to `SectionSelectorKind::Preamble`, ignores `--occurrence`, and rejects `--contains`. When `--ignore-case` is present, selector resolution uses Rust lowercase projection on both the heading plaintext and selector text, without normalization. [id:rule-cli-section-selector-map]
 - `md replace-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping, Rust lowercase ignore-case behavior without normalization, and empty-`--contains` rejection as `md section`. [id:rule-cli-replace-section-selector-map]
 - `md delete-section <SELECTOR> <FILE> [--contains] [--ignore-case] [--occurrence <N>]` uses the same exact-default selector mapping, Rust lowercase ignore-case behavior without normalization, and empty-`--contains` rejection as `md section`. [id:rule-cli-delete-section-selector-map]
+- `md move-block <SOURCE_INDEX> <FILE> (--before <DEST_INDEX> | --after <DEST_INDEX>) [--in-place] [--expect-source-etag <ETAG>] [--expect-dest-etag <ETAG>]` resolves both indices against the same pre-mutation `blocks` surface, rejects `SOURCE_INDEX == DEST_INDEX`, treats `move-block 1 --after 0` and `move-block 0 --before 1` as byte-exact no-op dispositions, reconstructs the document as a pure permutation of original top-level block byte slices through the original gap slots, and reparses before any successful payload or write so structural drift fails closed with `InvalidInput`. [id:rule-cli-move-block]
 - `md move-section <SOURCE> [FILE] (--after <DEST> | --before <DEST> | --into <DEST>) [--contains] [--ignore-case] [--source-occurrence <N>] [--dest-occurrence <N>] [--expect-source-etag <ETAG>] [--expect-dest-etag <ETAG>]` applies that same shared selector policy symmetrically to both source and destination selectors, including the same Rust lowercase ignore-case behavior without normalization and the empty-`--contains` rejection; `:preamble` remains reserved and rejects `--contains` anywhere in the move selector surface. [id:rule-cli-move-section-selector-map]
-- `md set`, `md replace-section`, `md delete-section`, `md replace-table-row`, `md insert-table-row`, `md delete-table-row`, and `md set-task` accept `--expect-etag <ETAG>`; `md move-section` accepts `--expect-source-etag <ETAG>` and `--expect-dest-etag <ETAG>`. When supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. For block, section, table, task, and move-section guards, a matching fingerprint that is non-unique among the current same-kind candidates also fails closed as `EtagAmbiguous` / exit code `Conflict`; table ambiguity is scoped to current top-level `BlockKind::Table` blocks and recovery runs through `md table --json` plus the intended `--index`, not section occurrence flags. For `set`, the guarded target is the whole frontmatter state rather than a field-local token, and unclosed frontmatter still fails before guard evaluation because no closed parser-owned state exists. [id:rule-cli-expect-etag]
+- `md set`, `md replace-section`, `md delete-section`, `md replace-table-row`, `md insert-table-row`, `md delete-table-row`, and `md set-task` accept `--expect-etag <ETAG>`; `md move-block` and `md move-section` accept `--expect-source-etag <ETAG>` and `--expect-dest-etag <ETAG>`. When supplied, the command compares the current exact-byte target fingerprint against the provided value and fails closed with `EtagMismatch` / exit code `Conflict` on mismatch. For block, section, table, task, `move-block`, and `move-section` guards, a matching fingerprint that is non-unique among the current same-kind candidates also fails closed as `EtagAmbiguous` / exit code `Conflict`; table ambiguity is scoped to current top-level `BlockKind::Table` blocks and recovery runs through `md table --json` plus the intended `--index`, not section occurrence flags. For `set`, the guarded target is the whole frontmatter state rather than a field-local token, and unclosed frontmatter still fails before guard evaluation because no closed parser-owned state exists. [id:rule-cli-expect-etag]
 - `md collect <FILE|DIR>... [-r] [--field <FIELD[,FIELD...]>...]` resolves one or more explicit file or directory operands into a file list, adds a required leading `path` column, and projects the requested frontmatter fields in the order supplied. Explicit file operands are included as given, regardless of extension; repeating `--field` appends columns, and comma-separated values within one flag are expanded left-to-right. [id:rule-cli-collect]
 - `md collect` accepts explicit file operands with any filename or extension. Directory operands discover both `.md` and `.markdown` files: without `-r`, only immediate Markdown files are included and sorted by filename; with `-r`, discovery recurses into subdirectories using the walk order from `src/multifile.rs`. After operand resolution, `md collect` sorts the final path list lexicographically before aggregation. [id:rule-cli-collect-discovery]
 - `md table <FILE> [--index <BLOCK_INDEX>] [--select <COLS>] [--where <FILTER>]` lists top-level tables when no selector flags are present, reads a selected table when `--index` is supplied, and on single-table documents allows `--select`/`--where` without `--index`. `--json` list mode returns `TablesResult`; `--json` read mode returns `TableReadResult`, and both surfaces expose the same whole-table `etag` for a given table block. [id:rule-cli-table]
@@ -1051,7 +1068,7 @@ Document model rules:
 - A section begins at a top-level heading block and ends immediately before the next top-level heading whose level is less than or equal to the current heading level. [id:sem-section-boundary]
 - For top-level ATX headings with 0-3 legal leading spaces, `BlockEntry.span`, `HeadingRef.span`, and headed `SectionEntry.span` begin at the physical line start and include that legal ATX indentation in their exact-byte ownership. [id:sem-indented-atx-span-ownership]
 - The internal ATX `marker_span` used for heading-marker-only edits still covers only the `#` run; the legal ATX indentation bytes remain owned by the enclosing block, heading, and section spans rather than by `marker_span`. [id:sem-indented-atx-marker-span]
-- `BlockEntry.etag`, `SectionEntry.etag`, `TableEntry.etag`, `TableReadResult.etag`, and `TaskEntry.etag` are content-addressed fingerprints of the target's exact resolved source bytes. For indented top-level ATX headings, that exact-byte surface starts at the physical line start and includes the legal ATX indentation owned by the projected span. These etags are optimistic-concurrency guards, not durable identity: guarded block, section, table, and task mutations reject a matching fingerprint when it is non-unique among the current same-kind candidates, so identical bytes do not authorize an ambiguous same-kind target. They do not establish durable identity across structural shifts, do not survive as stable identity tokens, and do not provide a cross-process compare-and-swap or lock; safe recovery is to re-read, re-resolve the intended target, and retry with a fresh etag. `md move-section` reuses the same section etags for its source/destination guards and preserves this same content-addressed limitation rather than introducing a durable move token. [id:sem-content-etag]
+- `BlockEntry.etag`, `SectionEntry.etag`, `TableEntry.etag`, `TableReadResult.etag`, and `TaskEntry.etag` are content-addressed fingerprints of the target's exact resolved source bytes. For indented top-level ATX headings, that exact-byte surface starts at the physical line start and includes the legal ATX indentation owned by the projected span. These etags are optimistic-concurrency guards, not durable identity: guarded block, section, table, and task mutations reject a matching fingerprint when it is non-unique among the current same-kind candidates, so identical bytes do not authorize an ambiguous same-kind target. They do not establish durable identity across structural shifts, do not survive as stable identity tokens, and do not provide a cross-process compare-and-swap or lock; safe recovery is to re-read, re-resolve the intended target, and retry with a fresh etag. `md move-block` reuses the same block etags for its source/destination guards, `md move-section` reuses the same section etags for its source/destination guards, and both preserve this same content-addressed limitation rather than introducing a durable move token. [id:sem-content-etag]
 - Heading text matching uses the plaintext rendering of top-level heading content only. ATX and setext headings are equivalent under this matching contract; exact text match is the default, `--contains` is a literal substring match over that plaintext, and `--ignore-case` composes with both modes using Rust lowercase projection on both sides. This contract does not add Unicode normalization, locale-specific casing, or full Unicode case folding, so composed and decomposed spellings still differ unless Rust lowercase alone makes them equal. [id:sem-heading-plaintext]
 - Headings that appear inside block quotes, lists, tables, footnotes, or code blocks do not create top-level sections. [id:sem-nested-heading-exclusion]
 - Multiple selector matches are a conflict unless the applicable occurrence flag is supplied; `--occurrence 1`, `--source-occurrence 1`, and `--dest-occurrence 1` select the first match in document order for their respective selector. [id:sem-duplicate-headings]

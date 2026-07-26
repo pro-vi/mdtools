@@ -535,6 +535,103 @@ impl CommandError {
         .with_context(Self::etag_ctx(expected, actual))
     }
 
+    pub fn move_block_source_etag_mismatch(index: u32, expected: &str, actual: &str) -> Self {
+        Self::block_move_etag_mismatch_for(
+            "source block",
+            SelectorRole::Source,
+            index,
+            expected,
+            actual,
+        )
+    }
+
+    pub fn move_block_dest_etag_mismatch(index: u32, expected: &str, actual: &str) -> Self {
+        Self::block_move_etag_mismatch_for(
+            "destination block",
+            SelectorRole::Destination,
+            index,
+            expected,
+            actual,
+        )
+    }
+
+    fn block_move_etag_mismatch_for(
+        noun: &str,
+        role: SelectorRole,
+        index: u32,
+        expected: &str,
+        actual: &str,
+    ) -> Self {
+        let mut ctx = Self::etag_ctx(expected, actual);
+        ctx.role = Some(role.as_str());
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "{} {} etag mismatch: expected {:?}, found {:?} \
+                 (block content changed since you read it; re-run `md blocks --json <FILE>` \
+                 for current block indices and etags, then retry)",
+                noun, index, expected, actual
+            ),
+        )
+        .with_hint(
+            "re-run `md blocks --json <FILE>` for current block indices and etags, then retry",
+        )
+        .with_context(ctx)
+    }
+
+    pub fn move_block_source_etag_ambiguous(index: u32, expected: &str, count: usize) -> Self {
+        Self::block_move_etag_ambiguous_for(
+            "source block",
+            SelectorRole::Source,
+            index,
+            expected,
+            count,
+        )
+    }
+
+    pub fn move_block_dest_etag_ambiguous(index: u32, expected: &str, count: usize) -> Self {
+        Self::block_move_etag_ambiguous_for(
+            "destination block",
+            SelectorRole::Destination,
+            index,
+            expected,
+            count,
+        )
+    }
+
+    fn block_move_etag_ambiguous_for(
+        noun: &str,
+        role: SelectorRole,
+        index: u32,
+        expected: &str,
+        count: usize,
+    ) -> Self {
+        Self::new(
+            DiagnosticCode::EtagAmbiguous,
+            format!(
+                "{} {} etag {:?} is ambiguous: {} same-content blocks share this fingerprint \
+                 (a content match cannot prove identity, and the guard will keep failing \
+                 while the duplicates are byte-identical)",
+                noun, index, expected, count
+            ),
+        )
+        .with_hint(format!(
+            "re-run `md blocks --json <FILE>`, confirm the intended {} index, then retry without {} or edit one duplicate first so the fingerprints diverge",
+            role.as_str(),
+            match role {
+                SelectorRole::Source => "--expect-source-etag",
+                SelectorRole::Destination => "--expect-dest-etag",
+                SelectorRole::Target => "--expect-etag",
+            }
+        ))
+        .with_context(ErrorContext {
+            role: Some(role.as_str()),
+            expected_etag: Some(expected.to_string()),
+            total_matches: Some(count),
+            ..ErrorContext::default()
+        })
+    }
+
     pub fn section_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {
         Self::section_etag_mismatch_for("section", SelectorRole::Target, selector, expected, actual)
     }

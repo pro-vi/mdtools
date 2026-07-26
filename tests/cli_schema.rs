@@ -100,7 +100,12 @@ fn expect_etag_listed_on_exactly_the_guarded_commands() {
     .map(|s| s.to_string())
     .collect();
     assert_eq!(with_flag, expected);
-    assert_eq!(dual, ["move-section".to_string()].into_iter().collect());
+    assert_eq!(
+        dual,
+        ["move-block".to_string(), "move-section".to_string()]
+            .into_iter()
+            .collect()
+    );
 }
 
 #[test]

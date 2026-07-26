@@ -407,6 +407,7 @@ pub enum MutationCommandKind {
     DeleteTableRow,
     InsertBlock,
     DeleteBlock,
+    MoveBlock,
     DeleteSection,
     SetFrontmatter,
     SetTask,
@@ -458,7 +459,15 @@ pub enum MutationTargetRef {
     TaskItem(TaskItemTargetRef),
     TableRow(TableRowTargetRef),
     TableRowInsertion(TableRowInsertionTargetRef),
+    BlockMove(BlockMoveTargetRef),
     SectionMove(SectionMoveTargetRef),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockMoveMode {
+    Before,
+    After,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -467,6 +476,14 @@ pub enum InsertMode {
     AfterSibling,
     BeforeSibling,
     IntoAsChild,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BlockMoveTargetRef {
+    pub kind: MutationTargetKind,
+    pub source: BlockTargetRef,
+    pub destination: BlockTargetRef,
+    pub destination_mode: BlockMoveMode,
 }
 
 #[derive(Clone, Debug, Serialize)]
