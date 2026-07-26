@@ -27,6 +27,7 @@ pub const CAPABILITIES: &[&str] = &[
     "etag_ambiguity_fail_closed",
     "guarded_flag",
     "atomic_write",
+    "move_block_dual_etag",
 ];
 
 /// query|mutation kind per command. The exhaustiveness test below fails when
@@ -37,7 +38,7 @@ fn kind_of(name: &str) -> Option<&'static str> {
         | "collect" | "stats" | "table" | "tasks" | "schema" => "query",
         "replace-section" | "delete-section" | "replace-block" | "insert-block"
         | "delete-block" | "set" | "replace-table-row" | "delete-table-row"
-        | "insert-table-row" | "set-task" | "move-section" => "mutation",
+        | "insert-table-row" | "set-task" | "move-block" | "move-section" => "mutation",
         _ => return None,
     })
 }

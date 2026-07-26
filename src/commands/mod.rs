@@ -2,6 +2,7 @@ pub mod blocks;
 pub mod collect;
 pub mod frontmatter;
 pub mod links;
+pub mod move_block;
 pub mod move_section;
 pub mod outline;
 pub mod replace;

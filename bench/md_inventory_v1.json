@@ -10,6 +10,7 @@
     { "name": "replace-block", "kind": "mutation" },
     { "name": "insert-block", "kind": "mutation" },
     { "name": "delete-block", "kind": "mutation" },
+    { "name": "move-block", "kind": "mutation" },
     { "name": "search", "kind": "query" },
     { "name": "links", "kind": "query" },
     { "name": "frontmatter", "kind": "query" },

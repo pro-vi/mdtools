@@ -79,8 +79,9 @@ impl DiagnosticCode {
             Self::OccurrenceOutOfRange => "pass a 1-based occurrence within the reported match count",
             Self::BlockIndexOutOfRange => "re-run `md blocks --json <FILE>` for current block indices",
             Self::DuplicateHeadingMatch => "pass a 1-based occurrence flag to pick one match",
-            // Domain-NEUTRAL: invalid_selector is shared by section, table, and
-            // move-section. Each construction attaches a domain-specific hint;
+            // Domain-NEUTRAL: invalid_selector is shared by section, table,
+            // move-section, and move-block. Each construction attaches a
+            // domain-specific hint;
             // this fallback must not assume any one command's vocabulary.
             Self::InvalidSelector => {
                 "the selector is not valid for this command; re-check the accepted selector forms in the command's usage"
@@ -533,6 +534,71 @@ impl CommandError {
         )
         .with_hint("re-run `md blocks --json` for current indices and etags, then retry")
         .with_context(Self::etag_ctx(expected, actual))
+    }
+
+    pub fn move_block_etag_mismatch(
+        role: SelectorRole,
+        index: u32,
+        expected: &str,
+        actual: &str,
+    ) -> Self {
+        let noun = match role {
+            SelectorRole::Source => "source block",
+            SelectorRole::Destination => "destination block",
+            SelectorRole::Target => "block",
+        };
+        let mut ctx = Self::etag_ctx(expected, actual);
+        ctx.role = Some(role.as_str());
+        Self::new(
+            DiagnosticCode::EtagMismatch,
+            format!(
+                "{} {} etag mismatch: expected {:?}, found {:?} \
+                 (block content changed since you read it; re-run `md blocks --json <FILE>` \
+                 for current block indices and etags, then retry)",
+                noun, index, expected, actual
+            ),
+        )
+        .with_hint(
+            "re-run `md blocks --json <FILE>` for current block indices and etags, then retry",
+        )
+        .with_context(ctx)
+    }
+
+    pub fn move_block_etag_ambiguous(
+        role: SelectorRole,
+        index: u32,
+        expected: &str,
+        count: usize,
+    ) -> Self {
+        let noun = match role {
+            SelectorRole::Source => "source block",
+            SelectorRole::Destination => "destination block",
+            SelectorRole::Target => "block",
+        };
+        Self::new(
+            DiagnosticCode::EtagAmbiguous,
+            format!(
+                "{} {} etag {:?} is ambiguous: {} same-content blocks share this fingerprint \
+                (a content match cannot prove identity, and the guard will keep failing \
+                 while the duplicates are byte-identical)",
+                noun, index, expected, count
+            ),
+        )
+        .with_hint(format!(
+            "re-run `md blocks --json <FILE>`, confirm the intended {} index, then retry without {} or edit one duplicate first so the fingerprints diverge",
+            role.as_str(),
+            match role {
+                SelectorRole::Source => "--expect-source-etag",
+                SelectorRole::Destination => "--expect-dest-etag",
+                SelectorRole::Target => "--expect-etag",
+            }
+        ))
+        .with_context(ErrorContext {
+            role: Some(role.as_str()),
+            expected_etag: Some(expected.to_string()),
+            total_matches: Some(count),
+            ..ErrorContext::default()
+        })
     }
 
     pub fn section_etag_mismatch(selector: &str, expected: &str, actual: &str) -> Self {

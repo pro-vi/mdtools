@@ -40,6 +40,7 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::ReplaceBlock(args) => commands::replace::run_replace_block(args, cli.json),
         Command::InsertBlock(args) => commands::replace::run_insert_block(args, cli.json),
         Command::DeleteBlock(args) => commands::replace::run_delete_block(args, cli.json),
+        Command::MoveBlock(args) => commands::move_block::run_move_block(args, cli.json),
         Command::Search(args) => commands::search::run(args, cli.json),
         Command::Links(args) => commands::links::run(args, cli.json),
         Command::Frontmatter(args) => commands::frontmatter::run(args, cli.json),
