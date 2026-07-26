@@ -234,6 +234,8 @@ TOOL REFERENCE — md (markdown-aware CLI):
   md insert-block <FILE> [-i] --before <INDEX> | --after <INDEX> | --at-start | --at-end [--from PATH]
                                        Insert a new block. Reads from --from or stdin.
   md delete-block <INDEX> <FILE> [-i]  Delete block at INDEX.
+  md move-block <SOURCE_INDEX> <FILE> --before <DEST_INDEX> | --after <DEST_INDEX> [-i] [--expect-source-etag ETAG] [--expect-dest-etag ETAG]
+                                       Move one existing top-level block by the same indices exposed by `md blocks`.
   md delete-section <SELECTOR> <FILE> [-i] [--json] [--ignore-case] [--occurrence N]
                                        Delete an entire section (heading + content).
   md move-section — move a heading and its entire section body as one atomic operation.
@@ -276,6 +278,7 @@ EXAMPLES:
   md replace-block 3 doc.md -i --from new.md  # replace block 3 from file
   md replace-section "Old" doc.md -i --from new.md
   md insert-block --after 2 doc.md -i --from new.md
+  md move-block 3 doc.md --before 1 -i       # move block 3 before block 1
   md move-section --into "API Reference" "Auth" doc.md -i   # make Auth a subsection of API Reference
   md move-section --after "Installation" "Setup" doc.md -i  # move Setup as sibling after Installation
   md delete-section "Notes" doc.md -i                       # delete entire section
@@ -319,6 +322,7 @@ TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
   md replace-block N F -i --from PATH              replace block N
   md replace-section "H" F -i --from PATH          replace a section's body
   md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH
+  md move-block SRC F -i --before DEST|--after DEST          atomic top-level block relocate
   md delete-block N F -i  /  md delete-section "H" F -i
   md move-section --into|--after|--before "DEST" "SRC" F -i   atomic heading+body relocate
 
@@ -367,6 +371,7 @@ TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-
   md replace-block N F -i --from PATH              replace block N
   md replace-section "H" F -i --from PATH          replace a section's body
   md insert-block F -i --after N|--before N|--at-start|--at-end --from PATH
+  md move-block SRC F -i --before DEST|--after DEST          atomic top-level block relocate
   md delete-block N F -i  /  md delete-section "H" F -i
   md move-section --into|--after|--before "DEST" "SRC" F -i   atomic heading+body relocate
 
