@@ -130,6 +130,25 @@ fn move_block_json_and_text_surfaces_report_typed_relocation() {
 }
 
 #[test]
+fn move_block_after_has_literal_expected_text() {
+    let path = tempfile_str("# Doc\n\nalpha\n\nbeta\n\ngamma\n");
+    let output = md()
+        .args(["move-block", "3", &path, "--after", "1"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "# Doc\n\nalpha\n\ngamma\n\nbeta\n"
+    );
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn move_block_adjacent_noops_report_nochange_and_skip_writes() {
     for (source_index, flag, dest_index) in [("1", "--after", "0"), ("0", "--before", "1")] {
         let path = tempfile_str("# Doc\n\nalpha\n\nbeta\n");
@@ -262,6 +281,69 @@ fn move_block_fails_closed_when_reparse_would_change_block_structure() {
         "{stderr}"
     );
     assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_rejects_same_source_and_destination_index_without_writing() {
+    let path = tempfile_str("# Doc\n\nalpha\n\nbeta\n");
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md()
+        .args(["move-block", "1", &path, "--before", "1", "-i"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(output.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_source_out_of_range_fails_without_writing() {
+    let path = tempfile_str("# Doc\n\nalpha\n\nbeta\n");
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md()
+        .args(["move-block", "9", &path, "--before", "1", "-i"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_destination_out_of_range_fails_without_writing() {
+    let path = tempfile_str("# Doc\n\nalpha\n\nbeta\n");
+    let before = std::fs::read_to_string(&path).unwrap();
+    let output = md()
+        .args(["move-block", "1", &path, "--before", "9", "-i"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn move_block_requires_exactly_one_destination_flag() {
+    let path = tempfile_str("# Doc\n\nalpha\n\nbeta\n");
+    let before = std::fs::read_to_string(&path).unwrap();
+
+    let missing_destination = md().args(["move-block", "1", &path]).output().unwrap();
+    assert_eq!(missing_destination.status.code(), Some(2));
+    assert!(missing_destination.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+
+    let conflicting_destination = md()
+        .args(["move-block", "1", &path, "--before", "0", "--after", "0"])
+        .output()
+        .unwrap();
+    assert_eq!(conflicting_destination.status.code(), Some(2));
+    assert!(conflicting_destination.stdout.is_empty());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+
     std::fs::remove_file(&path).ok();
 }
 

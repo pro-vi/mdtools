@@ -342,6 +342,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 | `replace-section` | Replace a section (stdin or `--from` file) |
 | `insert-block` | Insert a new block at a position |
 | `delete-block` | Remove a block |
+| `move-block` | Relocate one top-level block by source/destination indices |
 | `delete-section` | Remove an entire section |
 | `move-section` | Relocate a section (heading + body) with optional auto-leveling |
 

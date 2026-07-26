@@ -97,7 +97,7 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 ```bash
 cargo build --release
-cargo test                           # 337 integration tests
+cargo test                           # full Rust test suite
 cargo test --test cli_tasks          # task-specific tests
 python bench/harness.py --md-binary target/release/md  # validate 20 benchmark scorers
 ```
