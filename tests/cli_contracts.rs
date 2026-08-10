@@ -125,7 +125,7 @@ fn task_help_is_a_read_only_direct_lookup() {
 fn tasks_contains_help_is_read_only_and_task_specific() {
     let tasks_help = md_help("tasks");
     let normalized = tasks_help.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(normalized.contains("--contains <CONTAINS>"));
+    assert!(normalized.contains("--contains <TEXT>"));
     assert!(normalized.contains("Filter task summaries with a case-sensitive literal"));
 
     let set_task_help = md_help("set-task");
@@ -135,6 +135,23 @@ fn tasks_contains_help_is_read_only_and_task_specific() {
 #[test]
 fn task_read_documentation_and_inventory_stay_synchronized() {
     let readme = std::fs::read_to_string("README.md").unwrap();
+    assert!(readme.contains(
+        "md tasks progress.md --status pending --contains 'Schema' --json | jq '.results[0].tasks[0].loc'\n\"14.4\""
+    ));
+    assert!(readme.lines().any(|line| {
+        line.split_whitespace().collect::<Vec<_>>()
+            == [
+                "14.4",
+                "pending",
+                "0",
+                "70-73",
+                "Phase",
+                "1",
+                "1.5",
+                "Schema",
+                "initialization",
+            ]
+    }));
     assert!(readme.contains("md task 9.3 progress.md"));
     assert!(readme.contains("md set-task 9.3 progress.md -i --status done --expect-etag \"$etag\""));
 

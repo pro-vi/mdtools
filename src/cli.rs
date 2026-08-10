@@ -370,7 +370,7 @@ pub struct TasksArgs {
     #[arg(long)]
     pub status: Option<TaskStatus>,
     /// Filter task summaries with a case-sensitive literal `--contains <TEXT>` match.
-    #[arg(long = "contains")]
+    #[arg(long = "contains", value_name = "TEXT")]
     pub contains: Option<String>,
 }
 
