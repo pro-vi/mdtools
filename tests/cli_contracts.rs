@@ -152,6 +152,27 @@ fn task_read_documentation_and_inventory_stay_synchronized() {
     assert_eq!(inventory.commands[task_index + 1].name, "set-task");
 }
 
+#[test]
+fn task_read_result_normative_contract_stays_synchronized() {
+    let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
+    let task_struct_start = spec.find("pub struct TaskEntry {").unwrap();
+    let task_read_result_start = spec.find("pub struct TaskReadResult {").unwrap();
+    let code_fence_end =
+        spec[task_read_result_start..].find("```\n").unwrap() + task_read_result_start;
+
+    assert!(
+        spec[task_struct_start..code_fence_end].contains("pub struct TaskFileResult {")
+            && spec[task_struct_start..code_fence_end].contains("pub struct TasksResult {"),
+        "TaskReadResult must be defined beside the task result structures"
+    );
+
+    let task_read_result = &spec[task_read_result_start..code_fence_end];
+    assert_eq!(
+        task_read_result,
+        "pub struct TaskReadResult {\n    pub schema_version: &'static str,\n    pub file: String,\n    pub task: TaskEntry,\n    pub content: String,\n}\n"
+    );
+}
+
 // ============================================================
 // BYTE-SPAN ACCURACY: slice source at reported spans, verify content
 // ============================================================

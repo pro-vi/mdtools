@@ -420,6 +420,13 @@ pub struct TasksResult {
     pub schema_version: &'static str,
     pub results: Vec<TaskFileResult>,
 }
+
+pub struct TaskReadResult {
+    pub schema_version: &'static str,
+    pub file: String,
+    pub task: TaskEntry,
+    pub content: String,
+}
 ```
 
 ## Mutation Contracts [id:sec-contracts-write]
