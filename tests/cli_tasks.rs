@@ -313,6 +313,12 @@ fn tasks_contains_keeps_duplicate_order_and_composes_with_status() {
         .collect();
     assert_eq!(json_locs, ["0.0", "0.1", "0.2"]);
 
+    let lowercase = md_json(&["tasks", &path, "--contains", "release"]);
+    assert!(lowercase["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+
     let pending = md_json(&[
         "tasks",
         &path,
@@ -335,6 +341,30 @@ fn tasks_contains_keeps_duplicate_order_and_composes_with_status() {
         .map(|line| line.split('\t').next().unwrap())
         .collect();
     assert_eq!(text_locs, json_locs);
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn tasks_contains_empty_matches_unfiltered_order() {
+    let path = tmpfile("- [ ] First task\n- [x] Second task\n- [ ] Third task\n");
+
+    let unfiltered = md_json(&["tasks", &path]);
+    let unfiltered_locs: Vec<&str> = unfiltered["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|task| task["loc"].as_str().unwrap())
+        .collect();
+    let empty_filter = md_json(&["tasks", &path, "--contains", ""]);
+    let empty_filter_locs: Vec<&str> = empty_filter["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|task| task["loc"].as_str().unwrap())
+        .collect();
+
+    assert_eq!(empty_filter_locs, unfiltered_locs);
 
     std::fs::remove_file(&path).ok();
 }
@@ -933,6 +963,25 @@ fn set_task_inside_blockquote() {
 }
 
 // ── Multi-file error resilience ──────────────────────────────
+
+#[test]
+fn tasks_multifile_json_partial_results_without_filter() {
+    let good = tmpfile("- [ ] Task A\n- [x] Task B\n");
+    let bad = format!("/tmp/mdtools_tasks_nonexistent_{}.md", std::process::id());
+
+    let output = md()
+        .args(["tasks", &good, &bad, "--json"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let results = json["results"].as_array().unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["file"], good);
+    assert_eq!(results[0]["tasks"].as_array().unwrap().len(), 2);
+    assert_eq!(json["failures"].as_array().unwrap().len(), 1);
+    std::fs::remove_file(&good).ok();
+}
 
 #[test]
 fn tasks_multifile_json_partial_results() {
