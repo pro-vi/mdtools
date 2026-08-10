@@ -98,9 +98,9 @@ fn build_task_entry(
     doc: &ParsedDocument,
     block: &crate::parser::BlockInfo,
     item: &crate::parser::TaskItemInfo,
+    nearest_heading_pair: &(Option<String>, Option<u32>),
 ) -> TaskEntry {
-    let (nearest_heading, nearest_heading_block_index) =
-        find_nearest_heading(&doc.blocks, block.index);
+    let (nearest_heading, nearest_heading_block_index) = nearest_heading_pair;
     TaskEntry {
         loc: build_loc(block.index, &item.child_path),
         block_index: block.index,
@@ -108,8 +108,8 @@ fn build_task_entry(
         task_index: item.task_index,
         status: item.status,
         depth: item.depth,
-        nearest_heading,
-        nearest_heading_block_index,
+        nearest_heading: nearest_heading.clone(),
+        nearest_heading_block_index: *nearest_heading_block_index,
         span: item.span,
         etag: output::content_etag(doc.slice(&item.span).as_bytes()),
         summary_text: item.summary_text.clone(),
@@ -134,6 +134,7 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
             if block.task_items.is_empty() {
                 continue;
             }
+            let nearest_heading_pair = find_nearest_heading(&doc.blocks, block.index);
 
             for item in &block.task_items {
                 if let Some(ref filter) = args.status {
@@ -141,7 +142,7 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
                         continue;
                     }
                 }
-                tasks.push(build_task_entry(&doc, block, item));
+                tasks.push(build_task_entry(&doc, block, item, &nearest_heading_pair));
             }
         }
 
@@ -240,7 +241,8 @@ pub fn run_task(args: &TaskArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
     let (_, block, task_item) = resolve_task(&doc, &args.loc)?;
-    let task = build_task_entry(&doc, block, task_item);
+    let nearest_heading_pair = find_nearest_heading(&doc.blocks, block.index);
+    let task = build_task_entry(&doc, block, task_item, &nearest_heading_pair);
     let content = doc.slice(&task_item.span).to_string();
 
     if json {

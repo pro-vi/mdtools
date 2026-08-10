@@ -174,6 +174,31 @@ fn task_text_writes_exact_parser_owned_span_without_newline() {
 }
 
 #[test]
+fn task_text_matches_raw_crlf_and_utf8_spans() {
+    for (path, loc) in [(CRLF_TASKS, "1.1"), (NESTED, "8.0")] {
+        let tasks = md_json(&["tasks", path]);
+        let task = tasks["results"][0]["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|task| task["loc"] == loc)
+            .unwrap_or_else(|| panic!("task loc {loc} not found"));
+        let span = &task["span"];
+        let byte_start = span["byte_start"].as_u64().unwrap() as usize;
+        let byte_end = span["byte_end"].as_u64().unwrap() as usize;
+        let raw = std::fs::read(path).unwrap();
+
+        let output = md().args(["task", loc, path]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "task {loc} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, raw[byte_start..byte_end], "task {loc}");
+    }
+}
+
+#[test]
 fn task_preserves_crlf_and_utf8_content() {
     let crlf = md_json(&["task", "1.1", CRLF_TASKS]);
     assert!(crlf["content"].as_str().unwrap().contains("\r\n"));
