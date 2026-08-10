@@ -364,6 +364,14 @@ pub struct TaskEntry {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct TaskReadResult {
+    pub schema_version: String,
+    pub file: String,
+    pub task: TaskEntry,
+    pub content: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct TaskFileResult {
     pub file: String,
     pub tasks: Vec<TaskEntry>,

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::cli::{SetTaskArgs, TasksArgs};
+use crate::cli::{SetTaskArgs, TaskArgs, TasksArgs};
 use crate::commands::replace::verify_expected_etag_unique;
 use crate::errors::CommandError;
 use crate::model::*;
@@ -38,6 +38,48 @@ fn parse_loc(loc: &str) -> Result<ParsedLoc, CommandError> {
     })
 }
 
+fn resolve_task<'a>(
+    doc: &'a ParsedDocument,
+    loc: &str,
+) -> Result<
+    (
+        ParsedLoc,
+        &'a crate::parser::BlockInfo,
+        &'a crate::parser::TaskItemInfo,
+    ),
+    CommandError,
+> {
+    let parsed = parse_loc(loc)?;
+    let block = doc.blocks.get(parsed.block_index as usize).ok_or_else(|| {
+        CommandError::new(
+            crate::errors::DiagnosticCode::TaskItemNotFound,
+            format!(
+                "task item not found: {} (block index {} out of range; document has {} blocks)",
+                loc,
+                parsed.block_index,
+                doc.blocks.len()
+            ),
+        )
+        .with_hint("re-run `md tasks --json <FILE>` for current task locs")
+        .with_context(crate::errors::ErrorContext {
+            loc: Some(loc.to_string()),
+            ..crate::errors::ErrorContext::default()
+        })
+    })?;
+
+    if block.task_items.is_empty() {
+        return Err(CommandError::not_a_task_list(parsed.block_index));
+    }
+
+    let task_item = block
+        .task_items
+        .iter()
+        .find(|item| item.child_path == parsed.child_path)
+        .ok_or_else(|| CommandError::task_item_not_found(loc))?;
+
+    Ok((parsed, block, task_item))
+}
+
 // --- Nearest heading lookup ---
 
 fn find_nearest_heading(
@@ -50,6 +92,28 @@ fn find_nearest_heading(
         }
     }
     (None, None)
+}
+
+fn build_task_entry(
+    doc: &ParsedDocument,
+    block: &crate::parser::BlockInfo,
+    item: &crate::parser::TaskItemInfo,
+) -> TaskEntry {
+    let (nearest_heading, nearest_heading_block_index) =
+        find_nearest_heading(&doc.blocks, block.index);
+    TaskEntry {
+        loc: build_loc(block.index, &item.child_path),
+        block_index: block.index,
+        child_path: item.child_path.clone(),
+        task_index: item.task_index,
+        status: item.status,
+        depth: item.depth,
+        nearest_heading,
+        nearest_heading_block_index,
+        span: item.span,
+        etag: output::content_etag(doc.slice(&item.span).as_bytes()),
+        summary_text: item.summary_text.clone(),
+    }
 }
 
 // --- Read command ---
@@ -70,7 +134,6 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
             if block.task_items.is_empty() {
                 continue;
             }
-            let (heading_text, heading_idx) = find_nearest_heading(&doc.blocks, block.index);
 
             for item in &block.task_items {
                 if let Some(ref filter) = args.status {
@@ -78,19 +141,7 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
                         continue;
                     }
                 }
-                tasks.push(TaskEntry {
-                    loc: build_loc(block.index, &item.child_path),
-                    block_index: block.index,
-                    child_path: item.child_path.clone(),
-                    task_index: item.task_index,
-                    status: item.status,
-                    depth: item.depth,
-                    nearest_heading: heading_text.clone(),
-                    nearest_heading_block_index: heading_idx,
-                    span: item.span,
-                    etag: output::content_etag(doc.slice(&item.span).as_bytes()),
-                    summary_text: item.summary_text.clone(),
-                });
+                tasks.push(build_task_entry(&doc, block, item));
             }
         }
 
@@ -185,43 +236,32 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
     }
 }
 
+pub fn run_task(args: &TaskArgs, json: bool) -> Result<(), CommandError> {
+    let source = std::fs::read_to_string(&args.file)?;
+    let doc = ParsedDocument::parse(source)?;
+    let (_, block, task_item) = resolve_task(&doc, &args.loc)?;
+    let task = build_task_entry(&doc, block, task_item);
+    let content = doc.slice(&task_item.span).to_string();
+
+    if json {
+        output::write_json(&TaskReadResult {
+            schema_version: SCHEMA_VERSION.to_string(),
+            file: args.file.to_string_lossy().to_string(),
+            task,
+            content,
+        })?;
+    } else {
+        print!("{}", content);
+    }
+    Ok(())
+}
+
 // --- Mutation command ---
 
 pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> {
-    let parsed = parse_loc(&args.loc)?;
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
-
-    // Resolve block. An out-of-range block index inside a LOC is a stale/bad
-    // loc from the caller's perspective, not a block-tool error: report it in
-    // loc vocabulary so adapters route it to their bad-loc recovery.
-    let block = doc.blocks.get(parsed.block_index as usize).ok_or_else(|| {
-        CommandError::new(
-            crate::errors::DiagnosticCode::TaskItemNotFound,
-            format!(
-                "task item not found: {} (block index {} out of range; document has {} blocks)",
-                args.loc,
-                parsed.block_index,
-                doc.blocks.len()
-            ),
-        )
-        .with_hint("re-run `md tasks --json <FILE>` for current task locs")
-        .with_context(crate::errors::ErrorContext {
-            loc: Some(args.loc.clone()),
-            ..crate::errors::ErrorContext::default()
-        })
-    })?;
-
-    if block.task_items.is_empty() {
-        return Err(CommandError::not_a_task_list(parsed.block_index));
-    }
-
-    // Find the task item matching the child_path
-    let task_item = block
-        .task_items
-        .iter()
-        .find(|ti| ti.child_path == parsed.child_path)
-        .ok_or_else(|| CommandError::task_item_not_found(&args.loc))?;
+    let (parsed, _, task_item) = resolve_task(&doc, &args.loc)?;
 
     let line_endings = doc.line_ending_style();
     let task_span = task_item.span;

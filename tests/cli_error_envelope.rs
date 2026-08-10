@@ -161,6 +161,20 @@ fn invalid_task_loc_envelope_carries_loc() {
 }
 
 #[test]
+fn task_invalid_loc_envelope_carries_loc() {
+    let tmp = temp_file("- [ ] one\n");
+    let out = md()
+        .args(["task", "bogus", &tmp, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3));
+    let env = parse_envelope(&out.stdout);
+    assert_eq!(env["error"]["code"], "invalid_task_loc");
+    assert_eq!(env["error"]["context"]["loc"], "bogus");
+    std::fs::remove_file(&tmp).ok();
+}
+
+#[test]
 fn without_json_flag_stdout_stays_untouched_on_error() {
     let tmp = temp_file("# Only\n\nbody\n");
     let out = md().args(["section", "Missing", &tmp]).output().unwrap();
