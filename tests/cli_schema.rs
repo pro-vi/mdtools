@@ -83,6 +83,42 @@ fn task_is_listed_once_as_a_query_between_tasks_and_set_task() {
 }
 
 #[test]
+fn contains_is_listed_for_tasks_and_not_task_mutation_commands() {
+    let s = schema();
+    let tasks = s["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|command| command["name"] == "tasks")
+        .unwrap();
+    let contains = tasks["flags"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|flag| flag["long"] == "--contains")
+        .unwrap();
+    assert_eq!(contains["takes_value"], true);
+
+    let commands_with_contains: std::collections::BTreeSet<&str> = s["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|command| {
+            command["flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag["long"] == "--contains")
+        })
+        .map(|command| command["name"].as_str().unwrap())
+        .collect();
+
+    assert!(commands_with_contains.contains("tasks"));
+    assert!(!commands_with_contains.contains("task"));
+    assert!(!commands_with_contains.contains("set-task"));
+}
+
+#[test]
 fn expect_etag_listed_on_exactly_the_guarded_commands() {
     let s = schema();
     let mut with_flag = std::collections::BTreeSet::new();

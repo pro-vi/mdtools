@@ -141,6 +141,11 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
                         continue;
                     }
                 }
+                if let Some(ref filter) = args.contains {
+                    if !item.summary_text.contains(filter) {
+                        continue;
+                    }
+                }
                 tasks.push(build_task_entry(&doc, block, item, &nearest_heading_pair));
             }
         }
