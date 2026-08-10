@@ -164,15 +164,15 @@ $ md tasks progress.md
 $ md tasks progress.md --status pending --json | jq '.results[0].tasks[0].loc'
 "9.3"
 
-# Read a task etag for a guarded write
-$ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'
+# Read one task and its etag for a guarded write
+$ md task 9.3 progress.md --json | jq -r '.task.etag'
 2cce4d9d8f0df9f1
 
 # Mark a task done by structural location
 $ md set-task 9.3 progress.md -i --status done
 
 # Guard a task mutation against stale reads
-$ etag=$(md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag')
+$ etag=$(md task 9.3 progress.md --json | jq -r '.task.etag')
 $ md set-task 9.3 progress.md -i --status done --expect-etag "$etag"
 
 # Recursive across a vault
@@ -258,7 +258,7 @@ md set author.name doc.md "Jane" -i --expect-etag "$etag"
 
 ### JSON mode
 
-Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later expose optimistic-concurrency fingerprints: `blocks`, `section`, `table`, and `tasks` expose per-target `etag`s, while `frontmatter` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata on both full and field-projection JSON reads.
+Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later expose optimistic-concurrency fingerprints: `blocks`, `section`, `table`, `tasks`, and `task` expose per-target `etag`s, while `frontmatter` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata on both full and field-projection JSON reads.
 
 Guarded mutations fail closed: `--expect-etag` protects `set` and the single-target block/section/table/task mutation commands, while `move-block` and `move-section` accept `--expect-source-etag` and `--expect-dest-etag`. On `set`, the guard checks the current whole frontmatter state before any mutation, no-op shortcut, stdout emission, or in-place write. On `move-block` and `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, splice construction, stdout emission, or in-place write (and before releveling for `move-section`). Any mismatch exits with `etag_mismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. The fingerprints are content-addressed, and block/section/table/task guards additionally fail closed as `etag_ambiguous` (also exit 4) when identical same-kind targets share the expected fingerprint — a content match cannot prove which duplicate the guard was bound to. For table-row mutations, ambiguity is scoped to current top-level whole-table matches and recovery runs through `md table --json` plus the intended `--index`, not section occurrence flags. The guard is a *same-invocation drift check*, not a cross-process compare-and-swap or lock: md reads, checks the fingerprint, and splices+renames within one process, so a concurrent external writer between the read and the atomic rename is out of scope — serialize concurrent mutators externally. The safe pattern remains read, mutate, then re-query. All in-place writes are atomic (temp file + rename, permissions preserved): a killed process never leaves a truncated document, and error cleanup removes only a temp this process provably created.
 
@@ -282,7 +282,7 @@ Once arguments parse, failures under `--json` emit one structured error envelope
 Multi-file streaming commands emit per-file envelope rows plus one aggregate row; `tasks` and `collect` keep their single-object shape and carry `failures[]` instead. `md schema --json` dumps the whole surface — commands, flags, query/mutation kinds, diagnostic codes, capabilities, and `binary_version` — so adapters and tests derive from the binary instead of restating it.
 
 ```sh
-$ md tasks progress.md --json | jq -r '.results[0].tasks[] | select(.loc=="9.3") | .etag'
+$ md task 9.3 progress.md --json | jq -r '.task.etag'
 2cce4d9d8f0df9f1
 ```
 
@@ -337,6 +337,7 @@ Mutation commands emit a structured result describing what changed, what was pre
 | `delete-table-row` | Delete one GFM table data row by table block index + row index |
 | `set` | Set or delete frontmatter fields by dot-path |
 | `tasks` | List GFM checkbox items with loc, status, depth, heading |
+| `task` | Read one GFM checkbox item by structural loc |
 | `set-task` | Set checkbox state by structural loc |
 | `replace-block` | Replace a block (stdin or `--from` file) |
 | `replace-section` | Replace a section (stdin or `--from` file) |

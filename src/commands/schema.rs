@@ -35,7 +35,7 @@ pub const CAPABILITIES: &[&str] = &[
 fn kind_of(name: &str) -> Option<&'static str> {
     Some(match name {
         "outline" | "section" | "blocks" | "block" | "search" | "links" | "frontmatter"
-        | "collect" | "stats" | "table" | "tasks" | "schema" => "query",
+        | "collect" | "stats" | "table" | "tasks" | "task" | "schema" => "query",
         "replace-section" | "delete-section" | "replace-block" | "insert-block"
         | "delete-block" | "set" | "replace-table-row" | "delete-table-row"
         | "insert-table-row" | "set-task" | "move-block" | "move-section" => "mutation",

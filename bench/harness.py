@@ -266,6 +266,7 @@ TOOL REFERENCE — md (markdown-aware CLI):
                                        List GFM checkbox task items with loc, status, depth,
                                        nearest heading, and summary text. Loc is a dot-path
                                        like "9.0" or "14.4.0" for nested tasks.
+  md task <LOC> <FILE> [--json]       Read one GFM checkbox task item by loc.
   md set-task <LOC> <FILE> [-i] [--json] --status done|pending
                                        Set checkbox state of a task item by loc (from md tasks).
                                        1-byte mutation, idempotent. Use with -i to write in-place.
@@ -287,6 +288,7 @@ EXAMPLES:
   md collect vault/ -r --field title,status         # aggregate frontmatter rows as TSV/JSON with path-first headers
   md set release.channel doc.md stable -i            # set YAML/TOML frontmatter field
   md tasks doc.md --status pending --json           # list pending task items
+  md task 5.1 doc.md --json                         # read one task and its etag
   md set-task 5.1 doc.md -i --status done           # mark task at loc 5.1 as done
 """
 
@@ -312,6 +314,7 @@ TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
   md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
   md search Q F [--kind paragraph|heading|list|code-fence]
   md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md task LOC F                    read one GFM checkbox task item by loc
   md set-task LOC F -i --status done|pending      toggle a checkbox by loc
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
   md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs into one table
@@ -361,6 +364,7 @@ TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-
   md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
   md search Q F [--kind paragraph|heading|list|code-fence]
   md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md task LOC F                    read one GFM checkbox task item by loc
   md set-task LOC F -i --status done|pending      toggle a checkbox by loc
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
   md collect F... [-r] [--field FIELDS]            aggregate frontmatter rows across multiple files/dirs into one table

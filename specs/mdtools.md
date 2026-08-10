@@ -637,6 +637,7 @@ pub enum Command {
     Table(TableArgs),
     MoveSection(MoveSectionArgs),
     Tasks(TasksArgs),
+    Task(TaskArgs),
     SetTask(SetTaskArgs),
 }
 
@@ -859,6 +860,11 @@ pub struct TasksArgs {
     pub status: Option<TaskStatus>,
 }
 
+pub struct TaskArgs {
+    pub loc: String,
+    pub file: std::path::PathBuf,
+}
+
 pub struct SetTaskArgs {
     pub loc: String,
     pub file: std::path::PathBuf,
@@ -920,6 +926,7 @@ The default stdout contract is optimized for shell composition. `--json` switche
 | `md block` | Raw block bytes | `BlockReadResult` |
 | `md table` | Table list summary or TSV rows, depending on selection mode | `TablesResult` or `TableReadResult` |
 | `md tasks` | Canonical task listing grammar | `TasksResult` |
+| `md task` | Exact parser-owned task-item source bytes | `TaskReadResult` |
 | `md collect` | TSV table with a path-first header row | `CollectResult` |
 | `md replace-section` | Full updated document bytes | `MutationResult` |
 | `md replace-block` | Full updated document bytes | `MutationResult` |
@@ -1218,12 +1225,12 @@ class BenchResult:  # [id:bench-result]
 Mode inventory contracts:
 
 - `unix` mode inventory is exactly: `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, `tee`, `mv`, `cp`. The agent shell environment supports standard POSIX redirection operators (`>`, `>>`, `<`, `|`) and temp-file creation via `mktemp`. This enables `file_contents` tasks: agents may use `sed` or shell redirection to write modified files in place. [id:bench-unix-inventory]
-- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `move-block`, `move-section`, `replace-block`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
+- `mdtools` mode inventory is the current CLI surface implemented in this repo: `outline`, `blocks`, `block`, `section`, `replace-section`, `delete-section`, `move-block`, `move-section`, `replace-block`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `set`, `tasks`, `task`, `set-task`, plus `cat` and `jq`. [id:bench-mdtools-inventory]
 - `hybrid` mode inventory is the union of `mdtools` and `unix`. It exists to measure whether agents benefit from mixing structural Markdown commands with conventional shell text tools. [id:bench-hybrid-inventory]
 
 Implemented CLI inventory details:
 
-- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, and `tasks` are read operations and may emit structured JSON with `--json`.
+- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `tasks`, and `task` are read operations and may emit structured JSON with `--json`.
 - `replace-section`, `delete-section`, `move-block`, `move-section`, `replace-block`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
 - In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.

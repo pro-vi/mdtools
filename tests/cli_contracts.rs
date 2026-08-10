@@ -108,6 +108,17 @@ fn top_level_help_matches_shared_inventory() {
     assert_eq!(top_level_help_commands(&help), inventory_commands());
 }
 
+#[test]
+fn task_help_is_a_read_only_direct_lookup() {
+    let help = md_help("task");
+    assert!(help.contains("Usage: md task [OPTIONS] <LOC> <FILE>"));
+    assert!(help.contains("Task location from `md tasks` output"));
+    assert!(help.contains("--json"));
+    assert!(!help.contains("--status"));
+    assert!(!help.contains("--in-place"));
+    assert!(!help.contains("--expect-etag"));
+}
+
 // ============================================================
 // BYTE-SPAN ACCURACY: slice source at reported spans, verify content
 // ============================================================
