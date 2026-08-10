@@ -41,6 +41,7 @@ struct MdInventoryFile {
 #[derive(Deserialize)]
 struct MdInventoryEntry {
     name: String,
+    kind: String,
 }
 
 fn inventory_commands() -> Vec<String> {
@@ -106,6 +107,70 @@ fn top_level_help_matches_shared_inventory() {
     assert!(output.status.success(), "md --help failed");
     let help = String::from_utf8(output.stdout).unwrap();
     assert_eq!(top_level_help_commands(&help), inventory_commands());
+}
+
+#[test]
+fn task_help_is_a_read_only_direct_lookup() {
+    let help = md_help("task");
+    assert!(help.contains("Usage: md task [OPTIONS] <LOC> <FILE>"));
+    assert!(help.contains("Task location from `md tasks` output"));
+    assert!(help.contains("--json"));
+    assert!(!help.contains("--status"));
+    assert!(!help.contains("--in-place"));
+    assert!(!help.contains("--expect-etag"));
+}
+
+#[test]
+fn task_read_documentation_and_inventory_stay_synchronized() {
+    let readme = std::fs::read_to_string("README.md").unwrap();
+    assert!(readme.contains("md task 9.3 progress.md"));
+    assert!(readme.contains("md set-task 9.3 progress.md -i --status done --expect-etag \"$etag\""));
+
+    let claude = std::fs::read_to_string("CLAUDE.md").unwrap();
+    assert!(claude.contains("md task <LOC> <FILE>"));
+    assert!(claude.contains("md set-task --expect-etag"));
+
+    let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
+    assert!(spec.contains("md task <LOC> <FILE> --json"));
+    assert!(spec.contains("md set-task <LOC> <FILE> --expect-etag <ETAG>"));
+
+    let harness = std::fs::read_to_string("bench/harness.py").unwrap();
+    assert!(harness.contains("md task <LOC> <FILE> [--json]"));
+    assert!(harness.contains("--expect-etag from md task to guard against stale reads"));
+    assert!(harness.contains("md task LOC F --json"));
+
+    let inventory: MdInventoryFile =
+        serde_json::from_str(&std::fs::read_to_string("bench/md_inventory_v1.json").unwrap())
+            .unwrap();
+    let task_index = inventory
+        .commands
+        .iter()
+        .position(|command| command.name == "task")
+        .unwrap();
+    assert_eq!(inventory.commands[task_index].kind, "query");
+    assert_eq!(inventory.commands[task_index - 1].name, "tasks");
+    assert_eq!(inventory.commands[task_index + 1].name, "set-task");
+}
+
+#[test]
+fn task_read_result_normative_contract_stays_synchronized() {
+    let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
+    let task_struct_start = spec.find("pub struct TaskEntry {").unwrap();
+    let task_read_result_start = spec.find("pub struct TaskReadResult {").unwrap();
+    let code_fence_end =
+        spec[task_read_result_start..].find("```\n").unwrap() + task_read_result_start;
+
+    assert!(
+        spec[task_struct_start..code_fence_end].contains("pub struct TaskFileResult {")
+            && spec[task_struct_start..code_fence_end].contains("pub struct TasksResult {"),
+        "TaskReadResult must be defined beside the task result structures"
+    );
+
+    let task_read_result = &spec[task_read_result_start..code_fence_end];
+    assert_eq!(
+        task_read_result,
+        "pub struct TaskReadResult {\n    pub schema_version: &'static str,\n    pub file: String,\n    pub task: TaskEntry,\n    pub content: String,\n}\n"
+    );
 }
 
 // ============================================================

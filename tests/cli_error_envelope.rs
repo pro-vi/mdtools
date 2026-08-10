@@ -23,6 +23,15 @@ fn temp_file(content: &str) -> String {
     path
 }
 
+fn missing_file() -> String {
+    let id = TMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    format!(
+        "/tmp/mdtools_envelope_missing_{}_{}.md",
+        std::process::id(),
+        id
+    )
+}
+
 const DUP_DOC: &str =
     "# Alpha\n\nbody a\n\n## Setup\n\none\n\n## Setup\n\ntwo\n\n## Setup\n\nthree\n";
 
@@ -147,16 +156,31 @@ fn etag_mismatch_envelope_carries_expected_and_found() {
 
 #[test]
 fn invalid_task_loc_envelope_carries_loc() {
-    let tmp = temp_file("- [ ] one\n");
+    let missing = missing_file();
     let out = md()
         .args([
-            "set-task", "bogus", &tmp, "-i", "--status", "done", "--json",
+            "set-task", "bogus", &missing, "-i", "--status", "done", "--json",
         ])
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(3));
     let env = parse_envelope(&out.stdout);
     assert_eq!(env["error"]["code"], "invalid_task_loc");
+    assert_ne!(env["error"]["code"], "io_open_failed");
+    assert_eq!(env["error"]["context"]["loc"], "bogus");
+}
+
+#[test]
+fn task_invalid_loc_envelope_carries_loc() {
+    let missing = missing_file();
+    let out = md()
+        .args(["task", "bogus", &missing, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3));
+    let env = parse_envelope(&out.stdout);
+    assert_eq!(env["error"]["code"], "invalid_task_loc");
+    assert_ne!(env["error"]["code"], "io_open_failed");
     assert_eq!(env["error"]["context"]["loc"], "bogus");
 }
 

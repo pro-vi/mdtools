@@ -68,6 +68,7 @@ pub enum Command {
     InsertTableRow(InsertTableRowArgs),
     DeleteTableRow(DeleteTableRowArgs),
     Tasks(TasksArgs),
+    Task(TaskArgs),
     SetTask(SetTaskArgs),
     MoveSection(MoveSectionArgs),
     /// Dump the CLI surface for adapters and parity tests
@@ -368,6 +369,13 @@ pub struct TasksArgs {
     pub recursive: bool,
     #[arg(long)]
     pub status: Option<TaskStatus>,
+}
+
+#[derive(Args)]
+pub struct TaskArgs {
+    /// Task location from `md tasks` output (e.g., "9.0", "14.4.0")
+    pub loc: String,
+    pub file: PathBuf,
 }
 
 #[derive(Args)]

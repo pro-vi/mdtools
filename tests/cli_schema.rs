@@ -66,6 +66,23 @@ fn schema_matches_bench_inventory() {
 }
 
 #[test]
+fn task_is_listed_once_as_a_query_between_tasks_and_set_task() {
+    let s = schema();
+    let commands = s["commands"].as_array().unwrap();
+    let task_indices: Vec<usize> = commands
+        .iter()
+        .enumerate()
+        .filter_map(|(index, command)| (command["name"] == "task").then_some(index))
+        .collect();
+
+    assert_eq!(task_indices.len(), 1, "task must appear exactly once");
+    let task_index = task_indices[0];
+    assert_eq!(commands[task_index]["kind"], "query");
+    assert_eq!(commands[task_index - 1]["name"], "tasks");
+    assert_eq!(commands[task_index + 1]["name"], "set-task");
+}
+
+#[test]
 fn expect_etag_listed_on_exactly_the_guarded_commands() {
     let s = schema();
     let mut with_flag = std::collections::BTreeSet::new();

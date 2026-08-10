@@ -45,6 +45,15 @@ fn task_etag(path: &str, loc: &str) -> String {
         .to_string()
 }
 
+fn content_etag(bytes: &[u8]) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &byte in bytes {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
+}
+
 fn tmpfile(content: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static CTR: AtomicU64 = AtomicU64::new(0);
@@ -88,6 +97,144 @@ fn tasks_entry_has_all_fields() {
     assert!(task["summary_text"].is_string());
     assert!(task["nearest_heading"].is_string());
     assert!(task["nearest_heading_block_index"].is_u64());
+}
+
+// ── Direct task read ─────────────────────────────────────────
+
+#[test]
+fn task_json_matches_tasks_entry_and_exact_content() {
+    let before = std::fs::read(NESTED).unwrap();
+    let tasks = md_json(&["tasks", NESTED]);
+    let expected_task = tasks["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|task| task["loc"] == "2.0")
+        .unwrap()
+        .clone();
+    let task = md_json(&["task", "2.0", NESTED]);
+
+    assert_eq!(task["schema_version"], "mdtools.v1");
+    assert_eq!(task["file"], NESTED);
+    assert_eq!(task["task"], expected_task);
+
+    let source = std::fs::read_to_string(NESTED).unwrap();
+    let span = &task["task"]["span"];
+    let start = span["byte_start"].as_u64().unwrap() as usize;
+    let end = span["byte_end"].as_u64().unwrap() as usize;
+    assert_eq!(task["content"], &source[start..end]);
+    assert_eq!(
+        task["task"]["etag"],
+        content_etag(task["content"].as_str().unwrap().as_bytes())
+    );
+    assert!(task["content"]
+        .as_str()
+        .unwrap()
+        .contains("Research options"));
+    assert!(task["content"]
+        .as_str()
+        .unwrap()
+        .contains("Write implementation"));
+    assert_eq!(std::fs::read(NESTED).unwrap(), before);
+}
+
+#[test]
+fn task_reads_flat_task() {
+    let tasks = md_json(&["tasks", NESTED]);
+    let expected_task = tasks["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|task| task["loc"] == "2.2")
+        .unwrap()
+        .clone();
+    let task = md_json(&["task", "2.2", NESTED]);
+
+    assert_eq!(task["task"], expected_task);
+    assert_eq!(
+        task["task"]["summary_text"],
+        "1.3 Simple task (no children)"
+    );
+    assert!(task["content"]
+        .as_str()
+        .unwrap()
+        .starts_with("- [x] 1.3 Simple task (no children)"));
+}
+
+#[test]
+fn task_text_writes_exact_parser_owned_span_without_newline() {
+    let expected = md_json(&["task", "2.1.0.0", NESTED]);
+    let output = md().args(["task", "2.1.0.0", NESTED]).output().unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(
+        output.stdout,
+        expected["content"].as_str().unwrap().as_bytes()
+    );
+}
+
+#[test]
+fn task_text_matches_raw_crlf_and_utf8_spans() {
+    for (path, loc) in [(CRLF_TASKS, "1.1"), (NESTED, "8.0")] {
+        let tasks = md_json(&["tasks", path]);
+        let task = tasks["results"][0]["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|task| task["loc"] == loc)
+            .unwrap_or_else(|| panic!("task loc {loc} not found"));
+        let span = &task["span"];
+        let byte_start = span["byte_start"].as_u64().unwrap() as usize;
+        let byte_end = span["byte_end"].as_u64().unwrap() as usize;
+        let raw = std::fs::read(path).unwrap();
+
+        let output = md().args(["task", loc, path]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "task {loc} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, raw[byte_start..byte_end], "task {loc}");
+    }
+}
+
+#[test]
+fn task_preserves_crlf_and_utf8_content() {
+    let crlf = md_json(&["task", "1.1", CRLF_TASKS]);
+    assert!(crlf["content"].as_str().unwrap().contains("\r\n"));
+
+    let tasks = md_json(&["tasks", NESTED]);
+    let unicode_loc = tasks["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|task| task["summary_text"].as_str().unwrap().contains("müłtîbÿté"))
+        .unwrap()["loc"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let unicode = md_json(&["task", &unicode_loc, NESTED]);
+    assert!(unicode["content"].as_str().unwrap().contains("müłtîbÿté"));
+}
+
+#[test]
+fn task_uses_existing_loc_errors() {
+    let cases = [
+        ("bad", Some(3), "invalid task loc"),
+        ("999.0", Some(1), "out of range"),
+        ("9.99", Some(1), "task item not found"),
+        ("0.0", Some(1), "has no task items"),
+    ];
+
+    for (loc, status, expected_stderr) in cases {
+        let output = md().args(["task", loc, PROGRESS]).output().unwrap();
+        assert_eq!(output.status.code(), status, "loc {loc}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(expected_stderr),
+            "loc {loc} stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }
 
 // ── Status filter ────────────────────────────────────────────

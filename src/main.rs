@@ -52,6 +52,7 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::InsertTableRow(args) => commands::table::run_insert_table_row(args, cli.json),
         Command::DeleteTableRow(args) => commands::table::run_delete_table_row(args, cli.json),
         Command::Tasks(args) => commands::tasks::run_tasks(args, cli.json),
+        Command::Task(args) => commands::tasks::run_task(args, cli.json),
         Command::SetTask(args) => commands::tasks::run_set_task(args, cli.json),
         Command::MoveSection(args) => commands::move_section::run_move_section(args, cli.json),
         Command::Schema(args) => commands::schema::run(args, cli.json),
