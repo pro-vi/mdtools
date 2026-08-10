@@ -41,15 +41,14 @@ fn parse_loc(loc: &str) -> Result<ParsedLoc, CommandError> {
 fn resolve_task<'a>(
     doc: &'a ParsedDocument,
     loc: &str,
+    parsed: &ParsedLoc,
 ) -> Result<
     (
-        ParsedLoc,
         &'a crate::parser::BlockInfo,
         &'a crate::parser::TaskItemInfo,
     ),
     CommandError,
 > {
-    let parsed = parse_loc(loc)?;
     let block = doc.blocks.get(parsed.block_index as usize).ok_or_else(|| {
         CommandError::new(
             crate::errors::DiagnosticCode::TaskItemNotFound,
@@ -77,7 +76,7 @@ fn resolve_task<'a>(
         .find(|item| item.child_path == parsed.child_path)
         .ok_or_else(|| CommandError::task_item_not_found(loc))?;
 
-    Ok((parsed, block, task_item))
+    Ok((block, task_item))
 }
 
 // --- Nearest heading lookup ---
@@ -238,9 +237,10 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
 }
 
 pub fn run_task(args: &TaskArgs, json: bool) -> Result<(), CommandError> {
+    let parsed = parse_loc(&args.loc)?;
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
-    let (_, block, task_item) = resolve_task(&doc, &args.loc)?;
+    let (block, task_item) = resolve_task(&doc, &args.loc, &parsed)?;
     let nearest_heading_pair = find_nearest_heading(&doc.blocks, block.index);
     let task = build_task_entry(&doc, block, task_item, &nearest_heading_pair);
     let content = doc.slice(&task_item.span).to_string();
@@ -261,9 +261,10 @@ pub fn run_task(args: &TaskArgs, json: bool) -> Result<(), CommandError> {
 // --- Mutation command ---
 
 pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> {
+    let parsed = parse_loc(&args.loc)?;
     let source = std::fs::read_to_string(&args.file)?;
     let doc = ParsedDocument::parse(source)?;
-    let (parsed, _, task_item) = resolve_task(&doc, &args.loc)?;
+    let (_, task_item) = resolve_task(&doc, &args.loc, &parsed)?;
 
     let line_endings = doc.line_ending_style();
     let task_span = task_item.span;
