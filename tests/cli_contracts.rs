@@ -116,8 +116,20 @@ fn task_help_is_a_read_only_direct_lookup() {
     assert!(help.contains("Task location from `md tasks` output"));
     assert!(help.contains("--json"));
     assert!(!help.contains("--status"));
+    assert!(!help.contains("--contains"));
     assert!(!help.contains("--in-place"));
     assert!(!help.contains("--expect-etag"));
+}
+
+#[test]
+fn tasks_contains_help_is_read_only_and_task_specific() {
+    let tasks_help = md_help("tasks");
+    let normalized = tasks_help.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(normalized.contains("--contains <CONTAINS>"));
+    assert!(normalized.contains("Filter task summaries with a case-sensitive literal"));
+
+    let set_task_help = md_help("set-task");
+    assert!(!set_task_help.contains("--contains"));
 }
 
 #[test]

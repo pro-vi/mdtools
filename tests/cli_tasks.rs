@@ -63,6 +63,15 @@ fn tmpfile(content: &str) -> String {
     p
 }
 
+fn tmpdir() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static CTR: AtomicU64 = AtomicU64::new(0);
+    let id = CTR.fetch_add(1, Ordering::SeqCst);
+    let p = format!("/tmp/mdtools_tasks_dir_{}_{}", std::process::id(), id);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
 const PROGRESS: &str = "tests/fixtures/progress_example.md";
 const NESTED: &str = "tests/fixtures/nested_tasks.md";
 const CRLF_TASKS: &str = "tests/fixtures/crlf_tasks.md";
@@ -257,6 +266,127 @@ fn tasks_status_done_filter() {
     for t in tasks {
         assert_eq!(t["status"], "done");
     }
+}
+
+// ── Contains filter ──────────────────────────────────────────
+
+#[test]
+fn tasks_contains_matches_parser_plaintext_case_sensitively_with_utf8() {
+    let path = tmpfile(
+        "- [ ] **Résumé**: [müłtîbÿté task](https://example.test/raw-only)\n\
+         - [ ] [visible task](https://example.test/raw-only)\n",
+    );
+
+    let unicode = md_json(&["tasks", &path, "--contains", "müłtîbÿté"]);
+    let tasks = unicode["results"][0]["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0]["summary_text"], "Résumé: müłtîbÿté task");
+
+    let wrong_case = md_json(&["tasks", &path, "--contains", "MÜŁTÎBŸTÉ"]);
+    assert!(wrong_case["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+
+    let raw_markdown = md_json(&["tasks", &path, "--contains", "raw-only"]);
+    assert!(raw_markdown["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn tasks_contains_keeps_duplicate_order_and_composes_with_status() {
+    let path = tmpfile(
+        "- [ ] Release checklist\n\
+         - [x] Release checklist\n\
+         - [ ] Release checklist\n",
+    );
+    let json = md_json(&["tasks", &path, "--contains", "Release"]);
+    let json_locs: Vec<&str> = json["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|task| task["loc"].as_str().unwrap())
+        .collect();
+    assert_eq!(json_locs, ["0.0", "0.1", "0.2"]);
+
+    let pending = md_json(&[
+        "tasks",
+        &path,
+        "--contains",
+        "Release",
+        "--status",
+        "pending",
+    ]);
+    let pending_locs: Vec<&str> = pending["results"][0]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|task| task["loc"].as_str().unwrap())
+        .collect();
+    assert_eq!(pending_locs, ["0.0", "0.2"]);
+
+    let text = md_text(&["tasks", &path, "--contains", "Release"]);
+    let text_locs: Vec<&str> = text
+        .lines()
+        .map(|line| line.split('\t').next().unwrap())
+        .collect();
+    assert_eq!(text_locs, json_locs);
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn tasks_contains_zero_matches_keeps_json_file_result_and_no_text_rows() {
+    let path = tmpfile("- [ ] Find the release notes\n");
+    let json = md_json(&["tasks", &path, "--contains", "absent"]);
+    assert_eq!(json["results"].as_array().unwrap().len(), 1);
+    assert_eq!(json["results"][0]["file"], path);
+    assert!(json["results"][0]["tasks"].as_array().unwrap().is_empty());
+    assert_eq!(md_text(&["tasks", &path, "--contains", "absent"]), "");
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn tasks_contains_preserves_directory_and_recursive_discovery_in_text_and_json() {
+    let dir = tmpdir();
+    let root = format!("{dir}/a.md");
+    let nested_dir = format!("{dir}/nested");
+    let nested = format!("{nested_dir}/b.md");
+    std::fs::create_dir_all(&nested_dir).unwrap();
+    std::fs::write(&root, "- [ ] root needle\n").unwrap();
+    std::fs::write(&nested, "- [ ] nested needle\n").unwrap();
+
+    let directory_json = md_json(&["tasks", &dir, "--contains", "needle"]);
+    assert_eq!(directory_json["results"].as_array().unwrap().len(), 1);
+    assert_eq!(directory_json["results"][0]["file"], root);
+    assert_eq!(
+        directory_json["results"][0]["tasks"][0]["summary_text"],
+        "root needle"
+    );
+    let directory_text = md_text(&["tasks", &dir, "--contains", "needle"]);
+    assert!(directory_text.starts_with(&format!("{root}:\t")));
+
+    let recursive_json = md_json(&["tasks", &dir, "-r", "--contains", "needle"]);
+    let recursive_files: Vec<&str> = recursive_json["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|result| result["file"].as_str().unwrap())
+        .collect();
+    assert_eq!(recursive_files, [root.as_str(), nested.as_str()]);
+    let recursive_text = md_text(&["tasks", &dir, "-r", "--contains", "needle"]);
+    let text_files: Vec<&str> = recursive_text
+        .lines()
+        .map(|line| line.split(":\t").next().unwrap())
+        .collect();
+    assert_eq!(text_files, recursive_files);
+
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 // ── Task counts ──────────────────────────────────────────────
@@ -811,19 +941,18 @@ fn tasks_multifile_json_partial_results() {
     let bad = format!("/tmp/mdtools_tasks_nonexistent_{}.md", std::process::id());
 
     let output = md()
-        .args(["tasks", &good, &bad, "--json"])
+        .args(["tasks", &good, &bad, "--contains", "Task B", "--json"])
         .output()
         .unwrap();
     // Should fail (bad file) but still produce JSON with good file results
     assert!(!output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if !stdout.is_empty() {
-        let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-        let results = json["results"].as_array().unwrap();
-        // Good file's results should be present
-        assert_eq!(results.len(), 1);
-        assert!(!results[0]["tasks"].as_array().unwrap().is_empty());
-    }
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let results = json["results"].as_array().unwrap();
+    // The matching good-file result remains, while the missing file remains a failure.
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["file"], good);
+    assert_eq!(results[0]["tasks"][0]["summary_text"], "Task B");
+    assert_eq!(json["failures"].as_array().unwrap().len(), 1);
     std::fs::remove_file(&good).ok();
 }
 
