@@ -150,6 +150,8 @@ fn task_read_documentation_and_inventory_stay_synchronized() {
                 "1.5",
                 "Schema",
                 "initialization",
+                "+",
+                "upgrade",
             ]
     }));
     assert!(readme.contains("md task 9.3 progress.md"));
