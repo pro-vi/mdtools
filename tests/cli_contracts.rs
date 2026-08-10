@@ -41,6 +41,7 @@ struct MdInventoryFile {
 #[derive(Deserialize)]
 struct MdInventoryEntry {
     name: String,
+    kind: String,
 }
 
 fn inventory_commands() -> Vec<String> {
@@ -117,6 +118,38 @@ fn task_help_is_a_read_only_direct_lookup() {
     assert!(!help.contains("--status"));
     assert!(!help.contains("--in-place"));
     assert!(!help.contains("--expect-etag"));
+}
+
+#[test]
+fn task_read_documentation_and_inventory_stay_synchronized() {
+    let readme = std::fs::read_to_string("README.md").unwrap();
+    assert!(readme.contains("md task 9.3 progress.md"));
+    assert!(readme.contains("md set-task 9.3 progress.md -i --status done --expect-etag \"$etag\""));
+
+    let claude = std::fs::read_to_string("CLAUDE.md").unwrap();
+    assert!(claude.contains("md task <LOC> <FILE>"));
+    assert!(claude.contains("md set-task --expect-etag"));
+
+    let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
+    assert!(spec.contains("md task <LOC> <FILE> --json"));
+    assert!(spec.contains("md set-task <LOC> <FILE> --expect-etag <ETAG>"));
+
+    let harness = std::fs::read_to_string("bench/harness.py").unwrap();
+    assert!(harness.contains("md task <LOC> <FILE> [--json]"));
+    assert!(harness.contains("--expect-etag from md task to guard against stale reads"));
+    assert!(harness.contains("md task LOC F --json"));
+
+    let inventory: MdInventoryFile =
+        serde_json::from_str(&std::fs::read_to_string("bench/md_inventory_v1.json").unwrap())
+            .unwrap();
+    let task_index = inventory
+        .commands
+        .iter()
+        .position(|command| command.name == "task")
+        .unwrap();
+    assert_eq!(inventory.commands[task_index].kind, "query");
+    assert_eq!(inventory.commands[task_index - 1].name, "tasks");
+    assert_eq!(inventory.commands[task_index + 1].name, "set-task");
 }
 
 // ============================================================

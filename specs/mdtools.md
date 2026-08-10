@@ -1230,7 +1230,7 @@ Mode inventory contracts:
 
 Implemented CLI inventory details:
 
-- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `tasks`, and `task` are read operations and may emit structured JSON with `--json`.
+- `outline`, `blocks`, `block`, `section`, `search`, `links`, `frontmatter`, `collect`, `stats`, `table`, `tasks`, and `task` are read operations and may emit structured JSON with `--json`. For a guarded task update, discover a loc with `md tasks`, read that one target with `md task <LOC> <FILE> --json`, and pass its `.task.etag` to `md set-task <LOC> <FILE> --expect-etag <ETAG>`; re-read after a successful mutation before another update.
 - `replace-section`, `delete-section`, `move-block`, `move-section`, `replace-block`, `replace-table-row`, `insert-table-row`, `delete-table-row`, `insert-block`, `delete-block`, `set`, and `set-task` are write operations.
 - In benchmark tasks that mutate files, the harness scores the final on-disk file state after the agent finishes.
 - The default task corpus lives at `bench/tasks/tasks.json`. Historical published results may pin an older corpus snapshot via `BenchRunConfig.task_corpus_path`.
