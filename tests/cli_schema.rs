@@ -85,6 +85,20 @@ fn task_is_listed_once_as_a_query_between_tasks_and_set_task() {
 #[test]
 fn contains_is_listed_for_tasks_and_not_task_mutation_commands() {
     let s = schema();
+    let tasks = s["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|command| command["name"] == "tasks")
+        .unwrap();
+    let contains = tasks["flags"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|flag| flag["long"] == "--contains")
+        .unwrap();
+    assert_eq!(contains["takes_value"], true);
+
     let commands_with_contains: std::collections::BTreeSet<&str> = s["commands"]
         .as_array()
         .unwrap()
