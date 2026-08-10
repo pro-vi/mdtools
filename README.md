@@ -160,8 +160,8 @@ $ md tasks progress.md
 9.3     pending  0   39-41   Phase 0   0.4 Remove collation overrides
 14.4.0  pending  1   70-73   Phase 1   Schema initialization
 
-# Filter by status
-$ md tasks progress.md --status pending --json | jq '.results[0].tasks[0].loc'
+# Filter by status and summary text
+$ md tasks progress.md --status pending --contains 'Schema' --json | jq '.results[0].tasks[0].loc'
 "9.3"
 
 # Read one task and its etag for a guarded write
@@ -178,6 +178,10 @@ $ md set-task 9.3 progress.md -i --status done --expect-etag "$etag"
 # Recursive across a vault
 $ md tasks vault/ -r --status pending --json
 ```
+
+`md tasks --contains <TEXT>` is a case-sensitive literal substring filter over
+each task's parsed summary plaintext. It combines with `--status` using logical
+AND; an empty `TEXT` uses normal substring behavior.
 
 ### Mutate documents
 

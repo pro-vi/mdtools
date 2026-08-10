@@ -262,10 +262,12 @@ TOOL REFERENCE — md (markdown-aware CLI):
                                        List tables or read/project a specific table.
   md set <KEY> <FILE> <VALUE> [-i] [--json]
                                        Set a frontmatter field by dot-path. Use --delete to remove a field.
-  md tasks <FILE> [--json] [--status pending|done] [-r]
+  md tasks <FILE> [--json] [--status pending|done] [--contains TEXT] [-r]
                                        List GFM checkbox task items with loc, status, depth,
                                        nearest heading, and summary text. Loc is a dot-path
-                                       like "9.0" or "14.4.0" for nested tasks.
+                                       like "9.0" or "14.4.0" for nested tasks. --contains
+                                       is a case-sensitive literal summary-text filter and
+                                       combines with --status.
   md task <LOC> <FILE> [--json]       Read one GFM checkbox task item by loc; JSON returns .task.etag for a guarded write.
   md set-task <LOC> <FILE> [-i] [--json] --status done|pending
                                        Set checkbox state of a task item by loc (from md tasks); pass --expect-etag from md task to guard against stale reads.
@@ -287,7 +289,7 @@ EXAMPLES:
   md table report.md --select Feature,Status         # project table columns as TSV
   md collect vault/ -r --field title,status         # aggregate frontmatter rows as TSV/JSON with path-first headers
   md set release.channel doc.md stable -i            # set YAML/TOML frontmatter field
-  md tasks doc.md --status pending --json           # list pending task items
+  md tasks doc.md --status pending --contains Schema --json  # list pending matching task items
   md task 5.1 doc.md --json                         # read one task and its etag
   etag=$(md task 5.1 doc.md --json | jq -r '.task.etag')
   md set-task 5.1 doc.md -i --status done --expect-etag "$etag"  # guarded task update
@@ -314,7 +316,7 @@ TOOLS — you have BOTH `md` (a markdown-aware CLI) and standard POSIX tools.
   md blocks F  /  md block N F      list top-level blocks  /  read block N (0-based)
   md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
   md search Q F [--kind paragraph|heading|list|code-fence]
-  md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md tasks F [--status pending|done] [--contains TEXT]  list GFM checkbox tasks; --contains is a case-sensitive literal summary-text filter
   md task LOC F --json             read one task; use .task.etag to guard set-task
   md set-task LOC F -i --status done|pending [--expect-etag ETAG]  toggle a checkbox by loc
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)
@@ -364,7 +366,7 @@ TOOLS — you have your native file tools (Read, Edit, Write), `md` (a markdown-
   md blocks F  /  md block N F      list top-level blocks  /  read block N (0-based)
   md section "H" F                 read a section by heading (":preamble" = before 1st heading; --occurrence N for duplicate headings)
   md search Q F [--kind paragraph|heading|list|code-fence]
-  md tasks F                       list GFM checkbox tasks with loc (e.g. 9.0, 14.4.0)
+  md tasks F [--status pending|done] [--contains TEXT]  list GFM checkbox tasks; --contains is a case-sensitive literal summary-text filter
   md task LOC F --json             read one task; use .task.etag to guard set-task
   md set-task LOC F -i --status done|pending [--expect-etag ETAG]  toggle a checkbox by loc
   md frontmatter F  /  md set KEY F VAL -i         read / set YAML-or-TOML frontmatter (dot-path; --delete removes)

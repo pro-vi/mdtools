@@ -95,6 +95,12 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 Use `md task <LOC> <FILE>` to read one task's exact parser-owned source span. In JSON mode, use `.task.etag` as the guarded `md set-task --expect-etag` value.
 
+Use `md tasks <FILE|DIR>... [-r] [--status pending|done] [--contains <TEXT>]`
+to narrow task discovery. `--contains` is a case-sensitive literal substring
+match against each task's parser-produced summary plaintext; it combines with
+`--status` using logical AND and does not change task locs or duplicate-task
+visibility.
+
 ## Build & test
 
 ```bash
