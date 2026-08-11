@@ -126,10 +126,18 @@ fn tasks_contains_help_is_read_only_and_task_specific() {
     let tasks_help = md_help("tasks");
     let normalized = tasks_help.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(normalized.contains("--contains <TEXT>"));
+    assert!(normalized.contains("--under <SELECTOR>"));
+    assert!(normalized.contains("--occurrence <N>"));
     assert!(normalized.contains("Filter task summaries with a case-sensitive literal"));
 
     let set_task_help = md_help("set-task");
     assert!(!set_task_help.contains("--contains"));
+    assert!(!set_task_help.contains("--under"));
+    assert!(!set_task_help.contains("--occurrence"));
+
+    let task_help = md_help("task");
+    assert!(!task_help.contains("--under"));
+    assert!(!task_help.contains("--occurrence"));
 }
 
 #[test]
