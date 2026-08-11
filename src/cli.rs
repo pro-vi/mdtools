@@ -372,6 +372,12 @@ pub struct TasksArgs {
     /// Filter task summaries with a case-sensitive literal `--contains <TEXT>` match.
     #[arg(long = "contains", value_name = "TEXT")]
     pub contains: Option<String>,
+    /// Restrict discovery to one exact heading section (or `:preamble`) and its descendants.
+    #[arg(long, value_name = "SELECTOR")]
+    pub under: Option<String>,
+    /// 1-based occurrence used to disambiguate duplicate `--under` headings.
+    #[arg(long, value_name = "N", requires = "under")]
+    pub occurrence: Option<u32>,
 }
 
 #[derive(Args)]

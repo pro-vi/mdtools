@@ -1,7 +1,9 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use crate::cli::{SetTaskArgs, TaskArgs, TasksArgs};
 use crate::commands::replace::verify_expected_etag_unique;
+use crate::commands::section;
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
@@ -127,9 +129,25 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
         let source = std::fs::read_to_string(file)?;
         let doc = ParsedDocument::parse(source)?;
         let file_str = file.to_string_lossy().to_string();
+        let selected_block_indices = if let Some(under) = args.under.as_deref() {
+            let selector = section::build_selector(under, args.occurrence, false, false)?;
+            Some(
+                section::find_section(&doc, &selector)?
+                    .block_indices
+                    .into_iter()
+                    .collect::<HashSet<u32>>(),
+            )
+        } else {
+            None
+        };
 
         let mut tasks = Vec::new();
         for block in &doc.blocks {
+            if let Some(block_indices) = &selected_block_indices {
+                if !block_indices.contains(&block.index) {
+                    continue;
+                }
+            }
             if block.task_items.is_empty() {
                 continue;
             }

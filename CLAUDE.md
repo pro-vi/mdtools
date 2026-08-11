@@ -95,11 +95,15 @@ Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (
 
 Use `md task <LOC> <FILE>` to read one task's exact parser-owned source span. In JSON mode, use `.task.etag` as the guarded `md set-task --expect-etag` value.
 
-Use `md tasks <FILE|DIR>... [-r] [--status pending|done] [--contains <TEXT>]`
-to narrow task discovery. `--contains` is a case-sensitive literal substring
-match against each task's parser-produced summary plaintext; it combines with
-`--status` using logical AND and does not change task locs or duplicate-task
-visibility.
+Use `md tasks <FILE|DIR>... [-r] [--status pending|done] [--contains <TEXT>]
+[--under <SELECTOR> [--occurrence <N>]]` to narrow task discovery. `--contains`
+is a case-sensitive literal substring match against each task's parser-produced
+summary plaintext. `--under` selects an exact, case-sensitive heading section
+and includes tasks in its descendant sections through that section's
+`SectionEntry.block_indices`; `:preamble` selects the preamble and rejects
+`--occurrence`. `--occurrence` is a 1-based duplicate-heading selector and
+requires `--under`. The section, status, and summary filters use logical AND
+and do not change task locs or duplicate-task visibility.
 
 ## Build & test
 
