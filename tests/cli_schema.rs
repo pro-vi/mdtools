@@ -83,7 +83,7 @@ fn task_is_listed_once_as_a_query_between_tasks_and_set_task() {
 }
 
 #[test]
-fn contains_is_listed_for_tasks_and_not_task_mutation_commands() {
+fn tasks_filters_are_value_taking_and_not_task_mutation_flags() {
     let s = schema();
     let tasks = s["commands"]
         .as_array()
@@ -91,31 +91,34 @@ fn contains_is_listed_for_tasks_and_not_task_mutation_commands() {
         .iter()
         .find(|command| command["name"] == "tasks")
         .unwrap();
-    let contains = tasks["flags"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|flag| flag["long"] == "--contains")
-        .unwrap();
-    assert_eq!(contains["takes_value"], true);
+    for name in ["--contains", "--under", "--occurrence"] {
+        let flag = tasks["flags"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|flag| flag["long"] == name)
+            .unwrap_or_else(|| panic!("tasks schema is missing {name}"));
+        assert_eq!(flag["takes_value"], true, "{name} must take a value");
+    }
 
-    let commands_with_contains: std::collections::BTreeSet<&str> = s["commands"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|command| {
-            command["flags"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|flag| flag["long"] == "--contains")
-        })
-        .map(|command| command["name"].as_str().unwrap())
-        .collect();
-
-    assert!(commands_with_contains.contains("tasks"));
-    assert!(!commands_with_contains.contains("task"));
-    assert!(!commands_with_contains.contains("set-task"));
+    for command_name in ["task", "set-task"] {
+        let command = s["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|command| command["name"] == command_name)
+            .unwrap();
+        for flag_name in ["--under", "--occurrence"] {
+            assert!(
+                command["flags"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|flag| flag["long"] != flag_name),
+                "{command_name} must not expose {flag_name}"
+            );
+        }
+    }
 }
 
 #[test]

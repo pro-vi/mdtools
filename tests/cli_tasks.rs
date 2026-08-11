@@ -419,6 +419,174 @@ fn tasks_contains_preserves_directory_and_recursive_discovery_in_text_and_json()
     std::fs::remove_dir_all(&dir).ok();
 }
 
+// ── Section filter ───────────────────────────────────────────
+
+#[test]
+fn tasks_under_uses_section_block_membership_and_composes_filters() {
+    let path = tmpfile(
+        "- [ ] Preamble task\n\
+         # Parent\n\
+         - [ ] Parent task\n\
+         ## Child\n\
+         > - [ ] Quoted child task\n\
+         - [x] Done child task\n\
+         # Next\n\
+         - [ ] Next task\n\n\
+         # Empty\n\
+         No tasks here.\n",
+    );
+    let before = std::fs::read(&path).unwrap();
+
+    let json = md_json(&["tasks", &path, "--under", "Parent"]);
+    let tasks = json["results"][0]["tasks"].as_array().unwrap();
+    let summaries: Vec<&str> = tasks
+        .iter()
+        .map(|task| task["summary_text"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        summaries,
+        ["Parent task", "Quoted child task", "Done child task"]
+    );
+
+    let filtered = md_json(&[
+        "tasks",
+        &path,
+        "--under",
+        "Parent",
+        "--status",
+        "pending",
+        "--contains",
+        "child",
+    ]);
+    assert_eq!(
+        filtered["results"][0]["tasks"][0]["summary_text"],
+        "Quoted child task"
+    );
+
+    let text = md_text(&["tasks", &path, "--under", "Parent"]);
+    let text_locs: Vec<&str> = text
+        .lines()
+        .map(|line| line.split('\t').next().unwrap())
+        .collect();
+    let json_locs: Vec<&str> = tasks
+        .iter()
+        .map(|task| task["loc"].as_str().unwrap())
+        .collect();
+    assert_eq!(text_locs, json_locs);
+
+    let empty = md_json(&["tasks", &path, "--under", "Empty"]);
+    assert!(empty["results"][0]["tasks"].as_array().unwrap().is_empty());
+    assert_eq!(md_text(&["tasks", &path, "--under", "Empty"]), "");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn tasks_under_preserves_directory_and_recursive_discovery() {
+    let dir = tmpdir();
+    let root = format!("{dir}/a.md");
+    let nested_dir = format!("{dir}/nested");
+    let nested = format!("{nested_dir}/b.md");
+    std::fs::create_dir_all(&nested_dir).unwrap();
+    std::fs::write(
+        &root,
+        "# Chosen\n- [ ] Root task\n# Other\n- [ ] Skip root\n",
+    )
+    .unwrap();
+    std::fs::write(&nested, "# Chosen\n- [ ] Nested task\n").unwrap();
+
+    let directory = md_json(&["tasks", &dir, "--under", "Chosen"]);
+    assert_eq!(directory["results"].as_array().unwrap().len(), 1);
+    assert_eq!(directory["results"][0]["file"], root);
+    assert_eq!(
+        directory["results"][0]["tasks"][0]["summary_text"],
+        "Root task"
+    );
+
+    let recursive = md_json(&["tasks", &dir, "-r", "--under", "Chosen"]);
+    let files: Vec<&str> = recursive["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|result| result["file"].as_str().unwrap())
+        .collect();
+    assert_eq!(files, [root.as_str(), nested.as_str()]);
+    let text = md_text(&["tasks", &dir, "-r", "--under", "Chosen"]);
+    let text_files: Vec<&str> = text
+        .lines()
+        .map(|line| line.split(":\t").next().unwrap())
+        .collect();
+    assert_eq!(text_files, files);
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn tasks_under_reuses_section_occurrence_and_preamble_contracts() {
+    let path = tmpfile(
+        "- [ ] Preamble task\n\n\
+         # Duplicate\n\
+         - [ ] First task\n\n\
+         # Duplicate\n\
+         - [ ] Second task\n",
+    );
+
+    let selected = md_json(&["tasks", &path, "--under", "Duplicate", "--occurrence", "2"]);
+    assert_eq!(
+        selected["results"][0]["tasks"][0]["summary_text"],
+        "Second task"
+    );
+
+    let preamble = md_json(&["tasks", &path, "--under", ":preamble"]);
+    assert_eq!(
+        preamble["results"][0]["tasks"][0]["summary_text"],
+        "Preamble task"
+    );
+
+    let duplicate = md()
+        .args(["tasks", &path, "--under", "Duplicate", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(duplicate.status.code(), Some(4));
+    assert!(String::from_utf8_lossy(&duplicate.stderr).contains("matches 2 sections"));
+
+    let invalid_preamble = md()
+        .args(["tasks", &path, "--under", ":preamble", "--occurrence", "1"])
+        .output()
+        .unwrap();
+    assert_eq!(invalid_preamble.status.code(), Some(3));
+
+    let missing_under = md()
+        .args(["tasks", &path, "--occurrence", "1"])
+        .output()
+        .unwrap();
+    assert_eq!(missing_under.status.code(), Some(2));
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn tasks_under_keeps_multifile_successes_when_one_selector_fails() {
+    let matching = tmpfile("# Chosen\n- [ ] Included\n");
+    let missing = tmpfile("# Other\n- [ ] Excluded\n");
+
+    let output = md()
+        .args(["tasks", "--under", "Chosen", &matching, &missing, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["results"].as_array().unwrap().len(), 1);
+    assert_eq!(json["results"][0]["file"], matching);
+    assert_eq!(json["results"][0]["tasks"][0]["summary_text"], "Included");
+    assert_eq!(json["failures"].as_array().unwrap().len(), 1);
+    assert_eq!(json["failures"][0]["file"], missing);
+
+    std::fs::remove_file(&matching).ok();
+    std::fs::remove_file(&missing).ok();
+}
+
 // ── Task counts ──────────────────────────────────────────────
 
 #[test]
