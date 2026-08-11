@@ -164,6 +164,12 @@ fn task_read_documentation_and_inventory_stay_synchronized() {
     }));
     assert!(readme.contains("md task 9.3 progress.md"));
     assert!(readme.contains("md set-task 9.3 progress.md -i --status done --expect-etag \"$etag\""));
+    assert!(readme.contains(
+        "md tasks progress.md --under 'Phase 1: DB Driver Abstraction (PROJ-101)' --status pending"
+    ));
+    assert!(readme.contains(
+        "# Select one duplicate section heading (1-based; roadmap.md repeats the exact `Milestone` heading)\n$ md tasks roadmap.md --under 'Milestone' --occurrence 2"
+    ));
 
     let claude = std::fs::read_to_string("CLAUDE.md").unwrap();
     assert!(claude.contains("md task <LOC> <FILE>"));

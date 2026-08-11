@@ -165,10 +165,10 @@ $ md tasks progress.md --status pending --contains 'Schema' --json | jq '.result
 "14.4"
 
 # Limit discovery to an exact section and its descendant sections
-$ md tasks progress.md --under 'Phase 1' --status pending
+$ md tasks progress.md --under 'Phase 1: DB Driver Abstraction (PROJ-101)' --status pending
 
-# Select one duplicate section heading (1-based)
-$ md tasks progress.md --under 'Phase' --occurrence 2
+# Select one duplicate section heading (1-based; roadmap.md repeats the exact `Milestone` heading)
+$ md tasks roadmap.md --under 'Milestone' --occurrence 2
 
 # Read one task and its etag for a guarded write
 $ md task 9.3 progress.md --json | jq -r '.task.etag'
