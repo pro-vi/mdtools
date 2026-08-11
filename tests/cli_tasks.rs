@@ -494,6 +494,34 @@ fn tasks_under_uses_section_block_membership_and_composes_filters() {
 }
 
 #[test]
+fn tasks_under_returns_dense_selected_blocks_in_order_and_excludes_adjacent_section() {
+    const SELECTED_TASK_COUNT: usize = 256;
+
+    let mut content = String::from("# Chosen\n\n");
+    for index in 0..SELECTED_TASK_COUNT {
+        content.push_str(&format!("- [ ] Selected task {index}\n\n"));
+    }
+    content.push_str("# Adjacent\n\n- [ ] Excluded adjacent task\n");
+    let path = tmpfile(&content);
+
+    let json = md_json(&["tasks", &path, "--under", "Chosen"]);
+    let tasks = json["results"][0]["tasks"].as_array().unwrap();
+    let summaries: Vec<&str> = tasks
+        .iter()
+        .map(|task| task["summary_text"].as_str().unwrap())
+        .collect();
+    let expected: Vec<String> = (0..SELECTED_TASK_COUNT)
+        .map(|index| format!("Selected task {index}"))
+        .collect();
+
+    assert_eq!(tasks.len(), SELECTED_TASK_COUNT);
+    assert_eq!(summaries, expected);
+    assert!(!summaries.contains(&"Excluded adjacent task"));
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn tasks_under_preserves_directory_and_recursive_discovery() {
     let dir = tmpdir();
     let root = format!("{dir}/a.md");

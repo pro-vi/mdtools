@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use crate::cli::{SetTaskArgs, TaskArgs, TasksArgs};
@@ -130,7 +131,12 @@ pub fn run_tasks(args: &TasksArgs, json: bool) -> Result<(), CommandError> {
         let file_str = file.to_string_lossy().to_string();
         let selected_block_indices = if let Some(under) = args.under.as_deref() {
             let selector = section::build_selector(under, args.occurrence, false, false)?;
-            Some(section::find_section(&doc, &selector)?.block_indices)
+            Some(
+                section::find_section(&doc, &selector)?
+                    .block_indices
+                    .into_iter()
+                    .collect::<HashSet<u32>>(),
+            )
         } else {
             None
         };
