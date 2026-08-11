@@ -164,6 +164,12 @@ $ md tasks progress.md
 $ md tasks progress.md --status pending --contains 'Schema' --json | jq '.results[0].tasks[0].loc'
 "14.4"
 
+# Limit discovery to an exact section and its descendant sections
+$ md tasks progress.md --under 'Phase 1' --status pending
+
+# Select one duplicate section heading (1-based)
+$ md tasks progress.md --under 'Phase' --occurrence 2
+
 # Read one task and its etag for a guarded write
 $ md task 9.3 progress.md --json | jq -r '.task.etag'
 2cce4d9d8f0df9f1
@@ -181,7 +187,13 @@ $ md tasks vault/ -r --status pending --json
 
 `md tasks --contains <TEXT>` is a case-sensitive literal substring filter over
 each task's parsed summary plaintext. It combines with `--status` using logical
-AND; an empty `TEXT` uses normal substring behavior.
+AND; an empty `TEXT` uses normal substring behavior. `md tasks --under
+<SELECTOR> [--occurrence <N>]` restricts discovery to tasks whose blocks belong
+to the selected section's `SectionEntry.block_indices`, including descendant
+sections. Heading selection is exact and case-sensitive. `:preamble` selects
+the preamble and rejects `--occurrence`; otherwise `--occurrence` is a 1-based
+duplicate-heading selector that requires `--under`. `--under`, `--status`, and
+`--contains` compose using logical AND.
 
 ### Mutate documents
 
