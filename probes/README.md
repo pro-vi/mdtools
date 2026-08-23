@@ -25,6 +25,7 @@ Lifecycle status and evidence verdict are intentionally separate:
 | Target identity | [Non-block target identity](non_block_target_identity/PROTOCOL.md) | [Closed](non_block_target_identity/RESULTS.md#promotion-outcome) | All four candidates were demoted across section, table, and task surfaces | Do not generalize block evidence into a non-block identity token | Continued through bounded positional context |
 | Target identity | [Position-bound target identity](position_bound_target_identity/PROTOCOL.md) | [Closed](position_bound_target_identity/RESULTS.md#candidate-summaries-and-conclusion) | All four bounded-context candidates were demoted | Keep re-query plus fail-closed ambiguity as the production contract | Led to one final observability-limit protocol |
 | Target identity | [Stateless observability limit](stateless_target_identity_observability/PROTOCOL.md) | **Stopped before execution** | Untested; no protocol result label was earned | No production identity architecture is authorized | Reopen only for a concrete consumer failure that re-query cannot resolve and an owner decision to compare stateful authority costs |
+| Core topology | [Core consumer topology](core_consumer_topology/PROTOCOL.md) | Protocol authored / not executed | Untested; no result label earned | Do not bulk-extract remaining commands yet | Inspect and execute the locked three-lane source |
 
 ## Current Product Conclusion
 
