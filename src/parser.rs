@@ -6,8 +6,9 @@ use comrak::{
     parse_document, Arena, Options,
 };
 
-use crate::errors::{CommandError, DiagnosticCode};
+use crate::core_error::CoreError;
 use crate::model::*;
+use crate::revision::DocumentRevision;
 
 // --- Line-start index for byte offset derivation ---
 
@@ -198,6 +199,7 @@ pub struct ParsedDocument {
     pub blocks: Vec<BlockInfo>,
     pub frontmatter: Option<FrontmatterInfo>,
     line_index: LineIndex,
+    revision: DocumentRevision,
 }
 
 /// A projected top-level block.
@@ -263,23 +265,23 @@ enum FrontmatterParseMode {
 }
 
 impl ParsedDocument {
-    pub fn parse(source: String) -> Result<Self, CommandError> {
+    pub fn parse(source: String) -> Result<Self, CoreError> {
         Self::parse_inner(source, FrontmatterParseMode::Lenient)
     }
 
     /// Parse specifically for the frontmatter command, which should error on malformed frontmatter
     /// rather than falling back to treating it as plain content.
-    pub fn parse_for_frontmatter(source: String) -> Result<Self, CommandError> {
+    pub fn parse_for_frontmatter(source: String) -> Result<Self, CoreError> {
         Self::parse_inner(source, FrontmatterParseMode::StrictRead)
     }
 
     /// Parse for frontmatter mutation commands, which must fail closed on malformed
     /// or unclosed leading frontmatter instead of treating it as absent.
-    pub fn parse_for_frontmatter_mutation(source: String) -> Result<Self, CommandError> {
+    pub fn parse_for_frontmatter_mutation(source: String) -> Result<Self, CoreError> {
         Self::parse_inner(source, FrontmatterParseMode::Mutation)
     }
 
-    fn parse_inner(source: String, mode: FrontmatterParseMode) -> Result<Self, CommandError> {
+    fn parse_inner(source: String, mode: FrontmatterParseMode) -> Result<Self, CoreError> {
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(delimiter);
@@ -305,10 +307,10 @@ impl ParsedDocument {
 
         if matches!(mode, FrontmatterParseMode::Mutation) && !has_frontmatter_node {
             if let Some(delimiter) = delimiter {
-                return Err(CommandError::new(
-                    DiagnosticCode::FrontmatterParseFailed,
-                    format!("unclosed frontmatter (no closing '{}')", delimiter),
-                ));
+                return Err(CoreError::FrontmatterParseFailed(format!(
+                    "unclosed frontmatter (no closing '{}')",
+                    delimiter
+                )));
             }
         }
 
@@ -390,15 +392,17 @@ impl ParsedDocument {
             }
         }
 
+        let revision = DocumentRevision::for_source(&source);
         Ok(ParsedDocument {
             source,
             blocks,
             frontmatter,
             line_index,
+            revision,
         })
     }
 
-    fn parse_without_frontmatter(source: String) -> Result<Self, CommandError> {
+    fn parse_without_frontmatter(source: String) -> Result<Self, CoreError> {
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(None); // No frontmatter delimiter
         let arena = Arena::new();
@@ -453,11 +457,13 @@ impl ParsedDocument {
             });
         }
 
+        let revision = DocumentRevision::for_source(&source);
         Ok(ParsedDocument {
             source,
             blocks,
             frontmatter: None,
             line_index,
+            revision,
         })
     }
 
@@ -488,6 +494,34 @@ impl ParsedDocument {
     /// Extract the source text for a given span.
     pub fn slice(&self, span: &SourceSpan) -> &str {
         &self.source[span.byte_start as usize..span.byte_end as usize]
+    }
+
+    pub fn try_slice(&self, span: &SourceSpan) -> Result<&str, CoreError> {
+        let start = span.byte_start as usize;
+        let end = span.byte_end as usize;
+        let reason = if start > end {
+            Some("start is after end")
+        } else if end > self.source.len() {
+            Some("end is outside the source")
+        } else if !self.source.is_char_boundary(start) || !self.source.is_char_boundary(end) {
+            Some("offset is not a UTF-8 character boundary")
+        } else {
+            None
+        };
+
+        if let Some(reason) = reason {
+            return Err(CoreError::InvalidSpan {
+                span: *span,
+                source_len: self.source.len(),
+                reason,
+            });
+        }
+
+        Ok(&self.source[start..end])
+    }
+
+    pub fn revision(&self) -> &DocumentRevision {
+        &self.revision
     }
 
     pub fn frontmatter_state(&self) -> FrontmatterState<'_> {
@@ -923,7 +957,7 @@ fn offset_span(span: SourceSpan, block_span: SourceSpan) -> SourceSpan {
 pub fn extract_table_projection(
     table_source: &str,
     block_span: SourceSpan,
-) -> Result<TableProjection, CommandError> {
+) -> Result<TableProjection, CoreError> {
     use comrak::nodes::TableAlignment;
 
     let line_index = LineIndex::new(table_source);
@@ -983,34 +1017,33 @@ pub fn extract_table_projection(
         }
     }
 
-    Err(CommandError::new(
-        crate::errors::DiagnosticCode::ParseFailed,
-        "source does not contain a table",
+    Err(CoreError::ParseFailed(
+        "source does not contain a table".to_string(),
     ))
 }
 
 pub fn validate_table_row_payload(
     payload: &str,
     expected_columns: usize,
-) -> Result<(), CommandError> {
+) -> Result<(), CoreError> {
     if payload.is_empty() {
-        return Err(CommandError::invalid_table_row(
-            "table row payload must not be empty",
+        return Err(CoreError::InvalidTableRow(
+            "table row payload must not be empty".to_string(),
         ));
     }
     if payload.contains('\n') || payload.contains('\r') {
-        return Err(CommandError::invalid_table_row(
-            "table row payload must contain exactly one line",
+        return Err(CoreError::InvalidTableRow(
+            "table row payload must contain exactly one line".to_string(),
         ));
     }
     let (lexical_columns, has_unescaped_pipe) = count_table_row_columns(payload);
     if expected_columns > 1 && !has_unescaped_pipe {
-        return Err(CommandError::invalid_table_row(
-            "table row payload must parse as exactly one GFM table data row",
+        return Err(CoreError::InvalidTableRow(
+            "table row payload must parse as exactly one GFM table data row".to_string(),
         ));
     }
     if lexical_columns != expected_columns {
-        return Err(CommandError::invalid_table_row(format!(
+        return Err(CoreError::InvalidTableRow(format!(
             "table row column count {} does not match table column count {}",
             lexical_columns, expected_columns
         )));
@@ -1027,14 +1060,14 @@ pub fn validate_table_row_payload(
     let projection = extract_table_data(&synthetic_table)?;
 
     if projection.rows.len() != 1 {
-        return Err(CommandError::invalid_table_row(
-            "table row payload must parse as exactly one GFM table data row",
+        return Err(CoreError::InvalidTableRow(
+            "table row payload must parse as exactly one GFM table data row".to_string(),
         ));
     }
 
     let actual_columns = projection.rows[0].len();
     if actual_columns != expected_columns {
-        return Err(CommandError::invalid_table_row(format!(
+        return Err(CoreError::InvalidTableRow(format!(
             "table row column count {} does not match table column count {}",
             actual_columns, expected_columns
         )));
@@ -1046,7 +1079,7 @@ pub fn validate_table_row_payload(
 /// Extract structured table data from a markdown source fragment
 /// containing a single table. The source should be the sliced text
 /// of a Table block (obtained via ParsedDocument::slice()).
-pub fn extract_table_data(table_source: &str) -> Result<TableData, CommandError> {
+pub fn extract_table_data(table_source: &str) -> Result<TableData, CoreError> {
     let projection = extract_table_projection(
         table_source,
         SourceSpan {

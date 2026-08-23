@@ -57,8 +57,9 @@ pub enum InsertLocation {
 
 // --- Block types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, clap::ValueEnum)]
-#[clap(rename_all = "kebab-case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
 pub enum BlockKind {
     Heading,
     Paragraph,
@@ -329,9 +330,10 @@ pub struct TableReadResult {
 
 // --- Task types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[serde(rename_all = "lowercase")]
-#[clap(rename_all = "kebab-case")]
+#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
 pub enum TaskStatus {
     Pending,
     Done,

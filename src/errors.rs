@@ -3,6 +3,7 @@ use std::fmt;
 use std::process::ExitCode;
 
 use crate::model::SCHEMA_VERSION;
+use crate::core_error::CoreError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MdExitCode {
@@ -227,6 +228,23 @@ pub struct CommandError {
     /// its own JSON payload (e.g. `tasks` failures[]); tells main.rs not to
     /// print a second envelope object.
     pub payload_delivered: bool,
+}
+
+impl From<CoreError> for CommandError {
+    fn from(error: CoreError) -> Self {
+        match error {
+            CoreError::ParseFailed(message) => {
+                Self::new(DiagnosticCode::ParseFailed, message)
+            }
+            CoreError::FrontmatterParseFailed(message) => {
+                Self::new(DiagnosticCode::FrontmatterParseFailed, message)
+            }
+            CoreError::InvalidTableRow(message) => Self::invalid_table_row(message),
+            CoreError::InvalidSpan { .. } => {
+                Self::new(DiagnosticCode::InvalidSelector, error.to_string())
+            }
+        }
+    }
 }
 
 impl CommandError {

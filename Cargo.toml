@@ -12,15 +12,21 @@ path = "src/lib.rs"
 [[bin]]
 name = "md"
 path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+cli = ["dep:clap", "dep:walkdir"]
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
-comrak = "=0.51.0"
+clap = { version = "4", features = ["derive"], optional = true }
+comrak = { version = "=0.51.0", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 serde_yaml = "0.9"
+sha2 = "0.10"
 toml = "0.8"
-walkdir = "2"
+walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
