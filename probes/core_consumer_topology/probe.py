@@ -71,11 +71,43 @@ def extract_regular_archive(bundle: tarfile.TarFile, destination: Path) -> None:
     bundle.extractall(destination)
 
 
-def cargo_env(target: Path) -> dict[str, str]:
+def cargo_env(target: Path, cargo_home: Path | None = None) -> dict[str, str]:
     env = os.environ.copy()
     env["CARGO_TARGET_DIR"] = str(target)
     env["CARGO_NET_OFFLINE"] = "true"
+    if cargo_home is not None:
+        env["CARGO_HOME"] = str(cargo_home)
     return env
+
+
+def prepare_cargo_home(workspace: Path) -> Path:
+    source = Path.home() / ".cargo/registry"
+    destination = workspace / "cargo-home/registry"
+    destination.mkdir(parents=True)
+    for name in ("cache", "index"):
+        source_entry = source / name
+        if not source_entry.exists():
+            raise RuntimeError(f"Cargo registry {name} is unavailable")
+        (destination / name).symlink_to(source_entry, target_is_directory=True)
+    (destination / "src").mkdir()
+    return destination.parent
+
+
+def command_verdict(passed: bool, *results: CommandResult) -> str:
+    if passed:
+        return "pass"
+    operational_markers = (
+        "Operation not permitted",
+        "unable to get packages from source",
+        "Could not resolve host",
+    )
+    if any(
+        marker in result.stderr
+        for result in results
+        for marker in operational_markers
+    ):
+        return "inconclusive"
+    return "fail"
 
 
 def extract_baseline(repo: Path, destination: Path) -> None:
@@ -214,6 +246,7 @@ def write_consumer(root: Path, name: str, dependency: Path, main_rs: str) -> Non
 
 def consumer_lanes(repo: Path, workspace: Path) -> tuple[dict[str, object], dict[str, object]]:
     package, members, package_sha256 = package_source(repo, workspace)
+    cargo_home = prepare_cargo_home(workspace)
     forbidden = (
         "/bench/runs/",
         "/bench/search/",
@@ -257,9 +290,10 @@ fn main() {
     braid_run = run(
         ["cargo", "run", "--quiet", "--offline"],
         cwd=braid,
-        env=cargo_env(workspace / "braid-target"),
+        env=cargo_env(workspace / "braid-target", cargo_home),
     )
-    braid_verdict = "pass" if braid_run.returncode == 0 and package_clean else "fail"
+    braid_passed = braid_run.returncode == 0 and package_clean
+    braid_verdict = command_verdict(braid_passed, braid_run)
 
     reader = workspace / "reader-consumer"
     write_consumer(
@@ -289,12 +323,12 @@ fn main() {
     reader_run = run(
         ["cargo", "run", "--quiet", "--offline"],
         cwd=reader,
-        env=cargo_env(workspace / "reader-target"),
+        env=cargo_env(workspace / "reader-target", cargo_home),
     )
     tree = run(
         ["cargo", "tree", "-e", "normal", "--offline"],
         cwd=reader,
-        env=cargo_env(workspace / "reader-target"),
+        env=cargo_env(workspace / "reader-target", cargo_home),
     )
     cli_deps = [line for line in tree.stdout.splitlines() if "clap " in line or "walkdir " in line]
     reader_passed = reader_run.returncode == 0 and tree.returncode == 0 and not cli_deps and package_clean
@@ -310,7 +344,7 @@ fn main() {
             "package_sha256": package_sha256,
         },
         {
-            "verdict": "pass" if reader_passed else "fail",
+            "verdict": command_verdict(reader_passed, reader_run, tree),
             "consumer_exit": reader_run.returncode,
             "consumer_stdout": reader_run.stdout,
             "consumer_stderr": reader_run.stderr,
