@@ -303,6 +303,8 @@ fn main() {
         {
             "verdict": braid_verdict,
             "consumer_exit": braid_run.returncode,
+            "consumer_stdout": braid_run.stdout,
+            "consumer_stderr": braid_run.stderr,
             "package_clean": package_clean,
             "package_file_count": len(members),
             "package_sha256": package_sha256,
@@ -310,7 +312,10 @@ fn main() {
         {
             "verdict": "pass" if reader_passed else "fail",
             "consumer_exit": reader_run.returncode,
+            "consumer_stdout": reader_run.stdout,
+            "consumer_stderr": reader_run.stderr,
             "tree_exit": tree.returncode,
+            "tree_stderr": tree.stderr,
             "cli_only_dependencies": cli_deps,
             "package_clean": package_clean,
             "package_sha256": package_sha256,
