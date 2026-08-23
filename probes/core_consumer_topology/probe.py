@@ -382,6 +382,28 @@ def render_results(repo: Path, payload: dict[str, object]) -> None:
 
 {lane_lines}
 
+## Product Disposition
+
+- The sampled CLI process contract is unchanged from `{BASELINE_COMMIT}`:
+  schema, outline, section, tasks, task, and `set-task` matched on exit code,
+  stdout, stderr, JSON, and mutation bytes; the complete current Rust suite
+  passed.
+- A clean Braid-shaped consumer built from the 105-file Cargo package without a
+  sibling checkout and immediately translated Markdown task status and source
+  coordinates into consumer-owned types.
+- A reader-shaped consumer built with default features disabled, had no Clap or
+  Walkdir dependency, used outline/section/task queries in-process, and produced
+  a guarded task-edit candidate without changing its source or filesystem.
+- The foundation is sufficient to continue extracting Markdown operations.
+  Rendering, viewer state, agent policy, and Braid workflow semantics remain
+  outside mdtools.
+
+## Reopening Gate
+
+Reopen this topology result if the CLI protocol version changes, the Cargo
+package layout changes, a consumer needs a separate release cadence, or a
+future operation cannot preserve direct-core/CLI candidate parity.
+
 ## Evidence
 
 - Candidate commit: `{payload['candidate_commit']}`
