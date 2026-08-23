@@ -268,6 +268,35 @@ impl From<CoreError> for CommandError {
                     .collect::<Vec<_>>();
                 Self::occurrence_out_of_range(&heading, requested, &matches, SelectorRole::Target)
             }
+            CoreError::InvalidTaskLoc { loc } => Self::invalid_task_loc(&loc),
+            CoreError::TaskBlockOutOfRange {
+                loc,
+                block_index,
+                block_count,
+            } => Self::new(
+                DiagnosticCode::TaskItemNotFound,
+                format!(
+                    "task item not found: {} (block index {} out of range; document has {} blocks)",
+                    loc, block_index, block_count
+                ),
+            )
+            .with_hint("re-run `md tasks --json <FILE>` for current task locs")
+            .with_context(ErrorContext {
+                loc: Some(loc),
+                ..ErrorContext::default()
+            }),
+            CoreError::TaskNotFound { loc } => Self::task_item_not_found(&loc),
+            CoreError::NotTaskList { block_index } => Self::not_a_task_list(block_index),
+            CoreError::TargetEtagMismatch {
+                target,
+                expected,
+                actual,
+            } => Self::task_etag_mismatch(&target, &expected, &actual),
+            CoreError::TargetEtagAmbiguous {
+                target_kind,
+                expected,
+                count,
+            } => Self::etag_ambiguous(target_kind, &expected, count, None),
             CoreError::InvalidSpan { .. } => {
                 Self::new(DiagnosticCode::InvalidSelector, error.to_string())
             }
