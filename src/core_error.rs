@@ -49,6 +49,10 @@ pub enum CoreError {
         expected: String,
         count: usize,
     },
+    DocumentRevisionMismatch {
+        expected: String,
+        actual: String,
+    },
     InvalidSpan {
         span: SourceSpan,
         source_len: usize,
@@ -106,6 +110,10 @@ impl std::fmt::Display for CoreError {
             } => write!(
                 f,
                 "{target_kind} etag {expected:?} is ambiguous: {count} same-content {target_kind}s share this fingerprint"
+            ),
+            Self::DocumentRevisionMismatch { expected, actual } => write!(
+                f,
+                "document revision mismatch: expected {expected:?}, found {actual:?}"
             ),
             Self::InvalidSpan {
                 span,

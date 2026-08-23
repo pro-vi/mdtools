@@ -1,6 +1,7 @@
 use mdtools::core_error::CoreError;
 use mdtools::model::SourceSpan;
 use mdtools::parser::ParsedDocument;
+use mdtools::revision::verify_source_revision;
 
 #[test]
 fn document_revision_tracks_exact_source_bytes() {
@@ -31,5 +32,15 @@ fn checked_slice_accepts_parser_spans_and_rejects_untrusted_ranges() {
     assert!(matches!(
         doc.try_slice(&invalid),
         Err(CoreError::InvalidSpan { .. })
+    ));
+}
+
+#[test]
+fn stale_document_revision_is_rejected() {
+    let document = ParsedDocument::parse("before\n".to_string()).unwrap();
+    verify_source_revision("before\n", document.revision()).unwrap();
+    assert!(matches!(
+        verify_source_revision("after\n", document.revision()),
+        Err(CoreError::DocumentRevisionMismatch { .. })
     ));
 }

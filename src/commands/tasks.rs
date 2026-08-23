@@ -161,16 +161,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
     if args.in_place {
         if changed {
             let current = std::fs::read_to_string(&args.file)?;
-            let current_revision = mdtools::revision::DocumentRevision::for_source(&current);
-            if current_revision != outcome.base_revision {
-                return Err(CommandError::new(
-                    crate::errors::DiagnosticCode::EtagMismatch,
-                    "document changed since the task edit candidate was created",
-                )
-                .with_hint(
-                    "re-run `md tasks <FILE> --json` for current locs and etags, then retry",
-                ));
-            }
+            mdtools::revision::verify_source_revision(&current, &outcome.base_revision)?;
             output::write_file_atomic(args.file.as_ref(), &content)?;
         }
         if json {

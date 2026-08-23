@@ -297,6 +297,12 @@ impl From<CoreError> for CommandError {
                 expected,
                 count,
             } => Self::etag_ambiguous(target_kind, &expected, count, None),
+            CoreError::DocumentRevisionMismatch { expected, actual } => Self::new(
+                DiagnosticCode::EtagMismatch,
+                "document changed since the edit candidate was created",
+            )
+            .with_hint("re-read the document and rebuild the edit candidate before retrying")
+            .with_context(Self::etag_ctx(&expected, &actual)),
             CoreError::InvalidSpan { .. } => {
                 Self::new(DiagnosticCode::InvalidSelector, error.to_string())
             }
