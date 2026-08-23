@@ -60,6 +60,17 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def extract_regular_archive(bundle: tarfile.TarFile, destination: Path) -> None:
+    destination_root = destination.resolve()
+    for member in bundle.getmembers():
+        if not (member.isfile() or member.isdir()):
+            raise RuntimeError(f"archive contains unsupported entry: {member.name}")
+        target = (destination / member.name).resolve()
+        if not target.is_relative_to(destination_root):
+            raise RuntimeError(f"archive path escapes destination: {member.name}")
+    bundle.extractall(destination)
+
+
 def cargo_env(target: Path) -> dict[str, str]:
     env = os.environ.copy()
     env["CARGO_TARGET_DIR"] = str(target)
@@ -82,7 +93,7 @@ def extract_baseline(repo: Path, destination: Path) -> None:
     archive_path = destination.parent / "baseline.tar"
     archive_path.write_bytes(archive.stdout)
     with tarfile.open(archive_path) as bundle:
-        bundle.extractall(destination, filter="data")
+        extract_regular_archive(bundle, destination)
 
 
 def build_binary(source: Path, target: Path) -> Path:
@@ -177,7 +188,7 @@ def package_source(repo: Path, workspace: Path) -> tuple[Path, list[str], str]:
     extracted = workspace / "package"
     with tarfile.open(crate, mode="r:gz") as bundle:
         members = bundle.getnames()
-        bundle.extractall(extracted, filter="data")
+        extract_regular_archive(bundle, extracted)
     return extracted / "mdtools-0.1.0", members, sha256(crate)
 
 
