@@ -1022,10 +1022,7 @@ pub fn extract_table_projection(
     ))
 }
 
-pub fn validate_table_row_payload(
-    payload: &str,
-    expected_columns: usize,
-) -> Result<(), CoreError> {
+pub fn validate_table_row_payload(payload: &str, expected_columns: usize) -> Result<(), CoreError> {
     if payload.is_empty() {
         return Err(CoreError::InvalidTableRow(
             "table row payload must not be empty".to_string(),

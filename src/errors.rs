@@ -2,8 +2,8 @@ use serde::Serialize;
 use std::fmt;
 use std::process::ExitCode;
 
-use crate::model::SCHEMA_VERSION;
 use crate::core_error::CoreError;
+use crate::model::SCHEMA_VERSION;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MdExitCode {
@@ -233,13 +233,41 @@ pub struct CommandError {
 impl From<CoreError> for CommandError {
     fn from(error: CoreError) -> Self {
         match error {
-            CoreError::ParseFailed(message) => {
-                Self::new(DiagnosticCode::ParseFailed, message)
-            }
+            CoreError::ParseFailed(message) => Self::new(DiagnosticCode::ParseFailed, message),
             CoreError::FrontmatterParseFailed(message) => {
                 Self::new(DiagnosticCode::FrontmatterParseFailed, message)
             }
             CoreError::InvalidTableRow(message) => Self::invalid_table_row(message),
+            CoreError::InvalidSelector(message) => {
+                Self::new(DiagnosticCode::InvalidSelector, message)
+            }
+            CoreError::HeadingNotFound { heading } => Self::not_found_heading(&heading),
+            CoreError::DuplicateHeading { heading, matches } => {
+                let matches = matches
+                    .into_iter()
+                    .map(|item| MatchRef {
+                        block_index: item.block_index,
+                        occurrence: item.occurrence,
+                        line: item.line,
+                    })
+                    .collect::<Vec<_>>();
+                Self::duplicate_heading_as(&heading, matches.len(), &matches, SelectorRole::Target)
+            }
+            CoreError::OccurrenceOutOfRange {
+                heading,
+                requested,
+                matches,
+            } => {
+                let matches = matches
+                    .into_iter()
+                    .map(|item| MatchRef {
+                        block_index: item.block_index,
+                        occurrence: item.occurrence,
+                        line: item.line,
+                    })
+                    .collect::<Vec<_>>();
+                Self::occurrence_out_of_range(&heading, requested, &matches, SelectorRole::Target)
+            }
             CoreError::InvalidSpan { .. } => {
                 Self::new(DiagnosticCode::InvalidSelector, error.to_string())
             }

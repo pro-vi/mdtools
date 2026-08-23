@@ -4,6 +4,8 @@ use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
 use crate::parser::ParsedDocument;
+use mdtools::core_error::CoreError;
+use mdtools::section::SectionIndex;
 
 pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
@@ -227,23 +229,7 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
 /// sections share a fingerprint, and a guard hash matching more than one
 /// section cannot prove identity.
 pub fn all_section_etags(doc: &ParsedDocument) -> Vec<String> {
-    let mut etags = Vec::new();
-    if let Ok(preamble) = find_preamble(doc) {
-        etags.push(preamble.etag);
-    }
-    for block in &doc.blocks {
-        if let Some(h) = &block.heading {
-            let byte_end = find_section_byte_end(doc, block.index, h.level);
-            let span = SourceSpan {
-                line_start: block.span.line_start,
-                line_end: block.span.line_end,
-                byte_start: block.span.byte_start,
-                byte_end,
-            };
-            etags.push(output::content_etag(doc.slice(&span).as_bytes()));
-        }
-    }
-    etags
+    SectionIndex::new(doc).all_etags()
 }
 
 pub fn build_selector(
@@ -321,192 +307,44 @@ pub fn find_section_as(
     selector: &SectionSelector,
     role: crate::errors::SelectorRole,
 ) -> Result<SectionEntry, CommandError> {
-    match selector.kind {
-        SectionSelectorKind::Preamble => find_preamble(doc),
-        SectionSelectorKind::HeadingText => {
-            let heading_text = selector.heading_text.as_deref().unwrap_or("");
-            find_heading_section(doc, heading_text, selector, role)
-        }
-    }
+    SectionIndex::new(doc)
+        .resolve(selector)
+        .map_err(|error| map_section_error(error, role))
 }
 
-fn find_preamble(doc: &ParsedDocument) -> Result<SectionEntry, CommandError> {
-    // Preamble: all blocks before the first heading
-    let mut block_indices = Vec::new();
-    for block in &doc.blocks {
-        if block.heading.is_some() {
-            break;
+fn map_section_error(error: CoreError, role: crate::errors::SelectorRole) -> CommandError {
+    match error {
+        CoreError::HeadingNotFound { heading } => {
+            CommandError::not_found_heading_as(&heading, role)
         }
-        block_indices.push(block.index);
+        CoreError::DuplicateHeading { heading, matches } => {
+            let matches = matches
+                .into_iter()
+                .map(|item| crate::errors::MatchRef {
+                    block_index: item.block_index,
+                    occurrence: item.occurrence,
+                    line: item.line,
+                })
+                .collect::<Vec<_>>();
+            CommandError::duplicate_heading_as(&heading, matches.len(), &matches, role)
+        }
+        CoreError::OccurrenceOutOfRange {
+            heading,
+            requested,
+            matches,
+        } => {
+            let matches = matches
+                .into_iter()
+                .map(|item| crate::errors::MatchRef {
+                    block_index: item.block_index,
+                    occurrence: item.occurrence,
+                    line: item.line,
+                })
+                .collect::<Vec<_>>();
+            CommandError::occurrence_out_of_range(&heading, requested, &matches, role)
+        }
+        other => other.into(),
     }
-
-    let span = if block_indices.is_empty() {
-        // Empty preamble — span starts after frontmatter or at doc start
-        let byte_start = doc
-            .frontmatter
-            .as_ref()
-            .map(|fm| fm.span.byte_end)
-            .unwrap_or(0);
-        SourceSpan {
-            line_start: if byte_start > 0 {
-                doc.blocks.first().map(|b| b.span.line_start).unwrap_or(1)
-            } else {
-                1
-            },
-            line_end: if byte_start > 0 {
-                doc.blocks.first().map(|b| b.span.line_start).unwrap_or(1)
-            } else {
-                1
-            },
-            byte_start,
-            byte_end: byte_start,
-        }
-    } else {
-        let first = &doc.blocks[block_indices[0] as usize];
-        let last = &doc.blocks[*block_indices.last().unwrap() as usize];
-        SourceSpan {
-            line_start: first.span.line_start,
-            line_end: last.span.line_end,
-            byte_start: first.span.byte_start,
-            byte_end: last.span.byte_end,
-        }
-    };
-
-    Ok(SectionEntry {
-        kind: SectionKind::Preamble,
-        heading: None,
-        selector: SectionSelector {
-            kind: SectionSelectorKind::Preamble,
-            heading_text: None,
-            occurrence: None,
-            match_mode: HeadingMatchMode::Exact,
-        },
-        depth: 0,
-        block_indices,
-        span,
-        etag: output::content_etag(doc.slice(&span).as_bytes()),
-    })
-}
-
-fn find_heading_section(
-    doc: &ParsedDocument,
-    heading_text: &str,
-    selector: &SectionSelector,
-    role: crate::errors::SelectorRole,
-) -> Result<SectionEntry, CommandError> {
-    // Find all matching headings
-    let matches: Vec<_> = doc
-        .blocks
-        .iter()
-        .filter(|b| {
-            b.heading.as_ref().map_or(false, |h| {
-                heading_matches(&h.text, heading_text, selector.match_mode)
-            })
-        })
-        .collect();
-
-    if matches.is_empty() {
-        return Err(CommandError::not_found_heading_as(heading_text, role));
-    }
-
-    let match_refs: Vec<crate::errors::MatchRef> = matches
-        .iter()
-        .enumerate()
-        .map(|(i, b)| crate::errors::MatchRef {
-            block_index: b.index,
-            occurrence: (i + 1) as u32,
-            line: b.span.line_start,
-        })
-        .collect();
-
-    if matches.len() > 1 && selector.occurrence.is_none() {
-        return Err(CommandError::duplicate_heading_as(
-            heading_text,
-            matches.len(),
-            &match_refs,
-            role,
-        ));
-    }
-
-    let selected = if let Some(occ) = selector.occurrence {
-        matches.get(occ.saturating_sub(1) as usize).ok_or_else(|| {
-            CommandError::occurrence_out_of_range(heading_text, occ, &match_refs, role)
-        })?
-    } else {
-        matches[0]
-    };
-
-    let h = selected.heading.as_ref().unwrap();
-    let level = h.level;
-
-    // Collect all blocks in this section
-    let mut block_indices = vec![selected.index];
-    for block in &doc.blocks {
-        if block.index <= selected.index {
-            continue;
-        }
-        if let Some(bh) = &block.heading {
-            if bh.level <= level {
-                break;
-            }
-        }
-        block_indices.push(block.index);
-    }
-
-    // Section span — line_end must be consistent with byte_end
-    let section_byte_end = find_section_byte_end(doc, selected.index, level);
-    let section_line_end = if section_byte_end as usize >= doc.source.len() {
-        doc.line_count()
-    } else {
-        // byte_end points to start of next section; line_end is the line before that
-        let line_at_end = doc.byte_to_line(section_byte_end);
-        if section_byte_end > 0
-            && doc.source.as_bytes().get(section_byte_end as usize - 1) == Some(&b'\n')
-        {
-            line_at_end - 1
-        } else {
-            line_at_end
-        }
-    };
-
-    let span = SourceSpan {
-        line_start: selected.span.line_start,
-        line_end: section_line_end,
-        byte_start: selected.span.byte_start,
-        byte_end: section_byte_end,
-    };
-
-    let heading_ref = HeadingRef {
-        level,
-        text: h.text.clone(),
-        block_index: selected.index,
-        span: selected.span,
-    };
-
-    Ok(SectionEntry {
-        kind: SectionKind::Heading,
-        heading: Some(heading_ref),
-        selector: selector.clone(),
-        depth: level,
-        block_indices,
-        span,
-        etag: output::content_etag(doc.slice(&span).as_bytes()),
-    })
-}
-
-fn find_section_byte_end(doc: &ParsedDocument, heading_index: u32, level: u8) -> u32 {
-    // Find the next heading at same or higher level
-    for block in &doc.blocks {
-        if block.index <= heading_index {
-            continue;
-        }
-        if let Some(h) = &block.heading {
-            if h.level <= level {
-                return block.span.byte_start;
-            }
-        }
-    }
-    doc.source.len() as u32
 }
 
 fn build_section_mutation_result(
@@ -574,17 +412,6 @@ fn trailing_line_ending_tokens(content: &str) -> Vec<&str> {
         .into_iter()
         .map(|(start, end)| &content[start..end])
         .collect()
-}
-
-fn heading_matches(text: &str, selector_text: &str, match_mode: HeadingMatchMode) -> bool {
-    match match_mode {
-        HeadingMatchMode::Exact => text == selector_text,
-        HeadingMatchMode::ExactIgnoreCase => text.to_lowercase() == selector_text.to_lowercase(),
-        HeadingMatchMode::Contains => text.contains(selector_text),
-        HeadingMatchMode::ContainsIgnoreCase => {
-            text.to_lowercase().contains(&selector_text.to_lowercase())
-        }
-    }
 }
 
 pub(crate) fn describe_selector(selector: &SectionSelector) -> String {

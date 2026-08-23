@@ -241,12 +241,7 @@ fn atomic_replace_via(
 }
 
 pub fn content_etag(bytes: &[u8]) -> String {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325; // FNV offset basis
-    for &b in bytes {
-        hash ^= b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3); // FNV prime
-    }
-    format!("{:016x}", hash)
+    mdtools::fingerprint::content_etag(bytes)
 }
 
 pub fn write_json<T: Serialize>(value: &T) -> Result<(), CommandError> {
