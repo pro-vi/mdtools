@@ -287,6 +287,7 @@ pub fn move_section(
             "cannot move-section: moved section would absorb or lose adjacent headings; use --auto-level or choose a destination that preserves the section boundary".into(),
         ));
     }
+    verify_unmoved_structure(document, &content, &source, moved_start, moved.len())?;
     let disposition = if content == document.source() {
         MutationDisposition::NoChange
     } else {
@@ -314,6 +315,43 @@ pub fn move_section(
         },
         content,
     ))
+}
+
+fn verify_unmoved_structure(
+    document: &Document,
+    output: &str,
+    source: &SectionEntry,
+    moved_start: u32,
+    moved_len: usize,
+) -> Result<(), CoreError> {
+    let reparsed = Document::parse(output)?;
+    let source_indices = source.block_indices.iter().copied().collect::<HashSet<_>>();
+    let moved_end = moved_start + moved_len as u32;
+    let original = document
+        .blocks()
+        .iter()
+        .filter(|block| !source_indices.contains(&block.index))
+        .map(|block| (block.kind, document.slice_unchecked(&block.span)))
+        .collect::<Vec<_>>();
+    let moved_block_count = reparsed
+        .blocks()
+        .iter()
+        .filter(|block| block.span.byte_start >= moved_start && block.span.byte_start < moved_end)
+        .count();
+    let remaining = reparsed
+        .blocks()
+        .iter()
+        .filter(|block| {
+            !(block.span.byte_start >= moved_start && block.span.byte_start < moved_end)
+        })
+        .map(|block| (block.kind, reparsed.slice_unchecked(&block.span)))
+        .collect::<Vec<_>>();
+    if moved_block_count != source.block_indices.len() || remaining != original {
+        return Err(CoreError::InvalidSelector(
+            "cannot move-section: relocation would change blocks outside the source section".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn verify_guard(
@@ -741,3 +779,31 @@ fn describe_selector(section: &SectionEntry) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::HeadingMatchMode;
+    use crate::section::{SectionIndex, SectionTarget};
+
+    #[test]
+    fn whole_document_closure_rejects_unrelated_block_changes() {
+        let document = Document::parse("# A\n\na\n\n# B\n\nb\n").unwrap();
+        let source = SectionIndex::new(&document)
+            .resolve(&SectionTarget::heading("A", None, HeadingMatchMode::Exact).unwrap())
+            .unwrap();
+        let corrupted = "# A\n\na\n\n# B\n\nchanged\n";
+
+        assert!(matches!(
+            verify_unmoved_structure(
+                &document,
+                corrupted,
+                source.entry(),
+                source.span.byte_start,
+                source.span.byte_end as usize - source.span.byte_start as usize,
+            ),
+            Err(CoreError::InvalidSelector(_))
+        ));
+    }
+}
+use std::collections::HashSet;

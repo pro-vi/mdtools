@@ -22,8 +22,12 @@ def passing_payload():
                 "verdict": "pass",
                 "suite_exit": 0,
                 "mutation_match": True,
-                "comparisons": [{"match": True}],
-                "mutation_comparisons": [{"match": True}],
+                "comparisons": [
+                    {"args": args, "match": True} for args in probe.READ_PARITY_CASES
+                ],
+                "mutation_comparisons": [
+                    {"name": name, "match": True} for name in probe.MUTATION_PARITY_NAMES
+                ],
             },
             "braid_adoption": {
                 "verdict": "pass",
@@ -54,6 +58,8 @@ class RecordedEvidenceTests(unittest.TestCase):
             ("CLI dependency", lambda value: value["lanes"]["reader_readiness"].update(cli_only_dependencies=["clap"])),
             ("dirty source", lambda value: value.update(source_clean=False)),
             ("package mismatch", lambda value: value["lanes"]["reader_readiness"].update(package_sha256="b" * 64)),
+            ("truncated reads", lambda value: value["lanes"]["cli_preservation"].update(comparisons=value["lanes"]["cli_preservation"]["comparisons"][:1])),
+            ("truncated mutations", lambda value: value["lanes"]["cli_preservation"].update(mutation_comparisons=value["lanes"]["cli_preservation"]["mutation_comparisons"][:1])),
         ]
         for name, mutate in mutations:
             with self.subTest(name=name):

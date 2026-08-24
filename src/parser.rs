@@ -269,8 +269,9 @@ impl ParsedDocument {
         Self::parse_inner(source, FrontmatterParseMode::Lenient)
     }
 
-    /// Parse specifically for the frontmatter command, which should error on malformed frontmatter
-    /// rather than falling back to treating it as plain content.
+    /// Parse for frontmatter reads. A closed frontmatter block must parse
+    /// semantically; an unmatched opening delimiter remains ordinary Markdown
+    /// and is reported as absent for CLI compatibility.
     pub fn parse_for_frontmatter(source: String) -> Result<Self, CoreError> {
         Self::parse_inner(source, FrontmatterParseMode::StrictRead)
     }

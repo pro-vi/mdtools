@@ -19,6 +19,36 @@ BASELINE_COMMIT = "07eb509"
 RESULT_START = "<!-- result-json:start -->"
 RESULT_END = "<!-- result-json:end -->"
 LANES = ("cli_preservation", "braid_adoption", "reader_readiness")
+READ_PARITY_CASES = [
+    ["schema", "--json"],
+    ["outline", "--json", "tests/fixtures/basic.md"],
+    ["section", "Introduction", "tests/fixtures/basic.md", "--json"],
+    ["blocks", "tests/fixtures/basic.md", "--json"],
+    ["block", "0", "tests/fixtures/basic.md", "--json"],
+    ["search", "Introduction", "tests/fixtures/basic.md", "--json"],
+    ["links", "tests/fixtures/basic.md", "--json"],
+    ["frontmatter", "tests/fixtures/frontmatter.md", "--json"],
+    ["collect", "tests/fixtures/frontmatter.md", "--field", "title", "--json"],
+    ["stats", "tests/fixtures/basic.md", "--json"],
+    ["table", "tests/fixtures/table.md", "--json"],
+    ["table", "tests/fixtures/table.md", "--index", "1", "--json"],
+    ["tasks", "tests/fixtures/progress_example.md", "--json"],
+    ["task", "9.0", "tests/fixtures/progress_example.md", "--json"],
+]
+MUTATION_PARITY_NAMES = (
+    "replace-block",
+    "insert-block",
+    "delete-block",
+    "move-block",
+    "replace-section",
+    "delete-section",
+    "move-section",
+    "set-frontmatter",
+    "replace-table-row",
+    "insert-table-row",
+    "delete-table-row",
+    "set-task",
+)
 
 
 @dataclass(frozen=True)
@@ -145,24 +175,8 @@ def cli_lane(repo: Path, workspace: Path) -> dict[str, object]:
     baseline_binary = build_binary(baseline, workspace / "baseline-target")
     current_binary = build_binary(current, workspace / "current-target")
 
-    cases = [
-        ["schema", "--json"],
-        ["outline", "--json", "tests/fixtures/basic.md"],
-        ["section", "Introduction", "tests/fixtures/basic.md", "--json"],
-        ["blocks", "tests/fixtures/basic.md", "--json"],
-        ["block", "0", "tests/fixtures/basic.md", "--json"],
-        ["search", "Introduction", "tests/fixtures/basic.md", "--json"],
-        ["links", "tests/fixtures/basic.md", "--json"],
-        ["frontmatter", "tests/fixtures/frontmatter.md", "--json"],
-        ["collect", "tests/fixtures/frontmatter.md", "--field", "title", "--json"],
-        ["stats", "tests/fixtures/basic.md", "--json"],
-        ["table", "tests/fixtures/table.md", "--json"],
-        ["table", "tests/fixtures/table.md", "--index", "1", "--json"],
-        ["tasks", "tests/fixtures/progress_example.md", "--json"],
-        ["task", "9.0", "tests/fixtures/progress_example.md", "--json"],
-    ]
     comparisons = []
-    for args in cases:
+    for args in READ_PARITY_CASES:
         before = invoke(baseline_binary, args, baseline)
         after = invoke(current_binary, args, current)
         comparisons.append(
@@ -535,12 +549,16 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
     if set(payload["lanes"]) != set(LANES):
         raise ValueError("result lanes do not match the protocol")
     cli = payload["lanes"]["cli_preservation"]
+    recorded_read_cases = [item.get("args") for item in cli.get("comparisons", [])]
+    recorded_mutation_names = tuple(
+        item.get("name") for item in cli.get("mutation_comparisons", [])
+    )
     cli_pass = (
         cli.get("suite_exit") == 0
         and cli.get("mutation_match") is True
-        and bool(cli.get("comparisons"))
+        and recorded_read_cases == READ_PARITY_CASES
         and all(item.get("match") is True for item in cli["comparisons"])
-        and bool(cli.get("mutation_comparisons"))
+        and recorded_mutation_names == MUTATION_PARITY_NAMES
         and all(item.get("match") is True for item in cli["mutation_comparisons"])
     )
     braid = payload["lanes"]["braid_adoption"]
