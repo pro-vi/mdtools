@@ -1,6 +1,8 @@
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
-use crate::edit::{EditOutcome, EditPreservation};
+use crate::edit::{
+    replacement_span_after, strip_one_trailing_newline, EditOutcome, EditPreservation,
+};
 use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{BlockKind, ColumnAlignment, MutationDisposition, SourceSpan};
 use crate::parser::{extract_table_projection, validate_table_row_payload, TableProjection};
@@ -425,26 +427,6 @@ fn resolve_column(headers: &[String], column: &ColumnSelector) -> Result<usize, 
                     headers: headers.to_vec(),
                 })
         }
-    }
-}
-
-fn strip_one_trailing_newline(mut value: String) -> String {
-    if value.ends_with("\r\n") {
-        value.truncate(value.len() - 2);
-    } else if value.ends_with('\n') {
-        value.truncate(value.len() - 1);
-    }
-    value
-}
-
-fn replacement_span_after(before: SourceSpan, replacement: &str) -> SourceSpan {
-    let newlines = replacement.bytes().filter(|byte| *byte == b'\n').count() as u32;
-    let trailing = u32::from(replacement.as_bytes().last() == Some(&b'\n'));
-    SourceSpan {
-        line_start: before.line_start,
-        line_end: before.line_start + newlines.saturating_sub(trailing),
-        byte_start: before.byte_start,
-        byte_end: before.byte_start + replacement.len() as u32,
     }
 }
 

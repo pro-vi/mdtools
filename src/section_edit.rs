@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::block_edit::GuardRole;
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
-use crate::edit::{EditOutcome, EditPreservation};
+use crate::edit::{normalize_line_endings, replacement_span_after, EditOutcome, EditPreservation};
 use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{InsertMode, LineEndingStyle, MutationDisposition, SectionEntry, SourceSpan};
 use crate::parser::{HeadingSourceKind, ParsedDocument};
@@ -726,25 +726,6 @@ fn trailing_line_endings(content: &str) -> Vec<&str> {
         .into_iter()
         .map(|(start, end)| &content[start..end])
         .collect()
-}
-
-fn normalize_line_endings(content: &str, style: LineEndingStyle) -> String {
-    match style {
-        LineEndingStyle::Lf => content.replace("\r\n", "\n"),
-        LineEndingStyle::Crlf => content.replace("\r\n", "\n").replace('\n', "\r\n"),
-        LineEndingStyle::Mixed => content.to_string(),
-    }
-}
-
-fn replacement_span_after(span: SourceSpan, replacement: &str) -> SourceSpan {
-    let newlines = replacement.bytes().filter(|byte| *byte == b'\n').count() as u32;
-    let trailing = u32::from(replacement.as_bytes().last() == Some(&b'\n'));
-    SourceSpan {
-        line_start: span.line_start,
-        line_end: span.line_start + newlines.saturating_sub(trailing),
-        byte_start: span.byte_start,
-        byte_end: span.byte_start + replacement.len() as u32,
-    }
 }
 
 fn outcome(
