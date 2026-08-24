@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::block_edit::GuardRole;
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
@@ -806,4 +808,3 @@ mod tests {
         ));
     }
 }
-use std::collections::HashSet;
