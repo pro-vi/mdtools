@@ -544,13 +544,20 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
         and all(item.get("match") is True for item in cli["mutation_comparisons"])
     )
     braid = payload["lanes"]["braid_adoption"]
-    braid_pass = braid.get("consumer_exit") == 0 and braid.get("package_clean") is True
+    package_hash = braid.get("package_sha256")
+    braid_pass = (
+        braid.get("consumer_exit") == 0
+        and braid.get("package_clean") is True
+        and isinstance(package_hash, str)
+        and len(package_hash) == 64
+    )
     reader = payload["lanes"]["reader_readiness"]
     reader_pass = (
         reader.get("consumer_exit") == 0
         and reader.get("tree_exit") == 0
         and reader.get("package_clean") is True
         and reader.get("cli_only_dependencies") == []
+        and reader.get("package_sha256") == package_hash
     )
     expected_passes = {
         "cli_preservation": cli_pass,
@@ -588,6 +595,10 @@ def check_results(repo: Path) -> int:
     }
     if dirty_paths - allowed:
         raise ValueError("current source has changes not represented by the result")
+    with tempfile.TemporaryDirectory(prefix="mdtools-core-check-") as raw_workspace:
+        _, _, current_package_hash = package_source(repo, Path(raw_workspace))
+    if current_package_hash != payload["lanes"]["braid_adoption"]["package_sha256"]:
+        raise ValueError("current Cargo package hash does not match recorded evidence")
     print(payload["overall"])
     return 0
 

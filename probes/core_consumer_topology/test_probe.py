@@ -29,6 +29,7 @@ def passing_payload():
                 "verdict": "pass",
                 "consumer_exit": 0,
                 "package_clean": True,
+                "package_sha256": "a" * 64,
             },
             "reader_readiness": {
                 "verdict": "pass",
@@ -36,6 +37,7 @@ def passing_payload():
                 "tree_exit": 0,
                 "package_clean": True,
                 "cli_only_dependencies": [],
+                "package_sha256": "a" * 64,
             },
         },
         "overall": "foundation_validated",
@@ -51,6 +53,7 @@ class RecordedEvidenceTests(unittest.TestCase):
             ("reader exit", lambda value: value["lanes"]["reader_readiness"].update(consumer_exit=1)),
             ("CLI dependency", lambda value: value["lanes"]["reader_readiness"].update(cli_only_dependencies=["clap"])),
             ("dirty source", lambda value: value.update(source_clean=False)),
+            ("package mismatch", lambda value: value["lanes"]["reader_readiness"].update(package_sha256="b" * 64)),
         ]
         for name, mutate in mutations:
             with self.subTest(name=name):

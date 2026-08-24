@@ -77,7 +77,9 @@ product pass or failure.
   `--allow-dirty`.
 - Canonical artifact and non-mutating check command: `RESULTS.md` is canonical;
   `python3 probe.py --check` verifies its embedded evidence fields, verdicts,
-  source cleanliness, and candidate ancestry without executing builds.
+  source cleanliness, candidate ancestry, and a freshly rebuilt Cargo package
+  hash without executing behavior tests. Behavioral re-verification requires a
+  full `python3 probe.py` execution.
 
 ## Phase Boundary
 
