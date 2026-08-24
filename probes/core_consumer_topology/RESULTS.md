@@ -5,8 +5,8 @@
 **foundation_validated**
 
 - `cli_preservation`: **pass**
-- `braid_adoption`: **pass**
-- `reader_readiness`: **pass**
+- `packaged_api_adoption`: **pass**
+- `library_only_composition`: **pass**
 
 ## Product Disposition
 
@@ -14,15 +14,16 @@
   representative parity case: reads matched exit code, stdout, and stderr;
   mutations additionally matched final document bytes; the complete current
   Rust suite passed.
-- A clean Braid-shaped consumer built from the published Cargo package without a
-  sibling checkout and immediately translated Markdown task status and source
-  coordinates into consumer-owned types.
-- A reader-shaped consumer built with default features disabled, had no Clap or
-  Walkdir dependency, used outline/section/task queries in-process, and produced
-  a guarded task-edit candidate without changing its source or filesystem.
+- A clean packaged adapter built without a sibling checkout and immediately
+  translated Markdown task status and source coordinates into consumer-owned
+  types.
+- A library-only consumer built with default features disabled, had no Clap or
+  Walkdir dependency, composed direct structural queries in-process, and
+  produced a guarded task-edit candidate without changing its source or
+  filesystem.
 - The reusable single-document surface is complete for the current CLI:
   reads, guarded edit candidates, and relocation all run without process I/O.
-  Rendering, viewer state, agent policy, and Braid workflow semantics remain
+  Application-specific rendering, state, policy, and workflow semantics remain
   outside mdtools.
 
 ## Reopening Gate
@@ -33,7 +34,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 
 ## Evidence
 
-- Candidate commit: `f16860335b136f00ec2925b7078a56a6434a6316`
+- Candidate commit: `55afe59cf7d4bba4f648fa3032ddec820b65d847`
 - Baseline commit: `07eb509`
 - The JSON below records the executed lane details and is checked without rerunning builds.
 
@@ -41,19 +42,8 @@ future operation cannot preserve direct-core/CLI candidate parity.
 ```json
 {
   "baseline_commit": "07eb509",
-  "candidate_commit": "f16860335b136f00ec2925b7078a56a6434a6316",
+  "candidate_commit": "55afe59cf7d4bba4f648fa3032ddec820b65d847",
   "lanes": {
-    "braid_adoption": {
-      "consumer_exit": 0,
-      "consumer_stderr": "",
-      "consumer_stdout": "",
-      "package_check_exit": 0,
-      "package_check_stderr": "   Compiling proc-macro2 v1.0.106\n   Compiling quote v1.0.45\n   Compiling unicode-ident v1.0.24\n   Compiling serde_core v1.0.228\n   Compiling serde v1.0.228\n   Compiling version_check v0.9.5\n    Checking equivalent v1.0.2\n    Checking hashbrown v0.16.1\n   Compiling siphasher v1.0.2\n   Compiling libc v0.2.183\n   Compiling crossbeam-utils v0.8.21\n    Checking utf8parse v0.2.2\n   Compiling fastrand v2.3.0\n   Compiling zmij v1.0.21\n    Checking typenum v1.20.1\n    Checking cfg-if v1.0.4\n    Checking is_terminal_polyfill v1.70.2\n   Compiling serde_json v1.0.149\n    Checking anstyle v1.0.14\n    Checking colorchoice v1.0.5\n    Checking itoa v1.0.17\n   Compiling zerocopy v0.8.48\n    Checking anstyle-parse v1.0.0\n   Compiling phf_shared v0.13.1\n    Checking anstyle-query v1.1.5\n    Checking tinyvec_macros v0.1.1\n    Checking strsim v0.11.1\n   Compiling autocfg v1.5.0\n    Checking tinyvec v1.11.0\n    Checking anstream v1.0.0\n    Checking memchr v2.8.0\n   Compiling phf_generator v0.13.1\n   Compiling generic-array v0.14.7\n    Checking clap_lex v1.1.0\n   Compiling phf_codegen v0.13.1\n   Compiling heck v0.5.0\n   Compiling jetscii v0.5.3\n   Compiling entities v1.0.1\n    Checking indexmap v2.13.0\n    Checking unicode-normalization v0.1.25\n   Compiling num-traits v0.2.19\n    Checking clap_builder v4.6.0\n   Compiling rayon-core v1.13.0\n    Checking either v1.15.0\n   Compiling comrak v0.51.0\n    Checking toml_write v0.1.2\n    Checking same-file v1.0.6\n    Checking winnow v0.7.15\n    Checking walkdir v2.5.0\n    Checking phf v0.13.1\n    Checking caseless v0.2.2\n    Checking ryu v1.0.23\n    Checking regex-syntax v0.8.10\n    Checking rustc-hash v2.1.1\n    Checking finl_unicode v1.4.0\n    Checking typed-arena v2.0.2\n    Checking unsafe-libyaml v0.2.11\n    Checking plotters-backend v0.3.7\n    Checking smallvec v1.15.1\n    Checking crossbeam-epoch v0.9.18\n    Checking ciborium-io v0.2.2\n    Checking plotters-svg v0.3.7\n    Checking itertools v0.10.5\n    Checking crossbeam-deque v0.8.6\n    Checking cast v0.3.0\n    Checking once_cell v1.21.4\n    Checking anes v0.1.6\n    Checking oorandom v11.1.5\n    Checking regex-automata v0.4.14\n    Checking criterion-plot v0.5.0\n    Checking regex v1.12.3\n   Compiling syn v2.0.117\n    Checking cpufeatures v0.2.17\n    Checking is-terminal v0.4.17\n    Checking crypto-common v0.1.7\n    Checking block-buffer v0.10.4\n    Checking digest v0.10.7\n    Checking sha2 v0.10.9\n   Compiling serde_derive v1.0.228\n   Compiling zerocopy-derive v0.8.48\n   Compiling clap_derive v4.6.0\n    Checking rayon v1.11.0\n    Checking plotters v0.3.7\n    Checking clap v4.6.0\n    Checking toml_datetime v0.6.11\n    Checking serde_spanned v0.6.9\n    Checking serde_yaml v0.9.34+deprecated\n    Checking tinytemplate v1.2.1\n    Checking toml_edit v0.22.27\n    Checking toml v0.8.23\n    Checking half v2.7.1\n    Checking mdtools v0.1.0 (/private/var/folders/sw/zn4xtdd96nq_y2jvwzyx0vk80000gn/T/mdtools-core-consumer-1ejv_yas/package/mdtools-0.1.0)\n    Checking ciborium-ll v0.2.2\n    Checking ciborium v0.2.2\n    Checking criterion v0.5.1\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.07s\n",
-      "package_clean": true,
-      "package_content_sha256": "d2c80831691c826707f82a24f89124ece1bf67fbc39dabef33a2bf68f31a7638",
-      "package_file_count": 116,
-      "verdict": "pass"
-    },
     "cli_preservation": {
       "baseline_binary_sha256": "40892016bc110c68f8bdde765f70278731d7eefbfdf0fca3fef6e16d3bac6926",
       "candidate_binary_sha256": "7e86087cf02b342bec8525d9a391922f6c6b67e92df870827de4ce861de6f0c6",
@@ -390,17 +380,28 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "suite_exit": 0,
       "verdict": "pass"
     },
-    "reader_readiness": {
+    "library_only_composition": {
       "cli_only_dependencies": [],
       "consumer_exit": 0,
       "consumer_stderr": "",
       "consumer_stdout": "",
       "package_check_exit": 0,
-      "package_check_stderr": "   Compiling proc-macro2 v1.0.106\n   Compiling quote v1.0.45\n   Compiling unicode-ident v1.0.24\n   Compiling serde_core v1.0.228\n   Compiling serde v1.0.228\n   Compiling version_check v0.9.5\n    Checking equivalent v1.0.2\n    Checking hashbrown v0.16.1\n   Compiling siphasher v1.0.2\n   Compiling libc v0.2.183\n   Compiling crossbeam-utils v0.8.21\n    Checking utf8parse v0.2.2\n   Compiling fastrand v2.3.0\n   Compiling zmij v1.0.21\n    Checking typenum v1.20.1\n    Checking cfg-if v1.0.4\n    Checking is_terminal_polyfill v1.70.2\n   Compiling serde_json v1.0.149\n    Checking anstyle v1.0.14\n    Checking colorchoice v1.0.5\n    Checking itoa v1.0.17\n   Compiling zerocopy v0.8.48\n    Checking anstyle-parse v1.0.0\n   Compiling phf_shared v0.13.1\n    Checking anstyle-query v1.1.5\n    Checking tinyvec_macros v0.1.1\n    Checking strsim v0.11.1\n   Compiling autocfg v1.5.0\n    Checking tinyvec v1.11.0\n    Checking anstream v1.0.0\n    Checking memchr v2.8.0\n   Compiling phf_generator v0.13.1\n   Compiling generic-array v0.14.7\n    Checking clap_lex v1.1.0\n   Compiling phf_codegen v0.13.1\n   Compiling heck v0.5.0\n   Compiling jetscii v0.5.3\n   Compiling entities v1.0.1\n    Checking indexmap v2.13.0\n    Checking unicode-normalization v0.1.25\n   Compiling num-traits v0.2.19\n    Checking clap_builder v4.6.0\n   Compiling rayon-core v1.13.0\n    Checking either v1.15.0\n   Compiling comrak v0.51.0\n    Checking toml_write v0.1.2\n    Checking same-file v1.0.6\n    Checking winnow v0.7.15\n    Checking walkdir v2.5.0\n    Checking phf v0.13.1\n    Checking caseless v0.2.2\n    Checking ryu v1.0.23\n    Checking regex-syntax v0.8.10\n    Checking rustc-hash v2.1.1\n    Checking finl_unicode v1.4.0\n    Checking typed-arena v2.0.2\n    Checking unsafe-libyaml v0.2.11\n    Checking plotters-backend v0.3.7\n    Checking smallvec v1.15.1\n    Checking crossbeam-epoch v0.9.18\n    Checking ciborium-io v0.2.2\n    Checking plotters-svg v0.3.7\n    Checking itertools v0.10.5\n    Checking crossbeam-deque v0.8.6\n    Checking cast v0.3.0\n    Checking once_cell v1.21.4\n    Checking anes v0.1.6\n    Checking oorandom v11.1.5\n    Checking regex-automata v0.4.14\n    Checking criterion-plot v0.5.0\n    Checking regex v1.12.3\n   Compiling syn v2.0.117\n    Checking cpufeatures v0.2.17\n    Checking is-terminal v0.4.17\n    Checking crypto-common v0.1.7\n    Checking block-buffer v0.10.4\n    Checking digest v0.10.7\n    Checking sha2 v0.10.9\n   Compiling serde_derive v1.0.228\n   Compiling zerocopy-derive v0.8.48\n   Compiling clap_derive v4.6.0\n    Checking rayon v1.11.0\n    Checking plotters v0.3.7\n    Checking clap v4.6.0\n    Checking toml_datetime v0.6.11\n    Checking serde_spanned v0.6.9\n    Checking serde_yaml v0.9.34+deprecated\n    Checking tinytemplate v1.2.1\n    Checking toml_edit v0.22.27\n    Checking toml v0.8.23\n    Checking half v2.7.1\n    Checking mdtools v0.1.0 (/private/var/folders/sw/zn4xtdd96nq_y2jvwzyx0vk80000gn/T/mdtools-core-consumer-1ejv_yas/package/mdtools-0.1.0)\n    Checking ciborium-ll v0.2.2\n    Checking ciborium v0.2.2\n    Checking criterion v0.5.1\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.07s\n",
+      "package_check_stderr": "   Compiling proc-macro2 v1.0.106\n   Compiling quote v1.0.45\n   Compiling unicode-ident v1.0.24\n   Compiling serde_core v1.0.228\n   Compiling serde v1.0.228\n    Checking equivalent v1.0.2\n   Compiling version_check v0.9.5\n    Checking hashbrown v0.16.1\n   Compiling libc v0.2.183\n   Compiling siphasher v1.0.2\n   Compiling crossbeam-utils v0.8.21\n    Checking utf8parse v0.2.2\n   Compiling fastrand v2.3.0\n    Checking typenum v1.20.1\n    Checking cfg-if v1.0.4\n   Compiling zmij v1.0.21\n    Checking is_terminal_polyfill v1.70.2\n   Compiling zerocopy v0.8.48\n    Checking itoa v1.0.17\n    Checking colorchoice v1.0.5\n    Checking anstyle-parse v1.0.0\n    Checking anstyle v1.0.14\n    Checking anstyle-query v1.1.5\n   Compiling phf_shared v0.13.1\n    Checking tinyvec_macros v0.1.1\n   Compiling serde_json v1.0.149\n    Checking strsim v0.11.1\n    Checking memchr v2.8.0\n    Checking tinyvec v1.11.0\n   Compiling jetscii v0.5.3\n    Checking anstream v1.0.0\n   Compiling autocfg v1.5.0\n   Compiling generic-array v0.14.7\n   Compiling phf_generator v0.13.1\n   Compiling entities v1.0.1\n    Checking indexmap v2.13.0\n   Compiling phf_codegen v0.13.1\n   Compiling heck v0.5.0\n    Checking clap_lex v1.1.0\n    Checking unicode-normalization v0.1.25\n   Compiling comrak v0.51.0\n   Compiling num-traits v0.2.19\n    Checking either v1.15.0\n    Checking clap_builder v4.6.0\n    Checking same-file v1.0.6\n   Compiling rayon-core v1.13.0\n    Checking winnow v0.7.15\n    Checking toml_write v0.1.2\n    Checking phf v0.13.1\n    Checking caseless v0.2.2\n    Checking walkdir v2.5.0\n    Checking plotters-backend v0.3.7\n    Checking ryu v1.0.23\n    Checking ciborium-io v0.2.2\n    Checking unsafe-libyaml v0.2.11\n    Checking rustc-hash v2.1.1\n    Checking typed-arena v2.0.2\n    Checking finl_unicode v1.4.0\n    Checking crossbeam-epoch v0.9.18\n    Checking smallvec v1.15.1\n    Checking regex-syntax v0.8.10\n    Checking crossbeam-deque v0.8.6\n    Checking plotters-svg v0.3.7\n    Checking itertools v0.10.5\n    Checking cast v0.3.0\n    Checking once_cell v1.21.4\n    Checking oorandom v11.1.5\n    Checking anes v0.1.6\n    Checking regex-automata v0.4.14\n    Checking criterion-plot v0.5.0\n   Compiling syn v2.0.117\n    Checking regex v1.12.3\n    Checking cpufeatures v0.2.17\n    Checking is-terminal v0.4.17\n   Compiling serde_derive v1.0.228\n   Compiling zerocopy-derive v0.8.48\n   Compiling clap_derive v4.6.0\n    Checking crypto-common v0.1.7\n    Checking block-buffer v0.10.4\n    Checking digest v0.10.7\n    Checking sha2 v0.10.9\n    Checking clap v4.6.0\n    Checking rayon v1.11.0\n    Checking plotters v0.3.7\n    Checking serde_spanned v0.6.9\n    Checking toml_datetime v0.6.11\n    Checking serde_yaml v0.9.34+deprecated\n    Checking tinytemplate v1.2.1\n    Checking toml_edit v0.22.27\n    Checking toml v0.8.23\n    Checking half v2.7.1\n    Checking mdtools v0.1.0 (/private/var/folders/sw/zn4xtdd96nq_y2jvwzyx0vk80000gn/T/mdtools-core-consumer-29ou5g62/package/mdtools-0.1.0)\n    Checking ciborium-ll v0.2.2\n    Checking ciborium v0.2.2\n    Checking criterion v0.5.1\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.96s\n",
       "package_clean": true,
       "package_content_sha256": "d2c80831691c826707f82a24f89124ece1bf67fbc39dabef33a2bf68f31a7638",
       "tree_exit": 0,
       "tree_stderr": "",
+      "verdict": "pass"
+    },
+    "packaged_api_adoption": {
+      "consumer_exit": 0,
+      "consumer_stderr": "",
+      "consumer_stdout": "",
+      "package_check_exit": 0,
+      "package_check_stderr": "   Compiling proc-macro2 v1.0.106\n   Compiling quote v1.0.45\n   Compiling unicode-ident v1.0.24\n   Compiling serde_core v1.0.228\n   Compiling serde v1.0.228\n    Checking equivalent v1.0.2\n   Compiling version_check v0.9.5\n    Checking hashbrown v0.16.1\n   Compiling libc v0.2.183\n   Compiling siphasher v1.0.2\n   Compiling crossbeam-utils v0.8.21\n    Checking utf8parse v0.2.2\n   Compiling fastrand v2.3.0\n    Checking typenum v1.20.1\n    Checking cfg-if v1.0.4\n   Compiling zmij v1.0.21\n    Checking is_terminal_polyfill v1.70.2\n   Compiling zerocopy v0.8.48\n    Checking itoa v1.0.17\n    Checking colorchoice v1.0.5\n    Checking anstyle-parse v1.0.0\n    Checking anstyle v1.0.14\n    Checking anstyle-query v1.1.5\n   Compiling phf_shared v0.13.1\n    Checking tinyvec_macros v0.1.1\n   Compiling serde_json v1.0.149\n    Checking strsim v0.11.1\n    Checking memchr v2.8.0\n    Checking tinyvec v1.11.0\n   Compiling jetscii v0.5.3\n    Checking anstream v1.0.0\n   Compiling autocfg v1.5.0\n   Compiling generic-array v0.14.7\n   Compiling phf_generator v0.13.1\n   Compiling entities v1.0.1\n    Checking indexmap v2.13.0\n   Compiling phf_codegen v0.13.1\n   Compiling heck v0.5.0\n    Checking clap_lex v1.1.0\n    Checking unicode-normalization v0.1.25\n   Compiling comrak v0.51.0\n   Compiling num-traits v0.2.19\n    Checking either v1.15.0\n    Checking clap_builder v4.6.0\n    Checking same-file v1.0.6\n   Compiling rayon-core v1.13.0\n    Checking winnow v0.7.15\n    Checking toml_write v0.1.2\n    Checking phf v0.13.1\n    Checking caseless v0.2.2\n    Checking walkdir v2.5.0\n    Checking plotters-backend v0.3.7\n    Checking ryu v1.0.23\n    Checking ciborium-io v0.2.2\n    Checking unsafe-libyaml v0.2.11\n    Checking rustc-hash v2.1.1\n    Checking typed-arena v2.0.2\n    Checking finl_unicode v1.4.0\n    Checking crossbeam-epoch v0.9.18\n    Checking smallvec v1.15.1\n    Checking regex-syntax v0.8.10\n    Checking crossbeam-deque v0.8.6\n    Checking plotters-svg v0.3.7\n    Checking itertools v0.10.5\n    Checking cast v0.3.0\n    Checking once_cell v1.21.4\n    Checking oorandom v11.1.5\n    Checking anes v0.1.6\n    Checking regex-automata v0.4.14\n    Checking criterion-plot v0.5.0\n   Compiling syn v2.0.117\n    Checking regex v1.12.3\n    Checking cpufeatures v0.2.17\n    Checking is-terminal v0.4.17\n   Compiling serde_derive v1.0.228\n   Compiling zerocopy-derive v0.8.48\n   Compiling clap_derive v4.6.0\n    Checking crypto-common v0.1.7\n    Checking block-buffer v0.10.4\n    Checking digest v0.10.7\n    Checking sha2 v0.10.9\n    Checking clap v4.6.0\n    Checking rayon v1.11.0\n    Checking plotters v0.3.7\n    Checking serde_spanned v0.6.9\n    Checking toml_datetime v0.6.11\n    Checking serde_yaml v0.9.34+deprecated\n    Checking tinytemplate v1.2.1\n    Checking toml_edit v0.22.27\n    Checking toml v0.8.23\n    Checking half v2.7.1\n    Checking mdtools v0.1.0 (/private/var/folders/sw/zn4xtdd96nq_y2jvwzyx0vk80000gn/T/mdtools-core-consumer-29ou5g62/package/mdtools-0.1.0)\n    Checking ciborium-ll v0.2.2\n    Checking ciborium v0.2.2\n    Checking criterion v0.5.1\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.96s\n",
+      "package_clean": true,
+      "package_content_sha256": "d2c80831691c826707f82a24f89124ece1bf67fbc39dabef33a2bf68f31a7638",
+      "package_file_count": 116,
       "verdict": "pass"
     }
   },
