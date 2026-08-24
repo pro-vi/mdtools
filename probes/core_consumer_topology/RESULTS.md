@@ -33,7 +33,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 
 ## Evidence
 
-- Candidate commit: `9849cd1ba0885895b7f3f6cd63b0a3f3b007c508`
+- Candidate commit: `3db7af38d4aa6e15f454a49448ea0825cf921277`
 - Baseline commit: `07eb509`
 - The JSON below records the executed lane details and is checked without rerunning builds.
 
@@ -41,7 +41,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 ```json
 {
   "baseline_commit": "07eb509",
-  "candidate_commit": "9849cd1ba0885895b7f3f6cd63b0a3f3b007c508",
+  "candidate_commit": "3db7af38d4aa6e15f454a49448ea0825cf921277",
   "lanes": {
     "braid_adoption": {
       "consumer_exit": 0,
@@ -49,12 +49,12 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "consumer_stdout": "",
       "package_clean": true,
       "package_file_count": 116,
-      "package_sha256": "c6ab65302af5c56b59fc674d29a9725b0428306acfce426cc4a8df1b2e4d8bbe",
+      "package_sha256": "de814c02d84eb2a5fcfa3e34e3f50fc382ed27a162864630f98df331ad8a4afd",
       "verdict": "pass"
     },
     "cli_preservation": {
       "baseline_binary_sha256": "40892016bc110c68f8bdde765f70278731d7eefbfdf0fca3fef6e16d3bac6926",
-      "candidate_binary_sha256": "597cbca9b7dc30ab40620750942ff3dd6ee7e40ac8a7a57e3fffca3dc1729951",
+      "candidate_binary_sha256": "9c2c67af3b34bcec873bdbd5e1e48547de781ac254c5d405242124fd2dd47afb",
       "comparisons": [
         {
           "args": [
@@ -394,7 +394,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "consumer_stderr": "",
       "consumer_stdout": "",
       "package_clean": true,
-      "package_sha256": "c6ab65302af5c56b59fc674d29a9725b0428306acfce426cc4a8df1b2e4d8bbe",
+      "package_sha256": "de814c02d84eb2a5fcfa3e34e3f50fc382ed27a162864630f98df331ad8a4afd",
       "tree_exit": 0,
       "tree_stderr": "",
       "verdict": "pass"
