@@ -1,15 +1,13 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use crate::core_error::CoreError;
-use crate::edit::EditOutcome;
-use crate::fingerprint::content_etag;
-use crate::model::{
-    MutationDisposition, MutationTargetKind, MutationTargetRef, SectionSelector,
-    SourcePreservationInvariant, TaskEntry, TaskItemTargetRef, TaskStatus,
-};
-use crate::parser::{BlockInfo, ParsedDocument, TaskItemInfo};
-use crate::section::SectionIndex;
+use crate::core_error::{CoreError, EtagTarget};
+use crate::document::Document;
+use crate::edit::{EditOutcome, EditPreservation};
+use crate::fingerprint::{content_etag, TargetEtag};
+use crate::model::{MutationDisposition, SourceSpan, TaskEntry, TaskStatus};
+use crate::parser::{BlockInfo, TaskItemInfo};
+use crate::section::{SectionIndex, SectionTarget};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskLoc {
@@ -66,7 +64,7 @@ impl std::fmt::Display for TaskLoc {
 pub struct TaskQuery {
     pub status: Option<TaskStatus>,
     pub contains: Option<String>,
-    pub under: Option<SectionSelector>,
+    pub under: Option<SectionTarget>,
 }
 
 #[derive(Clone, Debug)]
@@ -79,10 +77,16 @@ pub struct TaskRead {
 pub struct SetTaskEdit {
     pub loc: TaskLoc,
     pub status: TaskStatus,
-    pub expect_etag: Option<String>,
+    pub expect_etag: Option<TargetEtag>,
 }
 
-pub fn tasks(document: &ParsedDocument, query: &TaskQuery) -> Result<Vec<TaskEntry>, CoreError> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskEditTarget {
+    pub loc: TaskLoc,
+    pub span: SourceSpan,
+}
+
+pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskEntry>, CoreError> {
     let selected = query
         .under
         .as_ref()
@@ -94,7 +98,7 @@ pub fn tasks(document: &ParsedDocument, query: &TaskQuery) -> Result<Vec<TaskEnt
         .transpose()?;
     let mut entries = Vec::new();
 
-    for block in &document.blocks {
+    for block in document.blocks() {
         if selected
             .as_ref()
             .is_some_and(|indices| !indices.contains(&block.index))
@@ -104,7 +108,7 @@ pub fn tasks(document: &ParsedDocument, query: &TaskQuery) -> Result<Vec<TaskEnt
         if block.task_items.is_empty() {
             continue;
         }
-        let heading = nearest_heading(&document.blocks, block.index);
+        let heading = nearest_heading(document.blocks(), block.index);
         for item in &block.task_items {
             if query.status.is_some_and(|status| item.status != status) {
                 continue;
@@ -122,34 +126,37 @@ pub fn tasks(document: &ParsedDocument, query: &TaskQuery) -> Result<Vec<TaskEnt
     Ok(entries)
 }
 
-pub fn task(document: &ParsedDocument, loc: &TaskLoc) -> Result<TaskRead, CoreError> {
+pub fn task(document: &Document, loc: &TaskLoc) -> Result<TaskRead, CoreError> {
     let (block, item) = resolve_task(document, loc)?;
-    let heading = nearest_heading(&document.blocks, block.index);
+    let heading = nearest_heading(document.blocks(), block.index);
     Ok(TaskRead {
         task: task_entry(document, block, item, &heading),
         content: document.slice(&item.span).to_string(),
     })
 }
 
-pub fn set_task(document: &ParsedDocument, edit: &SetTaskEdit) -> Result<EditOutcome, CoreError> {
+pub fn set_task(
+    document: &Document,
+    edit: &SetTaskEdit,
+) -> Result<EditOutcome<TaskEditTarget>, CoreError> {
     let (_, item) = resolve_task(document, &edit.loc)?;
     let task_span = item.span;
     let current = document.slice(&task_span);
-    if let Some(expected) = edit.expect_etag.as_deref() {
-        let actual = content_etag(current.as_bytes());
-        if expected != actual {
+    if let Some(expected) = edit.expect_etag.as_ref() {
+        let actual = TargetEtag::for_bytes(current.as_bytes());
+        if expected != &actual {
             return Err(CoreError::TargetEtagMismatch {
-                target: edit.loc.to_string(),
+                target: EtagTarget::Task(edit.loc.to_string()),
                 expected: expected.to_string(),
-                actual,
+                actual: actual.to_string(),
             });
         }
         let duplicates = document
-            .blocks
+            .blocks()
             .iter()
             .flat_map(|block| &block.task_items)
             .filter(|candidate| {
-                content_etag(document.slice(&candidate.span).as_bytes()) == expected
+                TargetEtag::for_bytes(document.slice(&candidate.span).as_bytes()) == *expected
             })
             .count();
         if duplicates > 1 {
@@ -167,7 +174,7 @@ pub fn set_task(document: &ParsedDocument, edit: &SetTaskEdit) -> Result<EditOut
         MutationDisposition::Replaced
     };
     let symbol = item.symbol_byte_offset as usize;
-    let source = document.source.as_bytes();
+    let source = document.source().as_bytes();
     if symbol == 0
         || symbol + 1 >= source.len()
         || source[symbol - 1] != b'['
@@ -178,7 +185,7 @@ pub fn set_task(document: &ParsedDocument, edit: &SetTaskEdit) -> Result<EditOut
         });
     }
     let content = if disposition == MutationDisposition::NoChange {
-        document.source.clone()
+        document.source().to_string()
     } else {
         let mut output = source.to_vec();
         output[symbol] = match edit.status {
@@ -190,17 +197,14 @@ pub fn set_task(document: &ParsedDocument, edit: &SetTaskEdit) -> Result<EditOut
 
     Ok(EditOutcome {
         base_revision: document.revision().clone(),
-        target: MutationTargetRef::TaskItem(TaskItemTargetRef {
-            kind: MutationTargetKind::TaskItem,
-            loc: edit.loc.to_string(),
-            block_index: edit.loc.block_index,
-            child_path: edit.loc.child_path.clone(),
+        target: TaskEditTarget {
+            loc: edit.loc.clone(),
             span: task_span,
-        }),
+        },
         disposition,
         guarded: edit.expect_etag.is_some(),
         line_endings: document.line_ending_style(),
-        invariant: SourcePreservationInvariant {
+        preservation: EditPreservation {
             preserves_non_target_bytes: true,
             target_span_before: Some(task_span),
             target_span_after: Some(task_span),
@@ -210,16 +214,16 @@ pub fn set_task(document: &ParsedDocument, edit: &SetTaskEdit) -> Result<EditOut
 }
 
 fn resolve_task<'a>(
-    document: &'a ParsedDocument,
+    document: &'a Document,
     loc: &TaskLoc,
 ) -> Result<(&'a BlockInfo, &'a TaskItemInfo), CoreError> {
     let block = document
-        .blocks
+        .blocks()
         .get(loc.block_index as usize)
         .ok_or_else(|| CoreError::TaskBlockOutOfRange {
             loc: loc.to_string(),
             block_index: loc.block_index,
-            block_count: document.blocks.len() as u32,
+            block_count: document.blocks().len() as u32,
         })?;
     if block.task_items.is_empty() {
         return Err(CoreError::NotTaskList {
@@ -250,7 +254,7 @@ fn nearest_heading(blocks: &[BlockInfo], before_index: u32) -> (Option<String>, 
 }
 
 fn task_entry(
-    document: &ParsedDocument,
+    document: &Document,
     block: &BlockInfo,
     item: &TaskItemInfo,
     heading: &(Option<String>, Option<u32>),

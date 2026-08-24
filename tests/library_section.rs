@@ -1,20 +1,15 @@
 use mdtools::core_error::CoreError;
-use mdtools::model::{HeadingMatchMode, SectionSelector, SectionSelectorKind};
-use mdtools::parser::ParsedDocument;
-use mdtools::section::SectionIndex;
+use mdtools::document::Document;
+use mdtools::model::HeadingMatchMode;
+use mdtools::section::{SectionIndex, SectionTarget};
 
-fn heading_selector(text: &str, occurrence: Option<u32>) -> SectionSelector {
-    SectionSelector {
-        kind: SectionSelectorKind::HeadingText,
-        heading_text: Some(text.to_string()),
-        occurrence,
-        match_mode: HeadingMatchMode::Exact,
-    }
+fn heading_selector(text: &str, occurrence: Option<u32>) -> SectionTarget {
+    SectionTarget::heading(text, occurrence, HeadingMatchMode::Exact).unwrap()
 }
 
 #[test]
 fn outline_and_section_share_span_and_etag() {
-    let document = ParsedDocument::parse(include_str!("fixtures/basic.md").to_string()).unwrap();
+    let document = Document::parse(include_str!("fixtures/basic.md")).unwrap();
     let index = SectionIndex::new(&document);
     let outline = index.outline();
     let first = &outline[0];
@@ -32,8 +27,7 @@ fn outline_and_section_share_span_and_etag() {
 
 #[test]
 fn duplicate_heading_requires_occurrence() {
-    let document =
-        ParsedDocument::parse(include_str!("fixtures/duplicate_headings.md").to_string()).unwrap();
+    let document = Document::parse(include_str!("fixtures/duplicate_headings.md")).unwrap();
     let index = SectionIndex::new(&document);
     let duplicate = index
         .outline()
@@ -57,4 +51,12 @@ fn duplicate_heading_requires_occurrence() {
     assert!(index
         .resolve(&heading_selector(&duplicate, Some(2)))
         .is_ok());
+}
+
+#[test]
+fn zero_occurrence_is_rejected_at_the_core_boundary() {
+    assert!(matches!(
+        SectionTarget::heading("Title", Some(0), HeadingMatchMode::Exact),
+        Err(CoreError::InvalidSelector(_))
+    ));
 }

@@ -1,7 +1,7 @@
 # Reusable library boundary beneath the `md` CLI
 
 **Date:** 2026-08-23
-**Status:** accepted and implemented on `codex/reusable-library-foundation`
+**Status:** accepted and implemented on `reusable-library-foundation`
 **Deciders:** Provi, Codex; informed by a sanitized ChatGPT Pro architecture review
 
 ## Context
@@ -43,9 +43,9 @@ SemVer surface without solving a demonstrated problem that the existing
 lib/bin boundary cannot solve. The evidence supports a first-class library API,
 not a separate lifecycle.
 
-The first vertical extraction includes both reads and one mutation. This tests
-the difficult candidate/persistence boundary before bulk-moving easier query
-commands.
+The completed extraction covers every pure single-document operation. Prepared
+edit types preserve the CLI's guard-before-payload ordering, and one CLI write
+adapter verifies the whole-document revision before atomic persistence.
 
 ## Consequences
 
@@ -55,13 +55,17 @@ Positive:
 - Rust consumers avoid subprocess and JSON overhead.
 - CLI-only dependencies can be disabled for library consumers.
 - Consumer code cannot acquire filesystem authority through core edits.
+- Braid and Construal can compose the same source-in/source-out primitives while
+  owning their distinct workflow and interface policy.
 
 Negative:
 
 - The public library API now carries compatibility cost alongside the CLI.
-- Core and CLI wire types require explicit conversion instead of convenient
-  shared serialization.
-- Remaining commands still need consumer-led extraction after this foundation.
+- Some parser projection and versioned wire structs remain public for backward
+  compatibility; operation entry points use immutable `Document` snapshots and
+  typed selectors instead.
+- Rendering remains intentionally outside mdtools until Construal establishes a
+  concrete security and source-mapping contract.
 
 ## Revisit Triggers
 

@@ -1,3 +1,4 @@
+use crate::block_edit::GuardRole;
 use crate::model::SourceSpan;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -8,11 +9,47 @@ pub struct SectionMatch {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EtagTarget {
+    Task(String),
+    Frontmatter,
+    Block(u32),
+    Section(String),
+    Table(u32),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CoreError {
     ParseFailed(String),
     FrontmatterParseFailed(String),
     InvalidTableRow(String),
     InvalidSelector(String),
+    InvalidTargetEtag(String),
+    InvalidKeyPath {
+        path: String,
+        reason: &'static str,
+    },
+    FrontmatterFieldConflict {
+        path: String,
+        prefix: String,
+    },
+    BlockIndexOutOfRange {
+        index: u32,
+        block_count: u32,
+    },
+    NoTables,
+    NotTable {
+        block_index: u32,
+    },
+    ColumnNotFound {
+        column: String,
+        headers: Vec<String>,
+    },
+    TableRowOutOfRange {
+        table_block_index: u32,
+        row_index: u32,
+        row_count: u32,
+        insertion: bool,
+    },
     HeadingNotFound {
         heading: String,
     },
@@ -40,12 +77,35 @@ pub enum CoreError {
         block_index: u32,
     },
     TargetEtagMismatch {
-        target: String,
+        target: EtagTarget,
         expected: String,
         actual: String,
     },
     TargetEtagAmbiguous {
         target_kind: &'static str,
+        expected: String,
+        count: usize,
+    },
+    BlockMoveEtagMismatch {
+        role: GuardRole,
+        index: u32,
+        expected: String,
+        actual: String,
+    },
+    BlockMoveEtagAmbiguous {
+        role: GuardRole,
+        index: u32,
+        expected: String,
+        count: usize,
+    },
+    SectionMoveEtagMismatch {
+        role: GuardRole,
+        selector: String,
+        expected: String,
+        actual: String,
+    },
+    SectionMoveEtagAmbiguous {
+        role: GuardRole,
         expected: String,
         count: usize,
     },
@@ -67,6 +127,40 @@ impl std::fmt::Display for CoreError {
             | Self::FrontmatterParseFailed(message)
             | Self::InvalidTableRow(message)
             | Self::InvalidSelector(message) => write!(f, "{message}"),
+            Self::InvalidTargetEtag(value) => {
+                write!(f, "invalid target etag {value:?} (expected 16 hexadecimal characters)")
+            }
+            Self::InvalidKeyPath { path, reason } => {
+                write!(f, "invalid key path {path:?}: {reason}")
+            }
+            Self::FrontmatterFieldConflict { path, prefix } => write!(
+                f,
+                "cannot set {path:?}: {prefix:?} is not an object"
+            ),
+            Self::BlockIndexOutOfRange { index, block_count } => write!(
+                f,
+                "block index {index} out of range (document has {block_count} blocks)"
+            ),
+            Self::NoTables => write!(f, "no tables found in document"),
+            Self::NotTable { block_index } => write!(f, "block {block_index} is not a table"),
+            Self::ColumnNotFound { column, headers } => write!(
+                f,
+                "column {column:?} not found (available: {})",
+                headers.join(", ")
+            ),
+            Self::TableRowOutOfRange {
+                table_block_index,
+                row_index,
+                row_count,
+                insertion,
+            } => write!(
+                f,
+                "table row {} {} in block {} (table has {} rows)",
+                row_index,
+                if *insertion { "insertion out of range" } else { "not found" },
+                table_block_index,
+                row_count
+            ),
             Self::HeadingNotFound { heading } => write!(f, "heading not found: {heading}"),
             Self::DuplicateHeading { heading, matches } => {
                 write!(f, "heading {heading:?} matches {} sections", matches.len())
@@ -101,7 +195,7 @@ impl std::fmt::Display for CoreError {
                 actual,
             } => write!(
                 f,
-                "{target} etag mismatch: expected {expected:?}, found {actual:?}"
+                "{target:?} etag mismatch: expected {expected:?}, found {actual:?}"
             ),
             Self::TargetEtagAmbiguous {
                 target_kind,
@@ -110,6 +204,41 @@ impl std::fmt::Display for CoreError {
             } => write!(
                 f,
                 "{target_kind} etag {expected:?} is ambiguous: {count} same-content {target_kind}s share this fingerprint"
+            ),
+            Self::BlockMoveEtagMismatch {
+                role,
+                index,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "{role:?} block {index} etag mismatch: expected {expected:?}, found {actual:?}"
+            ),
+            Self::BlockMoveEtagAmbiguous {
+                role,
+                index,
+                expected,
+                count,
+            } => write!(
+                f,
+                "{role:?} block {index} etag {expected:?} is ambiguous across {count} blocks"
+            ),
+            Self::SectionMoveEtagMismatch {
+                role,
+                selector,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "{role:?} section {selector} etag mismatch: expected {expected:?}, found {actual:?}"
+            ),
+            Self::SectionMoveEtagAmbiguous {
+                role,
+                expected,
+                count,
+            } => write!(
+                f,
+                "{role:?} section etag {expected:?} is ambiguous across {count} sections"
             ),
             Self::DocumentRevisionMismatch { expected, actual } => write!(
                 f,

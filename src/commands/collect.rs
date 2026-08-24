@@ -1,10 +1,11 @@
 use crate::cli::CollectArgs;
-use crate::commands::frontmatter::{extract_field, format_field_value, parse_frontmatter_data};
+use crate::commands::frontmatter::format_field_value;
 use crate::errors::{CommandError, MdExitCode};
 use crate::model::{CollectResult, SCHEMA_VERSION};
 use crate::multifile;
 use crate::output;
-use crate::parser::ParsedDocument;
+use mdtools::document::Document;
+use mdtools::frontmatter;
 
 pub fn run(args: &CollectArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
@@ -77,28 +78,17 @@ fn collect_row(
     fields: &[String],
 ) -> Result<Vec<serde_json::Value>, CommandError> {
     let source = std::fs::read_to_string(path)?;
-    let doc = ParsedDocument::parse_for_frontmatter(source)?;
-    let data = frontmatter_data(&doc)?;
+    let doc = Document::parse_for_frontmatter(source)?;
+    let data = frontmatter::read(&doc)?.data;
 
     let mut row = Vec::with_capacity(fields.len() + 1);
     row.push(serde_json::Value::String(
         path.to_string_lossy().to_string(),
     ));
     for field in fields {
-        row.push(extract_field(&data, field));
+        row.push(frontmatter::project_field(&data, field));
     }
     Ok(row)
-}
-
-fn frontmatter_data(doc: &ParsedDocument) -> Result<serde_json::Value, CommandError> {
-    match &doc.frontmatter {
-        Some(fm) => parse_frontmatter_data(&fm.raw, fm.format),
-        None => Ok(empty_frontmatter_object()),
-    }
-}
-
-fn empty_frontmatter_object() -> serde_json::Value {
-    serde_json::Value::Object(serde_json::Map::new())
 }
 
 fn write_tsv(headers: &[String], rows: &[Vec<serde_json::Value>]) {

@@ -5,7 +5,7 @@ use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
 use crate::output;
-use crate::parser::ParsedDocument;
+use mdtools::document::Document;
 use mdtools::section::SectionIndex;
 
 pub fn run(args: &OutlineArgs, json: bool) -> Result<(), CommandError> {
@@ -16,7 +16,7 @@ pub fn run(args: &OutlineArgs, json: bool) -> Result<(), CommandError> {
 
 fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
-    let doc = ParsedDocument::parse(source)?;
+    let doc = Document::parse(source)?;
     let file_str = file.to_string_lossy();
     let result = build_outline(&doc, &file_str);
 
@@ -43,7 +43,7 @@ fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError
     Ok(())
 }
 
-fn build_outline(doc: &ParsedDocument, file: &str) -> OutlineResult {
+fn build_outline(doc: &Document, file: &str) -> OutlineResult {
     OutlineResult {
         schema_version: SCHEMA_VERSION.to_string(),
         file: file.to_string(),

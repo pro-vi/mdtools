@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::fmt;
 use std::process::ExitCode;
 
-use crate::core_error::CoreError;
+use crate::core_error::{CoreError, EtagTarget};
 use crate::model::SCHEMA_VERSION;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -241,6 +241,34 @@ impl From<CoreError> for CommandError {
             CoreError::InvalidSelector(message) => {
                 Self::new(DiagnosticCode::InvalidSelector, message)
             }
+            CoreError::InvalidTargetEtag(value) => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("invalid target etag {value:?} (expected 16 hexadecimal characters)"),
+            ),
+            CoreError::BlockIndexOutOfRange { index, block_count } => {
+                Self::block_out_of_range(index, block_count)
+            }
+            CoreError::InvalidKeyPath { path, reason } => Self::invalid_key_path(&path, reason),
+            CoreError::FrontmatterFieldConflict { path, prefix } => {
+                Self::frontmatter_field_conflict(&path, &prefix)
+            }
+            CoreError::NoTables => Self::no_tables(),
+            CoreError::NotTable { block_index } => Self::table_not_found(block_index),
+            CoreError::ColumnNotFound { column, headers } => {
+                Self::column_not_found(&column, &headers)
+            }
+            CoreError::TableRowOutOfRange {
+                table_block_index,
+                row_index,
+                row_count,
+                insertion,
+            } => {
+                if insertion {
+                    Self::table_row_insertion_out_of_range(table_block_index, row_index, row_count)
+                } else {
+                    Self::table_row_not_found(table_block_index, row_index, row_count)
+                }
+            }
             CoreError::HeadingNotFound { heading } => Self::not_found_heading(&heading),
             CoreError::DuplicateHeading { heading, matches } => {
                 let matches = matches
@@ -291,12 +319,74 @@ impl From<CoreError> for CommandError {
                 target,
                 expected,
                 actual,
-            } => Self::task_etag_mismatch(&target, &expected, &actual),
+            } => match target {
+                EtagTarget::Task(loc) => Self::task_etag_mismatch(&loc, &expected, &actual),
+                EtagTarget::Frontmatter => Self::frontmatter_etag_mismatch(&expected, &actual),
+                EtagTarget::Block(index) => Self::etag_mismatch(index, &expected, &actual),
+                EtagTarget::Section(selector) => {
+                    Self::section_etag_mismatch(&selector, &expected, &actual)
+                }
+                EtagTarget::Table(index) => Self::table_etag_mismatch(index, &expected, &actual),
+            },
             CoreError::TargetEtagAmbiguous {
                 target_kind,
                 expected,
                 count,
             } => Self::etag_ambiguous(target_kind, &expected, count, None),
+            CoreError::BlockMoveEtagMismatch {
+                role,
+                index,
+                expected,
+                actual,
+            } => Self::move_block_etag_mismatch(
+                match role {
+                    crate::block_edit::GuardRole::Source => SelectorRole::Source,
+                    crate::block_edit::GuardRole::Destination => SelectorRole::Destination,
+                },
+                index,
+                &expected,
+                &actual,
+            ),
+            CoreError::BlockMoveEtagAmbiguous {
+                role,
+                index,
+                expected,
+                count,
+            } => Self::move_block_etag_ambiguous(
+                match role {
+                    crate::block_edit::GuardRole::Source => SelectorRole::Source,
+                    crate::block_edit::GuardRole::Destination => SelectorRole::Destination,
+                },
+                index,
+                &expected,
+                count,
+            ),
+            CoreError::SectionMoveEtagMismatch {
+                role,
+                selector,
+                expected,
+                actual,
+            } => match role {
+                crate::block_edit::GuardRole::Source => {
+                    Self::move_section_source_etag_mismatch(&selector, &expected, &actual)
+                }
+                crate::block_edit::GuardRole::Destination => {
+                    Self::move_section_dest_etag_mismatch(&selector, &expected, &actual)
+                }
+            },
+            CoreError::SectionMoveEtagAmbiguous {
+                role,
+                expected,
+                count,
+            } => Self::etag_ambiguous(
+                "section",
+                &expected,
+                count,
+                Some(match role {
+                    crate::block_edit::GuardRole::Source => SelectorRole::Source,
+                    crate::block_edit::GuardRole::Destination => SelectorRole::Destination,
+                }),
+            ),
             CoreError::DocumentRevisionMismatch { expected, actual } => Self::new(
                 DiagnosticCode::EtagMismatch,
                 "document changed since the edit candidate was created",

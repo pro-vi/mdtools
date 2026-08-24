@@ -14,30 +14,6 @@ pub fn escape_text_field(s: &str) -> String {
         .collect()
 }
 
-/// Truncate a string to max_len chars, appending "..." if truncated.
-pub fn truncate_preview(s: &str, max_len: usize) -> String {
-    let escaped = escape_text_field(s);
-    if escaped.chars().count() <= max_len {
-        escaped
-    } else {
-        let mut result: String = escaped.chars().take(max_len).collect();
-        result.push_str("...");
-        result
-    }
-}
-
-pub fn normalize_line_endings(content: &str, style: &crate::model::LineEndingStyle) -> String {
-    use crate::model::LineEndingStyle;
-    match style {
-        LineEndingStyle::Lf => content.replace("\r\n", "\n"),
-        LineEndingStyle::Crlf => {
-            let lf = content.replace("\r\n", "\n");
-            lf.replace('\n', "\r\n")
-        }
-        LineEndingStyle::Mixed => content.to_string(),
-    }
-}
-
 /// Read content from --from path (or stdin if path is "-" or None).
 pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandError> {
     match from {
@@ -238,10 +214,6 @@ fn atomic_replace_via(
         cleanup_owned_temp(tmp_path, created);
     }
     result
-}
-
-pub fn content_etag(bytes: &[u8]) -> String {
-    mdtools::fingerprint::content_etag(bytes)
 }
 
 pub fn write_json<T: Serialize>(value: &T) -> Result<(), CommandError> {

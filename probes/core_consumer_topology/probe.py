@@ -263,8 +263,8 @@ def consumer_lanes(repo: Path, workspace: Path) -> tuple[dict[str, object], dict
         braid,
         "braid-consumer",
         package,
-        r'''use mdtools::model::TaskStatus;
-use mdtools::parser::ParsedDocument;
+        r'''use mdtools::document::Document;
+use mdtools::model::TaskStatus;
 use mdtools::task::{self, TaskQuery};
 
 #[derive(Debug, PartialEq)]
@@ -275,7 +275,7 @@ struct ProvenanceSpan { start: u32, end: u32 }
 
 fn main() {
     let source = "# Phase\n\n- [ ] task\n".to_string();
-    let document = ParsedDocument::parse(source).unwrap();
+    let document = Document::parse(source).unwrap();
     let task = task::tasks(&document, &TaskQuery::default()).unwrap().remove(0);
     let status = match task.status {
         TaskStatus::Pending => WorkflowStatus::Pending,
@@ -301,21 +301,22 @@ fn main() {
         "reader-consumer",
         package,
         r'''use std::str::FromStr;
-use mdtools::model::{HeadingMatchMode, SectionSelector, SectionSelectorKind, TaskStatus};
-use mdtools::parser::ParsedDocument;
-use mdtools::section::SectionIndex;
+use mdtools::document::Document;
+use mdtools::fingerprint::TargetEtag;
+use mdtools::model::{HeadingMatchMode, TaskStatus};
+use mdtools::section::{SectionIndex, SectionTarget};
 use mdtools::task::{self, SetTaskEdit, TaskLoc, TaskQuery};
 
 fn main() {
     let source = "# Tasks\n\n- [ ] first\n".to_string();
-    let document = ParsedDocument::parse(source.clone()).unwrap();
+    let document = Document::parse(source.clone()).unwrap();
     let outline = SectionIndex::new(&document).outline();
-    let selector = SectionSelector { kind: SectionSelectorKind::HeadingText, heading_text: Some("Tasks".into()), occurrence: None, match_mode: HeadingMatchMode::Exact };
+    let selector = SectionTarget::heading("Tasks", None, HeadingMatchMode::Exact).unwrap();
     assert!(SectionIndex::new(&document).resolve(&selector).is_ok());
     let first = task::tasks(&document, &TaskQuery::default()).unwrap().remove(0);
-    let outcome = task::set_task(&document, &SetTaskEdit { loc: TaskLoc::from_str(&first.loc).unwrap(), status: TaskStatus::Done, expect_etag: Some(first.etag) }).unwrap();
+    let outcome = task::set_task(&document, &SetTaskEdit { loc: TaskLoc::from_str(&first.loc).unwrap(), status: TaskStatus::Done, expect_etag: Some(first.etag.parse::<TargetEtag>().unwrap()) }).unwrap();
     assert_eq!(outline.len(), 1);
-    assert_eq!(document.source, source);
+    assert_eq!(document.source(), source);
     assert_eq!(outcome.content, "# Tasks\n\n- [x] first\n");
 }
 ''',
@@ -388,13 +389,14 @@ def render_results(repo: Path, payload: dict[str, object]) -> None:
   schema, outline, section, tasks, task, and `set-task` matched on exit code,
   stdout, stderr, JSON, and mutation bytes; the complete current Rust suite
   passed.
-- A clean Braid-shaped consumer built from the 105-file Cargo package without a
+- A clean Braid-shaped consumer built from the published Cargo package without a
   sibling checkout and immediately translated Markdown task status and source
   coordinates into consumer-owned types.
 - A reader-shaped consumer built with default features disabled, had no Clap or
   Walkdir dependency, used outline/section/task queries in-process, and produced
   a guarded task-edit candidate without changing its source or filesystem.
-- The foundation is sufficient to continue extracting Markdown operations.
+- The reusable single-document surface is complete for the current CLI:
+  reads, guarded edit candidates, and relocation all run without process I/O.
   Rendering, viewer state, agent policy, and Braid workflow semantics remain
   outside mdtools.
 

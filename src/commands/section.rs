@@ -1,235 +1,80 @@
 use crate::cli::{DeleteSectionArgs, ReplaceSectionArgs, SectionArgs};
-use crate::commands::replace::{replacement_span_after, verify_expected_etag_unique};
-use crate::errors::{CommandError, DiagnosticCode};
+use crate::commands::edit;
+use crate::errors::{CommandError, DiagnosticCode, SelectorRole};
 use crate::model::*;
 use crate::output;
-use crate::parser::ParsedDocument;
 use mdtools::core_error::CoreError;
-use mdtools::section::SectionIndex;
+use mdtools::document::Document;
+use mdtools::fingerprint::TargetEtag;
+use mdtools::section::{SectionIndex, SectionTarget};
+use mdtools::section_edit::{self, SectionEditTarget};
 
 pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse(source)?;
-    let selector = build_selector(
+    let document = Document::parse(source)?;
+    let target = build_selector(
         &args.selector,
         args.occurrence,
         args.contains,
         args.ignore_case,
     )?;
-    let section = find_section(&doc, &selector)?;
-    let content = doc.slice(&section.span).to_string();
-
+    let section = find_section(&document, &target)?;
+    let content = document.slice(&section.span).to_string();
     if json {
-        let result = SectionReadResult {
+        output::write_json(&SectionReadResult {
             schema_version: SCHEMA_VERSION.to_string(),
             file: args.file.to_string_lossy().to_string(),
             section,
             content,
-        };
-        output::write_json(&result)?;
+        })?;
     } else {
-        print!("{}", content);
+        print!("{content}");
     }
     Ok(())
 }
 
 pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse(source)?;
-    let selector = build_selector(
+    let document = Document::parse(source)?;
+    let target = build_selector(
         &args.selector,
         args.occurrence,
         args.contains,
         args.ignore_case,
     )?;
-    let section = find_section(&doc, &selector)?;
-    let section_span = section.span;
-    verify_expected_etag_unique(
-        args.etag_guard.expect_etag.as_deref(),
-        doc.slice(&section_span),
-        "section",
-        Some(crate::errors::SelectorRole::Target),
-        || all_section_etags(&doc),
-        |expected, actual| {
-            CommandError::section_etag_mismatch(
-                &describe_selector(&section.selector),
-                expected,
-                actual,
-            )
-        },
-    )?;
-
-    let replacement = output::read_content(args.from.as_deref())?;
-
-    let line_endings = doc.line_ending_style();
-    let replacement = normalize_line_endings(&replacement, &line_endings);
-    let effective_replacement = preserve_following_section_boundary(
-        doc.slice(&section_span),
-        &replacement,
-        (section_span.byte_end as usize) < doc.source.len(),
-    );
-    let before = &doc.source[..section_span.byte_start as usize];
-    let after = &doc.source[section_span.byte_end as usize..];
-    let output_doc = format!("{}{}{}", before, effective_replacement, after);
-
-    let disposition = if effective_replacement == doc.slice(&section_span) {
-        MutationDisposition::NoChange
-    } else if effective_replacement.is_empty() {
-        MutationDisposition::Deleted
-    } else {
-        MutationDisposition::Replaced
-    };
-
-    let changed = disposition != MutationDisposition::NoChange;
-
-    if args.in_place {
-        if changed {
-            output::write_file_atomic(args.file.as_ref(), &output_doc)?;
-        }
-        if json {
-            let result = build_section_mutation_result(
-                &args.file.to_string_lossy(),
-                args.etag_guard.expect_etag.is_some(),
-                section,
-                disposition,
-                changed,
-                line_endings,
-                section_span,
-                &effective_replacement,
-                None,
-                MutationCommandKind::ReplaceSection,
-            );
-            output::write_json(&result)?;
-        }
-    } else if json {
-        let result = build_section_mutation_result(
-            &args.file.to_string_lossy(),
-            args.etag_guard.expect_etag.is_some(),
-            section,
-            disposition,
-            changed,
-            line_endings,
-            section_span,
-            &effective_replacement,
-            Some(output_doc),
-            MutationCommandKind::ReplaceSection,
-        );
-        output::write_json(&result)?;
-    } else {
-        print!("{}", output_doc);
-    }
-    Ok(())
-}
-
-fn preserve_following_section_boundary(
-    section_content: &str,
-    replacement: &str,
-    has_following_section: bool,
-) -> String {
-    if replacement.is_empty() || !has_following_section {
-        return replacement.to_string();
-    }
-
-    let boundary_tokens = trailing_line_ending_tokens(section_content);
-    if boundary_tokens.is_empty() {
-        return replacement.to_string();
-    }
-
-    let replacement_trailing_count = trailing_line_ending_tokens(replacement).len();
-    if replacement_trailing_count >= boundary_tokens.len() {
-        return replacement.to_string();
-    }
-
-    let extra_len: usize = boundary_tokens
-        .iter()
-        .skip(replacement_trailing_count)
-        .map(|token| token.len())
-        .sum();
-    let mut completed = String::with_capacity(replacement.len() + extra_len);
-    completed.push_str(replacement);
-    for token in boundary_tokens.iter().skip(replacement_trailing_count) {
-        completed.push_str(token);
-    }
-    completed
+    let section = find_section(&document, &target)?;
+    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    let prepared = section_edit::prepare_replace(&document, section, expected.as_ref())?;
+    let payload = output::read_content(args.from.as_deref())?;
+    edit::emit(
+        args.in_place,
+        json,
+        &args.file,
+        MutationCommandKind::ReplaceSection,
+        prepared.apply(payload),
+        target_to_wire,
+    )
 }
 
 pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse(source)?;
-    let selector = build_selector(
+    let document = Document::parse(source)?;
+    let target = build_selector(
         &args.selector,
         args.occurrence,
         args.contains,
         args.ignore_case,
     )?;
-    let section = find_section(&doc, &selector)?;
-    let section_span = section.span;
-    verify_expected_etag_unique(
-        args.etag_guard.expect_etag.as_deref(),
-        doc.slice(&section_span),
-        "section",
-        Some(crate::errors::SelectorRole::Target),
-        || all_section_etags(&doc),
-        |expected, actual| {
-            CommandError::section_etag_mismatch(
-                &describe_selector(&section.selector),
-                expected,
-                actual,
-            )
-        },
-    )?;
-    let line_endings = doc.line_ending_style();
-
-    let before = &doc.source[..section_span.byte_start as usize];
-    let after = &doc.source[section_span.byte_end as usize..];
-    let output_doc = format!("{}{}", before, after);
-
-    let changed = true;
-    let disposition = MutationDisposition::Deleted;
-
-    if args.in_place {
-        output::write_file_atomic(args.file.as_ref(), &output_doc)?;
-        if json {
-            let result = build_section_mutation_result(
-                &args.file.to_string_lossy(),
-                args.etag_guard.expect_etag.is_some(),
-                section,
-                disposition,
-                changed,
-                line_endings,
-                section_span,
-                "",
-                None,
-                MutationCommandKind::DeleteSection,
-            );
-            output::write_json(&result)?;
-        }
-    } else if json {
-        let result = build_section_mutation_result(
-            &args.file.to_string_lossy(),
-            args.etag_guard.expect_etag.is_some(),
-            section,
-            disposition,
-            changed,
-            line_endings,
-            section_span,
-            "",
-            Some(output_doc),
-            MutationCommandKind::DeleteSection,
-        );
-        output::write_json(&result)?;
-    } else {
-        print!("{}", output_doc);
-    }
-    Ok(())
-}
-
-/// Content etags of every section in the document (preamble + one per
-/// heading), for section-guard ambiguity checks: identical duplicate
-/// sections share a fingerprint, and a guard hash matching more than one
-/// section cannot prove identity.
-pub fn all_section_etags(doc: &ParsedDocument) -> Vec<String> {
-    SectionIndex::new(doc).all_etags()
+    let section = find_section(&document, &target)?;
+    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    edit::emit(
+        args.in_place,
+        json,
+        &args.file,
+        MutationCommandKind::DeleteSection,
+        section_edit::delete(&document, section, expected.as_ref())?,
+        target_to_wire,
+    )
 }
 
 pub fn build_selector(
@@ -237,7 +82,7 @@ pub fn build_selector(
     occurrence: Option<u32>,
     contains: bool,
     ignore_case: bool,
-) -> Result<SectionSelector, CommandError> {
+) -> Result<SectionTarget, CommandError> {
     if contains && selector.is_empty() {
         return Err(CommandError::new(
             DiagnosticCode::InvalidSelector,
@@ -245,9 +90,6 @@ pub fn build_selector(
         )
         .with_hint("pass a non-empty heading substring with --contains, or drop --contains for an exact match"));
     }
-
-    // Occurrence is a 1-based contract; 0 must never silently select the
-    // first match (wrong-target hazard on mutations).
     if occurrence == Some(0) {
         return Err(CommandError::new(
             DiagnosticCode::InvalidSelector,
@@ -255,7 +97,6 @@ pub fn build_selector(
         )
         .with_hint("pass a 1-based occurrence (1 selects the first match)"));
     }
-
     if selector == ":preamble" {
         if contains {
             Err(CommandError::new(
@@ -270,49 +111,41 @@ pub fn build_selector(
             )
             .with_hint("drop the occurrence flag: :preamble selects the single pre-heading region"))
         } else {
-            Ok(SectionSelector {
-                kind: SectionSelectorKind::Preamble,
-                heading_text: None,
-                occurrence: None,
-                match_mode: HeadingMatchMode::Exact,
-            })
+            Ok(SectionTarget::preamble())
         }
     } else {
-        Ok(SectionSelector {
-            kind: SectionSelectorKind::HeadingText,
-            heading_text: Some(selector.to_string()),
+        SectionTarget::heading(
+            selector,
             occurrence,
-            match_mode: match (contains, ignore_case) {
+            match (contains, ignore_case) {
                 (false, false) => HeadingMatchMode::Exact,
                 (false, true) => HeadingMatchMode::ExactIgnoreCase,
                 (true, false) => HeadingMatchMode::Contains,
                 (true, true) => HeadingMatchMode::ContainsIgnoreCase,
             },
-        })
+        )
+        .map_err(CommandError::from)
     }
 }
 
 pub fn find_section(
-    doc: &ParsedDocument,
-    selector: &SectionSelector,
+    document: &Document,
+    target: &SectionTarget,
 ) -> Result<SectionEntry, CommandError> {
-    find_section_as(doc, selector, crate::errors::SelectorRole::Target)
+    find_section_as(document, target, SelectorRole::Target)
 }
 
-/// Like find_section, but selector errors carry `role` so adapters can
-/// recommend the right disambiguation flag (move-section passes source /
-/// destination).
 pub fn find_section_as(
-    doc: &ParsedDocument,
-    selector: &SectionSelector,
-    role: crate::errors::SelectorRole,
+    document: &Document,
+    target: &SectionTarget,
+    role: SelectorRole,
 ) -> Result<SectionEntry, CommandError> {
-    SectionIndex::new(doc)
-        .resolve(selector)
+    SectionIndex::new(document)
+        .resolve(target)
         .map_err(|error| map_section_error(error, role))
 }
 
-fn map_section_error(error: CoreError, role: crate::errors::SelectorRole) -> CommandError {
+fn map_section_error(error: CoreError, role: SelectorRole) -> CommandError {
     match error {
         CoreError::HeadingNotFound { heading } => {
             CommandError::not_found_heading_as(&heading, role)
@@ -347,82 +180,39 @@ fn map_section_error(error: CoreError, role: crate::errors::SelectorRole) -> Com
     }
 }
 
-fn build_section_mutation_result(
-    file: &str,
-    guarded: bool,
-    section: SectionEntry,
-    disposition: MutationDisposition,
-    changed: bool,
-    line_endings: LineEndingStyle,
-    span_before: SourceSpan,
-    replacement: &str,
-    content: Option<String>,
-    command: MutationCommandKind,
-) -> MutationResult {
-    let span_after = match disposition {
-        MutationDisposition::Deleted => None,
-        MutationDisposition::NoChange => Some(span_before),
-        MutationDisposition::Replaced => Some(replacement_span_after(span_before, replacement)),
-        _ => Some(span_before),
-    };
-
-    MutationResult {
-        schema_version: SCHEMA_VERSION.to_string(),
-        file: file.to_string(),
-        command,
-        target: MutationTargetRef::Section(SectionTargetRef {
+pub(crate) fn target_to_wire(target: &SectionEditTarget) -> MutationTargetRef {
+    match target {
+        SectionEditTarget::Section(section) => MutationTargetRef::Section(SectionTargetRef {
             kind: MutationTargetKind::Section,
             selector: section.selector.clone(),
-            section,
+            section: section.clone(),
         }),
-        disposition,
-        changed,
-        guarded,
-        line_endings,
-        invariant: SourcePreservationInvariant {
-            preserves_non_target_bytes: true,
-            target_span_before: Some(span_before),
-            target_span_after: span_after,
-        },
-        content,
+        SectionEditTarget::Move {
+            source,
+            destination,
+            destination_mode,
+            level_shift_applied,
+        } => MutationTargetRef::SectionMove(SectionMoveTargetRef {
+            kind: MutationTargetKind::Section,
+            source: SectionTargetRef {
+                kind: MutationTargetKind::Section,
+                selector: source.selector.clone(),
+                section: source.clone(),
+            },
+            destination: SectionTargetRef {
+                kind: MutationTargetKind::Section,
+                selector: destination.selector.clone(),
+                section: destination.clone(),
+            },
+            destination_mode: *destination_mode,
+            level_shift_applied: *level_shift_applied,
+        }),
     }
 }
 
-fn normalize_line_endings(content: &str, style: &LineEndingStyle) -> String {
-    crate::output::normalize_line_endings(content, style)
-}
-
-fn trailing_line_ending_tokens(content: &str) -> Vec<&str> {
-    let bytes = content.as_bytes();
-    let mut end = bytes.len();
-    let mut spans = Vec::new();
-
-    while end > 0 && bytes[end - 1] == b'\n' {
-        let start = if end > 1 && bytes[end - 2] == b'\r' {
-            end - 2
-        } else {
-            end - 1
-        };
-        spans.push((start, end));
-        end = start;
-    }
-
-    spans.reverse();
-    spans
-        .into_iter()
-        .map(|(start, end)| &content[start..end])
-        .collect()
-}
-
-pub(crate) fn describe_selector(selector: &SectionSelector) -> String {
-    match selector.kind {
-        SectionSelectorKind::Preamble => ":preamble".to_string(),
-        SectionSelectorKind::HeadingText => {
-            let heading = selector.heading_text.as_deref().unwrap_or("");
-            match selector.occurrence {
-                Some(occurrence) => format!("{:?} occurrence {}", heading, occurrence),
-                None => format!("{:?}", heading),
-            }
-        }
-    }
+fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
+    value
+        .map(str::parse::<TargetEtag>)
+        .transpose()
+        .map_err(CommandError::from)
 }

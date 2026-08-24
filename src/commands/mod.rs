@@ -1,5 +1,6 @@
 pub mod blocks;
 pub mod collect;
+pub mod edit;
 pub mod frontmatter;
 pub mod links;
 pub mod move_block;

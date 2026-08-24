@@ -1,10 +1,82 @@
+use std::num::NonZeroU32;
+
 use crate::core_error::{CoreError, SectionMatch};
+use crate::document::Document;
 use crate::fingerprint::content_etag;
 use crate::model::{
     HeadingMatchMode, HeadingRef, OutlineEntry, SectionEntry, SectionKind, SectionSelector,
     SectionSelectorKind, SourceSpan,
 };
-use crate::parser::ParsedDocument;
+
+/// A section selector whose invalid states cannot be constructed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SectionTarget {
+    Preamble,
+    Heading {
+        text: String,
+        occurrence: Option<NonZeroU32>,
+        match_mode: HeadingMatchMode,
+    },
+}
+
+impl SectionTarget {
+    pub fn preamble() -> Self {
+        Self::Preamble
+    }
+
+    pub fn heading(
+        text: impl Into<String>,
+        occurrence: Option<u32>,
+        match_mode: HeadingMatchMode,
+    ) -> Result<Self, CoreError> {
+        let text = text.into();
+        if text.is_empty()
+            && matches!(
+                match_mode,
+                HeadingMatchMode::Contains | HeadingMatchMode::ContainsIgnoreCase
+            )
+        {
+            return Err(CoreError::InvalidSelector(
+                "empty selector cannot be used with contains matching".into(),
+            ));
+        }
+        let occurrence = occurrence
+            .map(|value| {
+                NonZeroU32::new(value).ok_or_else(|| {
+                    CoreError::InvalidSelector(
+                        "occurrence is 1-based; 0 is not a valid occurrence".into(),
+                    )
+                })
+            })
+            .transpose()?;
+        Ok(Self::Heading {
+            text,
+            occurrence,
+            match_mode,
+        })
+    }
+
+    pub fn to_wire(&self) -> SectionSelector {
+        match self {
+            Self::Preamble => SectionSelector {
+                kind: SectionSelectorKind::Preamble,
+                heading_text: None,
+                occurrence: None,
+                match_mode: HeadingMatchMode::Exact,
+            },
+            Self::Heading {
+                text,
+                occurrence,
+                match_mode,
+            } => SectionSelector {
+                kind: SectionSelectorKind::HeadingText,
+                heading_text: Some(text.clone()),
+                occurrence: occurrence.map(NonZeroU32::get),
+                match_mode: *match_mode,
+            },
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct SectionIndex {
@@ -13,10 +85,10 @@ pub struct SectionIndex {
 }
 
 impl SectionIndex {
-    pub fn new(document: &ParsedDocument) -> Self {
+    pub fn new(document: &Document) -> Self {
         let preamble = build_preamble(document);
         let headings = document
-            .blocks
+            .blocks()
             .iter()
             .filter_map(|block| {
                 let heading = block.heading.as_ref()?;
@@ -28,7 +100,7 @@ impl SectionIndex {
                     byte_end,
                 };
                 let block_indices = document
-                    .blocks
+                    .blocks()
                     .iter()
                     .skip(block.index as usize)
                     .take_while(|candidate| {
@@ -49,12 +121,13 @@ impl SectionIndex {
                         block_index: block.index,
                         span: block.span,
                     }),
-                    selector: SectionSelector {
-                        kind: SectionSelectorKind::HeadingText,
-                        heading_text: Some(heading.text.clone()),
-                        occurrence: None,
-                        match_mode: HeadingMatchMode::Exact,
-                    },
+                    selector: SectionTarget::heading(
+                        heading.text.clone(),
+                        None,
+                        HeadingMatchMode::Exact,
+                    )
+                    .expect("heading projection is a valid target")
+                    .to_wire(),
                     depth: heading.level,
                     block_indices,
                     span,
@@ -83,24 +156,28 @@ impl SectionIndex {
             .collect()
     }
 
-    pub fn resolve(&self, selector: &SectionSelector) -> Result<SectionEntry, CoreError> {
-        match selector.kind {
-            SectionSelectorKind::Preamble => Ok(self.preamble.clone()),
-            SectionSelectorKind::HeadingText => self.resolve_heading(selector),
+    pub fn resolve(&self, target: &SectionTarget) -> Result<SectionEntry, CoreError> {
+        match target {
+            SectionTarget::Preamble => Ok(self.preamble.clone()),
+            SectionTarget::Heading { .. } => self.resolve_heading(target),
         }
     }
 
-    fn resolve_heading(&self, selector: &SectionSelector) -> Result<SectionEntry, CoreError> {
-        let heading_text = selector
-            .heading_text
-            .as_deref()
-            .ok_or_else(|| CoreError::InvalidSelector("heading selector has no text".into()))?;
+    fn resolve_heading(&self, target: &SectionTarget) -> Result<SectionEntry, CoreError> {
+        let SectionTarget::Heading {
+            text: heading_text,
+            occurrence,
+            match_mode,
+        } = target
+        else {
+            unreachable!("resolve_heading called with preamble")
+        };
         let matches = self
             .headings
             .iter()
             .filter(|section| {
                 let actual = &section.heading.as_ref().expect("heading section").text;
-                heading_matches(actual, heading_text, selector.match_mode)
+                heading_matches(actual, heading_text, *match_mode)
             })
             .collect::<Vec<_>>();
         let match_refs = matches
@@ -122,51 +199,50 @@ impl SectionIndex {
                 heading: heading_text.to_string(),
             });
         }
-        if matches.len() > 1 && selector.occurrence.is_none() {
+        if matches.len() > 1 && occurrence.is_none() {
             return Err(CoreError::DuplicateHeading {
                 heading: heading_text.to_string(),
                 matches: match_refs,
             });
         }
 
-        let selected = match selector.occurrence {
+        let selected = match occurrence {
             Some(occurrence) => matches
-                .get(occurrence.saturating_sub(1) as usize)
+                .get((occurrence.get() - 1) as usize)
                 .ok_or_else(|| CoreError::OccurrenceOutOfRange {
                     heading: heading_text.to_string(),
-                    requested: occurrence,
+                    requested: occurrence.get(),
                     matches: match_refs,
                 })?,
             None => matches[0],
         };
         let mut result = (*selected).clone();
-        result.selector = selector.clone();
+        result.selector = target.to_wire();
         Ok(result)
     }
 }
 
-fn build_preamble(document: &ParsedDocument) -> SectionEntry {
+fn build_preamble(document: &Document) -> SectionEntry {
     let block_indices = document
-        .blocks
+        .blocks()
         .iter()
         .take_while(|block| block.heading.is_none())
         .map(|block| block.index)
         .collect::<Vec<_>>();
     let span = match (block_indices.first(), block_indices.last()) {
         (Some(first), Some(last)) => SourceSpan {
-            line_start: document.blocks[*first as usize].span.line_start,
-            line_end: document.blocks[*last as usize].span.line_end,
-            byte_start: document.blocks[*first as usize].span.byte_start,
-            byte_end: document.blocks[*last as usize].span.byte_end,
+            line_start: document.blocks()[*first as usize].span.line_start,
+            line_end: document.blocks()[*last as usize].span.line_end,
+            byte_start: document.blocks()[*first as usize].span.byte_start,
+            byte_end: document.blocks()[*last as usize].span.byte_end,
         },
         _ => {
             let byte_start = document
-                .frontmatter
-                .as_ref()
+                .frontmatter()
                 .map(|frontmatter| frontmatter.span.byte_end)
                 .unwrap_or(0);
             let line = document
-                .blocks
+                .blocks()
                 .first()
                 .map(|block| block.span.line_start)
                 .unwrap_or(1);
@@ -195,9 +271,9 @@ fn build_preamble(document: &ParsedDocument) -> SectionEntry {
     }
 }
 
-fn find_section_byte_end(document: &ParsedDocument, heading_index: u32, level: u8) -> u32 {
+fn find_section_byte_end(document: &Document, heading_index: u32, level: u8) -> u32 {
     document
-        .blocks
+        .blocks()
         .iter()
         .skip((heading_index + 1) as usize)
         .find_map(|block| {
@@ -207,15 +283,15 @@ fn find_section_byte_end(document: &ParsedDocument, heading_index: u32, level: u
                 .filter(|heading| heading.level <= level)
                 .map(|_| block.span.byte_start)
         })
-        .unwrap_or(document.source.len() as u32)
+        .unwrap_or(document.source().len() as u32)
 }
 
-fn section_line_end(document: &ParsedDocument, byte_end: u32) -> u32 {
-    if byte_end as usize >= document.source.len() {
+fn section_line_end(document: &Document, byte_end: u32) -> u32 {
+    if byte_end as usize >= document.source().len() {
         return document.line_count();
     }
     let line_at_end = document.byte_to_line(byte_end);
-    if byte_end > 0 && document.source.as_bytes().get(byte_end as usize - 1) == Some(&b'\n') {
+    if byte_end > 0 && document.source().as_bytes().get(byte_end as usize - 1) == Some(&b'\n') {
         line_at_end - 1
     } else {
         line_at_end
