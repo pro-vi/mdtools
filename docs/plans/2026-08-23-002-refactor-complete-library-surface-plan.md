@@ -13,8 +13,8 @@ origin: conversation
 
 The first reusable-library tranche established one Cargo package with library
 and binary targets, exact document revisions, checked slicing, one section
-index, reusable task reads, and pure `set-task` candidates. Its CLI, Braid-shaped,
-and reader-shaped probes passed.
+index, reusable task reads, and pure `set-task` candidates. Its CLI,
+package-adoption, and library-only composition probes passed.
 
 The remaining single-document semantics still live in CLI command modules.
 Finishing the foundation means extracting those semantics without moving paths,
@@ -37,14 +37,14 @@ library.
   immediately before atomic replacement.
 - **R9:** `collect` remains CLI-owned multi-file orchestration over reusable
   per-document frontmatter projection.
-- **R10:** Rendering, Construal state, agents, transpositions, and UI remain out
-  of mdtools.
+- **R10:** Application-specific rendering, state, workflow, and UI remain out of
+  mdtools.
 
 ## Naming Ledger
 
 | Role / meaning | Existing term | Chosen name | Owner | Status | Sibling disposition |
 |---|---|---|---|---|---|
-| Immutable operation-facing parsed source | mutable `ParsedDocument` | `Document` | library `document` | new | keep `ParsedDocument` as low-level compatibility until Braid migrates |
+| Immutable operation-facing parsed source | mutable `ParsedDocument` | `Document` | library `document` | new | keep `ParsedDocument` as low-level compatibility for existing consumers |
 | Structurally valid section operand | invalid-state `SectionSelector` | `SectionTarget` | library `section` | new | existing `SectionSelector` remains CLI v1 wire projection |
 | Resolved source section | CLI-shaped `SectionEntry` | `ResolvedSection` | library `section` | new | CLI maps to `SectionEntry` |
 | Opaque exact-target fingerprint | `String` | `TargetEtag` | library `fingerprint` | new | remains distinct from `DocumentRevision` |
@@ -60,7 +60,7 @@ library.
 **Approach:** Complete the existing operation-oriented library by Markdown
 domain. Introduce an immutable `Document` wrapper as the only input accepted by
 new operations. Retain the current low-level `ParsedDocument` for measured
-Braid compatibility, but do not extend it with new operations.
+downstream compatibility, but do not extend it with new operations.
 
 Core edits return generic `EditOutcome<T>` values with domain targets and
 candidate bytes. CLI adapters construct the existing v1 wire receipts and own
@@ -68,12 +68,14 @@ revision recheck plus atomic persistence.
 
 **Rationale:** A big command-module move would preserve coupling. Domain-shaped
 operations make invalid operands unrepresentable, keep wire compatibility
-explicit, and allow Construal to consume only Markdown semantics.
+explicit, and allow same-process consumers to depend only on Markdown
+semantics.
 
-**Rejected alternative:** Privatize `ParsedDocument` immediately. Braid still
-reads its fields, and this repository cannot coordinate that separate migration
-in the same branch. The immutable `Document` boundary protects all new
-consumers without claiming the legacy type is safe for mutation.
+**Rejected alternative:** Privatize `ParsedDocument` immediately. Existing
+consumers still read its fields, and this repository cannot coordinate their
+separate migrations in the same branch. The immutable `Document` boundary
+protects all new consumers without claiming the legacy type is safe for
+mutation.
 
 **Trade-offs:** Two parsed-document types coexist temporarily; explicit
 core-to-wire mapping adds code; the public library surface grows before
@@ -258,20 +260,19 @@ md CLI
   grep command modules for surviving semantic helpers and direct writes.
 - **Test scenarios:** full Rust suite, no-default library build, package closure,
   every CLI family, every candidate/final byte path, operational-failure
-  distinction, and Braid-/Construal-shaped consumers.
+  distinction, a packaged adapter consumer, and a library-only consumer.
 - **Verification:** Every pure single-document operation has one library
   implementation; CLI owns only declared adapter responsibilities.
 - **Proven through:** extended preregistered probe and package consumer runs.
 - **Runtime evidence:** unverified until the final probe.
-- **Checkpoint:** `pause — review completion verdict before Construal work`.
+- **Checkpoint:** `pause — review completion verdict before downstream adoption`.
 - **Pause warrant:** The evidence decides whether mdtools is finished or needs
   another foundation repair.
 
 ## Scope Boundaries
 
 - No renderer.
-- No Construal code or repository changes.
-- No Braid source changes.
+- No downstream application code or repository changes.
 - No CLI v1 additions or removals.
 - No `collect` path/multi-file extraction.
 - No generic plugin, visitor, transaction, or batch framework.
@@ -294,7 +295,7 @@ md CLI
 ## Disconfirming Evidence
 
 - Any CLI/core candidate mismatch stops the affected unit.
-- Any operation that requires a path, stdout, exit code, or viewer concept in
+- Any operation that requires a path, stdout, exit code, or application concept in
   core falsifies the boundary.
 - Any payload command that reads stdin before guard resolution falsifies parity.
 - Any in-place command that bypasses the shared revision guard blocks completion.
@@ -313,12 +314,12 @@ md CLI
 | Guard-before-payload | U3–U6 prepared edits | Yes |
 | Shared revision persistence | U1 and every mutation adapter | Yes |
 | Keep collect orchestration in CLI | U3 | Yes |
-| Keep Construal outside | scope boundary | Yes |
+| Keep application concerns outside | scope boundary | Yes |
 
 ## Build Execution Contract
 
 - **Closed decisions:** One Cargo package; immutable `Document` for new
-  operations; legacy `ParsedDocument` retained only for Braid compatibility;
+  operations; legacy `ParsedDocument` retained only for downstream compatibility;
   domain modules; generic core outcomes; prepared payload edits; no renderer.
 - **Builder autonomy:** Exact internal module subdivision, helper visibility,
   and test fixture reuse are reversible choices.
@@ -326,10 +327,10 @@ md CLI
   rules from tests; compare actual code before moving; use current source when
   plan locators drift.
 - **Stop conditions:** CLI wire change, second semantic implementation after
-  cutover, filesystem authority in core, or a required Braid/Construal source
+  cutover, filesystem authority in core, or a required downstream source
   modification.
-- **Authority boundaries:** Do not push, publish, modify consumer repos, or
-  create Construal code. Local temp consumers are allowed.
+- **Authority boundaries:** Do not push, publish, or modify downstream
+  repositories. Local temporary consumers are allowed.
 - **Expected gate map:** U1 foundation tests; U2 read suites; U3 frontmatter/
   collect; U4 table; U5 block; U6 section; U7 full suite/probe/package.
 - **Pause warrants:** U1 public boundary, U6 relocation extraction, U7 final
@@ -343,6 +344,6 @@ md CLI
 | Payload error precedence changes | Prepared edit APIs |
 | Core/wire representations converge accidentally | Generic outcomes plus explicit mapping tests |
 | Mutable legacy parser leaks into new APIs | New operations accept only `Document` |
-| Braid compatibility constrains design | Retain low-level type; migrate separately |
+| Legacy consumer compatibility constrains design | Retain low-level type; migrate separately |
 | Move-section extraction hides a subtle boundary bug | Extract last and run full existing suite |
 | Public API grows without evidence | U7 consumer proof and no renderer |

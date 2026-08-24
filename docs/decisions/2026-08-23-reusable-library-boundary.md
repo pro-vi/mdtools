@@ -9,13 +9,14 @@
 The `mdtools` Cargo package already shipped a library target beside the `md`
 binary, but only parser internals and CLI-shaped models/errors were reusable.
 Command semantics such as section indexing, task discovery, and guarded task
-edits remained binary-private. Braid proved direct parsing worked, then exposed
-the incomplete boundary by reimplementing traversal. Its closed BRA-17 attempt
-copied the whole repository into Braid and created a second source authority.
+edits remained binary-private. An external integration proved direct parsing
+worked, then exposed the incomplete boundary by reimplementing traversal. A
+closed adoption attempt copied the whole repository into the consumer and
+created a second source authority.
 
-The future Markdown reader needs direct in-process structural operations, while
-the public `md` process protocol must remain compatible and mdtools must stay
-limited to Markdown primitives.
+Same-process applications need direct structural operations, while the public
+`md` process protocol must remain compatible and mdtools must stay limited to
+Markdown primitives.
 
 ## Decision
 
@@ -26,10 +27,9 @@ targets.
 - The `md` binary is the compatibility, filesystem, and persistence adapter.
 - Same-process consumers call library operations directly.
 - External agents continue to use the versioned CLI protocol.
-- Viewer, agent, transposition, approval, and UI concepts remain outside
-  mdtools.
+- Application-specific behavior remains outside mdtools.
 - Rendering remains outside the initial reusable surface until an executable
-  viewer supplies a concrete security and source-mapping contract.
+  consumer supplies a concrete security and source-mapping contract.
 
 Every pure edit outcome carries the whole-document revision from which it was
 derived. Target etags resolve one current target; the document revision guards
@@ -55,8 +55,8 @@ Positive:
 - Rust consumers avoid subprocess and JSON overhead.
 - CLI-only dependencies can be disabled for library consumers.
 - Consumer code cannot acquire filesystem authority through core edits.
-- Braid and Construal can compose the same source-in/source-out primitives while
-  owning their distinct workflow and interface policy.
+- Independent consumers can compose the same source-in/source-out primitives
+  while owning their distinct workflow and interface policy.
 
 Negative:
 
@@ -64,15 +64,16 @@ Negative:
 - Some parser projection and versioned wire structs remain public for backward
   compatibility; operation entry points use immutable `Document` snapshots and
   typed selectors instead.
-- Rendering remains intentionally outside mdtools until Construal establishes a
-  concrete security and source-mapping contract.
+- Rendering remains intentionally outside mdtools until a concrete consumer
+  establishes a security and source-mapping contract.
 
 ## Revisit Triggers
 
 - An active consumer needs a release cadence or dependency closure that one
   package cannot provide.
 - A CLI/core differential test finds candidate or protocol drift.
-- A viewer rendering slice establishes a safe fragment contract worth sharing.
+- A downstream rendering integration establishes a safe fragment contract worth
+  sharing.
 - A future edit cannot express target and whole-document authority separately.
 
 ## Evidence

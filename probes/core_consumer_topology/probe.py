@@ -18,7 +18,7 @@ from pathlib import Path
 BASELINE_COMMIT = "07eb509"
 RESULT_START = "<!-- result-json:start -->"
 RESULT_END = "<!-- result-json:end -->"
-LANES = ("cli_preservation", "braid_adoption", "reader_readiness")
+LANES = ("cli_preservation", "packaged_api_adoption", "library_only_composition")
 READ_PARITY_CASES = [
     ["schema", "--json"],
     ["outline", "--json", "tests/fixtures/basic.md"],
@@ -385,10 +385,10 @@ def consumer_lanes(repo: Path, workspace: Path) -> tuple[dict[str, object], dict
     )
     package_clean = not any(any(marker in member for marker in forbidden) for member in members)
 
-    braid = workspace / "braid-consumer"
+    packaged_api = workspace / "api-adapter-consumer"
     write_consumer(
-        braid,
-        "braid-consumer",
+        packaged_api,
+        "api-adapter-consumer",
         package,
         r'''use mdtools::document::Document;
 use mdtools::model::TaskStatus;
@@ -414,18 +414,24 @@ fn main() {
 }
 ''',
     )
-    braid_run = run(
+    packaged_api_run = run(
         ["cargo", "run", "--quiet", "--offline"],
-        cwd=braid,
-        env=cargo_env(workspace / "braid-target", cargo_home),
+        cwd=packaged_api,
+        env=cargo_env(workspace / "api-adapter-target", cargo_home),
     )
-    braid_passed = braid_run.returncode == 0 and package_check.returncode == 0 and package_clean
-    braid_verdict = command_verdict(braid_passed, braid_run, package_check)
+    packaged_api_passed = (
+        packaged_api_run.returncode == 0
+        and package_check.returncode == 0
+        and package_clean
+    )
+    packaged_api_verdict = command_verdict(
+        packaged_api_passed, packaged_api_run, package_check
+    )
 
-    reader = workspace / "reader-consumer"
+    library_only = workspace / "library-only-consumer"
     write_consumer(
-        reader,
-        "reader-consumer",
+        library_only,
+        "library-only-consumer",
         package,
         r'''use mdtools::block;
 use mdtools::block_edit;
@@ -462,19 +468,19 @@ fn main() {
 }
 ''',
     )
-    reader_run = run(
+    library_only_run = run(
         ["cargo", "run", "--quiet", "--offline"],
-        cwd=reader,
-        env=cargo_env(workspace / "reader-target", cargo_home),
+        cwd=library_only,
+        env=cargo_env(workspace / "library-only-target", cargo_home),
     )
     tree = run(
         ["cargo", "tree", "-e", "normal", "--offline"],
-        cwd=reader,
-        env=cargo_env(workspace / "reader-target", cargo_home),
+        cwd=library_only,
+        env=cargo_env(workspace / "library-only-target", cargo_home),
     )
     cli_deps = [line for line in tree.stdout.splitlines() if "clap " in line or "walkdir " in line]
-    reader_passed = (
-        reader_run.returncode == 0
+    library_only_passed = (
+        library_only_run.returncode == 0
         and tree.returncode == 0
         and package_check.returncode == 0
         and not cli_deps
@@ -483,10 +489,10 @@ fn main() {
 
     return (
         {
-            "verdict": braid_verdict,
-            "consumer_exit": braid_run.returncode,
-            "consumer_stdout": braid_run.stdout,
-            "consumer_stderr": braid_run.stderr,
+            "verdict": packaged_api_verdict,
+            "consumer_exit": packaged_api_run.returncode,
+            "consumer_stdout": packaged_api_run.stdout,
+            "consumer_stderr": packaged_api_run.stderr,
             "package_clean": package_clean,
             "package_file_count": len(members),
             "package_content_sha256": package_content_hash,
@@ -494,10 +500,10 @@ fn main() {
             "package_check_stderr": package_check.stderr,
         },
         {
-            "verdict": command_verdict(reader_passed, reader_run, tree),
-            "consumer_exit": reader_run.returncode,
-            "consumer_stdout": reader_run.stdout,
-            "consumer_stderr": reader_run.stderr,
+            "verdict": command_verdict(library_only_passed, library_only_run, tree),
+            "consumer_exit": library_only_run.returncode,
+            "consumer_stdout": library_only_run.stdout,
+            "consumer_stderr": library_only_run.stderr,
             "tree_exit": tree.returncode,
             "tree_stderr": tree.stderr,
             "cli_only_dependencies": cli_deps,
@@ -540,15 +546,16 @@ def render_results(repo: Path, payload: dict[str, object]) -> None:
   representative parity case: reads matched exit code, stdout, and stderr;
   mutations additionally matched final document bytes; the complete current
   Rust suite passed.
-- A clean Braid-shaped consumer built from the published Cargo package without a
-  sibling checkout and immediately translated Markdown task status and source
-  coordinates into consumer-owned types.
-- A reader-shaped consumer built with default features disabled, had no Clap or
-  Walkdir dependency, used outline/section/task queries in-process, and produced
-  a guarded task-edit candidate without changing its source or filesystem.
+- A clean packaged adapter built without a sibling checkout and immediately
+  translated Markdown task status and source coordinates into consumer-owned
+  types.
+- A library-only consumer built with default features disabled, had no Clap or
+  Walkdir dependency, composed direct structural queries in-process, and
+  produced a guarded task-edit candidate without changing its source or
+  filesystem.
 - The reusable single-document surface is complete for the current CLI:
   reads, guarded edit candidates, and relocation all run without process I/O.
-  Rendering, viewer state, agent policy, and Braid workflow semantics remain
+  Application-specific rendering, state, policy, and workflow semantics remain
   outside mdtools.
 
 ## Reopening Gate
@@ -595,28 +602,28 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
         and recorded_mutation_names == MUTATION_PARITY_NAMES
         and all(item.get("match") is True for item in cli["mutation_comparisons"])
     )
-    braid = payload["lanes"]["braid_adoption"]
-    package_hash = braid.get("package_content_sha256")
-    braid_pass = (
-        braid.get("consumer_exit") == 0
-        and braid.get("package_check_exit") == 0
-        and braid.get("package_clean") is True
+    packaged_api = payload["lanes"]["packaged_api_adoption"]
+    package_hash = packaged_api.get("package_content_sha256")
+    packaged_api_pass = (
+        packaged_api.get("consumer_exit") == 0
+        and packaged_api.get("package_check_exit") == 0
+        and packaged_api.get("package_clean") is True
         and isinstance(package_hash, str)
         and len(package_hash) == 64
     )
-    reader = payload["lanes"]["reader_readiness"]
-    reader_pass = (
-        reader.get("consumer_exit") == 0
-        and reader.get("tree_exit") == 0
-        and reader.get("package_check_exit") == 0
-        and reader.get("package_clean") is True
-        and reader.get("cli_only_dependencies") == []
-        and reader.get("package_content_sha256") == package_hash
+    library_only = payload["lanes"]["library_only_composition"]
+    library_only_pass = (
+        library_only.get("consumer_exit") == 0
+        and library_only.get("tree_exit") == 0
+        and library_only.get("package_check_exit") == 0
+        and library_only.get("package_clean") is True
+        and library_only.get("cli_only_dependencies") == []
+        and library_only.get("package_content_sha256") == package_hash
     )
     expected_passes = {
         "cli_preservation": cli_pass,
-        "braid_adoption": braid_pass,
-        "reader_readiness": reader_pass,
+        "packaged_api_adoption": packaged_api_pass,
+        "library_only_composition": library_only_pass,
     }
     for name, passed in expected_passes.items():
         if (payload["lanes"][name].get("verdict") == "pass") != passed:
@@ -651,7 +658,7 @@ def check_results(repo: Path) -> int:
         raise ValueError("current source has changes not represented by the result")
     with tempfile.TemporaryDirectory(prefix="mdtools-core-check-") as raw_workspace:
         _, _, current_package_hash = package_source(repo, Path(raw_workspace))
-    if current_package_hash != payload["lanes"]["braid_adoption"]["package_content_sha256"]:
+    if current_package_hash != payload["lanes"]["packaged_api_adoption"]["package_content_sha256"]:
         raise ValueError("current Cargo package content hash does not match recorded evidence")
     print(payload["overall"])
     return 0
@@ -665,11 +672,11 @@ def execute(repo: Path) -> int:
         workspace = Path(raw_workspace)
         try:
             cli = cli_lane(repo, workspace)
-            braid, reader = consumer_lanes(repo, workspace)
+            packaged_api, library_only = consumer_lanes(repo, workspace)
             lanes = {
                 "cli_preservation": cli,
-                "braid_adoption": braid,
-                "reader_readiness": reader,
+                "packaged_api_adoption": packaged_api,
+                "library_only_composition": library_only,
             }
         except (OSError, RuntimeError, tarfile.TarError) as error:
             lanes = {

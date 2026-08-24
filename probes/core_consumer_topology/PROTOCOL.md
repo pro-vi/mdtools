@@ -4,7 +4,7 @@
 
 - Product or architecture claim this probe tests: the existing `mdtools`
   package can serve its CLI unchanged while its library target becomes a clean
-  in-process dependency for Braid-shaped and reader-shaped consumers.
+  in-process dependency for independent consumers.
 - Concrete observation that makes the question load-bearing now: outline,
   section, tasks, and `set-task` have been moved behind the library boundary,
   and the next extraction decision depends on whether this boundary works for
@@ -13,16 +13,16 @@
   remaining command semantics, narrow the library surface, or reject the
   topology before a release commitment.
 - Why existing evidence does not already answer it: CLI tests do not prove
-  before/after process parity, Braid's sibling path does not prove clean package
-  adoption, and library unit tests do not prove a viewer can compose reads and
-  candidate edits without filesystem authority.
+  before/after process parity, a sibling path does not prove clean package
+  adoption, and library unit tests do not prove an external consumer can
+  compose reads and candidate edits without filesystem authority.
 
 ## Hypothesis
 
 The single-package library/binary topology simultaneously preserves the
-existing `md` process contract, supports a clean Braid-shaped import adapter,
-and supplies the first reader-shaped in-process read/edit slice without
-CLI-only dependencies or filesystem writes.
+existing `md` process contract, supports clean packaged API adoption, and
+supplies a library-only in-process read/edit composition without CLI-only
+dependencies or filesystem writes.
 
 ## Minimum Experiment
 
@@ -32,13 +32,13 @@ Run three independent local lanes against fixed sources:
    candidate source. Exercise every current command family. Read cases compare
    exit code, stdout, and stderr. Mutation cases additionally compare final
    document bytes. Run the full current Rust suite.
-2. **Braid adoption:** package the candidate, extract only its Cargo package,
+2. **Packaged API adoption:** package the candidate, extract only its Cargo package,
    require Cargo's own package verification and an all-target/all-feature check
    of the extracted tarball,
    and build a clean consumer that parses Markdown and immediately maps task
    status and optional spans into consumer-owned types. No sibling repository
    path is available inside the consumer root.
-3. **Reader readiness:** against the same extracted package, build and run a
+3. **Library-only composition:** against the same extracted package, build and run a
    consumer with default features disabled that exercises block, section, task,
    link, table, frontmatter, search, statistics, and edit operations in-process
    while asserting that the original source and filesystem remain unchanged.
@@ -52,13 +52,13 @@ product pass or failure.
 
 - CLI lane falsifies on any unexplained process-output, exit-code, diagnostic,
   candidate-byte, or final-file difference, or on any current Rust test failure.
-- Braid lane falsifies if the clean consumer needs a mutable sibling checkout,
+- Packaged API lane falsifies if the clean consumer needs a mutable sibling checkout,
   imports CLI wire/process types, or cannot map immediately into consumer-owned
   status and optional provenance types.
-- Reader lane falsifies if it must spawn `md`, enable the `cli` feature, access
+- Library-only lane falsifies if it must spawn `md`, enable the `cli` feature, access
   the filesystem through core operations, or cannot produce the expected
   candidate bytes from typed library operations.
-- The reader dependency-closure claim narrows if a CLI-only crate appears in
+- The library-only dependency-closure claim narrows if a CLI-only crate appears in
   the consumer's normal dependency tree.
 - Packaging falsifies if the produced package contains benchmark runs, probe
   corpora, inbox material, or other research-only artifacts.
@@ -70,7 +70,7 @@ product pass or failure.
   manifests, and SHA-256 hashes recorded by the runner.
 - Forbidden authority and side channels: no network, credentials, environment
   secrets, installed sibling source, untracked fixtures, external models, or
-  mutation of Braid, pi-mdtools, or a future reader repository.
+  mutation of downstream repositories.
 - Filesystem, process, network, and credential boundary: all builds and
   consumers run in new temporary directories; only the current repository is
   read; the probe writes no tracked source or canonical Markdown input except

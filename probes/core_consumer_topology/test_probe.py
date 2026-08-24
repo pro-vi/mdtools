@@ -30,14 +30,14 @@ def passing_payload():
                     {"name": name, "match": True} for name in probe.MUTATION_PARITY_NAMES
                 ],
             },
-            "braid_adoption": {
+            "packaged_api_adoption": {
                 "verdict": "pass",
                 "consumer_exit": 0,
                 "package_clean": True,
                 "package_content_sha256": "a" * 64,
                 "package_check_exit": 0,
             },
-            "reader_readiness": {
+            "library_only_composition": {
                 "verdict": "pass",
                 "consumer_exit": 0,
                 "tree_exit": 0,
@@ -81,10 +81,10 @@ class RecordedEvidenceTests(unittest.TestCase):
         mutations = [
             ("cli exit", lambda value: value["lanes"]["cli_preservation"].update(suite_exit=1)),
             ("comparison", lambda value: value["lanes"]["cli_preservation"]["comparisons"][0].update(match=False)),
-            ("reader exit", lambda value: value["lanes"]["reader_readiness"].update(consumer_exit=1)),
-            ("CLI dependency", lambda value: value["lanes"]["reader_readiness"].update(cli_only_dependencies=["clap"])),
+            ("library-only exit", lambda value: value["lanes"]["library_only_composition"].update(consumer_exit=1)),
+            ("CLI dependency", lambda value: value["lanes"]["library_only_composition"].update(cli_only_dependencies=["clap"])),
             ("dirty source", lambda value: value.update(source_clean=False)),
-            ("package mismatch", lambda value: value["lanes"]["reader_readiness"].update(package_content_sha256="b" * 64)),
+            ("package mismatch", lambda value: value["lanes"]["library_only_composition"].update(package_content_sha256="b" * 64)),
             ("truncated reads", lambda value: value["lanes"]["cli_preservation"].update(comparisons=value["lanes"]["cli_preservation"]["comparisons"][:1])),
             ("truncated mutations", lambda value: value["lanes"]["cli_preservation"].update(mutation_comparisons=value["lanes"]["cli_preservation"]["mutation_comparisons"][:1])),
         ]
