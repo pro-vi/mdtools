@@ -2,13 +2,13 @@ use crate::cli::SetArgs;
 use crate::commands::edit;
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
+use crate::output;
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
-use mdtools::frontmatter::{self, FrontmatterAction, FrontmatterEdit};
+use mdtools::frontmatter::{self, FrontmatterAction, FrontmatterEdit, FrontmatterPath};
 
 pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
     validate_args(args)?;
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse_for_frontmatter_mutation(source)?;
     let action = if args.delete {
         FrontmatterAction::Delete
@@ -19,19 +19,19 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
         ))
     };
     let request = FrontmatterEdit {
-        key_path: args.key.clone(),
+        key_path: FrontmatterPath::new(args.key.clone())?,
         action,
         expect_etag: args
             .expect_etag
             .as_deref()
-            .map(str::parse::<TargetEtag>)
-            .transpose()?,
+            .map(mdtools::fingerprint::cli_compat::target_etag),
     };
     let outcome = frontmatter::edit(&document, &request)?;
     edit::emit(
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::SetFrontmatter,
         outcome,
         |target| {

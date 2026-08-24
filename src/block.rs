@@ -23,7 +23,7 @@ pub fn blocks(document: &Document) -> Vec<BlockRecord> {
         .blocks()
         .iter()
         .map(|block| {
-            let content = document.slice(&block.span);
+            let content = document.slice_unchecked(&block.span);
             BlockRecord {
                 index: block.index,
                 kind: block.kind,
@@ -43,7 +43,7 @@ pub fn block(document: &Document, index: u32) -> Result<BlockRead, CoreError> {
             index,
             block_count: document.blocks().len() as u32,
         })?;
-    let content = document.slice(&info.span).to_string();
+    let content = document.slice_unchecked(&info.span).to_string();
     Ok(BlockRead {
         block: BlockRecord {
             index: info.index,

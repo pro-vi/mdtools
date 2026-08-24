@@ -8,7 +8,7 @@ use mdtools::document::Document;
 use mdtools::fingerprint::TargetEtag;
 
 pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let expected = parse_etag(args.expect_etag.as_deref())?;
     let prepared = block_edit::prepare_replace(&document, args.index, expected.as_ref())?;
@@ -17,6 +17,7 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::ReplaceBlock,
         prepared.apply(payload),
         target_to_wire,
@@ -25,7 +26,7 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
 
 pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), CommandError> {
     let location = parse_insert_location(args)?;
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let expected = parse_etag(args.expect_etag.as_deref())?;
     let prepared = block_edit::prepare_insert(&document, location, expected.as_ref()).map_err(
@@ -46,6 +47,7 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::InsertBlock,
         prepared.apply(payload)?,
         target_to_wire,
@@ -53,13 +55,14 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
 }
 
 pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let expected = parse_etag(args.expect_etag.as_deref())?;
     edit::emit(
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::DeleteBlock,
         block_edit::delete(&document, args.index, expected.as_ref())?,
         target_to_wire,
@@ -127,8 +130,5 @@ pub(crate) fn target_to_wire(target: &BlockEditTarget) -> MutationTargetRef {
 }
 
 fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    value
-        .map(str::parse::<TargetEtag>)
-        .transpose()
-        .map_err(CommandError::from)
+    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
 }

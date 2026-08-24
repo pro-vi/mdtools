@@ -22,7 +22,7 @@ fn outline_and_section_share_span_and_etag() {
     assert_eq!(section.etag, first.etag);
     assert_eq!(
         document.try_slice(&section.span).unwrap(),
-        document.slice(&section.span)
+        document.slice(&section.span).unwrap()
     );
 }
 

@@ -63,7 +63,7 @@ pub fn prepare_replace<'a>(
 
 impl PreparedBlockReplace<'_> {
     pub fn apply(self, content: impl Into<String>) -> EditOutcome<BlockEditTarget> {
-        let original = self.document.slice(&self.span);
+        let original = self.document.slice_unchecked(&self.span);
         let normalized = normalize_line_endings(&content.into(), self.document.line_ending_style());
         let replacement = if original.ends_with('\n') {
             normalized
@@ -304,7 +304,7 @@ fn verify_block_guard(
     let Some(expected) = expected else {
         return Ok(());
     };
-    let actual = TargetEtag::for_bytes(document.slice(&span).as_bytes());
+    let actual = TargetEtag::for_bytes(document.slice_unchecked(&span).as_bytes());
     if expected != &actual {
         return Err(CoreError::TargetEtagMismatch {
             target: EtagTarget::Block(index),
@@ -325,7 +325,7 @@ fn verify_move_guard(
     let Some(expected) = expected else {
         return Ok(());
     };
-    let actual = TargetEtag::for_bytes(document.slice(&span).as_bytes());
+    let actual = TargetEtag::for_bytes(document.slice_unchecked(&span).as_bytes());
     if expected != &actual {
         return Err(CoreError::BlockMoveEtagMismatch {
             role,
@@ -346,7 +346,9 @@ fn verify_unique(
     let count = document
         .blocks()
         .iter()
-        .filter(|block| TargetEtag::for_bytes(document.slice(&block.span).as_bytes()) == *expected)
+        .filter(|block| {
+            TargetEtag::for_bytes(document.slice_unchecked(&block.span).as_bytes()) == *expected
+        })
         .count();
     if count > 1 {
         if let Some(role) = role {
@@ -435,7 +437,7 @@ fn reconstruct(document: &Document, order: &[u32]) -> String {
         })
         .collect::<Vec<_>>();
     for (slot, original) in order.iter().enumerate() {
-        output.push_str(document.slice(&document.blocks()[*original as usize].span));
+        output.push_str(document.slice_unchecked(&document.blocks()[*original as usize].span));
         output.push_str(gaps[slot]);
     }
     output
@@ -455,7 +457,7 @@ fn verify_structural_closure(
         let expected = &document.blocks()[*original_index as usize];
         let actual = &reparsed.blocks()[position];
         if actual.kind != expected.kind
-            || reparsed.slice(&actual.span) != document.slice(&expected.span)
+            || reparsed.slice_unchecked(&actual.span) != document.slice_unchecked(&expected.span)
         {
             return Err(structural_closure_error());
         }

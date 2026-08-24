@@ -33,7 +33,27 @@ impl FromStr for TargetEtag {
     type Err = CoreError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(Self(value.to_string()))
+        if value.len() == 16
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            Ok(Self(value.to_string()))
+        } else {
+            Err(CoreError::InvalidTargetEtag(value.to_string()))
+        }
+    }
+}
+
+/// Compatibility construction for the existing CLI contract, where any
+/// caller-supplied token participates in comparison and malformed tokens fail
+/// as etag mismatches rather than argument errors.
+#[cfg(feature = "cli")]
+pub mod cli_compat {
+    use super::TargetEtag;
+
+    pub fn target_etag(value: &str) -> TargetEtag {
+        TargetEtag(value.to_string())
     }
 }
 
@@ -45,4 +65,24 @@ pub fn content_etag(bytes: &[u8]) -> String {
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
     format!("{hash:016x}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn target_etag_accepts_only_the_generated_wire_format() {
+        let generated = TargetEtag::for_bytes(b"target");
+        assert_eq!(
+            generated.to_string().parse::<TargetEtag>().unwrap(),
+            generated
+        );
+        for invalid in ["", "abc", "0123456789ABCDEf", "0123456789abcdeg"] {
+            assert!(matches!(
+                invalid.parse::<TargetEtag>(),
+                Err(CoreError::InvalidTargetEtag(_))
+            ));
+        }
+    }
 }

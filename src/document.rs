@@ -55,12 +55,16 @@ impl Document {
         self.parsed.span_for_byte_range(byte_start, byte_end)
     }
 
-    pub fn slice(&self, span: &SourceSpan) -> &str {
+    pub fn slice(&self, span: &SourceSpan) -> Result<&str, CoreError> {
+        self.parsed.try_slice(span)
+    }
+
+    pub(crate) fn slice_unchecked(&self, span: &SourceSpan) -> &str {
         self.parsed.slice(span)
     }
 
     pub fn try_slice(&self, span: &SourceSpan) -> Result<&str, CoreError> {
-        self.parsed.try_slice(span)
+        self.slice(span)
     }
 
     pub fn revision(&self) -> &DocumentRevision {

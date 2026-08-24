@@ -51,7 +51,7 @@ pub fn search(document: &Document, query: &SearchQuery) -> Vec<SearchMatch> {
         .filter(|block| block_kinds.contains(&block.kind))
         .flat_map(|block| {
             find_matches_in_content(
-                document.slice(&block.span),
+                document.slice_unchecked(&block.span),
                 &query.text,
                 query.match_mode == SearchMatchMode::LiteralIgnoreCase,
                 block.index,

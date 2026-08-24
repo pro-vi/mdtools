@@ -4,8 +4,8 @@ use std::str::FromStr;
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{EditOutcome, EditPreservation};
-use crate::fingerprint::{content_etag, TargetEtag};
-use crate::model::{MutationDisposition, SourceSpan, TaskEntry, TaskStatus};
+use crate::fingerprint::TargetEtag;
+use crate::model::{MutationDisposition, SourceSpan, TaskStatus};
 use crate::parser::{BlockInfo, TaskItemInfo};
 use crate::section::{SectionIndex, SectionTarget};
 
@@ -69,8 +69,21 @@ pub struct TaskQuery {
 
 #[derive(Clone, Debug)]
 pub struct TaskRead {
-    pub task: TaskEntry,
+    pub task: TaskRecord,
     pub content: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskRecord {
+    pub loc: TaskLoc,
+    pub task_index: u32,
+    pub status: TaskStatus,
+    pub depth: u32,
+    pub nearest_heading: Option<String>,
+    pub nearest_heading_block_index: Option<u32>,
+    pub span: SourceSpan,
+    pub etag: TargetEtag,
+    pub summary_text: String,
 }
 
 #[derive(Clone, Debug)]
@@ -86,7 +99,7 @@ pub struct TaskEditTarget {
     pub span: SourceSpan,
 }
 
-pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskEntry>, CoreError> {
+pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskRecord>, CoreError> {
     let selected = query
         .under
         .as_ref()
@@ -129,7 +142,7 @@ pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskEntry>, C
             {
                 continue;
             }
-            entries.push(task_entry(document, block, item, &nearest_heading));
+            entries.push(task_record(document, block, item, &nearest_heading));
         }
     }
     Ok(entries)
@@ -139,8 +152,8 @@ pub fn task(document: &Document, loc: &TaskLoc) -> Result<TaskRead, CoreError> {
     let (block, item) = resolve_task(document, loc)?;
     let heading = nearest_heading(document.blocks(), block.index);
     Ok(TaskRead {
-        task: task_entry(document, block, item, &heading),
-        content: document.slice(&item.span).to_string(),
+        task: task_record(document, block, item, &heading),
+        content: document.slice_unchecked(&item.span).to_string(),
     })
 }
 
@@ -150,7 +163,7 @@ pub fn set_task(
 ) -> Result<EditOutcome<TaskEditTarget>, CoreError> {
     let (_, item) = resolve_task(document, &edit.loc)?;
     let task_span = item.span;
-    let current = document.slice(&task_span);
+    let current = document.slice_unchecked(&task_span);
     if let Some(expected) = edit.expect_etag.as_ref() {
         let actual = TargetEtag::for_bytes(current.as_bytes());
         if expected != &actual {
@@ -165,7 +178,8 @@ pub fn set_task(
             .iter()
             .flat_map(|block| &block.task_items)
             .filter(|candidate| {
-                TargetEtag::for_bytes(document.slice(&candidate.span).as_bytes()) == *expected
+                TargetEtag::for_bytes(document.slice_unchecked(&candidate.span).as_bytes())
+                    == *expected
             })
             .count();
         if duplicates > 1 {
@@ -262,27 +276,24 @@ fn nearest_heading(blocks: &[BlockInfo], before_index: u32) -> (Option<String>, 
         .unwrap_or((None, None))
 }
 
-fn task_entry(
+fn task_record(
     document: &Document,
     block: &BlockInfo,
     item: &TaskItemInfo,
     heading: &(Option<String>, Option<u32>),
-) -> TaskEntry {
-    TaskEntry {
+) -> TaskRecord {
+    TaskRecord {
         loc: TaskLoc {
             block_index: block.index,
             child_path: item.child_path.clone(),
-        }
-        .to_string(),
-        block_index: block.index,
-        child_path: item.child_path.clone(),
+        },
         task_index: item.task_index,
         status: item.status,
         depth: item.depth,
         nearest_heading: heading.0.clone(),
         nearest_heading_block_index: heading.1,
         span: item.span,
-        etag: content_etag(document.slice(&item.span).as_bytes()),
+        etag: TargetEtag::for_bytes(document.slice_unchecked(&item.span).as_bytes()),
         summary_text: item.summary_text.clone(),
     }
 }

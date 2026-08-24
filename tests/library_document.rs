@@ -21,7 +21,7 @@ fn checked_slice_accepts_parser_spans_and_rejects_untrusted_ranges() {
         byte_start: 0,
         byte_end: 7,
     };
-    assert_eq!(doc.try_slice(&whole).unwrap(), "éclair");
+    assert_eq!(doc.slice(&whole).unwrap(), "éclair");
 
     let invalid = SourceSpan {
         line_start: 1,
@@ -30,9 +30,29 @@ fn checked_slice_accepts_parser_spans_and_rejects_untrusted_ranges() {
         byte_end: 2,
     };
     assert!(matches!(
-        doc.try_slice(&invalid),
+        doc.slice(&invalid),
         Err(CoreError::InvalidSpan { .. })
     ));
+
+    for invalid in [
+        SourceSpan {
+            line_start: 1,
+            line_end: 1,
+            byte_start: 5,
+            byte_end: 4,
+        },
+        SourceSpan {
+            line_start: 1,
+            line_end: 1,
+            byte_start: 0,
+            byte_end: 99,
+        },
+    ] {
+        assert!(matches!(
+            doc.slice(&invalid),
+            Err(CoreError::InvalidSpan { .. })
+        ));
+    }
 }
 
 #[test]

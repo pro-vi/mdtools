@@ -69,7 +69,7 @@ pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
 }
 
 pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
     let prepared = table::prepare_replace_row(
@@ -83,6 +83,7 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::ReplaceTableRow,
         prepared.replace(payload)?,
         table_target_to_wire,
@@ -90,7 +91,7 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
 }
 
 pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
     let prepared = table::prepare_insert_row(
@@ -104,6 +105,7 @@ pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(),
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::InsertTableRow,
         prepared.insert(payload)?,
         table_target_to_wire,
@@ -111,7 +113,7 @@ pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(),
 }
 
 pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
     let outcome = table::delete_row(
@@ -124,6 +126,7 @@ pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(),
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::DeleteTableRow,
         outcome,
         table_target_to_wire,
@@ -192,10 +195,7 @@ fn table_target_to_wire(target: &TableEditTarget) -> MutationTargetRef {
 }
 
 fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    value
-        .map(str::parse::<TargetEtag>)
-        .transpose()
-        .map_err(CommandError::from)
+    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
 }
 
 fn column(value: &str) -> ColumnSelector {

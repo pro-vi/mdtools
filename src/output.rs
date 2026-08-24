@@ -88,64 +88,97 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 ///
 /// Verify the current source and bind that verification to the filesystem
 /// object replaced by the atomic rename.
-pub fn write_file_atomic_verified(
-    path: &std::path::Path,
-    content: &str,
-    expected_revision: &DocumentRevision,
-) -> Result<(), CommandError> {
-    let target = std::fs::canonicalize(path)?;
-    let guard = TargetGuard::capture(&target, expected_revision)?;
-    let tmp_path = temp_sibling_path(&target);
-    atomic_replace_via_checked(&target, &tmp_path, content, Some(&guard))
+pub(crate) struct EditFile {
+    source: String,
+    target: EditTarget,
 }
 
-struct TargetGuard {
+impl EditFile {
+    pub fn into_parts(self) -> (String, EditTarget) {
+        (self.source, self.target)
+    }
+}
+
+pub(crate) struct EditTarget {
+    requested_path: std::path::PathBuf,
+    target: std::path::PathBuf,
     revision: DocumentRevision,
     #[cfg(unix)]
     identity: (u64, u64),
 }
 
-impl TargetGuard {
-    fn capture(
-        target: &std::path::Path,
-        expected_revision: &DocumentRevision,
-    ) -> Result<Self, CommandError> {
-        let mut file = std::fs::File::open(target)?;
-        let mut source = String::new();
-        file.read_to_string(&mut source)?;
-        mdtools::revision::verify_source_revision(&source, expected_revision)?;
-        #[cfg(unix)]
-        let identity = {
-            use std::os::unix::fs::MetadataExt;
-            let metadata = file.metadata()?;
-            (metadata.dev(), metadata.ino())
-        };
-        Ok(Self {
-            revision: expected_revision.clone(),
+pub(crate) fn read_edit_file(path: &std::path::Path) -> Result<EditFile, CommandError> {
+    let target = std::fs::canonicalize(path)?;
+    let mut file = std::fs::File::open(&target)?;
+    let mut source = String::new();
+    file.read_to_string(&mut source)?;
+    #[cfg(unix)]
+    let identity = {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = file.metadata()?;
+        (metadata.dev(), metadata.ino())
+    };
+    let revision = DocumentRevision::for_source(&source);
+    Ok(EditFile {
+        source,
+        target: EditTarget {
+            requested_path: path.to_path_buf(),
+            target,
+            revision,
             #[cfg(unix)]
             identity,
-        })
-    }
+        },
+    })
 }
 
-fn verify_target_guard(target: &std::path::Path, guard: &TargetGuard) -> Result<(), CommandError> {
+pub(crate) fn verify_file_unchanged(
+    target: &EditTarget,
+    expected_revision: &DocumentRevision,
+) -> Result<(), CommandError> {
+    if &target.revision != expected_revision {
+        return Err(mdtools::core_error::CoreError::DocumentRevisionMismatch {
+            expected: expected_revision.to_string(),
+            actual: target.revision.to_string(),
+        }
+        .into());
+    }
+    verify_target_guard(target)
+}
+
+pub(crate) fn write_file_atomic_verified(
+    target: &EditTarget,
+    content: &str,
+    expected_revision: &DocumentRevision,
+) -> Result<(), CommandError> {
+    verify_file_unchanged(target, expected_revision)?;
+    let tmp_path = temp_sibling_path(&target.target);
+    atomic_replace_via_checked(&target.target, &tmp_path, content, Some(target))
+}
+
+fn verify_target_guard(guard: &EditTarget) -> Result<(), CommandError> {
+    let current_target = std::fs::canonicalize(&guard.requested_path)?;
+    if current_target != guard.target {
+        return Err(target_changed_error());
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        let metadata = std::fs::symlink_metadata(target)?;
+        let metadata = std::fs::symlink_metadata(&guard.target)?;
         if (metadata.dev(), metadata.ino()) != guard.identity {
-            return Err(CommandError::new(
-                crate::errors::DiagnosticCode::EtagMismatch,
-                "document target changed since the edit candidate was verified",
-            )
-            .with_hint(
-                "re-read the document path and rebuild the edit candidate before retrying",
-            ));
+            return Err(target_changed_error());
         }
     }
-    let current = std::fs::read_to_string(target)?;
+    let current = std::fs::read_to_string(&guard.target)?;
     mdtools::revision::verify_source_revision(&current, &guard.revision)?;
     Ok(())
+}
+
+fn target_changed_error() -> CommandError {
+    CommandError::new(
+        crate::errors::DiagnosticCode::EtagMismatch,
+        "document target changed since the edit candidate was created",
+    )
+    .with_hint("re-read the document path and rebuild the edit candidate before retrying")
 }
 
 /// A collision-resistant sibling temp path (timestamp + pid + counter) in the
@@ -213,12 +246,12 @@ fn atomic_replace_via_checked(
     target: &std::path::Path,
     tmp_path: &std::path::Path,
     content: &str,
-    guard: Option<&TargetGuard>,
+    guard: Option<&EditTarget>,
 ) -> Result<(), CommandError> {
     use std::io::Write;
 
     if let Some(guard) = guard {
-        verify_target_guard(target, guard)?;
+        verify_target_guard(guard)?;
     }
     let original_perms = std::fs::metadata(target)?.permissions();
 
@@ -271,7 +304,7 @@ fn atomic_replace_via_checked(
             }
         }
         if let Some(guard) = guard {
-            verify_target_guard(target, guard)?;
+            verify_target_guard(guard)?;
         }
         Ok(())
     })();
@@ -422,8 +455,7 @@ mod tests {
         let target = dir.join("doc.md");
         let displaced = dir.join("displaced.md");
         std::fs::write(&target, "same bytes\n").unwrap();
-        let revision = DocumentRevision::for_source("same bytes\n");
-        let guard = TargetGuard::capture(&target, &revision).unwrap();
+        let (_, guard) = read_edit_file(&target).unwrap().into_parts();
 
         std::fs::rename(&target, &displaced).unwrap();
         std::fs::write(&target, "same bytes\n").unwrap();
@@ -434,6 +466,29 @@ mod tests {
         assert_eq!(error.code, crate::errors::DiagnosticCode::EtagMismatch);
         assert_eq!(std::fs::read_to_string(&target).unwrap(), "same bytes\n");
         assert!(!tmp.exists(), "guard failure must occur before staging");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn edit_target_rejects_symlink_retargeting_before_persistence() {
+        let dir = unique_dir("symlink-retarget");
+        let first = dir.join("first.md");
+        let second = dir.join("second.md");
+        let link = dir.join("doc.md");
+        std::fs::write(&first, "same bytes\n").unwrap();
+        std::fs::write(&second, "same bytes\n").unwrap();
+        std::os::unix::fs::symlink(&first, &link).unwrap();
+        let (_, target) = read_edit_file(&link).unwrap().into_parts();
+
+        std::fs::remove_file(&link).unwrap();
+        std::os::unix::fs::symlink(&second, &link).unwrap();
+        let revision = DocumentRevision::for_source("same bytes\n");
+        let result = write_file_atomic_verified(&target, "candidate\n", &revision);
+
+        let error = result.expect_err("a retargeted symlink must fail closed");
+        assert_eq!(error.code, crate::errors::DiagnosticCode::EtagMismatch);
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "same bytes\n");
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "same bytes\n");
     }
 
     #[cfg(unix)]

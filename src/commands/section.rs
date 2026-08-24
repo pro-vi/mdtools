@@ -19,7 +19,7 @@ pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
         args.ignore_case,
     )?;
     let section = find_section(&document, &target)?;
-    let content = document.slice(&section.span).to_string();
+    let content = document.slice(&section.span)?.to_string();
     if json {
         output::write_json(&SectionReadResult {
             schema_version: SCHEMA_VERSION.to_string(),
@@ -34,7 +34,7 @@ pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
 }
 
 pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let target = build_selector(
         &args.selector,
@@ -50,6 +50,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::ReplaceSection,
         prepared.apply(payload),
         target_to_wire,
@@ -57,7 +58,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
 }
 
 pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), CommandError> {
-    let source = std::fs::read_to_string(&args.file)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
     let document = Document::parse(source)?;
     let target = build_selector(
         &args.selector,
@@ -71,6 +72,7 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
         args.in_place,
         json,
         &args.file,
+        Some(&edit_target),
         MutationCommandKind::DeleteSection,
         section_edit::delete(&document, section, expected.as_ref())?,
         target_to_wire,
@@ -211,8 +213,5 @@ pub(crate) fn target_to_wire(target: &SectionEditTarget) -> MutationTargetRef {
 }
 
 fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    value
-        .map(str::parse::<TargetEtag>)
-        .transpose()
-        .map_err(CommandError::from)
+    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
 }

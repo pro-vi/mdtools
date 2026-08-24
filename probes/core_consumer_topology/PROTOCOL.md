@@ -29,18 +29,18 @@ CLI-only dependencies or filesystem writes.
 Run three independent local lanes against fixed sources:
 
 1. **CLI preservation:** build baseline commit `07eb509` and the inspected
-   candidate source; compare exit code, stdout, stderr, JSON, and mutation bytes
-   for schema, outline, section, tasks, task, and `set-task` cases. Run the full
-   current Rust suite.
+   candidate source. Exercise every current command family. Read cases compare
+   exit code, stdout, and stderr. Mutation cases additionally compare final
+   document bytes. Run the full current Rust suite.
 2. **Braid adoption:** package the candidate, extract only its Cargo package,
    and build a clean consumer that parses Markdown and immediately maps task
    status and optional spans into consumer-owned types. No sibling repository
    path is available inside the consumer root.
 3. **Reader readiness:** against the same extracted package, build and run a
-   consumer with default features disabled that parses a document, obtains the
-   outline and a section, queries tasks, and produces a guarded `set-task`
-   candidate while asserting that the original source and filesystem remain
-   unchanged. Inspect its normal dependency tree for CLI-only crates.
+   consumer with default features disabled that exercises block, section, task,
+   link, table, frontmatter, search, statistics, and edit operations in-process
+   while asserting that the original source and filesystem remain unchanged.
+   Inspect its normal dependency tree for CLI-only crates.
 
 Each lane records exact commands, exit codes, artifact hashes, and assertions.
 Lane verdicts are independent; operational failure is `inconclusive`, never a
@@ -64,17 +64,20 @@ product pass or failure.
 ## Authority And Safety Boundary
 
 - Trusted inputs and their authentication: tracked source at baseline commit
-  `07eb509`, inspected candidate source, tracked fixtures, Cargo manifests, and
-  SHA-256 hashes recorded by the runner.
+  `07eb509`, a clean inspected candidate commit, tracked fixtures, Cargo
+  manifests, and SHA-256 hashes recorded by the runner.
 - Forbidden authority and side channels: no network, credentials, environment
   secrets, installed sibling source, untracked fixtures, external models, or
   mutation of Braid, pi-mdtools, or a future reader repository.
 - Filesystem, process, network, and credential boundary: all builds and
   consumers run in new temporary directories; only the current repository is
-  read; the probe writes no tracked source or canonical Markdown input.
+  read; the probe writes no tracked source or canonical Markdown input except
+  its generated `RESULTS.md` evidence file.
+- Execution refuses a dirty source tree. `cargo package` does not use
+  `--allow-dirty`.
 - Canonical artifact and non-mutating check command: `RESULTS.md` is canonical;
-  `python3 probe.py --check` validates its embedded manifest and verdicts
-  without executing builds.
+  `python3 probe.py --check` verifies its embedded evidence fields, verdicts,
+  source cleanliness, and candidate ancestry without executing builds.
 
 ## Phase Boundary
 

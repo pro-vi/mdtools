@@ -149,6 +149,15 @@ def cli_lane(repo: Path, workspace: Path) -> dict[str, object]:
         ["schema", "--json"],
         ["outline", "--json", "tests/fixtures/basic.md"],
         ["section", "Introduction", "tests/fixtures/basic.md", "--json"],
+        ["blocks", "tests/fixtures/basic.md", "--json"],
+        ["block", "0", "tests/fixtures/basic.md", "--json"],
+        ["search", "Introduction", "tests/fixtures/basic.md", "--json"],
+        ["links", "tests/fixtures/basic.md", "--json"],
+        ["frontmatter", "tests/fixtures/frontmatter.md", "--json"],
+        ["collect", "tests/fixtures/frontmatter.md", "--field", "title", "--json"],
+        ["stats", "tests/fixtures/basic.md", "--json"],
+        ["table", "tests/fixtures/table.md", "--json"],
+        ["table", "tests/fixtures/table.md", "--index", "1", "--json"],
         ["tasks", "tests/fixtures/progress_example.md", "--json"],
         ["task", "9.0", "tests/fixtures/progress_example.md", "--json"],
     ]
@@ -170,27 +179,106 @@ def cli_lane(repo: Path, workspace: Path) -> dict[str, object]:
             }
         )
 
-    baseline_mutation = workspace / "baseline-mutation"
-    current_mutation = workspace / "current-mutation"
-    baseline_mutation.mkdir()
-    current_mutation.mkdir()
-    fixture = repo / "tests/fixtures/progress_example.md"
-    shutil.copy2(fixture, baseline_mutation / "progress.md")
-    shutil.copy2(fixture, current_mutation / "progress.md")
-    mutation_args = ["set-task", "9.0", "progress.md", "--status", "pending", "--json", "-i"]
-    before_mutation = invoke(baseline_binary, mutation_args, baseline_mutation)
-    after_mutation = invoke(current_binary, mutation_args, current_mutation)
-    mutation_match = (
-        before_mutation.returncode,
-        before_mutation.stdout,
-        before_mutation.stderr,
-        (baseline_mutation / "progress.md").read_bytes(),
-    ) == (
-        after_mutation.returncode,
-        after_mutation.stdout,
-        after_mutation.stderr,
-        (current_mutation / "progress.md").read_bytes(),
-    )
+    mutation_cases = [
+        {
+            "name": "replace-block",
+            "source": "# A\n\nold\n",
+            "payload": "new\n",
+            "args": ["replace-block", "1", "doc.md", "--from", "payload.md", "--json", "-i"],
+        },
+        {
+            "name": "insert-block",
+            "source": "# A\n\nold\n",
+            "payload": "inserted\n",
+            "args": ["insert-block", "doc.md", "--after", "0", "--from", "payload.md", "--json", "-i"],
+        },
+        {
+            "name": "delete-block",
+            "source": "# A\n\nold\n",
+            "args": ["delete-block", "1", "doc.md", "--json", "-i"],
+        },
+        {
+            "name": "move-block",
+            "source": "one\n\ntwo\n\nthree\n",
+            "args": ["move-block", "0", "doc.md", "--after", "2", "--json", "-i"],
+        },
+        {
+            "name": "replace-section",
+            "source": "# A\n\nold\n\n# B\n\nbody\n",
+            "payload": "# A\n\nnew\n",
+            "args": ["replace-section", "A", "doc.md", "--from", "payload.md", "--json", "-i"],
+        },
+        {
+            "name": "delete-section",
+            "source": "# A\n\nold\n\n# B\n\nbody\n",
+            "args": ["delete-section", "A", "doc.md", "--json", "-i"],
+        },
+        {
+            "name": "move-section",
+            "source": "# A\n\na\n\n# B\n\nb\n",
+            "args": ["move-section", "A", "doc.md", "--after", "B", "--keep-level", "--json", "-i"],
+        },
+        {
+            "name": "set-frontmatter",
+            "source": "---\ntitle: old\n---\n\n# Body\n",
+            "args": ["set", "title", "doc.md", "new", "--json", "-i"],
+        },
+        {
+            "name": "replace-table-row",
+            "source": "| A |\n| --- |\n| old |\n",
+            "payload": "| new |\n",
+            "args": ["replace-table-row", "0", "0", "doc.md", "--from", "payload.md", "--json", "-i"],
+        },
+        {
+            "name": "insert-table-row",
+            "source": "| A |\n| --- |\n| old |\n",
+            "payload": "| new |\n",
+            "args": ["insert-table-row", "0", "1", "doc.md", "--from", "payload.md", "--json", "-i"],
+        },
+        {
+            "name": "delete-table-row",
+            "source": "| A |\n| --- |\n| old |\n| keep |\n",
+            "args": ["delete-table-row", "0", "0", "doc.md", "--json", "-i"],
+        },
+        {
+            "name": "set-task",
+            "source": "# Tasks\n\n- [ ] task\n",
+            "args": ["set-task", "1.0", "doc.md", "--status", "done", "--json", "-i"],
+        },
+    ]
+    mutation_comparisons = []
+    for index, case in enumerate(mutation_cases):
+        baseline_mutation = workspace / f"baseline-mutation-{index}"
+        current_mutation = workspace / f"current-mutation-{index}"
+        baseline_mutation.mkdir()
+        current_mutation.mkdir()
+        for root in (baseline_mutation, current_mutation):
+            (root / "doc.md").write_text(case["source"], encoding="utf-8")
+            if "payload" in case:
+                (root / "payload.md").write_text(case["payload"], encoding="utf-8")
+        before_mutation = invoke(baseline_binary, case["args"], baseline_mutation)
+        after_mutation = invoke(current_binary, case["args"], current_mutation)
+        matched = (
+            before_mutation.returncode,
+            before_mutation.stdout,
+            before_mutation.stderr,
+            (baseline_mutation / "doc.md").read_bytes(),
+        ) == (
+            after_mutation.returncode,
+            after_mutation.stdout,
+            after_mutation.stderr,
+            (current_mutation / "doc.md").read_bytes(),
+        )
+        mutation_comparisons.append(
+            {
+                "name": case["name"],
+                "args": case["args"],
+                "match": matched,
+                "baseline_exit": before_mutation.returncode,
+                "candidate_exit": after_mutation.returncode,
+            }
+        )
+    mutation_match = all(item["match"] for item in mutation_comparisons)
 
     suite = run(
         ["cargo", "test", "--quiet", "--locked"],
@@ -201,6 +289,7 @@ def cli_lane(repo: Path, workspace: Path) -> dict[str, object]:
     return {
         "verdict": "pass" if passed else "fail",
         "comparisons": comparisons,
+        "mutation_comparisons": mutation_comparisons,
         "mutation_match": mutation_match,
         "suite_exit": suite.returncode,
         "baseline_binary_sha256": sha256(baseline_binary),
@@ -211,7 +300,7 @@ def cli_lane(repo: Path, workspace: Path) -> dict[str, object]:
 def package_source(repo: Path, workspace: Path) -> tuple[Path, list[str], str]:
     target = workspace / "package-target"
     run(
-        ["cargo", "package", "--allow-dirty", "--no-verify", "--locked"],
+        ["cargo", "package", "--no-verify", "--locked"],
         cwd=repo,
         env=cargo_env(target),
         check=True,
@@ -300,24 +389,38 @@ fn main() {
         reader,
         "reader-consumer",
         package,
-        r'''use std::str::FromStr;
+        r'''use mdtools::block;
+use mdtools::block_edit;
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
+use mdtools::frontmatter;
+use mdtools::link;
 use mdtools::model::{HeadingMatchMode, TaskStatus};
+use mdtools::search::{self, SearchQuery};
 use mdtools::section::{SectionIndex, SectionTarget};
-use mdtools::task::{self, SetTaskEdit, TaskLoc, TaskQuery};
+use mdtools::stats;
+use mdtools::table;
+use mdtools::task::{self, SetTaskEdit, TaskQuery};
 
 fn main() {
-    let source = "# Tasks\n\n- [ ] first\n".to_string();
-    let document = Document::parse(source.clone()).unwrap();
+    let source = "---\ntitle: Demo\n---\n\n# Tasks\n\n- [ ] first\n\nRead [guide](guide.md).\n\n| A |\n| --- |\n| one |\n".to_string();
+    let document = Document::parse_for_frontmatter(source.clone()).unwrap();
     let outline = SectionIndex::new(&document).outline();
     let selector = SectionTarget::heading("Tasks", None, HeadingMatchMode::Exact).unwrap();
-    assert!(SectionIndex::new(&document).resolve(&selector).is_ok());
+    let section = SectionIndex::new(&document).resolve(&selector).unwrap();
     let first = task::tasks(&document, &TaskQuery::default()).unwrap().remove(0);
-    let outcome = task::set_task(&document, &SetTaskEdit { loc: TaskLoc::from_str(&first.loc).unwrap(), status: TaskStatus::Done, expect_etag: Some(first.etag.parse::<TargetEtag>().unwrap()) }).unwrap();
+    let outcome = task::set_task(&document, &SetTaskEdit { loc: first.loc, status: TaskStatus::Done, expect_etag: Some(first.etag) }).unwrap();
+    let prepared = block_edit::prepare_replace(&document, 1, None).unwrap();
+    let _candidate = prepared.apply("- [x] first");
+    assert!(!block::blocks(&document).is_empty());
+    assert_eq!(link::links(&document).len(), 1);
+    assert!(!search::search(&document, &SearchQuery::literal("guide")).is_empty());
+    assert_eq!(frontmatter::read(&document).unwrap().data["title"], "Demo");
+    assert_eq!(table::tables(&document).unwrap().len(), 1);
+    assert!(stats::document_stats(&document).word_count > 0);
+    assert_eq!(document.slice(&section.span).unwrap().lines().next(), Some("# Tasks"));
     assert_eq!(outline.len(), 1);
     assert_eq!(document.source(), source);
-    assert_eq!(outcome.content, "# Tasks\n\n- [x] first\n");
+    assert!(outcome.content.contains("- [x] first"));
 }
 ''',
     )
@@ -385,10 +488,10 @@ def render_results(repo: Path, payload: dict[str, object]) -> None:
 
 ## Product Disposition
 
-- The sampled CLI process contract is unchanged from `{BASELINE_COMMIT}`:
-  schema, outline, section, tasks, task, and `set-task` matched on exit code,
-  stdout, stderr, JSON, and mutation bytes; the complete current Rust suite
-  passed.
+- Every current CLI command family is unchanged from `{BASELINE_COMMIT}` on its
+  representative parity case: reads matched exit code, stdout, and stderr;
+  mutations additionally matched final document bytes; the complete current
+  Rust suite passed.
 - A clean Braid-shaped consumer built from the published Cargo package without a
   sibling checkout and immediately translated Markdown task status and source
   coordinates into consumer-owned types.
@@ -422,6 +525,45 @@ future operation cannot preserve direct-core/CLI candidate parity.
     )
 
 
+def validate_recorded_evidence(payload: dict[str, object]) -> None:
+    if payload.get("schema_version") != "core-consumer-topology.v1":
+        raise ValueError("result schema version is not supported")
+    if payload.get("baseline_commit") != BASELINE_COMMIT:
+        raise ValueError("result baseline does not match the probe")
+    if payload.get("source_clean") is not True:
+        raise ValueError("result was not produced from a clean source tree")
+    if set(payload["lanes"]) != set(LANES):
+        raise ValueError("result lanes do not match the protocol")
+    cli = payload["lanes"]["cli_preservation"]
+    cli_pass = (
+        cli.get("suite_exit") == 0
+        and cli.get("mutation_match") is True
+        and bool(cli.get("comparisons"))
+        and all(item.get("match") is True for item in cli["comparisons"])
+        and bool(cli.get("mutation_comparisons"))
+        and all(item.get("match") is True for item in cli["mutation_comparisons"])
+    )
+    braid = payload["lanes"]["braid_adoption"]
+    braid_pass = braid.get("consumer_exit") == 0 and braid.get("package_clean") is True
+    reader = payload["lanes"]["reader_readiness"]
+    reader_pass = (
+        reader.get("consumer_exit") == 0
+        and reader.get("tree_exit") == 0
+        and reader.get("package_clean") is True
+        and reader.get("cli_only_dependencies") == []
+    )
+    expected_passes = {
+        "cli_preservation": cli_pass,
+        "braid_adoption": braid_pass,
+        "reader_readiness": reader_pass,
+    }
+    for name, passed in expected_passes.items():
+        if (payload["lanes"][name].get("verdict") == "pass") != passed:
+            raise ValueError(f"{name} verdict contradicts its recorded evidence")
+    if payload["overall"] != overall(payload["lanes"]):
+        raise ValueError("overall verdict does not match lane verdicts")
+
+
 def check_results(repo: Path) -> int:
     path = repo / "probes/core_consumer_topology/RESULTS.md"
     text = path.read_text(encoding="utf-8")
@@ -431,15 +573,29 @@ def check_results(repo: Path) -> int:
     if not fenced.startswith("```json\n") or not fenced.endswith("```"):
         raise ValueError("result JSON fence is malformed")
     payload = json.loads(fenced[len("```json\n") : -len("```")])
-    if set(payload["lanes"]) != set(LANES):
-        raise ValueError("result lanes do not match the protocol")
-    if payload["overall"] != overall(payload["lanes"]):
-        raise ValueError("overall verdict does not match lane verdicts")
+    validate_recorded_evidence(payload)
+    candidate = str(payload.get("candidate_commit", ""))
+    run(["git", "cat-file", "-e", f"{candidate}^{{commit}}"], cwd=repo, check=True)
+    changed_after_candidate = run(
+        ["git", "diff", "--name-only", f"{candidate}..HEAD"], cwd=repo, check=True
+    ).stdout.splitlines()
+    allowed = {"probes/core_consumer_topology/RESULTS.md"}
+    if set(changed_after_candidate) - allowed:
+        raise ValueError("result candidate is stale relative to current source")
+    dirty_paths = {
+        line[3:]
+        for line in run(["git", "status", "--porcelain"], cwd=repo, check=True).stdout.splitlines()
+    }
+    if dirty_paths - allowed:
+        raise ValueError("current source has changes not represented by the result")
     print(payload["overall"])
     return 0
 
 
 def execute(repo: Path) -> int:
+    if run(["git", "status", "--porcelain"], cwd=repo, check=True).stdout:
+        print("refusing to probe a dirty source tree")
+        return 2
     with tempfile.TemporaryDirectory(prefix="mdtools-core-consumer-") as raw_workspace:
         workspace = Path(raw_workspace)
         try:
@@ -459,6 +615,7 @@ def execute(repo: Path) -> int:
             "schema_version": "core-consumer-topology.v1",
             "candidate_commit": commit,
             "baseline_commit": BASELINE_COMMIT,
+            "source_clean": True,
             "lanes": lanes,
             "overall": overall(lanes),
         }

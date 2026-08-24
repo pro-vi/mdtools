@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
 use mdtools::model::TaskStatus;
 use mdtools::task::{self, SetTaskEdit, TaskLoc, TaskQuery};
 
@@ -22,9 +21,9 @@ fn direct_task_edit_returns_candidate_without_touching_source() {
     let outcome = task::set_task(
         &document,
         &SetTaskEdit {
-            loc: TaskLoc::from_str(&selected.loc).unwrap(),
+            loc: selected.loc.clone(),
             status: TaskStatus::Done,
-            expect_etag: Some(selected.etag.parse::<TargetEtag>().unwrap()),
+            expect_etag: Some(selected.etag.clone()),
         },
     )
     .unwrap();

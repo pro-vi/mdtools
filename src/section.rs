@@ -172,7 +172,7 @@ impl SectionIndex {
                     depth: heading.level,
                     block_indices,
                     span,
-                    etag: content_etag(document.slice(&span).as_bytes()),
+                    etag: content_etag(document.slice_unchecked(&span).as_bytes()),
                 })
             })
             .collect();
@@ -316,7 +316,7 @@ fn build_preamble(document: &Document) -> SectionEntry {
         depth: 0,
         block_indices,
         span,
-        etag: content_etag(document.slice(&span).as_bytes()),
+        etag: content_etag(document.slice_unchecked(&span).as_bytes()),
     }
 }
 

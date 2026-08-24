@@ -45,11 +45,11 @@ impl PreparedSectionReplace<'_> {
         let replacement =
             normalize_line_endings(&replacement.into(), self.document.line_ending_style());
         let replacement = preserve_following_boundary(
-            self.document.slice(&span),
+            self.document.slice_unchecked(&span),
             &replacement,
             (span.byte_end as usize) < self.document.source().len(),
         );
-        let disposition = if replacement == self.document.slice(&span) {
+        let disposition = if replacement == self.document.slice_unchecked(&span) {
             MutationDisposition::NoChange
         } else if replacement.is_empty() {
             MutationDisposition::Deleted
@@ -284,7 +284,7 @@ pub fn move_section(
         expected_level,
     ) {
         return Err(CoreError::InvalidSelector(
-            "cannot move-section: moved section would absorb or lose adjacent headings; use auto-level or choose a destination that preserves the section boundary".into(),
+            "cannot move-section: moved section would absorb or lose adjacent headings; use --auto-level or choose a destination that preserves the section boundary".into(),
         ));
     }
     let disposition = if content == document.source() {
@@ -325,7 +325,7 @@ fn verify_guard(
     let Some(expected) = expected else {
         return Ok(());
     };
-    let actual = TargetEtag::for_bytes(document.slice(&section.span).as_bytes());
+    let actual = TargetEtag::for_bytes(document.slice_unchecked(&section.span).as_bytes());
     if expected != &actual {
         if let Some(role) = role {
             return Err(CoreError::SectionMoveEtagMismatch {

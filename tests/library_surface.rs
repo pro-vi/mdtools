@@ -1,7 +1,8 @@
 use mdtools::block;
 use mdtools::block_edit;
+use mdtools::core_error::CoreError;
 use mdtools::document::Document;
-use mdtools::frontmatter::{self, FrontmatterAction, FrontmatterEdit};
+use mdtools::frontmatter::{self, FrontmatterAction, FrontmatterEdit, FrontmatterPath};
 use mdtools::link;
 use mdtools::model::{
     BlockMoveMode, HeadingMatchMode, InsertLocation, InsertMode, MutationDisposition,
@@ -68,7 +69,7 @@ fn frontmatter_table_and_section_edits_are_in_process() {
     let frontmatter = frontmatter::edit(
         &document,
         &FrontmatterEdit {
-            key_path: "title".into(),
+            key_path: FrontmatterPath::new("title").unwrap(),
             action: FrontmatterAction::Set(serde_json::json!("New")),
             expect_etag: None,
         },
@@ -109,4 +110,30 @@ fn block_relocation_preserves_the_block_multiset() {
     let document = Document::parse("# A\n\none\n\n# B\n\ntwo\n").unwrap();
     let moved = block_edit::move_block(&document, 0, 3, BlockMoveMode::After, None, None).unwrap();
     assert_eq!(Document::parse(moved.content).unwrap().blocks().len(), 4);
+}
+
+#[test]
+fn frontmatter_paths_reject_empty_segments() {
+    for invalid in ["", ".a", "a.", "a..b"] {
+        assert!(matches!(
+            FrontmatterPath::new(invalid),
+            Err(CoreError::InvalidKeyPath { .. })
+        ));
+    }
+}
+
+#[test]
+fn frontmatter_edit_revalidates_lenient_documents() {
+    let request = FrontmatterEdit {
+        key_path: FrontmatterPath::new("title").unwrap(),
+        action: FrontmatterAction::Set(serde_json::json!("new")),
+        expect_etag: None,
+    };
+    for source in ["---\ntitle: [\n---\nbody\n", "---\ntitle: old\nbody\n"] {
+        let document = Document::parse(source).unwrap();
+        assert!(matches!(
+            frontmatter::edit(&document, &request),
+            Err(CoreError::FrontmatterParseFailed(_))
+        ));
+    }
 }

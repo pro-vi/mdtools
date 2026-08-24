@@ -6,6 +6,7 @@ use crate::commands::edit;
 use crate::commands::section::{build_selector, find_section_as, target_to_wire};
 use crate::errors::{CommandError, DiagnosticCode, SelectorRole};
 use crate::model::{InsertMode, MutationCommandKind};
+use crate::output;
 use mdtools::document::Document;
 use mdtools::fingerprint::TargetEtag;
 use mdtools::section_edit;
@@ -17,12 +18,15 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
             "--in-place requires a FILE argument",
         ));
     }
-    let source = match &args.file {
-        Some(path) => std::fs::read_to_string(path)?,
+    let (source, edit_target) = match &args.file {
+        Some(path) => {
+            let (source, target) = output::read_edit_file(path)?.into_parts();
+            (source, Some(target))
+        }
         None => {
             let mut source = String::new();
             std::io::stdin().read_to_string(&mut source)?;
-            source
+            (source, None)
         }
     };
     let document = Document::parse(source)?;
@@ -57,6 +61,7 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
         args.in_place,
         json,
         file,
+        edit_target.as_ref(),
         MutationCommandKind::MoveSection,
         outcome,
         target_to_wire,
@@ -80,8 +85,5 @@ fn destination(args: &MoveSectionArgs) -> Result<(&str, InsertMode), CommandErro
 }
 
 fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    value
-        .map(str::parse::<TargetEtag>)
-        .transpose()
-        .map_err(CommandError::from)
+    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
 }

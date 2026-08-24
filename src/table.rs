@@ -73,7 +73,7 @@ pub fn tables(document: &Document) -> Result<Vec<TableSummary>, CoreError> {
         .iter()
         .filter(|block| block.kind == BlockKind::Table)
         .map(|block| {
-            let source = document.slice(&block.span);
+            let source = document.slice_unchecked(&block.span);
             let table = extract_table_projection(source, block.span)?;
             Ok(TableSummary {
                 block_index: block.index,
@@ -203,7 +203,7 @@ impl PreparedTableRowEdit<'_> {
         let payload = strip_one_trailing_newline(payload.into());
         validate_table_row_payload(&payload, self.table.headers.len())?;
         let row = &self.table.rows[self.row_index as usize];
-        let original = self.document.slice(&row.span);
+        let original = self.document.slice_unchecked(&row.span);
         let disposition = if payload == original {
             MutationDisposition::NoChange
         } else {
@@ -341,7 +341,7 @@ fn resolve_table(
     if block.kind != BlockKind::Table {
         return Err(CoreError::NotTable { block_index });
     }
-    let source = document.slice(&block.span);
+    let source = document.slice_unchecked(&block.span);
     Ok((
         block.span,
         extract_table_projection(source, block.span)?,
@@ -369,7 +369,9 @@ fn verify_table_guard(
         .blocks()
         .iter()
         .filter(|block| block.kind == BlockKind::Table)
-        .filter(|block| TargetEtag::for_bytes(document.slice(&block.span).as_bytes()) == *expected)
+        .filter(|block| {
+            TargetEtag::for_bytes(document.slice_unchecked(&block.span).as_bytes()) == *expected
+        })
         .count();
     if count > 1 {
         return Err(CoreError::TargetEtagAmbiguous {
@@ -479,7 +481,7 @@ fn resolve_insertion<'a>(
                 .last()
                 .and_then(|row| line_boundary_before(source, row.span.byte_start as usize))
         })
-        .or_else(|| last_line_boundary_within(document.slice(&block_span)))
+        .or_else(|| last_line_boundary_within(document.slice_unchecked(&block_span)))
         .ok_or_else(|| {
             CoreError::ParseFailed("could not resolve line boundary for table row insertion".into())
         })?;

@@ -26,14 +26,15 @@ pub fn document_stats(document: &Document) -> DocumentStats {
                 .heading
                 .as_ref()
                 .map(|heading| heading.text.as_str())
-                .unwrap_or_else(|| document.slice(&block.span))
+                .unwrap_or_else(|| document.slice_unchecked(&block.span))
                 .split_whitespace()
                 .count() as u32,
-            BlockKind::Paragraph | BlockKind::BlockQuote => {
-                document.slice(&block.span).split_whitespace().count() as u32
-            }
-            BlockKind::List => count_list_words(document.slice(&block.span)),
-            BlockKind::Table => count_table_words(document.slice(&block.span)),
+            BlockKind::Paragraph | BlockKind::BlockQuote => document
+                .slice_unchecked(&block.span)
+                .split_whitespace()
+                .count() as u32,
+            BlockKind::List => count_list_words(document.slice_unchecked(&block.span)),
+            BlockKind::Table => count_table_words(document.slice_unchecked(&block.span)),
             _ => 0,
         })
         .sum();

@@ -29,9 +29,36 @@ pub enum FrontmatterAction {
 
 #[derive(Clone, Debug)]
 pub struct FrontmatterEdit {
-    pub key_path: String,
+    pub key_path: FrontmatterPath,
     pub action: FrontmatterAction,
     pub expect_etag: Option<TargetEtag>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FrontmatterPath(String);
+
+impl FrontmatterPath {
+    pub fn new(path: impl Into<String>) -> Result<Self, CoreError> {
+        let path = path.into();
+        if path.is_empty() || path.split('.').any(str::is_empty) {
+            Err(CoreError::InvalidKeyPath {
+                path,
+                reason: "key cannot be empty",
+            })
+        } else {
+            Ok(Self(path))
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for FrontmatterPath {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
 }
 
 pub fn read(document: &Document) -> Result<FrontmatterRecord, CoreError> {
@@ -97,7 +124,6 @@ pub fn edit(
     document: &Document,
     request: &FrontmatterEdit,
 ) -> Result<EditOutcome<FrontmatterEditTarget>, CoreError> {
-    validate_key_path(&request.key_path)?;
     // The guard owns ordering: stale bytes must conflict before malformed
     // frontmatter or shape validation is attempted.
     let state = document.frontmatter_state();
@@ -115,6 +141,10 @@ pub fn edit(
         }
     }
 
+    let validated = Document::parse_for_frontmatter_mutation(document.source())?;
+    let document = &validated;
+    let state = document.frontmatter_state();
+
     let format = state.format.unwrap_or(FrontmatterFormat::Yaml);
     let mut data = state
         .raw
@@ -127,8 +157,10 @@ pub fn edit(
         ));
     }
     let disposition = match &request.action {
-        FrontmatterAction::Set(value) => set_dot_path(&mut data, &request.key_path, value.clone())?,
-        FrontmatterAction::Delete => delete_dot_path(&mut data, &request.key_path)?,
+        FrontmatterAction::Set(value) => {
+            set_dot_path(&mut data, request.key_path.as_str(), value.clone())?
+        }
+        FrontmatterAction::Delete => delete_dot_path(&mut data, request.key_path.as_str())?,
     };
     let changed = disposition != MutationDisposition::NoChange;
     let span_before = state.span;
@@ -155,7 +187,7 @@ pub fn edit(
     Ok(EditOutcome {
         base_revision: document.revision().clone(),
         target: FrontmatterEditTarget {
-            key_path: request.key_path.clone(),
+            key_path: request.key_path.to_string(),
             format,
         },
         disposition,
@@ -168,17 +200,6 @@ pub fn edit(
         },
         content,
     })
-}
-
-fn validate_key_path(path: &str) -> Result<(), CoreError> {
-    if path.is_empty() || path.split('.').any(str::is_empty) {
-        Err(CoreError::InvalidKeyPath {
-            path: path.to_string(),
-            reason: "key cannot be empty",
-        })
-    } else {
-        Ok(())
-    }
 }
 
 fn set_dot_path(
