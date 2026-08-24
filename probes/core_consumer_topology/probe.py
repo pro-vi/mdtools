@@ -90,6 +90,24 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def package_content_sha256(package_root: Path) -> str:
+    """Hash packaged paths and bytes without Cargo's commit-specific metadata."""
+    digest = hashlib.sha256()
+    files = sorted(path for path in package_root.rglob("*") if path.is_file())
+    for path in files:
+        relative = path.relative_to(package_root).as_posix()
+        if relative == ".cargo_vcs_info.json":
+            continue
+        encoded_path = relative.encode("utf-8")
+        digest.update(len(encoded_path).to_bytes(8, "big"))
+        digest.update(encoded_path)
+        digest.update(path.stat().st_size.to_bytes(8, "big"))
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
 def extract_regular_archive(bundle: tarfile.TarFile, destination: Path) -> None:
     destination_root = destination.resolve()
     for member in bundle.getmembers():
@@ -324,7 +342,8 @@ def package_source(repo: Path, workspace: Path) -> tuple[Path, list[str], str]:
     with tarfile.open(crate, mode="r:gz") as bundle:
         members = bundle.getnames()
         extract_regular_archive(bundle, extracted)
-    return extracted / "mdtools-0.1.0", members, sha256(crate)
+    package_root = extracted / "mdtools-0.1.0"
+    return package_root, members, package_content_sha256(package_root)
 
 
 def write_consumer(root: Path, name: str, dependency: Path, main_rs: str) -> None:
@@ -348,7 +367,7 @@ def write_consumer(root: Path, name: str, dependency: Path, main_rs: str) -> Non
 
 
 def consumer_lanes(repo: Path, workspace: Path) -> tuple[dict[str, object], dict[str, object]]:
-    package, members, package_sha256 = package_source(repo, workspace)
+    package, members, package_content_hash = package_source(repo, workspace)
     cargo_home = prepare_cargo_home(workspace)
     package_check = run(
         ["cargo", "check", "--all-targets", "--all-features", "--offline", "--locked"],
@@ -470,7 +489,7 @@ fn main() {
             "consumer_stderr": braid_run.stderr,
             "package_clean": package_clean,
             "package_file_count": len(members),
-            "package_sha256": package_sha256,
+            "package_content_sha256": package_content_hash,
             "package_check_exit": package_check.returncode,
             "package_check_stderr": package_check.stderr,
         },
@@ -483,7 +502,7 @@ fn main() {
             "tree_stderr": tree.stderr,
             "cli_only_dependencies": cli_deps,
             "package_clean": package_clean,
-            "package_sha256": package_sha256,
+            "package_content_sha256": package_content_hash,
             "package_check_exit": package_check.returncode,
             "package_check_stderr": package_check.stderr,
         },
@@ -577,7 +596,7 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
         and all(item.get("match") is True for item in cli["mutation_comparisons"])
     )
     braid = payload["lanes"]["braid_adoption"]
-    package_hash = braid.get("package_sha256")
+    package_hash = braid.get("package_content_sha256")
     braid_pass = (
         braid.get("consumer_exit") == 0
         and braid.get("package_check_exit") == 0
@@ -592,7 +611,7 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
         and reader.get("package_check_exit") == 0
         and reader.get("package_clean") is True
         and reader.get("cli_only_dependencies") == []
-        and reader.get("package_sha256") == package_hash
+        and reader.get("package_content_sha256") == package_hash
     )
     expected_passes = {
         "cli_preservation": cli_pass,
@@ -632,8 +651,8 @@ def check_results(repo: Path) -> int:
         raise ValueError("current source has changes not represented by the result")
     with tempfile.TemporaryDirectory(prefix="mdtools-core-check-") as raw_workspace:
         _, _, current_package_hash = package_source(repo, Path(raw_workspace))
-    if current_package_hash != payload["lanes"]["braid_adoption"]["package_sha256"]:
-        raise ValueError("current Cargo package hash does not match recorded evidence")
+    if current_package_hash != payload["lanes"]["braid_adoption"]["package_content_sha256"]:
+        raise ValueError("current Cargo package content hash does not match recorded evidence")
     print(payload["overall"])
     return 0
 
