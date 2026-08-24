@@ -14,13 +14,14 @@
   schema, outline, section, tasks, task, and `set-task` matched on exit code,
   stdout, stderr, JSON, and mutation bytes; the complete current Rust suite
   passed.
-- A clean Braid-shaped consumer built from the 105-file Cargo package without a
+- A clean Braid-shaped consumer built from the published Cargo package without a
   sibling checkout and immediately translated Markdown task status and source
   coordinates into consumer-owned types.
 - A reader-shaped consumer built with default features disabled, had no Clap or
   Walkdir dependency, used outline/section/task queries in-process, and produced
   a guarded task-edit candidate without changing its source or filesystem.
-- The foundation is sufficient to continue extracting Markdown operations.
+- The reusable single-document surface is complete for the current CLI:
+  reads, guarded edit candidates, and relocation all run without process I/O.
   Rendering, viewer state, agent policy, and Braid workflow semantics remain
   outside mdtools.
 
@@ -32,7 +33,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 
 ## Evidence
 
-- Candidate commit: `4e64d4b0fe819095ebb6086c788b8c0f61f5537a`
+- Candidate commit: `fab4c9e2a2d72b66975b2a76b7b4f7bd3aaf5059`
 - Baseline commit: `07eb509`
 - The JSON below records the executed lane details and is checked without rerunning builds.
 
@@ -40,7 +41,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 ```json
 {
   "baseline_commit": "07eb509",
-  "candidate_commit": "4e64d4b0fe819095ebb6086c788b8c0f61f5537a",
+  "candidate_commit": "fab4c9e2a2d72b66975b2a76b7b4f7bd3aaf5059",
   "lanes": {
     "braid_adoption": {
       "consumer_exit": 0,
@@ -48,7 +49,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "consumer_stdout": "",
       "package_clean": true,
       "package_file_count": 116,
-      "package_sha256": "664f39d5dd2edd6a31fc473dba5fe70baff6ab5bf0b95915b7bc9a474aab9a8b",
+      "package_sha256": "e36166765fe63672a9bbea999ce8d0da60ee11d7b847bce24057dbbd549fd784",
       "verdict": "pass"
     },
     "cli_preservation": {
@@ -117,7 +118,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "consumer_stderr": "",
       "consumer_stdout": "",
       "package_clean": true,
-      "package_sha256": "664f39d5dd2edd6a31fc473dba5fe70baff6ab5bf0b95915b7bc9a474aab9a8b",
+      "package_sha256": "e36166765fe63672a9bbea999ce8d0da60ee11d7b847bce24057dbbd549fd784",
       "tree_exit": 0,
       "tree_stderr": "",
       "verdict": "pass"
