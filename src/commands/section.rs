@@ -34,8 +34,7 @@ pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
 }
 
 pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
     let target = build_selector(
         &args.selector,
         args.occurrence,
@@ -43,7 +42,11 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
         args.ignore_case,
     )?;
     let section = find_section(&document, &target)?;
-    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    let expected = args
+        .etag_guard
+        .expect_etag
+        .as_deref()
+        .map(TargetEtagGuard::new);
     let prepared = section_edit::prepare_replace(&document, section, expected.as_ref())?;
     let payload = output::read_content(args.from.as_deref())?;
     edit::emit(
@@ -58,8 +61,7 @@ pub fn run_replace_section(args: &ReplaceSectionArgs, json: bool) -> Result<(), 
 }
 
 pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
     let target = build_selector(
         &args.selector,
         args.occurrence,
@@ -67,7 +69,11 @@ pub fn run_delete_section(args: &DeleteSectionArgs, json: bool) -> Result<(), Co
         args.ignore_case,
     )?;
     let section = find_section(&document, &target)?;
-    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    let expected = args
+        .etag_guard
+        .expect_etag
+        .as_deref()
+        .map(TargetEtagGuard::new);
     edit::emit(
         args.in_place,
         json,
@@ -210,8 +216,4 @@ pub(crate) fn target_to_wire(target: &SectionEditTarget) -> MutationTargetRef {
             level_shift_applied: *level_shift_applied,
         }),
     }
-}
-
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
-    Ok(value.map(TargetEtagGuard::new))
 }

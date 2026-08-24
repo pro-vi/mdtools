@@ -4,13 +4,11 @@ use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
 use mdtools::block_edit::{self, BlockEditTarget};
-use mdtools::document::Document;
 use mdtools::fingerprint::TargetEtagGuard;
 
 pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
-    let expected = parse_etag(args.expect_etag.as_deref())?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
+    let expected = args.expect_etag.as_deref().map(TargetEtagGuard::new);
     let prepared = block_edit::prepare_replace(&document, args.index, expected.as_ref())?;
     let payload = output::read_content(args.from.as_deref())?;
     edit::emit(
@@ -26,9 +24,8 @@ pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), Comm
 
 pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), CommandError> {
     let location = parse_insert_location(args)?;
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
-    let expected = parse_etag(args.expect_etag.as_deref())?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
+    let expected = args.expect_etag.as_deref().map(TargetEtagGuard::new);
     let prepared = block_edit::prepare_insert(&document, location, expected.as_ref()).map_err(
         |error| match error {
             mdtools::core_error::CoreError::InvalidSelector(message)
@@ -55,9 +52,8 @@ pub fn run_insert_block(args: &InsertBlockArgs, json: bool) -> Result<(), Comman
 }
 
 pub fn run_delete_block(args: &DeleteBlockArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
-    let expected = parse_etag(args.expect_etag.as_deref())?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
+    let expected = args.expect_etag.as_deref().map(TargetEtagGuard::new);
     edit::emit(
         args.in_place,
         json,
@@ -127,8 +123,4 @@ pub(crate) fn target_to_wire(target: &BlockEditTarget) -> MutationTargetRef {
             destination_mode: *destination_mode,
         }),
     }
-}
-
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
-    Ok(value.map(TargetEtagGuard::new))
 }

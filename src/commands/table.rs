@@ -69,9 +69,12 @@ pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
 }
 
 pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
-    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
+    let expected = args
+        .etag_guard
+        .expect_etag
+        .as_deref()
+        .map(TargetEtagGuard::new);
     let prepared = table::prepare_replace_row(
         &document,
         args.table_block_index,
@@ -91,9 +94,12 @@ pub fn run_replace_table_row(args: &ReplaceTableRowArgs, json: bool) -> Result<(
 }
 
 pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
-    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
+    let expected = args
+        .etag_guard
+        .expect_etag
+        .as_deref()
+        .map(TargetEtagGuard::new);
     let prepared = table::prepare_insert_row(
         &document,
         args.table_block_index,
@@ -113,9 +119,12 @@ pub fn run_insert_table_row(args: &InsertTableRowArgs, json: bool) -> Result<(),
 }
 
 pub fn run_delete_table_row(args: &DeleteTableRowArgs, json: bool) -> Result<(), CommandError> {
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
-    let expected = parse_etag(args.etag_guard.expect_etag.as_deref())?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
+    let expected = args
+        .etag_guard
+        .expect_etag
+        .as_deref()
+        .map(TargetEtagGuard::new);
     let outcome = table::delete_row(
         &document,
         args.table_block_index,
@@ -192,10 +201,6 @@ fn table_target_to_wire(target: &TableEditTarget) -> MutationTargetRef {
             table_span: *table_span,
         }),
     }
-}
-
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
-    Ok(value.map(TargetEtagGuard::new))
 }
 
 fn column(value: &str) -> ColumnSelector {

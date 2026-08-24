@@ -60,7 +60,6 @@ mod tests {
     use super::*;
     use crate::commands::replace::target_to_wire;
     use mdtools::block_edit;
-    use mdtools::document::Document;
 
     #[test]
     fn in_place_nochange_rejects_intervening_document_change() {
@@ -73,8 +72,7 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::write(&path, "body").unwrap();
-        let (source, edit_target) = output::read_edit_file(&path).unwrap().into_parts();
-        let document = Document::parse(source).unwrap();
+        let (document, edit_target) = output::read_edit_document(&path).unwrap();
         let outcome = block_edit::prepare_replace(&document, 0, None)
             .unwrap()
             .apply("body");

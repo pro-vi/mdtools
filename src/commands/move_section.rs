@@ -18,18 +18,17 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
             "--in-place requires a FILE argument",
         ));
     }
-    let (source, edit_target) = match &args.file {
+    let (document, edit_target) = match &args.file {
         Some(path) => {
-            let (source, target) = output::read_edit_file(path)?.into_parts();
-            (source, Some(target))
+            let (document, target) = output::read_edit_document(path)?;
+            (document, Some(target))
         }
         None => {
             let mut source = String::new();
             std::io::stdin().read_to_string(&mut source)?;
-            (source, None)
+            (Document::parse(source)?, None)
         }
     };
-    let document = Document::parse(source)?;
     let source_target = build_selector(
         &args.source,
         args.source_occurrence,
@@ -45,8 +44,8 @@ pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), Comman
     )?;
     let source = find_section_as(&document, &source_target, SelectorRole::Source)?;
     let destination = find_section_as(&document, &destination_target, SelectorRole::Destination)?;
-    let source_etag = parse_etag(args.expect_source_etag.as_deref())?;
-    let destination_etag = parse_etag(args.expect_dest_etag.as_deref())?;
+    let source_etag = args.expect_source_etag.as_deref().map(TargetEtagGuard::new);
+    let destination_etag = args.expect_dest_etag.as_deref().map(TargetEtagGuard::new);
     let outcome = section_edit::move_section(
         &document,
         source,
@@ -82,8 +81,4 @@ fn destination(args: &MoveSectionArgs) -> Result<(&str, InsertMode), CommandErro
             "exactly one of --after, --before, or --into is required",
         )),
     }
-}
-
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
-    Ok(value.map(TargetEtagGuard::new))
 }

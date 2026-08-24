@@ -152,8 +152,7 @@ fn task_to_wire(record: TaskRecord) -> TaskEntry {
 
 pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> {
     let loc = TaskLoc::from_str(&args.loc)?;
-    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
-    let document = Document::parse(source)?;
+    let (document, edit_target) = output::read_edit_document(&args.file)?;
     let outcome = task::set_task(
         &document,
         &SetTaskEdit {

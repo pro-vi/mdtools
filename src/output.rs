@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::io::{self, Read, Write};
 
 use crate::errors::CommandError;
+use mdtools::document::Document;
 use mdtools::revision::DocumentRevision;
 
 /// Escape user-derived text fields for tab-separated text output.
@@ -129,6 +130,13 @@ pub(crate) fn read_edit_file(path: &std::path::Path) -> Result<EditFile, Command
             identity,
         },
     })
+}
+
+pub(crate) fn read_edit_document(
+    path: &std::path::Path,
+) -> Result<(Document, EditTarget), CommandError> {
+    let (source, target) = read_edit_file(path)?.into_parts();
+    Ok((Document::parse(source)?, target))
 }
 
 pub(crate) fn verify_file_unchanged(
@@ -364,6 +372,18 @@ mod tests {
             !tmp.exists(),
             "the staging temp must be gone after a successful rename"
         );
+    }
+
+    #[test]
+    fn read_edit_document_binds_parse_and_persistence_to_one_snapshot() {
+        let dir = unique_dir("edit-document");
+        let target = dir.join("doc.md");
+        std::fs::write(&target, "# Heading\n\nbody\n").unwrap();
+
+        let (document, edit_target) = read_edit_document(&target).unwrap();
+
+        assert_eq!(document.source(), "# Heading\n\nbody\n");
+        verify_file_unchanged(&edit_target, document.revision()).unwrap();
     }
 
     #[test]
