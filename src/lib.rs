@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.crate.md")]
+
 pub mod block;
 pub mod block_edit;
 pub mod core_error;
