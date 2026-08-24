@@ -10,10 +10,10 @@
 
 ## Product Disposition
 
-- The sampled CLI process contract is unchanged from `07eb509`:
-  schema, outline, section, tasks, task, and `set-task` matched on exit code,
-  stdout, stderr, JSON, and mutation bytes; the complete current Rust suite
-  passed.
+- Every current CLI command family is unchanged from `07eb509` on its
+  representative parity case: reads matched exit code, stdout, and stderr;
+  mutations additionally matched final document bytes; the complete current
+  Rust suite passed.
 - A clean Braid-shaped consumer built from the published Cargo package without a
   sibling checkout and immediately translated Markdown task status and source
   coordinates into consumer-owned types.
@@ -33,7 +33,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 
 ## Evidence
 
-- Candidate commit: `eb46c19e620fffb4b97d06cee6cd6137f9e97488`
+- Candidate commit: `6166ccbf01ff67a0300ab14f63be6a8f8240612d`
 - Baseline commit: `07eb509`
 - The JSON below records the executed lane details and is checked without rerunning builds.
 
@@ -41,7 +41,7 @@ future operation cannot preserve direct-core/CLI candidate parity.
 ```json
 {
   "baseline_commit": "07eb509",
-  "candidate_commit": "eb46c19e620fffb4b97d06cee6cd6137f9e97488",
+  "candidate_commit": "6166ccbf01ff67a0300ab14f63be6a8f8240612d",
   "lanes": {
     "braid_adoption": {
       "consumer_exit": 0,
@@ -49,12 +49,12 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "consumer_stdout": "",
       "package_clean": true,
       "package_file_count": 116,
-      "package_sha256": "b98f4df894eb4b475258d7751b232b5b49cb40367e99b637bb52da0e1f6945c8",
+      "package_sha256": "218692e4f6a611f02592d3c39e136a9ced59aeec827e32436a243bedf78e5039",
       "verdict": "pass"
     },
     "cli_preservation": {
       "baseline_binary_sha256": "40892016bc110c68f8bdde765f70278731d7eefbfdf0fca3fef6e16d3bac6926",
-      "candidate_binary_sha256": "be2eb245e69af16b6c707a17d9d917d646249900cfa2c2331b052df91a0bf5ff",
+      "candidate_binary_sha256": "597cbca9b7dc30ab40620750942ff3dd6ee7e40ac8a7a57e3fffca3dc1729951",
       "comparisons": [
         {
           "args": [
@@ -88,6 +88,102 @@ future operation cannot preserve direct-core/CLI candidate parity.
         },
         {
           "args": [
+            "blocks",
+            "tests/fixtures/basic.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "block",
+            "0",
+            "tests/fixtures/basic.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "search",
+            "Introduction",
+            "tests/fixtures/basic.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "links",
+            "tests/fixtures/basic.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "frontmatter",
+            "tests/fixtures/frontmatter.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "collect",
+            "tests/fixtures/frontmatter.md",
+            "--field",
+            "title",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "stats",
+            "tests/fixtures/basic.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "table",
+            "tests/fixtures/table.md",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
+            "table",
+            "tests/fixtures/table.md",
+            "--index",
+            "1",
+            "--json"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true
+        },
+        {
+          "args": [
             "tasks",
             "tests/fixtures/progress_example.md",
             "--json"
@@ -108,6 +204,186 @@ future operation cannot preserve direct-core/CLI candidate parity.
           "match": true
         }
       ],
+      "mutation_comparisons": [
+        {
+          "args": [
+            "replace-block",
+            "1",
+            "doc.md",
+            "--from",
+            "payload.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "replace-block"
+        },
+        {
+          "args": [
+            "insert-block",
+            "doc.md",
+            "--after",
+            "0",
+            "--from",
+            "payload.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "insert-block"
+        },
+        {
+          "args": [
+            "delete-block",
+            "1",
+            "doc.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "delete-block"
+        },
+        {
+          "args": [
+            "move-block",
+            "0",
+            "doc.md",
+            "--after",
+            "2",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "move-block"
+        },
+        {
+          "args": [
+            "replace-section",
+            "A",
+            "doc.md",
+            "--from",
+            "payload.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "replace-section"
+        },
+        {
+          "args": [
+            "delete-section",
+            "A",
+            "doc.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "delete-section"
+        },
+        {
+          "args": [
+            "move-section",
+            "A",
+            "doc.md",
+            "--after",
+            "B",
+            "--keep-level",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "move-section"
+        },
+        {
+          "args": [
+            "set",
+            "title",
+            "doc.md",
+            "new",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "set-frontmatter"
+        },
+        {
+          "args": [
+            "replace-table-row",
+            "0",
+            "0",
+            "doc.md",
+            "--from",
+            "payload.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "replace-table-row"
+        },
+        {
+          "args": [
+            "insert-table-row",
+            "0",
+            "1",
+            "doc.md",
+            "--from",
+            "payload.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "insert-table-row"
+        },
+        {
+          "args": [
+            "delete-table-row",
+            "0",
+            "0",
+            "doc.md",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "delete-table-row"
+        },
+        {
+          "args": [
+            "set-task",
+            "1.0",
+            "doc.md",
+            "--status",
+            "done",
+            "--json",
+            "-i"
+          ],
+          "baseline_exit": 0,
+          "candidate_exit": 0,
+          "match": true,
+          "name": "set-task"
+        }
+      ],
       "mutation_match": true,
       "suite_exit": 0,
       "verdict": "pass"
@@ -118,14 +394,15 @@ future operation cannot preserve direct-core/CLI candidate parity.
       "consumer_stderr": "",
       "consumer_stdout": "",
       "package_clean": true,
-      "package_sha256": "b98f4df894eb4b475258d7751b232b5b49cb40367e99b637bb52da0e1f6945c8",
+      "package_sha256": "218692e4f6a611f02592d3c39e136a9ced59aeec827e32436a243bedf78e5039",
       "tree_exit": 0,
       "tree_stderr": "",
       "verdict": "pass"
     }
   },
   "overall": "foundation_validated",
-  "schema_version": "core-consumer-topology.v1"
+  "schema_version": "core-consumer-topology.v1",
+  "source_clean": true
 }
 ```
 <!-- result-json:end -->
