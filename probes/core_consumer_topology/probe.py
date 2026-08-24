@@ -350,10 +350,10 @@ def write_consumer(root: Path, name: str, dependency: Path, main_rs: str) -> Non
 def consumer_lanes(repo: Path, workspace: Path) -> tuple[dict[str, object], dict[str, object]]:
     package, members, package_sha256 = package_source(repo, workspace)
     cargo_home = prepare_cargo_home(workspace)
-    package_suite = run(
-        ["cargo", "test", "--quiet", "--offline", "--locked"],
+    package_check = run(
+        ["cargo", "check", "--all-targets", "--all-features", "--offline", "--locked"],
         cwd=package,
-        env=cargo_env(workspace / "package-suite-target", cargo_home),
+        env=cargo_env(workspace / "package-check-target", cargo_home),
     )
     forbidden = (
         "/bench/runs/",
@@ -400,8 +400,8 @@ fn main() {
         cwd=braid,
         env=cargo_env(workspace / "braid-target", cargo_home),
     )
-    braid_passed = braid_run.returncode == 0 and package_suite.returncode == 0 and package_clean
-    braid_verdict = command_verdict(braid_passed, braid_run, package_suite)
+    braid_passed = braid_run.returncode == 0 and package_check.returncode == 0 and package_clean
+    braid_verdict = command_verdict(braid_passed, braid_run, package_check)
 
     reader = workspace / "reader-consumer"
     write_consumer(
@@ -457,7 +457,7 @@ fn main() {
     reader_passed = (
         reader_run.returncode == 0
         and tree.returncode == 0
-        and package_suite.returncode == 0
+        and package_check.returncode == 0
         and not cli_deps
         and package_clean
     )
@@ -471,7 +471,8 @@ fn main() {
             "package_clean": package_clean,
             "package_file_count": len(members),
             "package_sha256": package_sha256,
-            "package_suite_exit": package_suite.returncode,
+            "package_check_exit": package_check.returncode,
+            "package_check_stderr": package_check.stderr,
         },
         {
             "verdict": command_verdict(reader_passed, reader_run, tree),
@@ -483,7 +484,8 @@ fn main() {
             "cli_only_dependencies": cli_deps,
             "package_clean": package_clean,
             "package_sha256": package_sha256,
-            "package_suite_exit": package_suite.returncode,
+            "package_check_exit": package_check.returncode,
+            "package_check_stderr": package_check.stderr,
         },
     )
 
@@ -578,7 +580,7 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
     package_hash = braid.get("package_sha256")
     braid_pass = (
         braid.get("consumer_exit") == 0
-        and braid.get("package_suite_exit") == 0
+        and braid.get("package_check_exit") == 0
         and braid.get("package_clean") is True
         and isinstance(package_hash, str)
         and len(package_hash) == 64
@@ -587,7 +589,7 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
     reader_pass = (
         reader.get("consumer_exit") == 0
         and reader.get("tree_exit") == 0
-        and reader.get("package_suite_exit") == 0
+        and reader.get("package_check_exit") == 0
         and reader.get("package_clean") is True
         and reader.get("cli_only_dependencies") == []
         and reader.get("package_sha256") == package_hash

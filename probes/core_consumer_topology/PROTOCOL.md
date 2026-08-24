@@ -33,6 +33,8 @@ Run three independent local lanes against fixed sources:
    exit code, stdout, and stderr. Mutation cases additionally compare final
    document bytes. Run the full current Rust suite.
 2. **Braid adoption:** package the candidate, extract only its Cargo package,
+   require Cargo's own package verification and an all-target/all-feature check
+   of the extracted tarball,
    and build a clean consumer that parses Markdown and immediately maps task
    status and optional spans into consumer-owned types. No sibling repository
    path is available inside the consumer root.
