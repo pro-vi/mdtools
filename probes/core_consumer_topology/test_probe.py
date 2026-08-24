@@ -34,6 +34,7 @@ def passing_payload():
                 "consumer_exit": 0,
                 "package_clean": True,
                 "package_sha256": "a" * 64,
+                "package_suite_exit": 0,
             },
             "reader_readiness": {
                 "verdict": "pass",
@@ -42,6 +43,7 @@ def passing_payload():
                 "package_clean": True,
                 "cli_only_dependencies": [],
                 "package_sha256": "a" * 64,
+                "package_suite_exit": 0,
             },
         },
         "overall": "foundation_validated",

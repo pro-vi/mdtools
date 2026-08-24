@@ -4,7 +4,7 @@ use crate::block_edit::GuardRole;
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{EditOutcome, EditPreservation};
-use crate::fingerprint::TargetEtag;
+use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{InsertMode, LineEndingStyle, MutationDisposition, SectionEntry, SourceSpan};
 use crate::parser::{HeadingSourceKind, ParsedDocument};
 use crate::section::{ResolvedSection, SectionIndex};
@@ -29,7 +29,7 @@ pub struct PreparedSectionReplace<'a> {
 pub fn prepare_replace<'a>(
     document: &'a Document,
     section: ResolvedSection,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<PreparedSectionReplace<'a>, CoreError> {
     section.ensure_document(document)?;
     let section = section.into_entry();
@@ -88,7 +88,7 @@ impl PreparedSectionReplace<'_> {
 pub fn delete(
     document: &Document,
     section: ResolvedSection,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<EditOutcome<SectionEditTarget>, CoreError> {
     section.ensure_document(document)?;
     let section = section.into_entry();
@@ -120,8 +120,8 @@ pub fn move_section(
     destination: ResolvedSection,
     destination_mode: InsertMode,
     keep_level: bool,
-    expect_source_etag: Option<&TargetEtag>,
-    expect_destination_etag: Option<&TargetEtag>,
+    expect_source_etag: Option<&TargetEtagGuard>,
+    expect_destination_etag: Option<&TargetEtagGuard>,
 ) -> Result<EditOutcome<SectionEditTarget>, CoreError> {
     source.ensure_document(document)?;
     destination.ensure_document(document)?;
@@ -359,14 +359,14 @@ fn verify_unmoved_structure(
 fn verify_guard(
     document: &Document,
     section: &SectionEntry,
-    expected: Option<&TargetEtag>,
+    expected: Option<&TargetEtagGuard>,
     role: Option<GuardRole>,
 ) -> Result<(), CoreError> {
     let Some(expected) = expected else {
         return Ok(());
     };
     let actual = TargetEtag::for_bytes(document.slice_unchecked(&section.span).as_bytes());
-    if expected != &actual {
+    if expected.as_str() != actual.as_str() {
         if let Some(role) = role {
             return Err(CoreError::SectionMoveEtagMismatch {
                 role,

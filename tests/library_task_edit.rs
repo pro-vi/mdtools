@@ -23,7 +23,7 @@ fn direct_task_edit_returns_candidate_without_touching_source() {
         &SetTaskEdit {
             loc: selected.loc.clone(),
             status: TaskStatus::Done,
-            expect_etag: Some(selected.etag.clone()),
+            expect_etag: Some(selected.etag.clone().into()),
         },
     )
     .unwrap();

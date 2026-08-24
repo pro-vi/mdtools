@@ -1,7 +1,7 @@
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{EditOutcome, EditPreservation};
-use crate::fingerprint::TargetEtag;
+use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{FrontmatterFormat, MutationDisposition, SourceSpan};
 use crate::parser::strip_frontmatter_delimiters;
 
@@ -31,7 +31,7 @@ pub enum FrontmatterAction {
 pub struct FrontmatterEdit {
     pub key_path: FrontmatterPath,
     pub action: FrontmatterAction,
-    pub expect_etag: Option<TargetEtag>,
+    pub expect_etag: Option<TargetEtagGuard>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -132,7 +132,7 @@ pub fn edit(
         .parse::<TargetEtag>()
         .expect("parser frontmatter fingerprints are valid target etags");
     if let Some(expected) = request.expect_etag.as_ref() {
-        if expected != &actual_etag {
+        if expected.as_str() != actual_etag.as_str() {
             return Err(CoreError::TargetEtagMismatch {
                 target: EtagTarget::Frontmatter,
                 expected: expected.to_string(),

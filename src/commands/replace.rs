@@ -5,7 +5,7 @@ use crate::model::*;
 use crate::output;
 use mdtools::block_edit::{self, BlockEditTarget};
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
+use mdtools::fingerprint::TargetEtagGuard;
 
 pub fn run_replace_block(args: &ReplaceBlockArgs, json: bool) -> Result<(), CommandError> {
     let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
@@ -129,6 +129,6 @@ pub(crate) fn target_to_wire(target: &BlockEditTarget) -> MutationTargetRef {
     }
 }
 
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
+fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
+    Ok(value.map(TargetEtagGuard::new))
 }

@@ -9,6 +9,14 @@ use crate::core_error::CoreError;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TargetEtag(String);
 
+/// A caller-supplied comparison token.
+///
+/// Unlike [`TargetEtag`], this may contain any string so the versioned CLI can
+/// preserve its historical "malformed token means mismatch" behavior. It can
+/// never be returned by a read operation as a valid target fingerprint.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TargetEtagGuard(String);
+
 impl TargetEtag {
     pub fn for_bytes(bytes: &[u8]) -> Self {
         Self(content_etag(bytes))
@@ -20,6 +28,28 @@ impl TargetEtag {
 
     pub fn into_string(self) -> String {
         self.0
+    }
+}
+
+impl TargetEtagGuard {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for TargetEtagGuard {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl From<TargetEtag> for TargetEtagGuard {
+    fn from(value: TargetEtag) -> Self {
+        Self(value.into_string())
     }
 }
 
@@ -42,18 +72,6 @@ impl FromStr for TargetEtag {
         } else {
             Err(CoreError::InvalidTargetEtag(value.to_string()))
         }
-    }
-}
-
-/// Compatibility construction for the existing CLI contract, where any
-/// caller-supplied token participates in comparison and malformed tokens fail
-/// as etag mismatches rather than argument errors.
-#[cfg(feature = "cli")]
-pub mod cli_compat {
-    use super::TargetEtag;
-
-    pub fn target_etag(value: &str) -> TargetEtag {
-        TargetEtag(value.to_string())
     }
 }
 

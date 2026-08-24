@@ -1,7 +1,7 @@
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{EditOutcome, EditPreservation};
-use crate::fingerprint::TargetEtag;
+use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{
     BlockMoveMode, InsertLocation, LineEndingStyle, MutationDisposition, SourceSpan,
 };
@@ -49,7 +49,7 @@ pub struct PreparedBlockInsert<'a> {
 pub fn prepare_replace<'a>(
     document: &'a Document,
     block_index: u32,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<PreparedBlockReplace<'a>, CoreError> {
     let block = resolve_block(document, block_index)?;
     verify_block_guard(document, block_index, block.span, expect_etag)?;
@@ -107,7 +107,7 @@ impl PreparedBlockReplace<'_> {
 pub fn prepare_insert<'a>(
     document: &'a Document,
     location: InsertLocation,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<PreparedBlockInsert<'a>, CoreError> {
     let (insert_byte, anchor_span) = resolve_insert_location(document, location)?;
     match (expect_etag, location) {
@@ -200,7 +200,7 @@ impl PreparedBlockInsert<'_> {
 pub fn delete(
     document: &Document,
     block_index: u32,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<EditOutcome<BlockEditTarget>, CoreError> {
     let prepared = prepare_replace(document, block_index, expect_etag)?;
     let content = format!(
@@ -227,8 +227,8 @@ pub fn move_block(
     source_index: u32,
     destination_index: u32,
     destination_mode: BlockMoveMode,
-    expect_source_etag: Option<&TargetEtag>,
-    expect_destination_etag: Option<&TargetEtag>,
+    expect_source_etag: Option<&TargetEtagGuard>,
+    expect_destination_etag: Option<&TargetEtagGuard>,
 ) -> Result<EditOutcome<BlockEditTarget>, CoreError> {
     let source = resolve_block(document, source_index)?;
     let destination = resolve_block(document, destination_index)?;
@@ -299,13 +299,13 @@ fn verify_block_guard(
     document: &Document,
     index: u32,
     span: SourceSpan,
-    expected: Option<&TargetEtag>,
+    expected: Option<&TargetEtagGuard>,
 ) -> Result<(), CoreError> {
     let Some(expected) = expected else {
         return Ok(());
     };
     let actual = TargetEtag::for_bytes(document.slice_unchecked(&span).as_bytes());
-    if expected != &actual {
+    if expected.as_str() != actual.as_str() {
         return Err(CoreError::TargetEtagMismatch {
             target: EtagTarget::Block(index),
             expected: expected.to_string(),
@@ -320,13 +320,13 @@ fn verify_move_guard(
     index: u32,
     span: SourceSpan,
     role: GuardRole,
-    expected: Option<&TargetEtag>,
+    expected: Option<&TargetEtagGuard>,
 ) -> Result<(), CoreError> {
     let Some(expected) = expected else {
         return Ok(());
     };
     let actual = TargetEtag::for_bytes(document.slice_unchecked(&span).as_bytes());
-    if expected != &actual {
+    if expected.as_str() != actual.as_str() {
         return Err(CoreError::BlockMoveEtagMismatch {
             role,
             index,
@@ -339,7 +339,7 @@ fn verify_move_guard(
 
 fn verify_unique(
     document: &Document,
-    expected: &TargetEtag,
+    expected: &TargetEtagGuard,
     role: Option<GuardRole>,
     index: u32,
 ) -> Result<(), CoreError> {
@@ -347,7 +347,8 @@ fn verify_unique(
         .blocks()
         .iter()
         .filter(|block| {
-            TargetEtag::for_bytes(document.slice_unchecked(&block.span).as_bytes()) == *expected
+            TargetEtag::for_bytes(document.slice_unchecked(&block.span).as_bytes()).as_str()
+                == expected.as_str()
         })
         .count();
     if count > 1 {

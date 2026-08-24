@@ -8,7 +8,7 @@ use crate::errors::{CommandError, DiagnosticCode, SelectorRole};
 use crate::model::{InsertMode, MutationCommandKind};
 use crate::output;
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
+use mdtools::fingerprint::TargetEtagGuard;
 use mdtools::section_edit;
 
 pub fn run_move_section(args: &MoveSectionArgs, json: bool) -> Result<(), CommandError> {
@@ -84,6 +84,6 @@ fn destination(args: &MoveSectionArgs) -> Result<(&str, InsertMode), CommandErro
     }
 }
 
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
+fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
+    Ok(value.map(TargetEtagGuard::new))
 }

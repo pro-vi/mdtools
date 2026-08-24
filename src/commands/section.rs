@@ -5,7 +5,7 @@ use crate::model::*;
 use crate::output;
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
+use mdtools::fingerprint::TargetEtagGuard;
 use mdtools::section::{ResolvedSection, SectionIndex, SectionTarget};
 use mdtools::section_edit::{self, SectionEditTarget};
 
@@ -212,6 +212,6 @@ pub(crate) fn target_to_wire(target: &SectionEditTarget) -> MutationTargetRef {
     }
 }
 
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
+fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
+    Ok(value.map(TargetEtagGuard::new))
 }

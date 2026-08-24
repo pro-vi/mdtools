@@ -314,7 +314,7 @@ def cli_lane(repo: Path, workspace: Path) -> dict[str, object]:
 def package_source(repo: Path, workspace: Path) -> tuple[Path, list[str], str]:
     target = workspace / "package-target"
     run(
-        ["cargo", "package", "--no-verify", "--locked"],
+        ["cargo", "package", "--locked"],
         cwd=repo,
         env=cargo_env(target),
         check=True,
@@ -350,6 +350,11 @@ def write_consumer(root: Path, name: str, dependency: Path, main_rs: str) -> Non
 def consumer_lanes(repo: Path, workspace: Path) -> tuple[dict[str, object], dict[str, object]]:
     package, members, package_sha256 = package_source(repo, workspace)
     cargo_home = prepare_cargo_home(workspace)
+    package_suite = run(
+        ["cargo", "test", "--quiet", "--offline", "--locked"],
+        cwd=package,
+        env=cargo_env(workspace / "package-suite-target", cargo_home),
+    )
     forbidden = (
         "/bench/runs/",
         "/bench/search/",
@@ -395,8 +400,8 @@ fn main() {
         cwd=braid,
         env=cargo_env(workspace / "braid-target", cargo_home),
     )
-    braid_passed = braid_run.returncode == 0 and package_clean
-    braid_verdict = command_verdict(braid_passed, braid_run)
+    braid_passed = braid_run.returncode == 0 and package_suite.returncode == 0 and package_clean
+    braid_verdict = command_verdict(braid_passed, braid_run, package_suite)
 
     reader = workspace / "reader-consumer"
     write_consumer(
@@ -422,7 +427,7 @@ fn main() {
     let selector = SectionTarget::heading("Tasks", None, HeadingMatchMode::Exact).unwrap();
     let section = SectionIndex::new(&document).resolve(&selector).unwrap();
     let first = task::tasks(&document, &TaskQuery::default()).unwrap().remove(0);
-    let outcome = task::set_task(&document, &SetTaskEdit { loc: first.loc, status: TaskStatus::Done, expect_etag: Some(first.etag) }).unwrap();
+    let outcome = task::set_task(&document, &SetTaskEdit { loc: first.loc, status: TaskStatus::Done, expect_etag: Some(first.etag.into()) }).unwrap();
     let prepared = block_edit::prepare_replace(&document, 1, None).unwrap();
     let _candidate = prepared.apply("- [x] first");
     assert!(!block::blocks(&document).is_empty());
@@ -449,7 +454,13 @@ fn main() {
         env=cargo_env(workspace / "reader-target", cargo_home),
     )
     cli_deps = [line for line in tree.stdout.splitlines() if "clap " in line or "walkdir " in line]
-    reader_passed = reader_run.returncode == 0 and tree.returncode == 0 and not cli_deps and package_clean
+    reader_passed = (
+        reader_run.returncode == 0
+        and tree.returncode == 0
+        and package_suite.returncode == 0
+        and not cli_deps
+        and package_clean
+    )
 
     return (
         {
@@ -460,6 +471,7 @@ fn main() {
             "package_clean": package_clean,
             "package_file_count": len(members),
             "package_sha256": package_sha256,
+            "package_suite_exit": package_suite.returncode,
         },
         {
             "verdict": command_verdict(reader_passed, reader_run, tree),
@@ -471,6 +483,7 @@ fn main() {
             "cli_only_dependencies": cli_deps,
             "package_clean": package_clean,
             "package_sha256": package_sha256,
+            "package_suite_exit": package_suite.returncode,
         },
     )
 
@@ -565,6 +578,7 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
     package_hash = braid.get("package_sha256")
     braid_pass = (
         braid.get("consumer_exit") == 0
+        and braid.get("package_suite_exit") == 0
         and braid.get("package_clean") is True
         and isinstance(package_hash, str)
         and len(package_hash) == 64
@@ -573,6 +587,7 @@ def validate_recorded_evidence(payload: dict[str, object]) -> None:
     reader_pass = (
         reader.get("consumer_exit") == 0
         and reader.get("tree_exit") == 0
+        and reader.get("package_suite_exit") == 0
         and reader.get("package_clean") is True
         and reader.get("cli_only_dependencies") == []
         and reader.get("package_sha256") == package_hash

@@ -4,7 +4,7 @@ use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
 use mdtools::document::Document;
-use mdtools::fingerprint::TargetEtag;
+use mdtools::fingerprint::TargetEtagGuard;
 use mdtools::table::{self, ColumnSelector, TableEditTarget, TablePredicate, TableQuery};
 
 pub fn run(args: &TableArgs, json: bool) -> Result<(), CommandError> {
@@ -194,8 +194,8 @@ fn table_target_to_wire(target: &TableEditTarget) -> MutationTargetRef {
     }
 }
 
-fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtag>, CommandError> {
-    Ok(value.map(mdtools::fingerprint::cli_compat::target_etag))
+fn parse_etag(value: Option<&str>) -> Result<Option<TargetEtagGuard>, CommandError> {
+    Ok(value.map(TargetEtagGuard::new))
 }
 
 fn column(value: &str) -> ColumnSelector {

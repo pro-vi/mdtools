@@ -24,7 +24,7 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
         expect_etag: args
             .expect_etag
             .as_deref()
-            .map(mdtools::fingerprint::cli_compat::target_etag),
+            .map(mdtools::fingerprint::TargetEtagGuard::new),
     };
     let outcome = frontmatter::edit(&document, &request)?;
     edit::emit(

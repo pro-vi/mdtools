@@ -163,7 +163,7 @@ pub fn run_set_task(args: &SetTaskArgs, json: bool) -> Result<(), CommandError> 
                 .etag_guard
                 .expect_etag
                 .as_deref()
-                .map(mdtools::fingerprint::cli_compat::target_etag),
+                .map(mdtools::fingerprint::TargetEtagGuard::new),
         },
     )?;
 

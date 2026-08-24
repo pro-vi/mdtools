@@ -1,7 +1,7 @@
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{EditOutcome, EditPreservation};
-use crate::fingerprint::TargetEtag;
+use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{BlockKind, ColumnAlignment, MutationDisposition, SourceSpan};
 use crate::parser::{extract_table_projection, validate_table_row_payload, TableProjection};
 
@@ -153,7 +153,7 @@ pub fn prepare_replace_row<'a>(
     document: &'a Document,
     table_block_index: u32,
     row_index: u32,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<PreparedTableRowEdit<'a>, CoreError> {
     prepare_row_edit(document, table_block_index, row_index, expect_etag, false)
 }
@@ -162,7 +162,7 @@ pub fn prepare_insert_row<'a>(
     document: &'a Document,
     table_block_index: u32,
     row_index: u32,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<PreparedTableRowEdit<'a>, CoreError> {
     prepare_row_edit(document, table_block_index, row_index, expect_etag, true)
 }
@@ -171,11 +171,12 @@ fn prepare_row_edit<'a>(
     document: &'a Document,
     table_block_index: u32,
     row_index: u32,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
     insertion: bool,
 ) -> Result<PreparedTableRowEdit<'a>, CoreError> {
-    let (block_span, table, actual) = resolve_table(document, table_block_index)?;
+    let (block_span, source, actual) = resolve_table_source(document, table_block_index)?;
     verify_table_guard(document, table_block_index, expect_etag, &actual)?;
+    let table = extract_table_projection(source, block_span)?;
     let row_count = table.rows.len() as u32;
     if (insertion && row_index > row_count) || (!insertion && row_index >= row_count) {
         return Err(CoreError::TableRowOutOfRange {
@@ -303,7 +304,7 @@ pub fn delete_row(
     document: &Document,
     table_block_index: u32,
     row_index: u32,
-    expect_etag: Option<&TargetEtag>,
+    expect_etag: Option<&TargetEtagGuard>,
 ) -> Result<EditOutcome<TableEditTarget>, CoreError> {
     let prepared = prepare_replace_row(document, table_block_index, row_index, expect_etag)?;
     let row = &prepared.table.rows[row_index as usize];
@@ -330,6 +331,14 @@ fn resolve_table(
     document: &Document,
     block_index: u32,
 ) -> Result<(SourceSpan, TableProjection, TargetEtag), CoreError> {
+    let (span, source, etag) = resolve_table_source(document, block_index)?;
+    Ok((span, extract_table_projection(source, span)?, etag))
+}
+
+fn resolve_table_source(
+    document: &Document,
+    block_index: u32,
+) -> Result<(SourceSpan, &str, TargetEtag), CoreError> {
     let block =
         document
             .blocks()
@@ -342,23 +351,19 @@ fn resolve_table(
         return Err(CoreError::NotTable { block_index });
     }
     let source = document.slice_unchecked(&block.span);
-    Ok((
-        block.span,
-        extract_table_projection(source, block.span)?,
-        TargetEtag::for_bytes(source.as_bytes()),
-    ))
+    Ok((block.span, source, TargetEtag::for_bytes(source.as_bytes())))
 }
 
 fn verify_table_guard(
     document: &Document,
     block_index: u32,
-    expected: Option<&TargetEtag>,
+    expected: Option<&TargetEtagGuard>,
     actual: &TargetEtag,
 ) -> Result<(), CoreError> {
     let Some(expected) = expected else {
         return Ok(());
     };
-    if expected != actual {
+    if expected.as_str() != actual.as_str() {
         return Err(CoreError::TargetEtagMismatch {
             target: EtagTarget::Table(block_index),
             expected: expected.to_string(),
@@ -370,7 +375,8 @@ fn verify_table_guard(
         .iter()
         .filter(|block| block.kind == BlockKind::Table)
         .filter(|block| {
-            TargetEtag::for_bytes(document.slice_unchecked(&block.span).as_bytes()) == *expected
+            TargetEtag::for_bytes(document.slice_unchecked(&block.span).as_bytes()).as_str()
+                == expected.as_str()
         })
         .count();
     if count > 1 {

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{EditOutcome, EditPreservation};
-use crate::fingerprint::TargetEtag;
+use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{MutationDisposition, SourceSpan, TaskStatus};
 use crate::parser::{BlockInfo, TaskItemInfo};
 use crate::section::{SectionIndex, SectionTarget};
@@ -90,7 +90,7 @@ pub struct TaskRecord {
 pub struct SetTaskEdit {
     pub loc: TaskLoc,
     pub status: TaskStatus,
-    pub expect_etag: Option<TargetEtag>,
+    pub expect_etag: Option<TargetEtagGuard>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -166,7 +166,7 @@ pub fn set_task(
     let current = document.slice_unchecked(&task_span);
     if let Some(expected) = edit.expect_etag.as_ref() {
         let actual = TargetEtag::for_bytes(current.as_bytes());
-        if expected != &actual {
+        if expected.as_str() != actual.as_str() {
             return Err(CoreError::TargetEtagMismatch {
                 target: EtagTarget::Task(edit.loc.to_string()),
                 expected: expected.to_string(),
@@ -178,8 +178,8 @@ pub fn set_task(
             .iter()
             .flat_map(|block| &block.task_items)
             .filter(|candidate| {
-                TargetEtag::for_bytes(document.slice_unchecked(&candidate.span).as_bytes())
-                    == *expected
+                TargetEtag::for_bytes(document.slice_unchecked(&candidate.span).as_bytes()).as_str()
+                    == expected.as_str()
             })
             .count();
         if duplicates > 1 {
