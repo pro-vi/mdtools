@@ -7,6 +7,7 @@ use crate::model::{
     HeadingMatchMode, HeadingRef, OutlineEntry, SectionEntry, SectionKind, SectionSelector,
     SectionSelectorKind, SourceSpan,
 };
+use crate::revision::DocumentRevision;
 
 /// A section selector whose invalid states cannot be constructed.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,6 +83,46 @@ impl SectionTarget {
 pub struct SectionIndex {
     preamble: SectionEntry,
     headings: Vec<SectionEntry>,
+    revision: DocumentRevision,
+}
+
+/// A section resolved from one immutable document snapshot.
+///
+/// The entry and its source spans cannot be changed or constructed directly,
+/// and edits verify that the originating document revision still matches.
+#[derive(Clone, Debug)]
+pub struct ResolvedSection {
+    entry: SectionEntry,
+    revision: DocumentRevision,
+}
+
+impl ResolvedSection {
+    pub fn entry(&self) -> &SectionEntry {
+        &self.entry
+    }
+
+    pub(crate) fn ensure_document(&self, document: &Document) -> Result<(), CoreError> {
+        if self.revision == *document.revision() {
+            Ok(())
+        } else {
+            Err(CoreError::DocumentRevisionMismatch {
+                expected: self.revision.to_string(),
+                actual: document.revision().to_string(),
+            })
+        }
+    }
+
+    pub(crate) fn into_entry(self) -> SectionEntry {
+        self.entry
+    }
+}
+
+impl std::ops::Deref for ResolvedSection {
+    type Target = SectionEntry;
+
+    fn deref(&self) -> &Self::Target {
+        &self.entry
+    }
 }
 
 impl SectionIndex {
@@ -136,7 +177,11 @@ impl SectionIndex {
             })
             .collect();
 
-        Self { preamble, headings }
+        Self {
+            preamble,
+            headings,
+            revision: document.revision().clone(),
+        }
     }
 
     pub fn outline(&self) -> Vec<OutlineEntry> {
@@ -156,11 +201,15 @@ impl SectionIndex {
             .collect()
     }
 
-    pub fn resolve(&self, target: &SectionTarget) -> Result<SectionEntry, CoreError> {
-        match target {
-            SectionTarget::Preamble => Ok(self.preamble.clone()),
-            SectionTarget::Heading { .. } => self.resolve_heading(target),
-        }
+    pub fn resolve(&self, target: &SectionTarget) -> Result<ResolvedSection, CoreError> {
+        let entry = match target {
+            SectionTarget::Preamble => self.preamble.clone(),
+            SectionTarget::Heading { .. } => self.resolve_heading(target)?,
+        };
+        Ok(ResolvedSection {
+            entry,
+            revision: self.revision.clone(),
+        })
     }
 
     fn resolve_heading(&self, target: &SectionTarget) -> Result<SectionEntry, CoreError> {

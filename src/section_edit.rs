@@ -5,7 +5,7 @@ use crate::edit::{EditOutcome, EditPreservation};
 use crate::fingerprint::TargetEtag;
 use crate::model::{InsertMode, LineEndingStyle, MutationDisposition, SectionEntry, SourceSpan};
 use crate::parser::{HeadingSourceKind, ParsedDocument};
-use crate::section::SectionIndex;
+use crate::section::{ResolvedSection, SectionIndex};
 
 #[derive(Clone, Debug)]
 pub enum SectionEditTarget {
@@ -26,9 +26,11 @@ pub struct PreparedSectionReplace<'a> {
 
 pub fn prepare_replace<'a>(
     document: &'a Document,
-    section: SectionEntry,
+    section: ResolvedSection,
     expect_etag: Option<&TargetEtag>,
 ) -> Result<PreparedSectionReplace<'a>, CoreError> {
+    section.ensure_document(document)?;
+    let section = section.into_entry();
     verify_guard(document, &section, expect_etag, None)?;
     Ok(PreparedSectionReplace {
         document,
@@ -83,9 +85,11 @@ impl PreparedSectionReplace<'_> {
 
 pub fn delete(
     document: &Document,
-    section: SectionEntry,
+    section: ResolvedSection,
     expect_etag: Option<&TargetEtag>,
 ) -> Result<EditOutcome<SectionEditTarget>, CoreError> {
+    section.ensure_document(document)?;
+    let section = section.into_entry();
     verify_guard(document, &section, expect_etag, None)?;
     let span = section.span;
     let content = format!(
@@ -110,13 +114,17 @@ pub fn delete(
 #[allow(clippy::too_many_arguments)]
 pub fn move_section(
     document: &Document,
-    source: SectionEntry,
-    destination: SectionEntry,
+    source: ResolvedSection,
+    destination: ResolvedSection,
     destination_mode: InsertMode,
     keep_level: bool,
     expect_source_etag: Option<&TargetEtag>,
     expect_destination_etag: Option<&TargetEtag>,
 ) -> Result<EditOutcome<SectionEditTarget>, CoreError> {
+    source.ensure_document(document)?;
+    destination.ensure_document(document)?;
+    let source = source.into_entry();
+    let destination = destination.into_entry();
     verify_guard(
         document,
         &source,

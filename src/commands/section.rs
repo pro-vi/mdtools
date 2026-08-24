@@ -6,7 +6,7 @@ use crate::output;
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
 use mdtools::fingerprint::TargetEtag;
-use mdtools::section::{SectionIndex, SectionTarget};
+use mdtools::section::{ResolvedSection, SectionIndex, SectionTarget};
 use mdtools::section_edit::{self, SectionEditTarget};
 
 pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
@@ -24,7 +24,7 @@ pub fn run_section(args: &SectionArgs, json: bool) -> Result<(), CommandError> {
         output::write_json(&SectionReadResult {
             schema_version: SCHEMA_VERSION.to_string(),
             file: args.file.to_string_lossy().to_string(),
-            section,
+            section: section.entry().clone(),
             content,
         })?;
     } else {
@@ -131,7 +131,7 @@ pub fn build_selector(
 pub fn find_section(
     document: &Document,
     target: &SectionTarget,
-) -> Result<SectionEntry, CommandError> {
+) -> Result<ResolvedSection, CommandError> {
     find_section_as(document, target, SelectorRole::Target)
 }
 
@@ -139,7 +139,7 @@ pub fn find_section_as(
     document: &Document,
     target: &SectionTarget,
     role: SelectorRole,
-) -> Result<SectionEntry, CommandError> {
+) -> Result<ResolvedSection, CommandError> {
     SectionIndex::new(document)
         .resolve(target)
         .map_err(|error| map_section_error(error, role))

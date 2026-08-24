@@ -34,9 +34,7 @@ pub fn emit<T>(
     };
     if in_place {
         if changed {
-            let current = std::fs::read_to_string(file)?;
-            mdtools::revision::verify_source_revision(&current, &outcome.base_revision)?;
-            output::write_file_atomic(file, &outcome.content)?;
+            output::write_file_atomic_verified(file, &outcome.content, &outcome.base_revision)?;
         }
         if json {
             output::write_json(&result(None))?;

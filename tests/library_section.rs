@@ -2,6 +2,7 @@ use mdtools::core_error::CoreError;
 use mdtools::document::Document;
 use mdtools::model::HeadingMatchMode;
 use mdtools::section::{SectionIndex, SectionTarget};
+use mdtools::section_edit;
 
 fn heading_selector(text: &str, occurrence: Option<u32>) -> SectionTarget {
     SectionTarget::heading(text, occurrence, HeadingMatchMode::Exact).unwrap()
@@ -58,5 +59,19 @@ fn zero_occurrence_is_rejected_at_the_core_boundary() {
     assert!(matches!(
         SectionTarget::heading("Title", Some(0), HeadingMatchMode::Exact),
         Err(CoreError::InvalidSelector(_))
+    ));
+}
+
+#[test]
+fn resolved_section_cannot_be_reused_with_another_document() {
+    let original = Document::parse("# One\n\nbody\n").unwrap();
+    let other = Document::parse("# Two\n\nbody\n").unwrap();
+    let resolved = SectionIndex::new(&original)
+        .resolve(&heading_selector("One", None))
+        .unwrap();
+
+    assert!(matches!(
+        section_edit::delete(&other, resolved, None),
+        Err(CoreError::DocumentRevisionMismatch { .. })
     ));
 }

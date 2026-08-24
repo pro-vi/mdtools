@@ -93,12 +93,22 @@ pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskEntry>, C
         .map(|selector| {
             SectionIndex::new(document)
                 .resolve(selector)
-                .map(|section| section.block_indices.into_iter().collect::<HashSet<_>>())
+                .map(|section| {
+                    section
+                        .block_indices
+                        .iter()
+                        .copied()
+                        .collect::<HashSet<_>>()
+                })
         })
         .transpose()?;
     let mut entries = Vec::new();
+    let mut nearest_heading = (None, None);
 
     for block in document.blocks() {
+        if let Some(heading) = &block.heading {
+            nearest_heading = (Some(heading.text.clone()), Some(block.index));
+        }
         if selected
             .as_ref()
             .is_some_and(|indices| !indices.contains(&block.index))
@@ -108,7 +118,6 @@ pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskEntry>, C
         if block.task_items.is_empty() {
             continue;
         }
-        let heading = nearest_heading(document.blocks(), block.index);
         for item in &block.task_items {
             if query.status.is_some_and(|status| item.status != status) {
                 continue;
@@ -120,7 +129,7 @@ pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskEntry>, C
             {
                 continue;
             }
-            entries.push(task_entry(document, block, item, &heading));
+            entries.push(task_entry(document, block, item, &nearest_heading));
         }
     }
     Ok(entries)
