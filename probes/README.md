@@ -25,6 +25,7 @@ Lifecycle status and evidence verdict are intentionally separate:
 | Target identity | [Non-block target identity](non_block_target_identity/PROTOCOL.md) | [Closed](non_block_target_identity/RESULTS.md#promotion-outcome) | All four candidates were demoted across section, table, and task surfaces | Do not generalize block evidence into a non-block identity token | Continued through bounded positional context |
 | Target identity | [Position-bound target identity](position_bound_target_identity/PROTOCOL.md) | [Closed](position_bound_target_identity/RESULTS.md#candidate-summaries-and-conclusion) | All four bounded-context candidates were demoted | Keep re-query plus fail-closed ambiguity as the production contract | Led to one final observability-limit protocol |
 | Target identity | [Stateless observability limit](stateless_target_identity_observability/PROTOCOL.md) | **Stopped before execution** | Untested; no protocol result label was earned | No production identity architecture is authorized | Reopen only for a concrete consumer failure that re-query cannot resolve and an owner decision to compare stateful authority costs |
+| Core topology | [Core consumer topology](core_consumer_topology/PROTOCOL.md) | [Executed / complete](core_consumer_topology/RESULTS.md#verdict) | `foundation_validated`: CLI preservation, packaged API adoption, and library-only composition lanes all passed | Continue consumer-led extraction through the existing library target; keep consumer semantics outside mdtools | Reopen for a CLI protocol/package change, a separate release-cadence need, or a core/CLI parity failure |
 
 ## Current Product Conclusion
 
@@ -42,6 +43,13 @@ The production contract therefore remains:
 Stateful identity work requires a concrete consumer failure that this contract
 cannot resolve. Any reopening must compare explicit authority, lifecycle,
 corruption, portability, cleanup, and concurrency costs before architecture.
+
+The core-consumer topology probe separately validates the existing Cargo
+package's library/binary split: the sampled CLI contract remained unchanged, a
+clean packaged adapter built without a sibling checkout, and a library-only
+consumer used direct queries and a pure edit candidate without CLI-only
+dependencies. This authorizes further consumer-led extraction, not a second
+package or application-specific scope in mdtools.
 
 ## Probe And PR Discipline
 

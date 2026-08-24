@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::fmt;
 use std::process::ExitCode;
 
+use crate::core_error::{CoreError, EtagTarget};
 use crate::model::SCHEMA_VERSION;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -227,6 +228,176 @@ pub struct CommandError {
     /// its own JSON payload (e.g. `tasks` failures[]); tells main.rs not to
     /// print a second envelope object.
     pub payload_delivered: bool,
+}
+
+impl From<CoreError> for CommandError {
+    fn from(error: CoreError) -> Self {
+        match error {
+            CoreError::ParseFailed(message) => Self::new(DiagnosticCode::ParseFailed, message),
+            CoreError::FrontmatterParseFailed(message) => {
+                Self::new(DiagnosticCode::FrontmatterParseFailed, message)
+            }
+            CoreError::InvalidTableRow(message) => Self::invalid_table_row(message),
+            CoreError::InvalidSelector(message) => {
+                Self::new(DiagnosticCode::InvalidSelector, message)
+            }
+            CoreError::InvalidTargetEtag(value) => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("invalid target etag {value:?} (expected 16 hexadecimal characters)"),
+            ),
+            CoreError::BlockIndexOutOfRange { index, block_count } => {
+                Self::block_out_of_range(index, block_count)
+            }
+            CoreError::InvalidKeyPath { path, reason } => Self::invalid_key_path(&path, reason),
+            CoreError::FrontmatterFieldConflict { path, prefix } => {
+                Self::frontmatter_field_conflict(&path, &prefix)
+            }
+            CoreError::NoTables => Self::no_tables(),
+            CoreError::NotTable { block_index } => Self::table_not_found(block_index),
+            CoreError::ColumnNotFound { column, headers } => {
+                Self::column_not_found(&column, &headers)
+            }
+            CoreError::TableRowOutOfRange {
+                table_block_index,
+                row_index,
+                row_count,
+                insertion,
+            } => {
+                if insertion {
+                    Self::table_row_insertion_out_of_range(table_block_index, row_index, row_count)
+                } else {
+                    Self::table_row_not_found(table_block_index, row_index, row_count)
+                }
+            }
+            CoreError::HeadingNotFound { heading } => Self::not_found_heading(&heading),
+            CoreError::DuplicateHeading { heading, matches } => {
+                let matches = matches
+                    .into_iter()
+                    .map(|item| MatchRef {
+                        block_index: item.block_index,
+                        occurrence: item.occurrence,
+                        line: item.line,
+                    })
+                    .collect::<Vec<_>>();
+                Self::duplicate_heading_as(&heading, matches.len(), &matches, SelectorRole::Target)
+            }
+            CoreError::OccurrenceOutOfRange {
+                heading,
+                requested,
+                matches,
+            } => {
+                let matches = matches
+                    .into_iter()
+                    .map(|item| MatchRef {
+                        block_index: item.block_index,
+                        occurrence: item.occurrence,
+                        line: item.line,
+                    })
+                    .collect::<Vec<_>>();
+                Self::occurrence_out_of_range(&heading, requested, &matches, SelectorRole::Target)
+            }
+            CoreError::InvalidTaskLoc { loc } => Self::invalid_task_loc(&loc),
+            CoreError::TaskBlockOutOfRange {
+                loc,
+                block_index,
+                block_count,
+            } => Self::new(
+                DiagnosticCode::TaskItemNotFound,
+                format!(
+                    "task item not found: {} (block index {} out of range; document has {} blocks)",
+                    loc, block_index, block_count
+                ),
+            )
+            .with_hint("re-run `md tasks --json <FILE>` for current task locs")
+            .with_context(ErrorContext {
+                loc: Some(loc),
+                ..ErrorContext::default()
+            }),
+            CoreError::TaskNotFound { loc } => Self::task_item_not_found(&loc),
+            CoreError::NotTaskList { block_index } => Self::not_a_task_list(block_index),
+            CoreError::TargetEtagMismatch {
+                target,
+                expected,
+                actual,
+            } => match target {
+                EtagTarget::Task(loc) => Self::task_etag_mismatch(&loc, &expected, &actual),
+                EtagTarget::Frontmatter => Self::frontmatter_etag_mismatch(&expected, &actual),
+                EtagTarget::Block(index) => Self::etag_mismatch(index, &expected, &actual),
+                EtagTarget::Section(selector) => {
+                    Self::section_etag_mismatch(&selector, &expected, &actual)
+                }
+                EtagTarget::Table(index) => Self::table_etag_mismatch(index, &expected, &actual),
+            },
+            CoreError::TargetEtagAmbiguous {
+                target_kind,
+                expected,
+                count,
+            } => Self::etag_ambiguous(target_kind, &expected, count, None),
+            CoreError::BlockMoveEtagMismatch {
+                role,
+                index,
+                expected,
+                actual,
+            } => Self::move_block_etag_mismatch(
+                match role {
+                    crate::block_edit::GuardRole::Source => SelectorRole::Source,
+                    crate::block_edit::GuardRole::Destination => SelectorRole::Destination,
+                },
+                index,
+                &expected,
+                &actual,
+            ),
+            CoreError::BlockMoveEtagAmbiguous {
+                role,
+                index,
+                expected,
+                count,
+            } => Self::move_block_etag_ambiguous(
+                match role {
+                    crate::block_edit::GuardRole::Source => SelectorRole::Source,
+                    crate::block_edit::GuardRole::Destination => SelectorRole::Destination,
+                },
+                index,
+                &expected,
+                count,
+            ),
+            CoreError::SectionMoveEtagMismatch {
+                role,
+                selector,
+                expected,
+                actual,
+            } => match role {
+                crate::block_edit::GuardRole::Source => {
+                    Self::move_section_source_etag_mismatch(&selector, &expected, &actual)
+                }
+                crate::block_edit::GuardRole::Destination => {
+                    Self::move_section_dest_etag_mismatch(&selector, &expected, &actual)
+                }
+            },
+            CoreError::SectionMoveEtagAmbiguous {
+                role,
+                expected,
+                count,
+            } => Self::etag_ambiguous(
+                "section",
+                &expected,
+                count,
+                Some(match role {
+                    crate::block_edit::GuardRole::Source => SelectorRole::Source,
+                    crate::block_edit::GuardRole::Destination => SelectorRole::Destination,
+                }),
+            ),
+            CoreError::DocumentRevisionMismatch { expected, actual } => Self::new(
+                DiagnosticCode::EtagMismatch,
+                "document changed since the edit candidate was created",
+            )
+            .with_hint("re-read the document and rebuild the edit candidate before retrying")
+            .with_context(Self::etag_ctx(&expected, &actual)),
+            CoreError::InvalidSpan { .. } => {
+                Self::new(DiagnosticCode::InvalidSelector, error.to_string())
+            }
+        }
+    }
 }
 
 impl CommandError {

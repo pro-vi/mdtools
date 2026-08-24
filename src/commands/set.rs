@@ -1,19 +1,51 @@
-use super::frontmatter::parse_frontmatter_data;
 use crate::cli::SetArgs;
+use crate::commands::edit;
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::model::*;
 use crate::output;
-use crate::parser::{FrontmatterState, ParsedDocument};
-
-struct ExistingFrontmatter<'a> {
-    data: serde_json::Value,
-    format: FrontmatterFormat,
-    state: FrontmatterState<'a>,
-}
+use mdtools::document::Document;
+use mdtools::frontmatter::{self, FrontmatterAction, FrontmatterEdit, FrontmatterPath};
 
 pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
-    // Validate args
-    if args.key.is_empty() || args.key.split('.').any(|s| s.is_empty()) {
+    validate_args(args)?;
+    let (source, edit_target) = output::read_edit_file(&args.file)?.into_parts();
+    let document = Document::parse_for_frontmatter_mutation(source)?;
+    let action = if args.delete {
+        FrontmatterAction::Delete
+    } else {
+        FrontmatterAction::Set(parse_value(
+            args.value.as_deref().expect("validated set value"),
+            args.string,
+        ))
+    };
+    let request = FrontmatterEdit {
+        key_path: FrontmatterPath::new(args.key.clone())?,
+        action,
+        expect_etag: args
+            .expect_etag
+            .as_deref()
+            .map(mdtools::fingerprint::TargetEtagGuard::new),
+    };
+    let outcome = frontmatter::edit(&document, &request)?;
+    edit::emit(
+        args.in_place,
+        json,
+        &args.file,
+        Some(&edit_target),
+        MutationCommandKind::SetFrontmatter,
+        outcome,
+        |target| {
+            MutationTargetRef::FrontmatterField(FrontmatterFieldTargetRef {
+                kind: MutationTargetKind::FrontmatterField,
+                key_path: target.key_path.clone(),
+                format: target.format,
+            })
+        },
+    )
+}
+
+fn validate_args(args: &SetArgs) -> Result<(), CommandError> {
+    if args.key.is_empty() || args.key.split('.').any(str::is_empty) {
         return Err(CommandError::invalid_key_path(
             &args.key,
             "key cannot be empty",
@@ -37,307 +69,13 @@ pub fn run(args: &SetArgs, json: bool) -> Result<(), CommandError> {
             "cannot use --string with --delete",
         ));
     }
-
-    let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse_for_frontmatter_mutation(source.clone())?;
-    let state = doc.frontmatter_state();
-
-    if let Some(expected) = args.expect_etag.as_deref() {
-        if expected != state.etag {
-            return Err(CommandError::frontmatter_etag_mismatch(
-                expected,
-                &state.etag,
-            ));
-        }
-    }
-
-    let existing = parse_existing_frontmatter(state)?;
-
-    let ExistingFrontmatter {
-        mut data,
-        format: fm_format,
-        state,
-    } = existing;
-
-    // Apply mutation
-    let disposition = if args.delete {
-        delete_dot_path(&mut data, &args.key)?
-    } else {
-        let value = parse_value(args.value.as_ref().unwrap(), args.string)?;
-        set_dot_path(&mut data, &args.key, value)?
-    };
-    let changed = disposition != MutationDisposition::NoChange;
-
-    let span_before = state.span;
-    let (output_doc, span_after) = if changed {
-        let new_fm_block = serialize_frontmatter(&data, fm_format)?;
-        let output_doc = if let Some(span) = state.span {
-            format!("{}{}", &new_fm_block, &source[span.byte_end as usize..])
-        } else if source.is_empty() {
-            new_fm_block.clone()
-        } else {
-            format!("{}\n{}", &new_fm_block, &source)
-        };
-        (
-            output_doc,
-            Some(SourceSpan {
-                line_start: 1,
-                line_end: new_fm_block.matches('\n').count() as u32,
-                byte_start: 0,
-                byte_end: new_fm_block.len() as u32,
-            }),
-        )
-    } else {
-        (source.clone(), span_before)
-    };
-
-    // Build mutation result
-    let target = MutationTargetRef::FrontmatterField(FrontmatterFieldTargetRef {
-        kind: MutationTargetKind::FrontmatterField,
-        key_path: args.key.clone(),
-        format: fm_format,
-    });
-
-    emit_set_mutation(
-        args.in_place,
-        json,
-        &args.file,
-        target,
-        disposition,
-        changed,
-        args.expect_etag.is_some(),
-        doc.line_ending_style(),
-        span_before,
-        span_after,
-        &output_doc,
-    )
-}
-
-fn parse_existing_frontmatter(
-    state: FrontmatterState<'_>,
-) -> Result<ExistingFrontmatter<'_>, CommandError> {
-    let Some(raw) = state.raw else {
-        return Ok(ExistingFrontmatter {
-            data: serde_json::Value::Object(serde_json::Map::new()),
-            format: FrontmatterFormat::Yaml,
-            state,
-        });
-    };
-
-    let format = state
-        .format
-        .expect("present frontmatter state must include a format");
-    let data = parse_frontmatter_data(raw, format)?;
-    if !data.is_object() {
-        return Err(CommandError::new(
-            DiagnosticCode::FrontmatterParseFailed,
-            "frontmatter must be a mapping/object, not a scalar or array",
-        ));
-    }
-
-    Ok(ExistingFrontmatter {
-        data,
-        format,
-        state,
-    })
-}
-
-fn parse_value(raw: &str, force_string: bool) -> Result<serde_json::Value, CommandError> {
-    if force_string {
-        return Ok(serde_json::Value::String(raw.to_string()));
-    }
-    // Try YAML scalar parsing
-    match serde_yaml::from_str::<serde_json::Value>(raw) {
-        Ok(val) => Ok(val),
-        Err(_) => Ok(serde_json::Value::String(raw.to_string())),
-    }
-}
-
-fn set_dot_path(
-    root: &mut serde_json::Value,
-    path: &str,
-    value: serde_json::Value,
-) -> Result<MutationDisposition, CommandError> {
-    let segments: Vec<&str> = path.split('.').collect();
-    let mut current = root;
-
-    for (i, segment) in segments[..segments.len() - 1].iter().enumerate() {
-        match current {
-            serde_json::Value::Object(map) => {
-                current = map
-                    .entry(segment.to_string())
-                    .or_insert(serde_json::Value::Object(serde_json::Map::new()));
-                if !current.is_object() {
-                    let prefix = segments[..=i].join(".");
-                    return Err(CommandError::frontmatter_field_conflict(path, &prefix));
-                }
-            }
-            _ => {
-                let prefix = segments[..i].join(".");
-                return Err(CommandError::frontmatter_field_conflict(path, &prefix));
-            }
-        }
-    }
-
-    let last_key = segments.last().unwrap();
-    match current.as_object_mut() {
-        Some(map) => {
-            if let Some(existing) = map.get(*last_key) {
-                if *existing == value {
-                    Ok(MutationDisposition::NoChange)
-                } else {
-                    map.insert(last_key.to_string(), value);
-                    Ok(MutationDisposition::Replaced)
-                }
-            } else {
-                map.insert(last_key.to_string(), value);
-                Ok(MutationDisposition::Inserted)
-            }
-        }
-        None => {
-            let prefix = segments[..segments.len() - 1].join(".");
-            Err(CommandError::frontmatter_field_conflict(path, &prefix))
-        }
-    }
-}
-
-fn delete_dot_path(
-    root: &mut serde_json::Value,
-    path: &str,
-) -> Result<MutationDisposition, CommandError> {
-    let segments: Vec<&str> = path.split('.').collect();
-    let mut current = root;
-
-    for (i, segment) in segments[..segments.len() - 1].iter().enumerate() {
-        match current {
-            serde_json::Value::Object(map) => match map.get_mut(*segment) {
-                Some(val) => {
-                    if !val.is_object() {
-                        let prefix = segments[..=i].join(".");
-                        return Err(CommandError::frontmatter_field_conflict(path, &prefix));
-                    }
-                    current = val;
-                }
-                None => return Ok(MutationDisposition::NoChange),
-            },
-            _ => return Ok(MutationDisposition::NoChange),
-        }
-    }
-
-    let last_key = segments.last().unwrap();
-    match current.as_object_mut() {
-        Some(map) => {
-            if map.shift_remove(*last_key).is_some() {
-                Ok(MutationDisposition::Deleted)
-            } else {
-                Ok(MutationDisposition::NoChange)
-            }
-        }
-        None => Ok(MutationDisposition::NoChange),
-    }
-}
-
-fn serialize_frontmatter(
-    data: &serde_json::Value,
-    format: FrontmatterFormat,
-) -> Result<String, CommandError> {
-    match format {
-        FrontmatterFormat::Yaml => {
-            let yaml = serde_yaml::to_string(data).map_err(|e| {
-                CommandError::new(
-                    DiagnosticCode::FrontmatterParseFailed,
-                    format!("failed to serialize YAML: {}", e),
-                )
-            })?;
-            // serde_yaml may or may not produce leading "---\n"
-            let content = yaml.strip_prefix("---\n").unwrap_or(&yaml);
-            Ok(format!("---\n{}---\n", content))
-        }
-        FrontmatterFormat::Toml => {
-            let toml_val = json_to_toml(data)?;
-            let toml_str = toml::to_string_pretty(&toml_val).map_err(|e| {
-                CommandError::new(
-                    DiagnosticCode::FrontmatterParseFailed,
-                    format!("failed to serialize TOML: {}", e),
-                )
-            })?;
-            Ok(format!("+++\n{}+++\n", toml_str))
-        }
-    }
-}
-
-fn json_to_toml(value: &serde_json::Value) -> Result<toml::Value, CommandError> {
-    match value {
-        serde_json::Value::Null => Err(CommandError::new(
-            DiagnosticCode::FrontmatterParseFailed,
-            "TOML does not support null values",
-        )),
-        serde_json::Value::Bool(b) => Ok(toml::Value::Boolean(*b)),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(toml::Value::Integer(i))
-            } else if let Some(f) = n.as_f64() {
-                Ok(toml::Value::Float(f))
-            } else {
-                Ok(toml::Value::String(n.to_string()))
-            }
-        }
-        serde_json::Value::String(s) => Ok(toml::Value::String(s.clone())),
-        serde_json::Value::Array(arr) => {
-            let items: Result<Vec<_>, _> = arr.iter().map(json_to_toml).collect();
-            Ok(toml::Value::Array(items?))
-        }
-        serde_json::Value::Object(map) => {
-            let mut table = toml::map::Map::new();
-            for (k, v) in map {
-                table.insert(k.clone(), json_to_toml(v)?);
-            }
-            Ok(toml::Value::Table(table))
-        }
-    }
-}
-
-fn emit_set_mutation(
-    in_place: bool,
-    json: bool,
-    file: &std::path::Path,
-    target: MutationTargetRef,
-    disposition: MutationDisposition,
-    changed: bool,
-    guarded: bool,
-    line_endings: LineEndingStyle,
-    span_before: Option<SourceSpan>,
-    span_after: Option<SourceSpan>,
-    output_doc: &str,
-) -> Result<(), CommandError> {
-    let build_result = |content: Option<String>| MutationResult {
-        schema_version: SCHEMA_VERSION.to_string(),
-        file: file.to_string_lossy().to_string(),
-        command: MutationCommandKind::SetFrontmatter,
-        target: target.clone(),
-        disposition,
-        changed,
-        guarded,
-        line_endings,
-        invariant: SourcePreservationInvariant {
-            preserves_non_target_bytes: true,
-            target_span_before: span_before,
-            target_span_after: span_after,
-        },
-        content,
-    };
-
-    if in_place {
-        if changed {
-            output::write_file_atomic(file.as_ref(), &output_doc)?;
-        }
-        if json {
-            output::write_json(&build_result(None))?;
-        }
-    } else if json {
-        output::write_json(&build_result(Some(output_doc.to_string())))?;
-    } else {
-        print!("{}", output_doc);
-    }
     Ok(())
+}
+
+fn parse_value(raw: &str, force_string: bool) -> serde_json::Value {
+    if force_string {
+        serde_json::Value::String(raw.to_string())
+    } else {
+        serde_yaml::from_str(raw).unwrap_or_else(|_| serde_json::Value::String(raw.to_string()))
+    }
 }

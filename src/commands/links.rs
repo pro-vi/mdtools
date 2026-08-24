@@ -5,7 +5,8 @@ use crate::errors::CommandError;
 use crate::model::*;
 use crate::multifile;
 use crate::output;
-use crate::parser::ParsedDocument;
+use mdtools::document::Document;
+use mdtools::link;
 
 pub fn run(args: &LinksArgs, json: bool) -> Result<(), CommandError> {
     let file_set = multifile::resolve_paths(&args.files, args.recursive)?;
@@ -15,21 +16,18 @@ pub fn run(args: &LinksArgs, json: bool) -> Result<(), CommandError> {
 
 fn process_file(file: &Path, json: bool, multi: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(file)?;
-    let doc = ParsedDocument::parse(source)?;
+    let doc = Document::parse(source)?;
     let file_str = file.to_string_lossy();
 
-    let links: Vec<LinkEntry> = doc
-        .blocks
-        .iter()
-        .flat_map(|block| {
-            block.links.iter().map(move |link| LinkEntry {
-                kind: link.kind,
-                text: link.text.clone(),
-                destination: link.destination.clone(),
-                title: link.title.clone(),
-                source_block_index: block.index,
-                span: link.span,
-            })
+    let links: Vec<LinkEntry> = link::links(&doc)
+        .into_iter()
+        .map(|link| LinkEntry {
+            kind: link.kind,
+            text: link.text,
+            destination: link.destination,
+            title: link.title,
+            source_block_index: link.source_block_index,
+            span: link.span,
         })
         .collect();
 

@@ -1,3 +1,20 @@
+#![doc = include_str!("../README.crate.md")]
+
+pub mod block;
+pub mod block_edit;
+pub mod core_error;
+pub mod document;
+pub mod edit;
 pub mod errors;
+pub mod fingerprint;
+pub mod frontmatter;
+pub mod link;
 pub mod model;
 pub mod parser;
+pub mod revision;
+pub mod search;
+pub mod section;
+pub mod section_edit;
+pub mod stats;
+pub mod table;
+pub mod task;

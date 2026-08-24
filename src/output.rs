@@ -2,6 +2,8 @@ use serde::Serialize;
 use std::io::{self, Read, Write};
 
 use crate::errors::CommandError;
+use mdtools::document::Document;
+use mdtools::revision::DocumentRevision;
 
 /// Escape user-derived text fields for tab-separated text output.
 /// Tabs → space, newlines → space.
@@ -12,30 +14,6 @@ pub fn escape_text_field(s: &str) -> String {
             other => other,
         })
         .collect()
-}
-
-/// Truncate a string to max_len chars, appending "..." if truncated.
-pub fn truncate_preview(s: &str, max_len: usize) -> String {
-    let escaped = escape_text_field(s);
-    if escaped.chars().count() <= max_len {
-        escaped
-    } else {
-        let mut result: String = escaped.chars().take(max_len).collect();
-        result.push_str("...");
-        result
-    }
-}
-
-pub fn normalize_line_endings(content: &str, style: &crate::model::LineEndingStyle) -> String {
-    use crate::model::LineEndingStyle;
-    match style {
-        LineEndingStyle::Lf => content.replace("\r\n", "\n"),
-        LineEndingStyle::Crlf => {
-            let lf = content.replace("\r\n", "\n");
-            lf.replace('\n', "\r\n")
-        }
-        LineEndingStyle::Mixed => content.to_string(),
-    }
 }
 
 /// Read content from --from path (or stdin if path is "-" or None).
@@ -100,12 +78,115 @@ pub fn read_content(from: Option<&std::path::Path>) -> Result<String, CommandErr
 ///   entry) returns immediately without removing anything, and error cleanup
 ///   only unlinks when the current directory entry still names the exact inode
 ///   this call created — so a substituted entry is relinquished, never deleted.
-pub fn write_file_atomic(path: &std::path::Path, content: &str) -> std::io::Result<()> {
-    // Mutations always operate on an existing document; resolve symlinks so
-    // the rename lands on the real file.
+/// - On Unix, revision verification is bound to the target's device/inode and
+///   checked again immediately before rename. Replacing the target path with a
+///   same-content inode therefore fails closed. Rust std cannot make the final
+///   identity-check-to-rename interval atomic; that residual pathname race is
+///   the same narrow, documented limitation as the temp-entry check above.
+/// - Off Unix, std exposes no portable stable file identity. The revision is
+///   still checked twice, but same-content target substitution is accepted as
+///   a platform limitation rather than guessed from mutable timestamps.
+///
+/// Verify the current source and bind that verification to the filesystem
+/// object replaced by the atomic rename.
+pub(crate) struct EditFile {
+    source: String,
+    target: EditTarget,
+}
+
+impl EditFile {
+    pub fn into_parts(self) -> (String, EditTarget) {
+        (self.source, self.target)
+    }
+}
+
+pub(crate) struct EditTarget {
+    requested_path: std::path::PathBuf,
+    target: std::path::PathBuf,
+    revision: DocumentRevision,
+    #[cfg(unix)]
+    identity: (u64, u64),
+}
+
+pub(crate) fn read_edit_file(path: &std::path::Path) -> Result<EditFile, CommandError> {
     let target = std::fs::canonicalize(path)?;
-    let tmp_path = temp_sibling_path(&target);
-    atomic_replace_via(&target, &tmp_path, content)
+    let mut file = std::fs::File::open(&target)?;
+    let mut source = String::new();
+    file.read_to_string(&mut source)?;
+    #[cfg(unix)]
+    let identity = {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = file.metadata()?;
+        (metadata.dev(), metadata.ino())
+    };
+    let revision = DocumentRevision::for_source(&source);
+    Ok(EditFile {
+        source,
+        target: EditTarget {
+            requested_path: path.to_path_buf(),
+            target,
+            revision,
+            #[cfg(unix)]
+            identity,
+        },
+    })
+}
+
+pub(crate) fn read_edit_document(
+    path: &std::path::Path,
+) -> Result<(Document, EditTarget), CommandError> {
+    let (source, target) = read_edit_file(path)?.into_parts();
+    Ok((Document::parse(source)?, target))
+}
+
+pub(crate) fn verify_file_unchanged(
+    target: &EditTarget,
+    expected_revision: &DocumentRevision,
+) -> Result<(), CommandError> {
+    if &target.revision != expected_revision {
+        return Err(mdtools::core_error::CoreError::DocumentRevisionMismatch {
+            expected: expected_revision.to_string(),
+            actual: target.revision.to_string(),
+        }
+        .into());
+    }
+    verify_target_guard(target)
+}
+
+pub(crate) fn write_file_atomic_verified(
+    target: &EditTarget,
+    content: &str,
+    expected_revision: &DocumentRevision,
+) -> Result<(), CommandError> {
+    verify_file_unchanged(target, expected_revision)?;
+    let tmp_path = temp_sibling_path(&target.target);
+    atomic_replace_via_checked(&target.target, &tmp_path, content, Some(target))
+}
+
+fn verify_target_guard(guard: &EditTarget) -> Result<(), CommandError> {
+    let current_target = std::fs::canonicalize(&guard.requested_path)?;
+    if current_target != guard.target {
+        return Err(target_changed_error());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = std::fs::symlink_metadata(&guard.target)?;
+        if (metadata.dev(), metadata.ino()) != guard.identity {
+            return Err(target_changed_error());
+        }
+    }
+    let current = std::fs::read_to_string(&guard.target)?;
+    mdtools::revision::verify_source_revision(&current, &guard.revision)?;
+    Ok(())
+}
+
+fn target_changed_error() -> CommandError {
+    CommandError::new(
+        crate::errors::DiagnosticCode::EtagMismatch,
+        "document target changed since the edit candidate was created",
+    )
+    .with_hint("re-read the document path and rebuild the edit candidate before retrying")
 }
 
 /// A collision-resistant sibling temp path (timestamp + pid + counter) in the
@@ -169,13 +250,17 @@ fn cleanup_owned_temp(tmp_path: &std::path::Path, created: Option<(u64, u64)>) {
 #[cfg(not(unix))]
 fn cleanup_owned_temp(_tmp_path: &std::path::Path, _created: Option<()>) {}
 
-fn atomic_replace_via(
+fn atomic_replace_via_checked(
     target: &std::path::Path,
     tmp_path: &std::path::Path,
     content: &str,
-) -> std::io::Result<()> {
+    guard: Option<&EditTarget>,
+) -> Result<(), CommandError> {
     use std::io::Write;
 
+    if let Some(guard) = guard {
+        verify_target_guard(guard)?;
+    }
     let original_perms = std::fs::metadata(target)?.permissions();
 
     // create_new refuses existing files AND symlinks (dangling or not); on
@@ -204,7 +289,7 @@ fn atomic_replace_via(
     #[cfg(not(unix))]
     let created: Option<()> = Some(());
 
-    let staged = (|| -> std::io::Result<()> {
+    let staged = (|| -> Result<(), CommandError> {
         // Apply the original's bits through the HANDLE (fchmod), never the
         // pathname, before writing a single byte.
         tmp.set_permissions(original_perms.clone())?;
@@ -221,11 +306,13 @@ fn atomic_replace_via(
             let handle_meta = tmp.metadata()?;
             let entry_meta = std::fs::symlink_metadata(tmp_path)?;
             if handle_meta.dev() != entry_meta.dev() || handle_meta.ino() != entry_meta.ino() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(CommandError::io(
                     "temp file directory entry was substituted during write; aborting mutation",
                 ));
             }
+        }
+        if let Some(guard) = guard {
+            verify_target_guard(guard)?;
         }
         Ok(())
     })();
@@ -233,20 +320,12 @@ fn atomic_replace_via(
     // Release the handle before the rename (and before any cleanup).
     drop(tmp);
 
-    let result = staged.and_then(|()| std::fs::rename(tmp_path, target));
+    let result =
+        staged.and_then(|()| std::fs::rename(tmp_path, target).map_err(CommandError::from));
     if result.is_err() {
         cleanup_owned_temp(tmp_path, created);
     }
     result
-}
-
-pub fn content_etag(bytes: &[u8]) -> String {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325; // FNV offset basis
-    for &b in bytes {
-        hash ^= b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3); // FNV prime
-    }
-    format!("{:016x}", hash)
 }
 
 pub fn write_json<T: Serialize>(value: &T) -> Result<(), CommandError> {
@@ -287,12 +366,24 @@ mod tests {
         std::fs::write(&target, "old\n").unwrap();
         let tmp = temp_sibling_path(&target);
 
-        atomic_replace_via(&target, &tmp, "new body\n").unwrap();
+        atomic_replace_via_checked(&target, &tmp, "new body\n", None).unwrap();
         assert_eq!(std::fs::read_to_string(&target).unwrap(), "new body\n");
         assert!(
             !tmp.exists(),
             "the staging temp must be gone after a successful rename"
         );
+    }
+
+    #[test]
+    fn read_edit_document_binds_parse_and_persistence_to_one_snapshot() {
+        let dir = unique_dir("edit-document");
+        let target = dir.join("doc.md");
+        std::fs::write(&target, "# Heading\n\nbody\n").unwrap();
+
+        let (document, edit_target) = read_edit_document(&target).unwrap();
+
+        assert_eq!(document.source(), "# Heading\n\nbody\n");
+        verify_file_unchanged(&edit_target, document.revision()).unwrap();
     }
 
     #[test]
@@ -305,7 +396,7 @@ mod tests {
         let planted = dir.join(".doc.md.md-tmp.planted");
         std::fs::write(&planted, "PLANTED — not ours\n").unwrap();
 
-        let result = atomic_replace_via(&target, &planted, "attacker-provided\n");
+        let result = atomic_replace_via_checked(&target, &planted, "attacker-provided\n", None);
         assert!(
             result.is_err(),
             "exclusive create must fail on an existing name"
@@ -379,6 +470,49 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn verified_replace_rejects_same_content_target_substitution() {
+        let dir = unique_dir("target-substitution");
+        let target = dir.join("doc.md");
+        let displaced = dir.join("displaced.md");
+        std::fs::write(&target, "same bytes\n").unwrap();
+        let (_, guard) = read_edit_file(&target).unwrap().into_parts();
+
+        std::fs::rename(&target, &displaced).unwrap();
+        std::fs::write(&target, "same bytes\n").unwrap();
+        let tmp = temp_sibling_path(&target);
+        let result = atomic_replace_via_checked(&target, &tmp, "candidate\n", Some(&guard));
+
+        let error = result.expect_err("a replacement inode must fail closed");
+        assert_eq!(error.code, crate::errors::DiagnosticCode::EtagMismatch);
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "same bytes\n");
+        assert!(!tmp.exists(), "guard failure must occur before staging");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn edit_target_rejects_symlink_retargeting_before_persistence() {
+        let dir = unique_dir("symlink-retarget");
+        let first = dir.join("first.md");
+        let second = dir.join("second.md");
+        let link = dir.join("doc.md");
+        std::fs::write(&first, "same bytes\n").unwrap();
+        std::fs::write(&second, "same bytes\n").unwrap();
+        std::os::unix::fs::symlink(&first, &link).unwrap();
+        let (_, target) = read_edit_file(&link).unwrap().into_parts();
+
+        std::fs::remove_file(&link).unwrap();
+        std::os::unix::fs::symlink(&second, &link).unwrap();
+        let revision = DocumentRevision::for_source("same bytes\n");
+        let result = write_file_atomic_verified(&target, "candidate\n", &revision);
+
+        let error = result.expect_err("a retargeted symlink must fail closed");
+        assert_eq!(error.code, crate::errors::DiagnosticCode::EtagMismatch);
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "same bytes\n");
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "same bytes\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn atomic_replace_preserves_target_permissions() {
         use std::os::unix::fs::PermissionsExt;
         let dir = unique_dir("perms");
@@ -387,7 +521,7 @@ mod tests {
         std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o640)).unwrap();
 
         let tmp = temp_sibling_path(&target);
-        atomic_replace_via(&target, &tmp, "new\n").unwrap();
+        atomic_replace_via_checked(&target, &tmp, "new\n", None).unwrap();
 
         let mode = std::fs::metadata(&target).unwrap().permissions().mode() & 0o777;
         assert_eq!(

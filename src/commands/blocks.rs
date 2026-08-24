@@ -2,12 +2,17 @@ use crate::cli::{BlockArgs, BlocksArgs};
 use crate::errors::CommandError;
 use crate::model::*;
 use crate::output;
-use crate::parser::ParsedDocument;
+use mdtools::block;
+use mdtools::document::Document;
 
 pub fn run_blocks(args: &BlocksArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse(source)?;
-    let result = build_blocks_result(&doc, &args.file.to_string_lossy());
+    let doc = Document::parse(source)?;
+    let result = BlocksResult {
+        schema_version: SCHEMA_VERSION.to_string(),
+        file: args.file.to_string_lossy().to_string(),
+        blocks: block::blocks(&doc).into_iter().map(to_wire).collect(),
+    };
 
     if json {
         output::write_json(&result)?;
@@ -25,23 +30,10 @@ pub fn run_blocks(args: &BlocksArgs, json: bool) -> Result<(), CommandError> {
 
 pub fn run_block(args: &BlockArgs, json: bool) -> Result<(), CommandError> {
     let source = std::fs::read_to_string(&args.file)?;
-    let doc = ParsedDocument::parse(source)?;
-
-    let block = doc
-        .blocks
-        .get(args.index as usize)
-        .ok_or_else(|| CommandError::block_out_of_range(args.index, doc.blocks.len() as u32))?;
-
-    let content = doc.slice(&block.span).to_string();
-    let preview = make_preview(&content);
-
-    let entry = BlockEntry {
-        index: block.index,
-        kind: block.kind,
-        span: block.span,
-        etag: output::content_etag(content.as_bytes()),
-        preview,
-    };
+    let doc = Document::parse(source)?;
+    let read = block::block(&doc, args.index)?;
+    let entry = to_wire(read.block);
+    let content = read.content;
 
     if json {
         let result = BlockReadResult {
@@ -57,29 +49,12 @@ pub fn run_block(args: &BlockArgs, json: bool) -> Result<(), CommandError> {
     Ok(())
 }
 
-fn build_blocks_result(doc: &ParsedDocument, file: &str) -> BlocksResult {
-    let blocks = doc
-        .blocks
-        .iter()
-        .map(|b| {
-            let content = doc.slice(&b.span);
-            BlockEntry {
-                index: b.index,
-                kind: b.kind,
-                span: b.span,
-                etag: output::content_etag(content.as_bytes()),
-                preview: make_preview(content),
-            }
-        })
-        .collect();
-
-    BlocksResult {
-        schema_version: SCHEMA_VERSION.to_string(),
-        file: file.to_string(),
-        blocks,
+fn to_wire(record: block::BlockRecord) -> BlockEntry {
+    BlockEntry {
+        index: record.index,
+        kind: record.kind,
+        span: record.span,
+        etag: record.etag.into_string(),
+        preview: record.preview,
     }
-}
-
-fn make_preview(content: &str) -> String {
-    output::truncate_preview(content, 80)
 }

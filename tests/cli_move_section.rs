@@ -1512,10 +1512,9 @@ fn r20_keep_level_rejects_move_that_would_absorb_following_heading() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("absorb or lose adjacent headings"),
-        "stderr: {}",
-        stderr
+    assert_eq!(
+        stderr,
+        "cannot move-section: moved section would absorb or lose adjacent headings; use --auto-level or choose a destination that preserves the section boundary\n"
     );
     std::fs::remove_file(&tmp).unwrap();
 }
