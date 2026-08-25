@@ -1,7 +1,7 @@
 # Position-to-target resolution belongs to the library
 
 **Date:** 2026-08-25
-**Status:** Proposed — implemented on `feat/locate-position-to-target`
+**Status:** accepted 2026-08-25 — merged in #41 (`6d402fb`)
 **Deciders:** Provi (repo owner)
 
 ## Context
