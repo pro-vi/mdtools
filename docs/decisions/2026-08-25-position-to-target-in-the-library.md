@@ -28,9 +28,13 @@ Position-to-target resolution lives in the library, in `src/locate.rs`.
 - `locate_line(document, line)` maps a 1-based line to its first byte through
   the parser's existing line index, so no consumer builds a second one.
 - The returned records are the existing read types — `BlockRecord`,
-  `SectionEntry`, `TaskRecord` — not new parallel ones. Their etags feed
-  `set-task`, `replace-block`, `replace-section`, and the table-row mutations
-  unchanged.
+  `SectionEntry`, `TaskRecord` — not new parallel ones. The block, task, and
+  table-row records are sufficient on their own to call `replace-block`,
+  `set-task`, and the table-row mutations. The section is **not**: every
+  section mutation takes a `ResolvedSection`, which only `SectionIndex::resolve`
+  constructs, so a section edit still costs one `resolve` round-trip. The
+  located entry carries its heading's 1-based occurrence so that round-trip
+  succeeds even when the heading text repeats.
 - A position between blocks is `Ok` with `block: None`, not an error. Only a
   position at or past the end of the source is an error.
 - No `md locate` CLI command. This is a library surface until a consumer has
@@ -42,10 +46,17 @@ Position-to-target resolution lives in the library, in `src/locate.rs`.
 the reading UI with its own line index. It fails on two counts: it is a second
 interpretation of the source, which the consumer's own design forbids, and
 every later consumer would rebuild the same search. The library already owns
-`Document::blocks()` (sorted, non-overlapping spans), `BlockInfo.task_items`
-(nested spans with child paths), and `extract_table_projection` (per-row
-spans). Resolution here is one binary search plus lookups over data that
-already exists; anywhere else it is a reimplementation.
+`Document::blocks()`, `BlockInfo.task_items` (nested spans with child paths),
+and `extract_table_projection` (per-row spans). Resolution here is one scan
+plus lookups over data that already exists; anywhere else it is a
+reimplementation.
+
+Note what the plan got wrong and review caught: `Document::blocks()` is **not**
+in source order. comrak emits every footnote definition after the blocks that
+reference it, so the block list is two ascending runs. Resolution scans rather
+than binary-searches, and both section lookups key off source position rather
+than block adjacency. Being the only place that knows this is an argument for
+the decision, not against it.
 
 **Why a blank line is not an error.** A click on whitespace inside a section is
 a meaningful position for a UI — it names where a new block would go. Erroring
@@ -77,16 +88,33 @@ Positive:
 
 Negative:
 
-- `SectionIndex::new` is rebuilt on every `locate` call, O(blocks). Acceptable
-  for click-driven use; a caller resolving many positions at once would need a
-  batch variant.
+- `SectionIndex::new` is rebuilt on every `locate` call. The cost is O(blocks)
+  plus a hash of every section's bytes, so it scales with document size times
+  heading nesting, not with block count alone. Measured in release at one call
+  mid-document: 23 µs at 17 KB / 50 headings, 221 µs at 177 KB / 500, 911 µs at
+  717 KB / 2 000. Fine for a click; a UI resolving one position per rendered
+  element pays it per element, and that is what the deferred
+  `locate_with(&SectionIndex, …)` is for.
+- The guard is content-addressed while the located target is identity-addressed.
+  `locate` names a duplicate row or task unambiguously — it knows the block
+  index and the loc — but the etag it hands back fingerprints content, so on a
+  document with two byte-identical targets the mutation fails closed with
+  `TargetEtagAmbiguous` even though resolution succeeded. That is the existing
+  limitation recorded in `CLAUDE.md`, not a new weakening, but a click-driven
+  consumer meets it far more often than a name-driven one, and it has to be
+  prepared to fall back.
+- A section edit is the one leg that needs a second call. See the Decision
+  above; closing it fully would mean a public `ResolvedSection` constructor,
+  which reopens the revision binding the library-boundary ADR settled.
 - Position resolution is now a public contract the library must keep stable,
   including the blank-line rule and which of the two out-of-range errors a
   caller gets.
-- `line_count()` counts the empty position after a trailing newline as a line,
-  but its first byte is the end of the source — so `locate_line(doc,
-  line_count)` errors `ByteOffsetOutOfRange`, not `LineOutOfRange`. That seam
-  between the two error kinds is now load-bearing.
+- `line_count()` counts the empty position after a trailing newline as a line.
+  It holds nothing, so `locate_line` returns `Ok` with every field `None` there
+  rather than an out-of-range *byte* error for an in-range *line*. That keeps
+  `for line in 1..=line_count()` — the loop `locate_line` exists to serve —
+  free of a special case, and leaves `LineOutOfRange` as the only error a
+  line-walking caller has to handle.
 
 ## Revisit Triggers
 

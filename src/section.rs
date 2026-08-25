@@ -83,6 +83,14 @@ impl SectionTarget {
 pub struct SectionIndex {
     preamble: SectionEntry,
     headings: Vec<SectionEntry>,
+    /// Span of each block, indexed by block index, so a block can be located by
+    /// source position rather than by its place in the parser's block order.
+    block_spans: Vec<SourceSpan>,
+    /// The bytes the preamble owns. Wider than `preamble.span`, which stops at
+    /// its last block: this runs to the first heading, so the blank lines
+    /// before that heading belong to the preamble the way a heading section's
+    /// blank lines belong to it.
+    preamble_region: std::ops::Range<u32>,
     revision: DocumentRevision,
 }
 
@@ -128,7 +136,7 @@ impl std::ops::Deref for ResolvedSection {
 impl SectionIndex {
     pub fn new(document: &Document) -> Self {
         let preamble = build_preamble(document);
-        let headings = document
+        let headings: Vec<SectionEntry> = document
             .blocks()
             .iter()
             .filter_map(|block| {
@@ -162,9 +170,14 @@ impl SectionIndex {
                         block_index: block.index,
                         span: block.span,
                     }),
+                    // The occurrence is load-bearing, not decoration: a
+                    // consumer that reads an entry straight out of the index
+                    // (rather than through `resolve`, which overwrites the
+                    // selector with the caller's own) can only re-address a
+                    // duplicated heading if its ordinal travels with it.
                     selector: SectionTarget::heading(
                         heading.text.clone(),
-                        None,
+                        Some(occurrence_of(document, &heading.text, block.index)),
                         HeadingMatchMode::Exact,
                     )
                     .expect("heading projection is a valid target")
@@ -177,9 +190,21 @@ impl SectionIndex {
             })
             .collect();
 
+        let block_spans = document.blocks().iter().map(|block| block.span).collect();
+        let preamble_region = document
+            .frontmatter()
+            .map(|frontmatter| frontmatter.span.byte_end)
+            .unwrap_or(0)
+            ..headings
+                .first()
+                .map(|section: &SectionEntry| section.span.byte_start)
+                .unwrap_or(document.source().len() as u32);
+
         Self {
             preamble,
             headings,
+            block_spans,
+            preamble_region,
             revision: document.revision().clone(),
         }
     }
@@ -201,39 +226,37 @@ impl SectionIndex {
             .collect()
     }
 
-    /// The innermost section owning a block index.
+    /// The innermost section owning a block.
     ///
-    /// Heading sections nest, and a nested section's blocks belong to every
-    /// ancestor too, so the deepest match is the innermost one. Returns a plain
+    /// Defined by the block's source position, not by its place in the parser's
+    /// block order: comrak emits footnote definitions after the blocks that
+    /// reference them, so a definition sitting under one heading in the source
+    /// is adjacent to a different heading in block order. Returns a plain
     /// [`SectionEntry`], not a [`ResolvedSection`]: this answers a read, it is
     /// not an edit handle.
     pub fn section_for_block(&self, block_index: u32) -> Option<SectionEntry> {
-        self.headings
-            .iter()
-            .filter(|section| section.block_indices.contains(&block_index))
-            .max_by_key(|section| section.depth)
-            .or_else(|| {
-                self.preamble
-                    .block_indices
-                    .contains(&block_index)
-                    .then_some(&self.preamble)
-            })
-            .cloned()
+        let span = self.block_spans.get(block_index as usize)?;
+        self.section_for_byte(span.byte_start)
     }
 
-    /// The innermost section whose span contains a byte offset.
+    /// The innermost section containing a byte offset.
     ///
-    /// Used for positions that hit no block — a blank line between blocks still
-    /// sits inside the section that surrounds it. Frontmatter bytes precede
-    /// every section span, so they resolve to `None`.
+    /// Heading sections nest, so the deepest containing one is the innermost.
+    /// A blank line between blocks still sits inside the section around it,
+    /// in the preamble as well as under a heading. Frontmatter bytes precede
+    /// every section and resolve to `None`.
     pub fn section_for_byte(&self, byte_offset: u32) -> Option<SectionEntry> {
         self.headings
             .iter()
-            .chain(std::iter::once(&self.preamble))
             .filter(|section| {
                 section.span.byte_start <= byte_offset && byte_offset < section.span.byte_end
             })
             .max_by_key(|section| section.depth)
+            .or_else(|| {
+                self.preamble_region
+                    .contains(&byte_offset)
+                    .then_some(&self.preamble)
+            })
             .cloned()
     }
 
@@ -307,6 +330,24 @@ impl SectionIndex {
     }
 }
 
+/// 1-based position of a heading block among the exact-text matches for its
+/// own text, matching how `resolve_heading` counts occurrences.
+fn occurrence_of(document: &Document, text: &str, block_index: u32) -> u32 {
+    document
+        .blocks()
+        .iter()
+        .filter_map(|block| {
+            block
+                .heading
+                .as_ref()
+                .filter(|heading| heading.text == text)
+                .map(|_| block.index)
+        })
+        .position(|index| index == block_index)
+        .map(|index| index as u32 + 1)
+        .unwrap_or(1)
+}
+
 fn build_preamble(document: &Document) -> SectionEntry {
     let block_indices = document
         .blocks()
@@ -314,14 +355,22 @@ fn build_preamble(document: &Document) -> SectionEntry {
         .take_while(|block| block.heading.is_none())
         .map(|block| block.index)
         .collect::<Vec<_>>();
-    let span = match (block_indices.first(), block_indices.last()) {
-        (Some(first), Some(last)) => SourceSpan {
-            line_start: document.blocks()[*first as usize].span.line_start,
-            line_end: document.blocks()[*last as usize].span.line_end,
-            byte_start: document.blocks()[*first as usize].span.byte_start,
-            byte_end: document.blocks()[*last as usize].span.byte_end,
-        },
-        _ => {
+    // Bounds by source position, not by position in the block vec: comrak
+    // emits footnote definitions after the blocks referencing them, so
+    // first/last in vec order can yield byte_start > byte_end and panic the
+    // slice below.
+    let bounds = block_indices
+        .iter()
+        .map(|index| document.blocks()[*index as usize].span)
+        .reduce(|left, right| SourceSpan {
+            line_start: left.line_start.min(right.line_start),
+            line_end: left.line_end.max(right.line_end),
+            byte_start: left.byte_start.min(right.byte_start),
+            byte_end: left.byte_end.max(right.byte_end),
+        });
+    let span = match bounds {
+        Some(span) => span,
+        None => {
             let byte_start = document
                 .frontmatter()
                 .map(|frontmatter| frontmatter.span.byte_end)

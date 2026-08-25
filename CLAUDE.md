@@ -30,7 +30,10 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
   `locate_line` return the enclosing block, section, task item, and table row
   with their etags. Library-only, no CLI command. A position between blocks is
   `Ok` with `block: None` (a click on a blank line is a real position); only a
-  position at or past the end of the source is an error.
+  byte offset at or past the end of the source is an error. **`document.blocks()`
+  is not in source order** — comrak emits footnote definitions after the blocks
+  referencing them — so position lookups scan and both `SectionIndex` lookups
+  key off source position, never block adjacency.
 - `src/commands/` — one module per command group
 
 ## Design rules

@@ -505,7 +505,11 @@ impl CommandError {
     /// outside the source is the same "the target you named is not in this
     /// document" failure, and the diagnostic vocabulary is the CLI schema's
     /// single authority, which this library-only path must not widen.
-    pub fn byte_offset_out_of_range(byte_offset: u32, source_len: usize) -> Self {
+    ///
+    /// The borrow expires when an `md locate` adapter lands: a machine consumer
+    /// parsing `code` could not then tell a bad byte offset from a bad block
+    /// index, so that PR owes two real variants.
+    pub fn byte_offset_out_of_range(byte_offset: u32, source_len: u32) -> Self {
         Self::new(
             DiagnosticCode::BlockIndexOutOfRange,
             format!("byte offset {byte_offset} out of range (document has {source_len} bytes)"),

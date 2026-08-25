@@ -38,7 +38,7 @@ pub enum CoreError {
     },
     ByteOffsetOutOfRange {
         byte_offset: u32,
-        source_len: usize,
+        source_len: u32,
     },
     LineOutOfRange {
         line: u32,

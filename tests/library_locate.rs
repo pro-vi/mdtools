@@ -127,7 +127,7 @@ fn positions_outside_the_document_are_errors() {
     assert!(matches!(
         locate(&document, DOC.len() as u32),
         Err(CoreError::ByteOffsetOutOfRange { byte_offset, source_len })
-            if byte_offset as usize == DOC.len() && source_len == DOC.len()
+            if byte_offset as usize == DOC.len() && source_len as usize == DOC.len()
     ));
     assert!(matches!(
         locate_line(&document, 0),
@@ -150,12 +150,14 @@ fn located_task_loc_round_trips_through_the_task_read_path() {
         let inside = record.span.byte_start;
         let located = locate(&document, inside).unwrap().task.expect("task item");
         assert_eq!(
-            located.loc.to_string().parse::<TaskLoc>().unwrap(),
-            located.loc
+            located.loc, record.loc,
+            "locate resolved byte {inside} to {} but that byte starts {}",
+            located.loc, record.loc
         );
-        assert!(
-            all.iter().any(|candidate| candidate.loc == located.loc),
-            "locate produced a loc no task read reports: {}",
+        assert_eq!(located.span, record.span);
+        assert_eq!(located.etag, record.etag);
+        assert_eq!(
+            located.loc.to_string().parse::<TaskLoc>().unwrap(),
             located.loc
         );
         assert!(source.len() > inside as usize);
@@ -285,8 +287,15 @@ fn the_two_section_lookups_agree_on_every_block() {
     // SectionIndex derives those two from the same heading-level cut, so a
     // click on a block and a click on the blank line beside it must never
     // report different sections.
-    let document = Document::parse(include_str!("fixtures/basic.md")).unwrap();
+    let document = Document::parse(include_str!("fixtures/footnote_midbody.md")).unwrap();
     let index = SectionIndex::new(&document);
+    assert!(
+        document
+            .blocks()
+            .windows(2)
+            .any(|pair| pair[1].span.byte_start < pair[0].span.byte_start),
+        "fixture must emit a block out of source order, or it cannot catch the bug"
+    );
 
     for block in document.blocks() {
         let by_block = index
@@ -351,18 +360,179 @@ fn an_offset_inside_a_multibyte_character_still_resolves() {
 }
 
 #[test]
-fn the_empty_line_after_a_trailing_newline_is_out_of_range() {
-    // LineIndex counts the position after a final newline as a line, but its
-    // first byte is the end of the source, so it is a position error rather
-    // than a line error. Pinned here because the two error kinds are the
-    // library's contract with a caller that walks lines.
+fn walking_every_line_of_a_document_never_errors() {
+    // LineIndex counts the position after a final newline as a line. It holds
+    // nothing, so it resolves to an empty result rather than an out-of-range
+    // byte: `for line in 1..=line_count()` is the loop locate_line exists to
+    // serve, and it must not need a special case at the end.
     let document = Document::parse(DOC).unwrap();
     assert!(DOC.ends_with('\n'));
     let last = document.line_count();
 
-    assert!(matches!(
-        locate_line(&document, last),
-        Err(CoreError::ByteOffsetOutOfRange { .. })
-    ));
+    for line in 1..=last {
+        assert!(
+            locate_line(&document, line).is_ok(),
+            "line {line} of {last} errored"
+        );
+    }
+    assert_eq!(locate_line(&document, last).unwrap(), Default::default());
     assert!(locate_line(&document, last - 1).unwrap().block.is_some());
+}
+
+// --- Regressions from review of PR #41 ---
+
+const FOOTNOTE_DOC: &str = include_str!("fixtures/footnote_midbody.md");
+
+#[test]
+fn every_block_is_reachable_when_the_parser_emits_them_out_of_source_order() {
+    // comrak hoists footnote definitions to the end of the root's children, so
+    // document.blocks() is two ascending runs. A binary search over that
+    // reported "no block here" for ordinary content.
+    let document = Document::parse(FOOTNOTE_DOC).unwrap();
+
+    for block in document.blocks() {
+        let located = locate(&document, block.span.byte_start)
+            .unwrap()
+            .block
+            .unwrap_or_else(|| {
+                panic!(
+                    "block {} ({:?}) at byte {} resolved to nothing",
+                    block.index, block.kind, block.span.byte_start
+                )
+            });
+        assert_eq!(located.index, block.index);
+    }
+
+    // And every byte inside a block, not only its first.
+    for offset in 0..FOOTNOTE_DOC.len() as u32 {
+        let expected = document
+            .blocks()
+            .iter()
+            .find(|block| block.span.byte_start <= offset && offset < block.span.byte_end)
+            .map(|block| block.index);
+        let got = locate(&document, offset)
+            .unwrap()
+            .block
+            .map(|hit| hit.index);
+        assert_eq!(got, expected, "byte {offset}");
+    }
+}
+
+#[test]
+fn a_footnote_definition_belongs_to_the_section_its_bytes_sit_in() {
+    let document = Document::parse(FOOTNOTE_DOC).unwrap();
+    let definition = document
+        .blocks()
+        .iter()
+        .find(|block| block.kind == BlockKind::FootnoteDefinition)
+        .expect("fixture has a footnote definition");
+
+    let located = locate(&document, definition.span.byte_start).unwrap();
+    let section = located.section.expect("section");
+    assert_eq!(
+        section.heading.as_ref().unwrap().text,
+        "Notes",
+        "the definition's bytes sit under `# Notes`, whatever its block index is"
+    );
+}
+
+#[test]
+fn a_footnote_first_document_resolves_instead_of_panicking() {
+    // build_preamble took its bounds from the first and last block in vec
+    // order, which here gives byte_start > byte_end and panicked the slice.
+    let document = Document::parse("[^1]: first note\n\nbody[^1]\n").unwrap();
+    let located = locate(&document, 0).unwrap();
+    assert!(located.block.is_some());
+    assert!(located.section.is_some());
+}
+
+#[test]
+fn a_located_section_can_re_address_itself_when_headings_repeat() {
+    let source = "## Notes\n\nfirst\n\n## Notes\n\nsecond\n";
+    let document = Document::parse(source).unwrap();
+    let located = locate(&document, offset_of(source, "second")).unwrap();
+    let section = located.section.expect("section");
+
+    let selector = SectionTarget::heading(
+        section.selector.heading_text.clone().unwrap(),
+        section.selector.occurrence,
+        section.selector.match_mode,
+    )
+    .unwrap();
+    let resolved = SectionIndex::new(&document).resolve(&selector).unwrap();
+
+    assert_eq!(resolved.etag, section.etag);
+    assert_eq!(
+        resolved.heading.as_ref().unwrap().block_index,
+        section.heading.as_ref().unwrap().block_index
+    );
+}
+
+#[test]
+fn an_indented_line_resolves_to_the_block_it_indents() {
+    // Up to three spaces of indentation are legal and belong to no block, so a
+    // block's span starts after them.
+    for source in [
+        "   para\n",
+        "   - item\n",
+        "   > quote\n",
+        "   | a | b |\n   |---|---|\n   | x | y |\n",
+    ] {
+        let document = Document::parse(source).unwrap();
+        assert!(
+            locate_line(&document, 1).unwrap().block.is_some(),
+            "line 1 of {source:?} resolved to nothing"
+        );
+    }
+}
+
+#[test]
+fn the_preamble_owns_the_blank_line_before_the_first_heading() {
+    let source = "One.\n\nTwo.\n\n## H\n\nx\n";
+    let document = Document::parse(source).unwrap();
+    let gap = offset_of(source, "Two.\n\n") + "Two.\n".len() as u32;
+    assert_eq!(source.as_bytes()[gap as usize], b'\n');
+
+    let located = locate(&document, gap).unwrap();
+    assert!(located.block.is_none());
+    assert_eq!(
+        located.section.expect("section").kind,
+        SectionKind::Preamble,
+        "section: None must mean frontmatter, and this is not frontmatter"
+    );
+}
+
+#[test]
+fn a_click_at_the_end_of_a_table_row_still_names_that_row() {
+    // A row's span excludes its line ending because that is what the mutation
+    // splices over; containment has to include it, or an end-of-line click
+    // falls back to a whole-table edit.
+    for source in [TABLE_DOC.to_string(), TABLE_DOC.replace('\n', "\r\n")] {
+        let document = Document::parse(source.as_str()).unwrap();
+        let alpha = offset_of(&source, "Alpha");
+        let row = locate(&document, alpha).unwrap().table_row.expect("row");
+        assert_eq!(row.row_index, 0, "Alpha must not be the table's last row");
+
+        let at_end = locate(&document, row.span.byte_end)
+            .unwrap()
+            .table_row
+            .expect("row at its terminating newline");
+        assert_eq!(at_end.row_index, row.row_index);
+        assert_eq!(at_end.span, row.span);
+    }
+}
+
+#[test]
+fn the_newline_after_a_blocks_last_line_belongs_to_no_block() {
+    // Block spans exclude their trailing newline, so this offset is outside
+    // every block. Pinned because the Located.block doc names it as a cause of
+    // absence, alongside frontmatter and between-block gaps.
+    let document = Document::parse(TABLE_DOC).unwrap();
+    let last_row_end = offset_of(TABLE_DOC, "| Beta | 200 |") + "| Beta | 200 |".len() as u32;
+    assert_eq!(TABLE_DOC.as_bytes()[last_row_end as usize], b'\n');
+
+    let located = locate(&document, last_row_end).unwrap();
+    assert!(located.block.is_none());
+    assert!(located.table_row.is_none());
+    assert!(located.section.is_some(), "the section still answers");
 }
