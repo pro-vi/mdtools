@@ -1,6 +1,6 @@
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
-use mdtools::model::HeadingMatchMode;
+use mdtools::model::{HeadingMatchMode, SectionKind};
 use mdtools::section::{SectionIndex, SectionTarget};
 use mdtools::section_edit;
 
@@ -74,4 +74,48 @@ fn resolved_section_cannot_be_reused_with_another_document() {
         section_edit::delete(&other, resolved, None),
         Err(CoreError::DocumentRevisionMismatch { .. })
     ));
+}
+
+#[test]
+fn section_for_block_and_byte_pick_the_innermost_owner() {
+    let source = "Lead.\n\n## Top\n\nUnder top.\n\n### Sub\n\nUnder sub.\n\nTail.\n";
+    let document = Document::parse(source).unwrap();
+    let index = SectionIndex::new(&document);
+
+    let deepest = document
+        .blocks()
+        .iter()
+        .find(|block| document.slice(&block.span).unwrap().contains("Under sub."))
+        .unwrap();
+    let by_block = index.section_for_block(deepest.index).unwrap();
+    assert_eq!(by_block.heading.as_ref().unwrap().text, "Sub");
+    assert_eq!(
+        by_block.etag,
+        index.resolve(&heading_selector("Sub", None)).unwrap().etag
+    );
+
+    // The blank line after "Under sub." belongs to no block but stays in "Sub".
+    let blank = (source.find("Under sub.").unwrap() + "Under sub.\n".len()) as u32;
+    assert_eq!(source.as_bytes()[blank as usize], b'\n');
+    assert_eq!(
+        index.section_for_byte(blank).unwrap().heading.unwrap().text,
+        "Sub"
+    );
+
+    let lead = document.blocks()[0].index;
+    assert_eq!(
+        index.section_for_block(lead).unwrap().kind,
+        SectionKind::Preamble
+    );
+
+    let inside_top = source.find("Under top.").unwrap() as u32;
+    assert_eq!(
+        index
+            .section_for_byte(inside_top)
+            .unwrap()
+            .heading
+            .unwrap()
+            .text,
+        "Top"
+    );
 }

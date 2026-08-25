@@ -15,7 +15,9 @@
 use crate::block::{self, BlockRecord};
 use crate::core_error::CoreError;
 use crate::document::Document;
+use crate::model::SectionEntry;
 use crate::parser::BlockInfo;
+use crate::section::SectionIndex;
 use crate::task::{self, TaskLoc, TaskRecord};
 
 /// The targets containing one position. Every field is `None` when the position
@@ -24,6 +26,10 @@ use crate::task::{self, TaskLoc, TaskRecord};
 pub struct Located {
     /// The enclosing top-level block, absent between blocks and in frontmatter.
     pub block: Option<BlockRecord>,
+    /// The innermost section containing the position: the preamble, or the
+    /// deepest heading section whose blocks or span cover it. Absent in
+    /// frontmatter, which precedes every section.
+    pub section: Option<SectionEntry>,
     /// The innermost task item containing the position.
     pub task: Option<TaskRecord>,
 }
@@ -48,8 +54,17 @@ pub fn locate(document: &Document, byte_offset: u32) -> Result<Located, CoreErro
         .and_then(|info| innermost_task(info, byte_offset))
         .map(|loc| task::task(document, &loc).map(|read| read.task))
         .transpose()?;
+    let index = SectionIndex::new(document);
+    let section = match info {
+        Some(info) => index.section_for_block(info.index),
+        None => index.section_for_byte(byte_offset),
+    };
 
-    Ok(Located { block, task })
+    Ok(Located {
+        block,
+        section,
+        task,
+    })
 }
 
 /// Resolve a 1-based line to its enclosing targets, at the line's first byte.

@@ -2,7 +2,8 @@ use mdtools::block;
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
 use mdtools::locate::{locate, locate_line};
-use mdtools::model::BlockKind;
+use mdtools::model::{BlockKind, HeadingMatchMode, SectionKind};
+use mdtools::section::{SectionIndex, SectionTarget};
 use mdtools::task::{self, TaskLoc};
 
 const DOC: &str = "# Title\n\nIntro paragraph.\n\n## Plan\n\n- [ ] parent\n  - [ ] child\n\n```rust\nlet answer = 42;\n```\n\nTail paragraph.\n";
@@ -157,4 +158,57 @@ fn located_task_loc_round_trips_through_the_task_read_path() {
         );
         assert!(source.len() > inside as usize);
     }
+}
+
+const NESTED: &str = "---\ntitle: Ledger\n---\n\nLead paragraph.\n\n## Top\n\nUnder top.\n\n### Sub\n\nUnder sub.\n\nStill under sub.\n";
+
+#[test]
+fn section_is_the_deepest_heading_owning_the_block() {
+    let document = Document::parse(NESTED).unwrap();
+    let located = locate(&document, offset_of(NESTED, "Under sub.")).unwrap();
+
+    let section = located.section.expect("section");
+    assert_eq!(section.heading.as_ref().unwrap().text, "Sub");
+    assert_eq!(section.depth, 3);
+
+    let resolved = SectionIndex::new(&document)
+        .resolve(&SectionTarget::heading("Sub", None, HeadingMatchMode::Exact).unwrap())
+        .unwrap();
+    assert_eq!(section.etag, resolved.etag);
+    assert_eq!(section.span, resolved.span);
+}
+
+#[test]
+fn paragraph_before_the_first_heading_is_the_preamble() {
+    let document = Document::parse(NESTED).unwrap();
+    let located = locate(&document, offset_of(NESTED, "Lead paragraph.")).unwrap();
+
+    let section = located.section.expect("section");
+    assert_eq!(section.kind, SectionKind::Preamble);
+    let resolved = SectionIndex::new(&document)
+        .resolve(&SectionTarget::preamble())
+        .unwrap();
+    assert_eq!(section.etag, resolved.etag);
+}
+
+#[test]
+fn blank_line_inside_a_section_keeps_the_section_without_a_block() {
+    let document = Document::parse(NESTED).unwrap();
+    let blank = offset_of(NESTED, "Under sub.\n\n") + "Under sub.\n".len() as u32;
+    assert_eq!(NESTED.as_bytes()[blank as usize], b'\n');
+
+    let located = locate(&document, blank).unwrap();
+    assert!(located.block.is_none());
+    let section = located.section.expect("section");
+    assert_eq!(section.heading.as_ref().unwrap().text, "Sub");
+}
+
+#[test]
+fn frontmatter_offsets_have_no_section() {
+    let document = Document::parse(NESTED).unwrap();
+    let located = locate(&document, offset_of(NESTED, "title: Ledger")).unwrap();
+
+    assert!(located.block.is_none());
+    assert!(located.section.is_none());
+    assert!(located.task.is_none());
 }

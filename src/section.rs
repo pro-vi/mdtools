@@ -201,6 +201,42 @@ impl SectionIndex {
             .collect()
     }
 
+    /// The innermost section owning a block index.
+    ///
+    /// Heading sections nest, and a nested section's blocks belong to every
+    /// ancestor too, so the deepest match is the innermost one. Returns a plain
+    /// [`SectionEntry`], not a [`ResolvedSection`]: this answers a read, it is
+    /// not an edit handle.
+    pub fn section_for_block(&self, block_index: u32) -> Option<SectionEntry> {
+        self.headings
+            .iter()
+            .filter(|section| section.block_indices.contains(&block_index))
+            .max_by_key(|section| section.depth)
+            .or_else(|| {
+                self.preamble
+                    .block_indices
+                    .contains(&block_index)
+                    .then_some(&self.preamble)
+            })
+            .cloned()
+    }
+
+    /// The innermost section whose span contains a byte offset.
+    ///
+    /// Used for positions that hit no block — a blank line between blocks still
+    /// sits inside the section that surrounds it. Frontmatter bytes precede
+    /// every section span, so they resolve to `None`.
+    pub fn section_for_byte(&self, byte_offset: u32) -> Option<SectionEntry> {
+        self.headings
+            .iter()
+            .chain(std::iter::once(&self.preamble))
+            .filter(|section| {
+                section.span.byte_start <= byte_offset && byte_offset < section.span.byte_end
+            })
+            .max_by_key(|section| section.depth)
+            .cloned()
+    }
+
     pub fn resolve(&self, target: &SectionTarget) -> Result<ResolvedSection, CoreError> {
         let entry = match target {
             SectionTarget::Preamble => self.preamble.clone(),
