@@ -110,15 +110,16 @@ costs. The canonical lifecycle and evidence links live in
 - **MCP read probe:** stays shelved. U1-field already answered the adoption question:
   adoption is salience-limited and reads-only, not overkill. A future MCP probe should
   only test whether in-context tool listing beats global instruction salience.
-- **loopgen/braid:** spawn an out-of-repo template patch. This is the largest observed
+- **loopgen:** spawn an out-of-repo template patch. This is the largest observed
   missed-win population because loop-state markdown is edited repeatedly and structurally.
 - **`replace-section` blank-line bug:** file as a product bug; it affects real sessions,
   not benchmark positioning.
 - **`md section --contains` / prefix matching:** file as a product feature; exact-heading
   matching misses decorated/dynamic headings.
 - **Table row mutation:** keep as roadmap demand, not as benchmark evidence.
-- **Braid library dependency:** one real Option-C/library-consumer data point. It supports
-  keeping library/API ergonomics alive, but it does not change the benchmark claim.
+- **Library dependency from a downstream consumer:** one real Option-C/library-consumer
+  data point. It supports keeping library/API ergonomics alive, but it does not change the
+  benchmark claim.
 
 ## README Wording Constraint
 
