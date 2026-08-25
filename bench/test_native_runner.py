@@ -33,7 +33,7 @@ def _toolset(cmd: list[str], flag: str) -> str:
 
 
 class NativeRunnerToolExposureTests(unittest.TestCase):
-    """U2 (FRAC-194): native* modes expose claude-cli's native file tools without
+    """U2 (native arm): native* modes expose claude-cli's native file tools without
     relaxing the PR#10 isolation."""
 
     def test_native_modes_expose_read_edit_write(self) -> None:
@@ -110,7 +110,7 @@ def _transcript(tool_uses: list[tuple[str, dict]]) -> str:
 
 
 class NativeToolAdoptionTests(unittest.TestCase):
-    """U4 (FRAC-194): native Read/Edit/Write calls bypass the Bash guard; parse them
+    """U4 (native arm): native Read/Edit/Write calls bypass the Bash guard; parse them
     from the claude-cli transcript so the native-vs-md choice is observable."""
 
     def test_transcript_mix_classifies_native_and_bash(self) -> None:
@@ -124,7 +124,7 @@ class NativeToolAdoptionTests(unittest.TestCase):
         ]))
         self.assertEqual(parsed.transcript_tool_mix,
                          {"Read": 1, "Edit": 2, "md outline": 1, "md set-task": 1})
-        # FRAC-194 #4: native Edit/Write are mutations too (not just Bash mutators) —
+        # native-arm review #4: native Edit/Write are mutations too (not just Bash mutators) —
         # 2 Edits + 1 `md set-task -i` = 3, not 1.
         self.assertEqual(parsed.transcript_mutations, 3)
         # ordered trajectory: Read=query, Edit×2=mutation, md outline=query, set-task=mutation
@@ -139,7 +139,7 @@ class NativeToolAdoptionTests(unittest.TestCase):
         self.assertEqual(parsed.transcript_call_sequence, ["mutation"])
 
     def test_transcript_requery_trajectory_native_edit(self) -> None:
-        # FRAC-194 #4: a native Read AFTER a native Edit is a requery — the ordered
+        # native-arm review #4: a native Read AFTER a native Edit is a requery — the ordered
         # sequence must capture it (the run-level scan turns query-after-mutation into
         # requeried=True). Before the fix, native Edit produced no sequence entry, so
         # claude-cli requery_rate was always 0.
@@ -154,7 +154,7 @@ class NativeToolAdoptionTests(unittest.TestCase):
 
 
 class RequerySequenceTests(unittest.TestCase):
-    """FRAC-194 #4: requery = a query AFTER a mutation. Pinned at the pure-logic seam
+    """native-arm review #4: requery = a query AFTER a mutation. Pinned at the pure-logic seam
     (run_agent folds the transcript sequence into call_sequence, then calls this)."""
 
     def test_query_after_mutation_is_requery(self) -> None:
@@ -175,7 +175,7 @@ class RequerySequenceTests(unittest.TestCase):
 
 
 class NativeArmPathBypassTests(unittest.TestCase):
-    """FRAC-194 #8 — the PATH-axis recurrence of the ./md-bypass family. The native arm
+    """native-arm review #8 — the PATH-axis recurrence of the ./md-bypass family. The native arm
     runs on claude-cli, whose Bash never sources BASH_ENV, so the guard's PATH
     restriction never fires and bare `md` (the form NATIVE_MD_DOCS advertises) escapes to
     the real md on the system PATH. _prepend_workdir_to_path makes bare `md` resolve to
@@ -219,7 +219,7 @@ class NativeArmPathBypassTests(unittest.TestCase):
 
 
 class NoMdPreflightTests(unittest.TestCase):
-    """FRAC-194 #8 hardening: the fail-closed preflight proves md is unreachable for a
+    """native-arm review #8 hardening: the fail-closed preflight proves md is unreachable for a
     no-md/ablation mode BEFORE the billed agent runs — the durable guard against the
     bypass family recurring on a future axis."""
 

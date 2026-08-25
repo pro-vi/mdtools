@@ -333,7 +333,7 @@ SCORER ISSUES DETECTED.
         self.assertRegex(completed.stdout, re.compile(r"^T2\s+0%\s+0s\s+0\.0", re.MULTILINE))
 
     def test_text_parse_keeps_native_md_mode_intact(self) -> None:
-        # FRAC-194 review #3 (the regex fix), pinned through the actual text parser:
+        # native-arm review #3 (the regex fix), pinned through the actual text parser:
         # a "=== MODE: native+md" header must yield mode "native+md", not truncate to
         # "native" at the '+'. The OLD [\w-]+ regex dropped the '+'; existing fixtures
         # only used hybrid-no-md (which [\w-]+ already matched), so nothing caught it.
@@ -354,7 +354,7 @@ SCORER ISSUES DETECTED.
         self.assertEqual([r["mode"] for r in recs], ["native+md"])   # not "native"
 
     def test_native_only_report_suppresses_spurious_posix_verdict_row(self) -> None:
-        # FRAC-194 review #5: a native-only run has no unix/hybrid data, so the
+        # native-arm review #5: a native-only run has no unix/hybrid data, so the
         # POSIX-rooted verdict would render a spurious "OPEN:loses-unix" row against a
         # baseline that was never run. It must be suppressed; the ·native-arm row stays.
         from bench.report import render_cost_slice
@@ -564,7 +564,7 @@ SCORER ISSUES DETECTED.
         return render_cost_slice(recs, modes, markdown=True)
 
     def test_native_arm_renders_distinct_verdict_row(self) -> None:
-        # U6 (FRAC-194): POSIX no-lift + native CLOSES (md cheaper than native) →
+        # U6 (native arm): POSIX no-lift + native CLOSES (md cheaper than native) →
         # two distinct rows, the native one tagged ·native-arm.
         out = self._verdict_rows([
             ("unix", 80000), ("hybrid", 80000), ("hybrid-no-md", 80000),

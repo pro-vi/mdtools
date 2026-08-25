@@ -1,6 +1,6 @@
 # Native-rooted arm — first live frontier sweep (2026-06-03)
 
-FRAC-194 U7. `claude-cli` (Sonnet 4.6), N=3, the 5 fixed anchor tasks
+native-arm U7. `claude-cli` (Sonnet 4.6), N=3, the 5 fixed anchor tasks
 (T7/T10/T13/T20 = Targeted, T12 = Batch) × 3 native modes. **45/45 sessions PASS,
 0 errors.**
 

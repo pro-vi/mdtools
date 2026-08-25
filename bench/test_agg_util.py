@@ -403,7 +403,7 @@ def test_attribution_probe_tail_suspect():
     assert v["verdict"] == "SUSPECT:baseline-flails(probes)", v
 
 
-# --- U5 (FRAC-194): native-rooted attribution arm (the composition matrix) ---
+# --- U5 (native arm): native-rooted attribution arm (the composition matrix) ---
 
 def _native_arm(treat, abl, base, n=1, abl_probe=1):
     """2-task (T7+T10) native arm so the lift overlap meets min_overlap=2.
@@ -474,7 +474,7 @@ def test_attribution_native_partial_data_insufficient():
 
 
 def test_attribution_posix_present_flag():
-    # FRAC-194 review #5: a native-only cell has no unix/hybrid/hybrid-no-md data, so
+    # native-arm review #5: a native-only cell has no unix/hybrid/hybrid-no-md data, so
     # the POSIX-rooted top-level verdict is a spurious "loses-unix". The posix_present
     # flag lets renderers suppress that row.
     native_only = _native_arm(treat=50000, abl=80000, base=80000)

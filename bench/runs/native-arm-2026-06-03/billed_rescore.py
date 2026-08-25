@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Billed-$ re-score of the native-arm sweep (FRAC-194 U7 validity check).
+"""Billed-$ re-score of the native-arm sweep (native-arm U7 validity check).
 
 The harness cost metric is RAW tokens (input+cache_creation+cache_read+output, all
 1.0x). That over-weights cached re-reads: native+md is ~88% cache_read, which raw

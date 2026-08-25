@@ -298,7 +298,7 @@ def _root_verdict(sub, structural, baseline, treatment, ablation, ablation_key,
     `ablation`) on the lift axis, AND the clean `ablation` baseline didn't flail.
 
     The logic is verbatim the historical hardcoded gate — only the mode names are
-    parameters. POSIX root: (unix, hybrid, hybrid-no-md). Native root (FRAC-194):
+    parameters. POSIX root: (unix, hybrid, hybrid-no-md). Native root:
     (native, native+md, native+md-no-md). `ablation_key` is the output dict key for
     the lift baseline ("hybrid_no_md" for POSIX — preserves byte-identical output).
     """
@@ -383,7 +383,7 @@ def attribution_verdict(records, tier, category,
     byte-identical to the historical gate. When the cell also has native-arm data,
     a "native_root" key carries the deployment-true verdict rooted at
     (native, native+md, native+md-no-md) — "does md help an agent that already has
-    native Edit?" (FRAC-194). native-root is present iff both native and native+md
+    native Edit?". native-root is present iff both native and native+md
     have ≥1 run; partial native data ⇒ OPEN:insufficient-evidence.
 
     Verdicts: CLOSES | OPEN:loses-<baseline> | OPEN:no-lift |
@@ -398,11 +398,11 @@ def attribution_verdict(records, tier, category,
     # Whether this cell actually has POSIX-arm data. The top-level verdict is always
     # computed (POSIX-rooted), but a native-only run has no unix/hybrid/hybrid-no-md
     # data — so the verdict is a spurious "loses-unix". Renderers gate the POSIX row on
-    # this. (FRAC-194 review #5; default-True elsewhere preserves historical callers.)
+    # this. (native-arm review #5; default-True elsewhere preserves historical callers.)
     result["posix_present"] = any(
         _pass_rate(sub, m) is not None for m in ("unix", "hybrid", "hybrid-no-md"))
 
-    # native-rooted arm (FRAC-194): only when the cell carries native-arm data.
+    # native-rooted arm: only when the cell carries native-arm data.
     native_pass = _pass_rate(sub, "native")
     treat_pass = _pass_rate(sub, "native+md")
     if native_pass is not None and treat_pass is not None:

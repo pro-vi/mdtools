@@ -11,7 +11,7 @@ from typing import Literal
 
 BenchMode = Literal[
     "unix", "mdtools", "hybrid", "hybrid-no-md",
-    # native-rooted arm (claude-cli only; see harness._build_agent_cmd + FRAC-194):
+    # native-rooted arm (claude-cli only; see harness._build_agent_cmd):
     # native Read/Edit/Write are exposed as claude-cli built-ins, NOT shell commands,
     # so the shell allowlists below mirror the POSIX arm (native↔unix, native+md↔hybrid,
     # native+md-no-md↔hybrid-no-md).
@@ -156,7 +156,7 @@ class GuardEvent:
 # (hybrid-no-md, native+md-no-md) — must receive the soft stub, never the real binary.
 # Single source of truth, fail-CLOSED: a newly added mode defaults to stub unless it is
 # explicitly listed here. That default is the fix for the ./md-bypass family that
-# recurred 4× (PR#10 hybrid-no-md, FRAC-194 native+md-no-md, then native): each was a
+# recurred 4× (PR#10 hybrid-no-md, native+md-no-md, then native): each was a
 # mode silently falling through to the real binary. Membership here is the only place
 # "this mode runs real md" is decided.
 MD_REAL_MODES = frozenset({"mdtools", "hybrid", "native+md"})

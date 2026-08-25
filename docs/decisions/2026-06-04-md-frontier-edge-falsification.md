@@ -13,7 +13,7 @@ billed-$ basis, N=3 per cell, gated by the new native-adversary.
 **No — not at the Sonnet 4.6 frontier, across the three most plausible families.**
 md's claimed structural edge does not survive contact with a capable model that
 has native file tools. The one apparent win did not replicate on a faithful
-holdout. This is the honest falsification the FRAC-194 loop set out to find.
+holdout. This is the honest falsification the native-arm loop set out to find.
 
 ## What was measured
 
@@ -38,7 +38,7 @@ measured native vs native+md at N=3 billed-$:
    `Edit` on already-read content. md's per-primitive model (`md tasks` +
    N×`md set-task`, or `section`+`replace`) is N separate Bash round-trips →
    more cache-read re-reads and turns → md costs **+25.8%** on its own flagship
-   batch family. (Same mechanism as the +28% easy-edit baseline, FRAC-194 N1.)
+   batch family. (Same mechanism as the +28% easy-edit baseline, native-arm N1.)
 
 2. **The model adapts when locating is hard.** Native isn't just `Edit` — it's
    `Bash`+`grep`/`sed`/`awk`+`Read`+`Edit`. On a large doc it greps to locate,

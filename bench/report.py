@@ -608,7 +608,7 @@ def render_cost_slice(all_results, modes, markdown=False):
         v = attribution_verdict(all_results, tier, cat)
         # The top-level verdict is POSIX-rooted (unix→hybrid). In a native-only report
         # there is no unix/hybrid data, so it would render a spurious "OPEN:loses-unix"
-        # row against a baseline that wasn't run — suppress it. (FRAC-194 review #5.)
+        # row against a baseline that wasn't run — suppress it. (native-arm review #5.)
         if v.get("posix_present", True):
             p, lift = v["pareto"], v["lift"]
             pcells = "n=0" if p["n"] == 0 else f"n={p['n']} {p['unix']:.0f}→{p['hybrid']:.0f}"
@@ -619,7 +619,7 @@ def render_cost_slice(all_results, modes, markdown=False):
                 out.append(f"| {tier} | {cat}{struct} | {v['verdict']} | {pcells} | {lcells} | {probe} |")
             else:
                 out.append(f"  {tier} | {cat}{struct} | {v['verdict']} | pareto {pcells} | lift {lcells} | md-probe={probe}")
-        # native-rooted arm (FRAC-194): the deployment-true "md vs native Edit" verdict,
+        # native-rooted arm: the deployment-true "md vs native Edit" verdict,
         # rendered as a distinct row when present. Columns reuse the POSIX layout but the
         # pareto/lift are native→native+md / native+md-no-md→native+md.
         nr = v.get("native_root")

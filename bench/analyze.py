@@ -361,7 +361,7 @@ def main():
     # Canonical order first, extras after. (PR#10 Codex P2.)
     _MODE_ORDER = {
         "unix": 0, "mdtools": 1, "hybrid": 2, "hybrid-no-md": 3,
-        "native": 4, "native+md": 5, "native+md-no-md": 6,  # native-rooted arm (FRAC-194)
+        "native": 4, "native+md": 5, "native+md-no-md": 6,  # native-rooted arm
     }
     _CANONICAL = {"unix", "mdtools", "hybrid"}  # native cols appear only when present in the data
     present = {r.get("mode") for r in all_results if r.get("mode")}

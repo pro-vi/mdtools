@@ -126,7 +126,7 @@ unit-testable, including the load-bearing neutering-detection test.
 | 4 modes double runtime/cost | hybrid-no-md only run for structural cells under diagnosis, per-cell not blanket |
 | Tier conflict makes a cell unwinnable | per-(tier×cat) cells independent; unwinnable → STUCK/documented, not loop-wide block |
 
-## Native-rooted arm (FRAC-194)
+## Native-rooted arm
 
 The POSIX root above measures `md` vs a POSIX shell. But a real frontier agent's
 baseline is its **native `Edit`**, not `sed` — so `md vs unix` answers the wrong
@@ -154,14 +154,14 @@ DIR=bench/runs/native-arm-$(date +%F)
 for M in native native+md native+md-no-md; do
   # per-mode results dir — harness writes <results-dir>/results.json, so a SHARED
   # --results-dir would be overwritten each iteration and report.py would see only the
-  # last mode (FRAC-194 review #6). One dir per mode; report.py merges all three.
+  # last mode (native-arm review #6). One dir per mode; report.py merges all three.
   python bench/harness.py --run --runner claude-cli --mode "$M" -N 3 \
     --md-binary target/release/md --model claude-sonnet-4-6 --results-dir "$DIR/$M"
 done
 python bench/report.py "$DIR"/*/ --markdown   # merges the three modes; ·native-arm rows
 ```
 
-**Hypothesis (FRAC-194):** `md` mostly `OPEN:no-lift` vs native — it survives as a
+**Hypothesis (native arm):** `md` mostly `OPEN:no-lift` vs native — it survives as a
 **read/inspection surface** (`md blocks`/`outline` framing a native `Edit`), not a
 mutation tool. `tool_mix` shows the native-vs-`md` choice. A native-root `CLOSES`
 on any structural cell would *disconfirm* "native Edit dominates" — a wanted

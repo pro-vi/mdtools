@@ -260,7 +260,7 @@ class CommandPolicyGuardTests(unittest.TestCase):
 
 
 class NativeModeRegistrationTests(unittest.TestCase):
-    """U1 (FRAC-194): the native-rooted arm mirrors the POSIX triple on the shell
+    """U1 (native arm): the native-rooted arm mirrors the POSIX triple on the shell
     side; native file tools are claude-cli built-ins (enabled in U2), not shell."""
 
     def test_native_allowlist_is_unix_no_md(self) -> None:
@@ -300,7 +300,7 @@ class NativeModeRegistrationTests(unittest.TestCase):
         self.assertTrue((workdir / ".md-probe.log").exists())  # probe counted
 
     def test_md_workdir_stub_predicate_covers_every_mode(self) -> None:
-        # FRAC-194 review #2 + anti-bypass: the workdir ./md copy is REAL only for the
+        # native-arm review #2 + anti-bypass: the workdir ./md copy is REAL only for the
         # three real-md modes; every other mode (incl. unix + native baselines, both
         # clean ablations) must be the stub. Fail-closed is the whole point.
         from bench.harness import BenchMode
