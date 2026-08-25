@@ -93,7 +93,7 @@ impl std::fmt::Display for BlockKind {
 
 // --- Read model types ---
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct HeadingRef {
     pub level: u8,
     pub text: String,
@@ -149,7 +149,7 @@ pub enum SectionKind {
     Heading,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SectionEntry {
     pub kind: SectionKind,
     pub heading: Option<HeadingRef>,

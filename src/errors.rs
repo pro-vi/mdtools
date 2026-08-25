@@ -248,6 +248,13 @@ impl From<CoreError> for CommandError {
             CoreError::BlockIndexOutOfRange { index, block_count } => {
                 Self::block_out_of_range(index, block_count)
             }
+            CoreError::ByteOffsetOutOfRange {
+                byte_offset,
+                source_len,
+            } => Self::byte_offset_out_of_range(byte_offset, source_len),
+            CoreError::LineOutOfRange { line, line_count } => {
+                Self::line_out_of_range(line, line_count)
+            }
             CoreError::InvalidKeyPath { path, reason } => Self::invalid_key_path(&path, reason),
             CoreError::FrontmatterFieldConflict { path, prefix } => {
                 Self::frontmatter_field_conflict(&path, &prefix)
@@ -492,6 +499,30 @@ impl CommandError {
             ),
         )
         .with_hint("re-run `md blocks --json <FILE>` for current block indices")
+    }
+
+    /// Position lookups reuse the `block_index_out_of_range` code: a position
+    /// outside the source is the same "the target you named is not in this
+    /// document" failure, and the diagnostic vocabulary is the CLI schema's
+    /// single authority, which this library-only path must not widen.
+    ///
+    /// The borrow expires when an `md locate` adapter lands: a machine consumer
+    /// parsing `code` could not then tell a bad byte offset from a bad block
+    /// index, so that PR owes two real variants.
+    pub fn byte_offset_out_of_range(byte_offset: u32, source_len: u32) -> Self {
+        Self::new(
+            DiagnosticCode::BlockIndexOutOfRange,
+            format!("byte offset {byte_offset} out of range (document has {source_len} bytes)"),
+        )
+        .with_hint("pass a byte offset inside the document, from 0 to one before its byte length")
+    }
+
+    pub fn line_out_of_range(line: u32, line_count: u32) -> Self {
+        Self::new(
+            DiagnosticCode::BlockIndexOutOfRange,
+            format!("line {line} out of range (document has {line_count} lines)"),
+        )
+        .with_hint("pass a 1-based line number within the document's line count")
     }
 
     pub fn duplicate_heading(heading: &str, count: usize) -> Self {

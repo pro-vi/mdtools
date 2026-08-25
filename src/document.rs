@@ -51,6 +51,12 @@ impl Document {
         self.parsed.byte_to_line(byte_offset)
     }
 
+    /// Byte offset of the first byte of a 1-based line, or `None` when the
+    /// line is 0 or beyond [`line_count`](Self::line_count).
+    pub fn line_to_byte(&self, line: u32) -> Option<u32> {
+        self.parsed.line_to_byte(line)
+    }
+
     pub fn span_for_byte_range(&self, byte_start: u32, byte_end: u32) -> SourceSpan {
         self.parsed.span_for_byte_range(byte_start, byte_end)
     }

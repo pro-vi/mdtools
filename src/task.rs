@@ -16,6 +16,15 @@ pub struct TaskLoc {
 }
 
 impl TaskLoc {
+    /// Build a loc from a block index and the item's child path, the same two
+    /// values [`crate::parser::TaskItemInfo`] carries.
+    pub fn new(block_index: u32, child_path: Vec<u32>) -> Self {
+        Self {
+            block_index,
+            child_path,
+        }
+    }
+
     pub fn block_index(&self) -> u32 {
         self.block_index
     }
