@@ -113,6 +113,17 @@ and includes tasks in its descendant sections through that section's
 requires `--under`. The section, status, and summary filters use logical AND
 and do not change task locs or duplicate-task visibility.
 
+## Releases
+
+Releases are annotated git tags on this repository (`vMAJOR.MINOR.PATCH`, matching
+`package.version`). Nothing is published to crates.io. A consumer depends on the URL
+and pins a tag, taking `default-features = false` for the library without `clap`,
+`walkdir`, or the `md` binary. Semver covers the **library** surface under `src/lib.rs`;
+the CLI's `mdtools.v1` JSON schema version moves independently. Keep the `include`
+allowlist in `Cargo.toml` correct even though git dependencies ignore it — it is what
+keeps `cargo package` publishable if that decision ever reverses. Rationale and revisit
+triggers: `docs/decisions/2026-08-25-git-tags-are-the-release-boundary.md`.
+
 ## Build & test
 
 ```bash
