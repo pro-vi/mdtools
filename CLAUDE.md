@@ -26,6 +26,11 @@ Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
 - `src/model.rs` — all types, schema version `mdtools.v1`
 - `src/parser.rs` — comrak boundary, `ParsedDocument`, `BlockInfo`, `TaskItemInfo`
 - `src/output.rs` — JSON/text output, `read_content()` for `--from` flag
+- `src/locate.rs` — position → target: `locate(document, byte_offset)` and
+  `locate_line` return the enclosing block, section, task item, and table row
+  with their etags. Library-only, no CLI command. A position between blocks is
+  `Ok` with `block: None` (a click on a blank line is a real position); only a
+  position at or past the end of the source is an error.
 - `src/commands/` — one module per command group
 
 ## Design rules

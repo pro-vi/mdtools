@@ -29,6 +29,12 @@ spans, parsed structure, and `DocumentRevision` cannot drift independently.
 The library exposes:
 
 - block, section, task, link, frontmatter, table, search, and statistics reads;
+- position-to-target resolution: `locate` and `locate_line` turn a byte offset
+  or a line into the block, section, task item, and table row containing it,
+  each with the etag its own read path produces, so a click in a rendered view
+  drives a guarded edit without a second reading of the source. A position
+  between blocks is `Ok` with `block: None`, not an error; only a position
+  outside the document errors. Library-only — there is no `md locate` command;
 - block, section, task, frontmatter, and table edit candidates;
 - block and section relocation;
 - validated `SectionTarget` selectors, document-bound `ResolvedSection` handles,
