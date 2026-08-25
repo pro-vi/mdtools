@@ -15,8 +15,9 @@
 use crate::block::{self, BlockRecord};
 use crate::core_error::CoreError;
 use crate::document::Document;
-use crate::model::SectionEntry;
-use crate::parser::BlockInfo;
+use crate::fingerprint::TargetEtag;
+use crate::model::{BlockKind, SectionEntry, SourceSpan};
+use crate::parser::{extract_table_projection, BlockInfo};
 use crate::section::SectionIndex;
 use crate::task::{self, TaskLoc, TaskRecord};
 
@@ -32,6 +33,26 @@ pub struct Located {
     pub section: Option<SectionEntry>,
     /// The innermost task item containing the position.
     pub task: Option<TaskRecord>,
+    /// The table data row containing the position. Absent on the header row
+    /// and the separator line, where `block` is still the table.
+    pub table_row: Option<LocatedTableRow>,
+}
+
+/// A data row of a table, addressed the way the table-row mutations address it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocatedTableRow {
+    /// Block index of the enclosing table, the first argument of
+    /// [`crate::table::prepare_replace_row`] and its siblings.
+    pub table_block_index: u32,
+    /// 0-based index into the table's data rows, header excluded — the same
+    /// base the row mutations use.
+    pub row_index: u32,
+    /// Source span of the row's bytes, newline excluded.
+    pub span: SourceSpan,
+    /// The fingerprint the row mutations accept as their guard. Row edits are
+    /// guarded by the *whole table block's* bytes, not the row's, so this is
+    /// the table block's etag — identical to `block.etag` on the same result.
+    pub etag: TargetEtag,
 }
 
 /// Resolve a 0-based byte offset to its enclosing targets.
@@ -54,6 +75,11 @@ pub fn locate(document: &Document, byte_offset: u32) -> Result<Located, CoreErro
         .and_then(|info| innermost_task(info, byte_offset))
         .map(|loc| task::task(document, &loc).map(|read| read.task))
         .transpose()?;
+    let table_row = info
+        .filter(|info| info.kind == BlockKind::Table)
+        .map(|info| table_row_at(document, info, byte_offset))
+        .transpose()?
+        .flatten();
     let index = SectionIndex::new(document);
     let section = match info {
         Some(info) => index.section_for_block(info.index),
@@ -64,6 +90,7 @@ pub fn locate(document: &Document, byte_offset: u32) -> Result<Located, CoreErro
         block,
         section,
         task,
+        table_row,
     })
 }
 
@@ -87,6 +114,28 @@ fn block_at(blocks: &[BlockInfo], byte_offset: u32) -> Option<&BlockInfo> {
     let after = blocks.partition_point(|block| block.span.byte_start <= byte_offset);
     let candidate = blocks.get(after.checked_sub(1)?)?;
     (byte_offset < candidate.span.byte_end).then_some(candidate)
+}
+
+/// The data row containing the offset, or `None` on the header row or the
+/// separator line.
+fn table_row_at(
+    document: &Document,
+    block: &BlockInfo,
+    byte_offset: u32,
+) -> Result<Option<LocatedTableRow>, CoreError> {
+    let source = document.slice_unchecked(&block.span);
+    let projection = extract_table_projection(source, block.span)?;
+    let etag = TargetEtag::for_bytes(source.as_bytes());
+    Ok(projection
+        .rows
+        .iter()
+        .position(|row| row.span.byte_start <= byte_offset && byte_offset < row.span.byte_end)
+        .map(|row_index| LocatedTableRow {
+            table_block_index: block.index,
+            row_index: row_index as u32,
+            span: projection.rows[row_index].span,
+            etag: etag.clone(),
+        }))
 }
 
 /// Nested task spans are contained in their parents, so the deepest containing

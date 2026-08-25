@@ -1,9 +1,11 @@
 use mdtools::block;
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
+use mdtools::fingerprint::TargetEtagGuard;
 use mdtools::locate::{locate, locate_line};
 use mdtools::model::{BlockKind, HeadingMatchMode, SectionKind};
 use mdtools::section::{SectionIndex, SectionTarget};
+use mdtools::table;
 use mdtools::task::{self, TaskLoc};
 
 const DOC: &str = "# Title\n\nIntro paragraph.\n\n## Plan\n\n- [ ] parent\n  - [ ] child\n\n```rust\nlet answer = 42;\n```\n\nTail paragraph.\n";
@@ -211,4 +213,66 @@ fn frontmatter_offsets_have_no_section() {
     assert!(located.block.is_none());
     assert!(located.section.is_none());
     assert!(located.task.is_none());
+}
+
+const TABLE_DOC: &str = include_str!("fixtures/table.md");
+
+#[test]
+fn table_data_row_offset_resolves_to_a_row_the_mutations_accept() {
+    let document = Document::parse(TABLE_DOC).unwrap();
+    let located = locate(&document, offset_of(TABLE_DOC, "Beta")).unwrap();
+
+    let block = located.block.expect("table block");
+    assert_eq!(block.kind, BlockKind::Table);
+    let row = located.table_row.expect("table row");
+    assert_eq!(row.row_index, 1);
+    assert_eq!(row.table_block_index, block.index);
+    assert_eq!(row.etag, block.etag);
+    assert!(document.slice(&row.span).unwrap().contains("Beta"));
+
+    let edit = table::prepare_replace_row(
+        &document,
+        row.table_block_index,
+        row.row_index,
+        Some(&TargetEtagGuard::from(row.etag.clone())),
+    )
+    .unwrap()
+    .replace("| Beta | 250 |\n")
+    .unwrap();
+    assert!(edit.content.contains("| Beta | 250 |"));
+    assert!(!edit.content.contains("| Beta | 200 |"));
+
+    // The same guard is stale once the row has been edited.
+    let edited = Document::parse(edit.content).unwrap();
+    assert!(matches!(
+        table::prepare_replace_row(
+            &edited,
+            row.table_block_index,
+            row.row_index,
+            Some(&TargetEtagGuard::from(row.etag.clone())),
+        ),
+        Err(CoreError::TargetEtagMismatch { .. })
+    ));
+}
+
+#[test]
+fn table_header_and_separator_hit_the_table_but_no_row() {
+    let document = Document::parse(TABLE_DOC).unwrap();
+
+    for needle in ["| Name | Value |", "|------|-------|"] {
+        let located = locate(&document, offset_of(TABLE_DOC, needle)).unwrap();
+        assert_eq!(
+            located.block.expect(needle).kind,
+            BlockKind::Table,
+            "block for {needle:?}"
+        );
+        assert!(located.table_row.is_none(), "row for {needle:?}");
+    }
+}
+
+#[test]
+fn non_table_positions_carry_no_table_row() {
+    let document = Document::parse(TABLE_DOC).unwrap();
+    let located = locate(&document, offset_of(TABLE_DOC, "Summary paragraph.")).unwrap();
+    assert!(located.table_row.is_none());
 }
