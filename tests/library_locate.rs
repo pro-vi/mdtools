@@ -227,14 +227,14 @@ fn table_data_row_offset_resolves_to_a_row_the_mutations_accept() {
     let row = located.table_row.expect("table row");
     assert_eq!(row.row_index, 1);
     assert_eq!(row.table_block_index, block.index);
-    assert_eq!(row.etag, block.etag);
+    assert_eq!(row.table_etag, block.etag);
     assert!(document.slice(&row.span).unwrap().contains("Beta"));
 
     let edit = table::prepare_replace_row(
         &document,
         row.table_block_index,
         row.row_index,
-        Some(&TargetEtagGuard::from(row.etag.clone())),
+        Some(&TargetEtagGuard::from(row.table_etag.clone())),
     )
     .unwrap()
     .replace("| Beta | 250 |\n")
@@ -249,7 +249,7 @@ fn table_data_row_offset_resolves_to_a_row_the_mutations_accept() {
             &edited,
             row.table_block_index,
             row.row_index,
-            Some(&TargetEtagGuard::from(row.etag.clone())),
+            Some(&TargetEtagGuard::from(row.table_etag.clone())),
         ),
         Err(CoreError::TargetEtagMismatch { .. })
     ));
@@ -275,4 +275,94 @@ fn non_table_positions_carry_no_table_row() {
     let document = Document::parse(TABLE_DOC).unwrap();
     let located = locate(&document, offset_of(TABLE_DOC, "Summary paragraph.")).unwrap();
     assert!(located.table_row.is_none());
+}
+
+// --- Invariants across representations ---
+
+#[test]
+fn the_two_section_lookups_agree_on_every_block() {
+    // section_for_block reads block_indices; section_for_byte reads the span.
+    // SectionIndex derives those two from the same heading-level cut, so a
+    // click on a block and a click on the blank line beside it must never
+    // report different sections.
+    let document = Document::parse(include_str!("fixtures/basic.md")).unwrap();
+    let index = SectionIndex::new(&document);
+
+    for block in document.blocks() {
+        let by_block = index
+            .section_for_block(block.index)
+            .expect("owning section");
+        let by_byte = index
+            .section_for_byte(block.span.byte_start)
+            .expect("containing section");
+        assert_eq!(
+            by_block.etag, by_byte.etag,
+            "block {} disagrees: {:?} vs {:?}",
+            block.index, by_block.heading, by_byte.heading
+        );
+        assert_eq!(by_block.span, by_byte.span);
+    }
+}
+
+#[test]
+fn crlf_tasks_and_sections_resolve_like_their_lf_twins() {
+    let lf = include_str!("fixtures/nested_tasks.md").replace("\r\n", "\n");
+    let crlf = lf.replace('\n', "\r\n");
+    let lf_document = Document::parse(lf.as_str()).unwrap();
+    let crlf_document = Document::parse(crlf.as_str()).unwrap();
+
+    for needle in ["Grandchild task", "Sub-task B", "Ordered child"] {
+        let from_lf = locate(&lf_document, offset_of(&lf, needle)).unwrap();
+        let from_crlf = locate(&crlf_document, offset_of(&crlf, needle)).unwrap();
+
+        let lf_task = from_lf.task.expect(needle);
+        let crlf_task = from_crlf.task.expect(needle);
+        assert_eq!(lf_task.loc, crlf_task.loc, "task loc for {needle:?}");
+        assert_eq!(lf_task.depth, crlf_task.depth, "task depth for {needle:?}");
+        assert_eq!(
+            lf_task.summary_text, crlf_task.summary_text,
+            "summary for {needle:?}"
+        );
+
+        let lf_heading = from_lf.section.expect(needle).heading.unwrap().text;
+        let crlf_heading = from_crlf.section.expect(needle).heading.unwrap().text;
+        assert_eq!(lf_heading, crlf_heading, "section for {needle:?}");
+    }
+}
+
+#[test]
+fn an_offset_inside_a_multibyte_character_still_resolves() {
+    let source = include_str!("fixtures/utf8.md");
+    let document = Document::parse(source).unwrap();
+    let start = offset_of(source, "日本語");
+    let interior = start + 1;
+    assert!(!source.is_char_boundary(interior as usize));
+
+    let at_boundary = locate(&document, start).unwrap();
+    let inside = locate(&document, interior).unwrap();
+    assert_eq!(
+        at_boundary.block.expect("block").index,
+        inside.block.expect("block").index
+    );
+    assert_eq!(
+        at_boundary.section.expect("section").etag,
+        inside.section.expect("section").etag
+    );
+}
+
+#[test]
+fn the_empty_line_after_a_trailing_newline_is_out_of_range() {
+    // LineIndex counts the position after a final newline as a line, but its
+    // first byte is the end of the source, so it is a position error rather
+    // than a line error. Pinned here because the two error kinds are the
+    // library's contract with a caller that walks lines.
+    let document = Document::parse(DOC).unwrap();
+    assert!(DOC.ends_with('\n'));
+    let last = document.line_count();
+
+    assert!(matches!(
+        locate_line(&document, last),
+        Err(CoreError::ByteOffsetOutOfRange { .. })
+    ));
+    assert!(locate_line(&document, last - 1).unwrap().block.is_some());
 }

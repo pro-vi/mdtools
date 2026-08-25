@@ -49,10 +49,11 @@ pub struct LocatedTableRow {
     pub row_index: u32,
     /// Source span of the row's bytes, newline excluded.
     pub span: SourceSpan,
-    /// The fingerprint the row mutations accept as their guard. Row edits are
-    /// guarded by the *whole table block's* bytes, not the row's, so this is
-    /// the table block's etag — identical to `block.etag` on the same result.
-    pub etag: TargetEtag,
+    /// The fingerprint the row mutations accept as their guard. It is named
+    /// for the table because that is what it hashes: row edits are guarded by
+    /// the *whole table block's* bytes, not the row's, so this equals
+    /// `block.etag` on the same result.
+    pub table_etag: TargetEtag,
 }
 
 /// Resolve a 0-based byte offset to its enclosing targets.
@@ -72,7 +73,7 @@ pub fn locate(document: &Document, byte_offset: u32) -> Result<Located, CoreErro
         .map(|info| block::block(document, info.index).map(|read| read.block))
         .transpose()?;
     let task = info
-        .and_then(|info| innermost_task(info, byte_offset))
+        .and_then(|info| innermost_task_loc(info, byte_offset))
         .map(|loc| task::task(document, &loc).map(|read| read.task))
         .transpose()?;
     let table_row = info
@@ -125,7 +126,7 @@ fn table_row_at(
 ) -> Result<Option<LocatedTableRow>, CoreError> {
     let source = document.slice_unchecked(&block.span);
     let projection = extract_table_projection(source, block.span)?;
-    let etag = TargetEtag::for_bytes(source.as_bytes());
+    let table_etag = TargetEtag::for_bytes(source.as_bytes());
     Ok(projection
         .rows
         .iter()
@@ -134,13 +135,13 @@ fn table_row_at(
             table_block_index: block.index,
             row_index: row_index as u32,
             span: projection.rows[row_index].span,
-            etag: etag.clone(),
+            table_etag: table_etag.clone(),
         }))
 }
 
 /// Nested task spans are contained in their parents, so the deepest containing
 /// item is the innermost one.
-fn innermost_task(block: &BlockInfo, byte_offset: u32) -> Option<TaskLoc> {
+fn innermost_task_loc(block: &BlockInfo, byte_offset: u32) -> Option<TaskLoc> {
     block
         .task_items
         .iter()
