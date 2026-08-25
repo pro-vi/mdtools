@@ -9,6 +9,7 @@ pub mod errors;
 pub mod fingerprint;
 pub mod frontmatter;
 pub mod link;
+pub mod locate;
 pub mod model;
 pub mod parser;
 pub mod revision;

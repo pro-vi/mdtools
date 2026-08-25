@@ -143,6 +143,14 @@ impl LineIndex {
         self.starts.len() as u32
     }
 
+    /// Byte offset of the first byte of a 1-based line.
+    fn line_start_byte(&self, line: u32) -> Option<usize> {
+        if line == 0 {
+            return None;
+        }
+        self.starts.get((line - 1) as usize).copied()
+    }
+
     /// Find the 1-based line number for a byte offset using binary search.
     fn byte_to_line(&self, byte_offset: usize) -> usize {
         match self.starts.binary_search(&byte_offset) {
@@ -475,6 +483,14 @@ impl ParsedDocument {
     /// Find the line number for a given byte offset.
     pub fn byte_to_line(&self, byte_offset: u32) -> u32 {
         self.line_index.byte_to_line(byte_offset as usize) as u32
+    }
+
+    /// Byte offset of the first byte of a 1-based line, or `None` when the
+    /// line is 0 or beyond [`line_count`](Self::line_count).
+    pub fn line_to_byte(&self, line: u32) -> Option<u32> {
+        self.line_index
+            .line_start_byte(line)
+            .map(|byte| byte as u32)
     }
 
     pub fn span_for_byte_range(&self, byte_start: u32, byte_end: u32) -> SourceSpan {

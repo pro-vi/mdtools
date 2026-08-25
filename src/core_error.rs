@@ -36,6 +36,14 @@ pub enum CoreError {
         index: u32,
         block_count: u32,
     },
+    ByteOffsetOutOfRange {
+        byte_offset: u32,
+        source_len: usize,
+    },
+    LineOutOfRange {
+        line: u32,
+        line_count: u32,
+    },
     NoTables,
     NotTable {
         block_index: u32,
@@ -140,6 +148,17 @@ impl std::fmt::Display for CoreError {
             Self::BlockIndexOutOfRange { index, block_count } => write!(
                 f,
                 "block index {index} out of range (document has {block_count} blocks)"
+            ),
+            Self::ByteOffsetOutOfRange {
+                byte_offset,
+                source_len,
+            } => write!(
+                f,
+                "byte offset {byte_offset} out of range (document has {source_len} bytes)"
+            ),
+            Self::LineOutOfRange { line, line_count } => write!(
+                f,
+                "line {line} out of range (document has {line_count} lines)"
             ),
             Self::NoTables => write!(f, "no tables found in document"),
             Self::NotTable { block_index } => write!(f, "block {block_index} is not a table"),
