@@ -200,7 +200,10 @@ fn task_read_documentation_and_inventory_stay_synchronized() {
 #[test]
 fn search_etag_documentation_boundaries_stay_synchronized() {
     let fingerprint = std::fs::read_to_string("src/fingerprint.rs").unwrap();
-    assert!(fingerprint.contains("fingerprint for one exact source byte target"));
+    assert!(fingerprint.contains("fingerprint for one resolved target state"));
+
+    let model = std::fs::read_to_string("src/model.rs").unwrap();
+    assert!(model.contains("exact original-source bytes covered by"));
 
     let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
     assert!(spec.contains(
@@ -224,8 +227,11 @@ fn search_etag_documentation_boundaries_stay_synchronized() {
 
     let adr =
         std::fs::read_to_string("docs/decisions/2026-08-26-search-match-etag-boundary.md").unwrap();
+    let normalized_adr = adr.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(adr.contains("CLI or process consumer"));
     assert!(!adr.contains("same-process consumer"));
+    assert!(normalized_adr.contains("source/document identity plus span"));
+    assert!(normalized_adr.contains("CLI consumers normally use file plus span"));
 }
 
 #[test]

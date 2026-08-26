@@ -50,7 +50,8 @@ Negative:
 - Adding the public field breaks downstream Rust struct literals and exhaustive
   destructuring.
 - Byte-identical matches share an etag, so consumers must address an occurrence
-  by file plus span.
+  by source/document identity plus span; CLI consumers normally use file plus
+  span.
 - The shared library/wire record keeps serialization in the domain type's public
   contract.
 
