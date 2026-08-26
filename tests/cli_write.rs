@@ -355,17 +355,17 @@ fn replace_section_expect_etag_mismatch_fails_closed() {
     );
     std::fs::write(&path, &fresh_source).unwrap();
     let before = std::fs::read_to_string(&path).unwrap();
-    let output = md_with_stdin(
-        &[
+    let output = md()
+        .args([
             "replace-section",
             "Discussion",
-            &path,
+            path.as_str(),
             "-i",
             "--expect-etag",
-            &etag,
-        ],
-        "## Discussion\n\nShould not apply.\n",
-    );
+            etag.as_str(),
+        ])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(4));
     let after = std::fs::read_to_string(&path).unwrap();
     assert_eq!(
