@@ -28,8 +28,8 @@ spans, parsed structure, and `DocumentRevision` cannot drift independently.
 
 The library exposes:
 
-- block, section, task, link, frontmatter, table, search, and statistics reads;
-- search matches carry a typed `TargetEtag` for the exact original-source bytes
+- block, section, task, link, frontmatter, table, search, and statistics reads.
+  Search matches carry a typed `TargetEtag` for the exact original-source bytes
   covered by `match_span`. The etag does not cover the lossy preview or identify
   one occurrence among byte-identical matches. Occurrence identity is
   source/document identity plus span; CLI consumers normally use returned file

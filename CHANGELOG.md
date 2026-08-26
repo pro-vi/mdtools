@@ -32,7 +32,7 @@ fetching its enclosing block.
 
 ### CLI
 
-- `md search --json` and recursive JSONL output include the library etag on
+- `md search --json` and multi-file JSONL output include the library etag on
   every match. The token covers `match_span`, not the lossy preview or the
   enclosing block, and byte-identical matches share a token even at distinct
   spans.
@@ -40,7 +40,6 @@ fetching its enclosing block.
   `search_match_etag` capability.
 - The JSON schema remains `mdtools.v1`, and plain tab-separated search output is
   unchanged.
-
 
 ### Decisions recorded in this release
 

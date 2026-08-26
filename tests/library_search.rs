@@ -23,7 +23,7 @@ fn search_hit_etag_matches_exact_source_bytes() {
 }
 
 #[test]
-fn search_never_returns_an_empty_match_span() {
+fn literal_search_never_returns_an_empty_match_span() {
     let document = Document::parse("alpha beta").unwrap();
 
     assert!(search::search(&document, &SearchQuery::literal("")).is_empty());

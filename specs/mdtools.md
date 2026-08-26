@@ -110,14 +110,13 @@ pub struct SourceSpan { // [id:contract-source-span]
     pub byte_start: u32,
     pub byte_end: u32,
 }
-
-pub struct TargetEtag(String); // [id:contract-target-etag]
-
 // SourceSpan coordinate convention: [id:rule-source-span-coordinates]
 // - line_start and line_end are 1-based and inclusive.
 // - byte_start and byte_end are 0-based and half-open: [byte_start, byte_end).
 // - A zero-width span (e.g. an insertion point) has byte_start == byte_end.
 // - Block indices are 0-based throughout the CLI and JSON contracts.
+
+pub struct TargetEtag(String); // [id:contract-target-etag]
 
 pub struct SectionSelector { // [id:contract-section-selector]
     pub kind: SectionSelectorKind,
