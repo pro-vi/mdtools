@@ -206,11 +206,13 @@ fn search_etag_documentation_boundaries_stay_synchronized() {
     assert!(model.contains("exact original-source bytes covered by"));
 
     let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
+    assert!(spec.contains("pub struct TargetEtag(String); // [id:contract-target-etag]"));
     assert!(spec.contains(
         "pub struct SearchMatch { // [id:contract-search-match]\n    pub block_index: u32,\n    pub block_kind: BlockKind,\n    pub match_span: SourceSpan,\n    pub etag: TargetEtag,"
     ));
     assert!(spec.contains("\"etag\": \"230c05e5fb0433b0\""));
     assert!(spec.contains("[id:sem-search-match-etag]"));
+    assert!(spec.contains("lowercase 16-character hexadecimal string"));
 
     for path in ["README.md", "README.crate.md"] {
         let readme = std::fs::read_to_string(path).unwrap();
