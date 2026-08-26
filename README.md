@@ -99,6 +99,9 @@ $ md section :preamble doc.md
 # Full-text search with block-kind filtering
 $ md search "TODO" notes/ -r --kind paragraph --kind list
 
+# Read each search hit's exact span and content etag without fetching its block
+$ md search "TODO" notes.md --json | jq '.matches[] | {match_span, etag}'
+
 # Extract all links across a directory
 $ md links docs/ -r
 
@@ -274,7 +277,7 @@ md set author.name doc.md "Jane" -i --expect-etag "$etag"
 
 ### JSON mode
 
-Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later expose optimistic-concurrency fingerprints: `blocks`, `section`, `table`, `tasks`, and `task` expose per-target `etag`s, while `frontmatter` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata on both full and field-projection JSON reads.
+Every command supports `--json` for structured output with full span information. Read surfaces that can be mutated later expose optimistic-concurrency fingerprints: `blocks`, `section`, `table`, `tasks`, and `task` expose per-target `etag`s, while `frontmatter` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata on both full and field-projection JSON reads. The read-only `search` command exposes an `etag` for the exact original-source bytes covered by each `match_span`; it does not cover the lossy `preview` or identify one occurrence among byte-identical matches, so consumers address a hit by file plus span. `md schema --json` advertises this additive JSON field through the `search_match_etag` capability; its absence means the producer does not supply search-hit etags, and consumers claiming forward compatibility must tolerate unknown JSON fields.
 
 Guarded mutations fail closed: `--expect-etag` protects `set` and the single-target block/section/table/task mutation commands, while `move-block` and `move-section` accept `--expect-source-etag` and `--expect-dest-etag`. On `set`, the guard checks the current whole frontmatter state before any mutation, no-op shortcut, stdout emission, or in-place write. On `move-block` and `move-section`, the source guard is checked first and the destination guard second before any no-op shortcut, splice construction, stdout emission, or in-place write (and before releveling for `move-section`). Any mismatch exits with `etag_mismatch` / exit code `4` (`Conflict`) and leaves the input file unchanged. The fingerprints are content-addressed, and block/section/table/task guards additionally fail closed as `etag_ambiguous` (also exit 4) when identical same-kind targets share the expected fingerprint — a content match cannot prove which duplicate the guard was bound to. For table-row mutations, ambiguity is scoped to current top-level whole-table matches and recovery runs through `md table --json` plus the intended `--index`, not section occurrence flags. The guard is a *same-invocation drift check*, not a cross-process compare-and-swap or lock: md reads, checks the fingerprint, and splices+renames within one process, so a concurrent external writer between the read and the atomic rename is out of scope — serialize concurrent mutators externally. The safe pattern remains read, mutate, then re-query. All in-place writes are atomic (temp file + rename, permissions preserved): a killed process never leaves a truncated document, and error cleanup removes only a temp this process provably created.
 

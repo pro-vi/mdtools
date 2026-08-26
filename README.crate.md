@@ -29,6 +29,10 @@ spans, parsed structure, and `DocumentRevision` cannot drift independently.
 The library exposes:
 
 - block, section, task, link, frontmatter, table, search, and statistics reads;
+- search matches carry a typed `TargetEtag` for the exact original-source bytes
+  covered by `match_span`. The etag does not cover the lossy preview or identify
+  one occurrence among byte-identical matches; a consumer addresses a hit by
+  file plus span;
 - position-to-target resolution: `locate` and `locate_line` turn a byte offset
   or a line into the block, section, task item, and table row containing it,
   each with the etag its own read path produces. The block, task, and table-row
