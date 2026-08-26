@@ -5,14 +5,14 @@
 Install the CLI:
 
 ```sh
-cargo install mdtools
+cargo install --git https://github.com/pro-vi/mdtools --tag v0.2.0
 ```
 
 Use the library without CLI-only dependencies:
 
 ```toml
 [dependencies]
-mdtools = { version = "0.1", default-features = false }
+mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "v0.2.0", default-features = false }
 ```
 
 The library parses exact Markdown source, exposes source-backed structural

@@ -6,13 +6,41 @@ Releases are git tags on this repository. There is no crates.io package — see
 Consume a release by pinning its tag:
 
 ```toml
-mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "v0.1.0", default-features = false }
+mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "v0.2.0", default-features = false }
 ```
 
 Versions follow semver over the **library** surface — the public items under
 `src/lib.rs`. The `md` CLI's JSON output carries its own `mdtools.v1` schema
 version, which moves independently of the crate version. Before 1.0, a breaking
 library change bumps the minor.
+
+## v0.2.0 — 2026-08-26
+
+Search results now carry the exact-byte evidence needed to verify a hit without
+fetching its enclosing block.
+
+### Library
+
+- `search::search` returns each `SearchMatch` with a typed `TargetEtag` over the
+  exact original-source bytes covered by `match_span`.
+- **Breaking:** `SearchMatch` has a new required public field. This breaks
+  downstream Rust struct literals and exhaustive destructuring, so the pre-1.0
+  library version moves from `0.1.0` to `0.2.0`.
+- `TargetEtag` now serializes to its established lowercase 16-character string.
+  String-to-etag conversion still runs through the validating `FromStr`
+  implementation; no unchecked deserialization path was added.
+
+### CLI
+
+- `md search --json` and recursive JSONL output include the library etag on
+  every match. The token covers `match_span`, not the lossy preview or the
+  enclosing block, and byte-identical matches share a token even at distinct
+  spans.
+- `md schema --json` advertises the additive field through the append-only
+  `search_match_etag` capability.
+- The JSON schema remains `mdtools.v1`, and plain tab-separated search output is
+  unchanged.
+
 
 ## v0.1.0 — 2026-08-25
 
