@@ -2,7 +2,7 @@ use mdtools::document::Document;
 use mdtools::fingerprint::TargetEtag;
 use mdtools::search::{self, SearchQuery};
 
-fn exact_source<'a>(document: &'a Document, start: u32, end: u32) -> &'a str {
+fn exact_source(document: &Document, start: u32, end: u32) -> &str {
     &document.source()[start as usize..end as usize]
 }
 

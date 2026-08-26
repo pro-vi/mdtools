@@ -172,7 +172,7 @@ fn push_match(
             byte_start: block_byte_start + match_start as u32,
             byte_end: block_byte_start + match_end as u32,
         },
-        etag: TargetEtag::for_bytes(content[match_start..match_end].as_bytes()),
+        etag: TargetEtag::for_bytes(&content.as_bytes()[match_start..match_end]),
         preview: preview(&content[preview_start..preview_end]),
     });
 }
