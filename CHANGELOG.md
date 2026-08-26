@@ -42,6 +42,12 @@ fetching its enclosing block.
   unchanged.
 
 
+### Decisions recorded in this release
+
+- `docs/decisions/2026-08-26-search-match-etag-boundary.md` — why search keeps
+  one shared library/JSON record and fingerprints only the exact matched bytes.
+
+
 ## v0.1.0 — 2026-08-25
 
 First tagged release. It marks the point where mdtools became consumable from
