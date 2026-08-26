@@ -1,4 +1,5 @@
 use crate::document::Document;
+use crate::fingerprint::TargetEtag;
 use crate::model::{BlockKind, SearchMatch, SearchMatchMode, SourceSpan};
 
 pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
@@ -171,6 +172,7 @@ fn push_match(
             byte_start: block_byte_start + match_start as u32,
             byte_end: block_byte_start + match_end as u32,
         },
+        etag: TargetEtag::for_bytes(content[match_start..match_end].as_bytes()),
         preview: preview(&content[preview_start..preview_end]),
     });
 }

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::fingerprint::TargetEtag;
+
 pub const SCHEMA_VERSION: &str = "mdtools.v1";
 
 // --- Common types ---
@@ -209,6 +211,10 @@ pub struct SearchMatch {
     pub block_index: u32,
     pub block_kind: BlockKind,
     pub match_span: SourceSpan,
+    /// Content fingerprint of the exact original-source bytes covered by
+    /// `match_span`. This does not fingerprint the lossy `preview` or identify
+    /// one occurrence among byte-identical matches.
+    pub etag: TargetEtag,
     pub preview: String,
 }
 

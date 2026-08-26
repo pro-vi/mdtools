@@ -1,12 +1,15 @@
 use std::str::FromStr;
 
+use serde::Serialize;
+
 use crate::core_error::CoreError;
 
 /// An opaque fingerprint for one structural target.
 ///
 /// This is deliberately distinct from a whole-document revision. The wire
 /// representation remains the existing lowercase 16-character hex string.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+#[serde(transparent)]
 pub struct TargetEtag(String);
 
 /// A caller-supplied comparison token.
