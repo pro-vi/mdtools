@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::core_error::CoreError;
 
-/// An opaque fingerprint for one structural target.
+/// An opaque fingerprint for one exact source byte target.
 ///
 /// This is deliberately distinct from a whole-document revision. The wire
 /// representation remains the existing lowercase 16-character hex string.

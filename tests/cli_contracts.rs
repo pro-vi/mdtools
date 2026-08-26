@@ -198,6 +198,37 @@ fn task_read_documentation_and_inventory_stay_synchronized() {
 }
 
 #[test]
+fn search_etag_documentation_boundaries_stay_synchronized() {
+    let fingerprint = std::fs::read_to_string("src/fingerprint.rs").unwrap();
+    assert!(fingerprint.contains("fingerprint for one exact source byte target"));
+
+    let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
+    assert!(spec.contains(
+        "pub struct SearchMatch { // [id:contract-search-match]\n    pub block_index: u32,\n    pub block_kind: BlockKind,\n    pub match_span: SourceSpan,\n    pub etag: TargetEtag,"
+    ));
+    assert!(spec.contains("\"etag\": \"230c05e5fb0433b0\""));
+    assert!(spec.contains("[id:sem-search-match-etag]"));
+
+    for path in ["README.md", "README.crate.md"] {
+        let readme = std::fs::read_to_string(path).unwrap();
+        let normalized = readme.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("source/document identity plus span"),
+            "{path}"
+        );
+        assert!(
+            normalized.contains("CLI consumers normally use returned file plus span"),
+            "{path}"
+        );
+    }
+
+    let adr =
+        std::fs::read_to_string("docs/decisions/2026-08-26-search-match-etag-boundary.md").unwrap();
+    assert!(adr.contains("CLI or process consumer"));
+    assert!(!adr.contains("same-process consumer"));
+}
+
+#[test]
 fn task_read_result_normative_contract_stays_synchronized() {
     let spec = std::fs::read_to_string("specs/mdtools.md").unwrap();
     let task_struct_start = spec.find("pub struct TaskEntry {").unwrap();

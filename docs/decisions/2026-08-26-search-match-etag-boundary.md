@@ -7,11 +7,12 @@
 ## Context
 
 Search results exposed an exact source span and a lossy preview but no content
-fingerprint. A same-process consumer therefore had to fetch another structural
-target before it could verify the search result. Search already used one public
-`SearchMatch` type for both the Rust library result and the CLI's JSON record,
-while newer operations used separate typed library and string-valued wire
-records.
+fingerprint. A CLI or process consumer therefore had to fetch another structural
+target to obtain a producer-issued fingerprint. A same-process library caller
+could fingerprint its immutable `Document` slice directly, but search did not
+return that token with the hit. Search already used one public `SearchMatch`
+type for both the Rust library result and the CLI's JSON record, while newer
+operations used separate typed library and string-valued wire records.
 
 ## Decision
 
@@ -38,8 +39,8 @@ a different target and would not remove the exact-hit verification gap.
 
 Positive:
 
-- Library and JSON consumers receive the same exact-span evidence without a
-  second read.
+- Search returns the same exact-span evidence directly to library and JSON
+  consumers.
 - Unicode case mapping, repeated text, and multifile output share one etag
   construction path.
 - Plain tab-separated search output remains unchanged.
