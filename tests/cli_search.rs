@@ -2,6 +2,10 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use mdtools::document::Document;
+use mdtools::fingerprint::TargetEtag;
+use mdtools::search::{self, SearchQuery};
+
 fn md() -> Command {
     Command::new(env!("CARGO_BIN_EXE_md"))
 }
@@ -41,6 +45,12 @@ fn match_span_bytes(m: &serde_json::Value) -> (usize, usize) {
     (byte_start, byte_end)
 }
 
+fn match_etag(m: &serde_json::Value) -> &str {
+    m["etag"]
+        .as_str()
+        .expect("each JSON search hit should carry an etag")
+}
+
 #[test]
 fn search_no_results() {
     let output = md()
@@ -64,6 +74,39 @@ fn search_json() {
     assert_eq!(json["query"], "method");
     assert_eq!(json["match_mode"], "Literal");
     assert!(json["matches"].as_array().unwrap().len() > 0);
+}
+
+#[test]
+fn search_json_etags_match_library_results_and_exact_source_bytes() {
+    let source = "alpha needle needle omega";
+    let path = write_temp_markdown(source);
+    let json = run_search_json("needle", &path, &[]);
+    let document = Document::parse(source).unwrap();
+    let library_matches = search::search(&document, &SearchQuery::literal("needle"));
+    let json_matches = json["matches"].as_array().unwrap();
+
+    assert_eq!(json_matches.len(), library_matches.len());
+    for (wire, library) in json_matches.iter().zip(library_matches) {
+        let (byte_start, byte_end) = match_span_bytes(wire);
+        let exact_source = &source[byte_start..byte_end];
+        let etag = match_etag(wire);
+
+        assert_eq!(
+            wire["match_span"],
+            serde_json::to_value(library.match_span).unwrap()
+        );
+        assert_eq!(etag, library.etag.as_str());
+        assert_eq!(
+            etag,
+            TargetEtag::for_bytes(exact_source.as_bytes()).as_str()
+        );
+        assert_eq!(etag.len(), 16);
+        assert!(etag
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+    }
+
+    std::fs::remove_file(path).unwrap();
 }
 
 #[test]
@@ -203,6 +246,10 @@ fn search_ignore_case_unicode_expansion_maps_i_outward_to_whole_scalar() {
     let (byte_start, byte_end) = match_span_bytes(first);
     assert_eq!((byte_start, byte_end), (7, 9));
     assert_eq!(&source[byte_start..byte_end], "İ");
+    assert_eq!(
+        match_etag(first),
+        TargetEtag::for_bytes("İ".as_bytes()).as_str()
+    );
 
     std::fs::remove_file(path).unwrap();
 }
@@ -220,6 +267,10 @@ fn search_ignore_case_unicode_expansion_preserves_adjacent_multiscalar_slice() {
     let (byte_start, byte_end) = match_span_bytes(first);
     assert_eq!((byte_start, byte_end), (7, 11));
     assert_eq!(&source[byte_start..byte_end], "İX ");
+    assert_eq!(
+        match_etag(first),
+        TargetEtag::for_bytes("İX ".as_bytes()).as_str()
+    );
 
     std::fs::remove_file(path).unwrap();
 }

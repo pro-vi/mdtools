@@ -25,6 +25,7 @@ fn schema_carries_versions_and_capabilities() {
         .collect();
     assert!(caps.contains(&"error_envelope"));
     assert!(caps.contains(&"section_etag"));
+    assert!(caps.contains(&"search_match_etag"));
 }
 
 #[test]

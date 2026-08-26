@@ -28,6 +28,7 @@ pub const CAPABILITIES: &[&str] = &[
     "guarded_flag",
     "atomic_write",
     "move_block_dual_etag",
+    "search_match_etag",
 ];
 
 /// query|mutation kind per command. The exhaustiveness test below fails when

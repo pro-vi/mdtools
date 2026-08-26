@@ -501,6 +501,20 @@ fn search_multi_json() {
         .collect();
     assert_eq!(jsons.len(), 4);
     assert!(jsons.iter().all(|j| j["schema_version"] == "mdtools.v1"));
+    for result in &jsons {
+        let file = result["file"].as_str().unwrap();
+        let source = std::fs::read_to_string(file).unwrap();
+        for found in result["matches"].as_array().unwrap() {
+            let start = found["match_span"]["byte_start"].as_u64().unwrap() as usize;
+            let end = found["match_span"]["byte_end"].as_u64().unwrap() as usize;
+            let exact_source = &source[start..end];
+            assert_eq!(
+                found["etag"].as_str().unwrap(),
+                mdtools::fingerprint::TargetEtag::for_bytes(exact_source.as_bytes()).as_str(),
+                "wrong search etag for {file}[{start}..{end}]"
+            );
+        }
+    }
 }
 
 // --- Outline multi-file ---
