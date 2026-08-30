@@ -767,6 +767,61 @@ fn task_edits_do_not_suppress_containing_block_closure() {
 }
 
 #[test]
+fn deletion_closure_handles_trailing_thematic_break_blank_lines() {
+    let source = "lead\n\n## A\n\nbody\n\n# B\n\n---\n\n";
+    let document = Document::parse(source).unwrap();
+    let thematic = block_with(&document, "---");
+    assert_eq!(
+        thematic.selection_span.unwrap().byte_end,
+        source.find("---").unwrap() as u32 + 3
+    );
+    let target = SectionPatchTarget::try_from(&section(&document, "A")).unwrap();
+    let outcome = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::DeleteSection { target }],
+    }
+    .apply(&document)
+    .unwrap();
+    assert_eq!(outcome.document.source(), "lead\n\n# B\n\n---\n\n");
+}
+
+#[test]
+fn table_append_extends_containing_block_during_sibling_deletion_closure() {
+    let source = "para\n\n| A |\n| --- |\n| x |\n";
+    let document = Document::parse(source).unwrap();
+    let paragraph = ReplaceBlockTarget::try_from(&block_with(&document, "para")).unwrap();
+    let table = snapshots(&document, TargetKind::Block)
+        .into_iter()
+        .find(|snapshot| {
+            matches!(
+                snapshot.summary,
+                TargetSummary::Block {
+                    kind: BlockKind::Table,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    let outcome = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::DeleteBlock { target: paragraph },
+            PatchOp::InsertTableRow {
+                target: TablePatchTarget::try_from(&table).unwrap(),
+                row: 1,
+                markdown: "| y |".into(),
+            },
+        ],
+    }
+    .apply(&document)
+    .unwrap();
+    assert_eq!(
+        outcome.document.source(),
+        "\n\n| A |\n| --- |\n| x |\n| y |\n"
+    );
+}
+
+#[test]
 fn renamed_section_receipt_carries_the_result_address() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
     let target = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();

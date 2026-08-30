@@ -61,6 +61,7 @@ pub(super) fn apply(patch: &Patch, document: &Document) -> Result<PatchOutcome, 
                         &result_targets,
                         index,
                         &applied_edits,
+                        &patch.operations,
                         &result.expectation,
                     )
                     .map(|verified| (result.operation, verified))
@@ -1505,6 +1506,7 @@ fn verify_result(
     targets: &ResultTargetIndex,
     mutation: usize,
     edits: &[AppliedEdit<'_>],
+    operations: &[PatchOp],
     expectation: &ResultExpectation,
 ) -> Result<VerifiedResult, CoreError> {
     match expectation {
@@ -1575,12 +1577,13 @@ fn verify_result(
         }
         ResultExpectation::ParserBlockClosure { blocks } => {
             for block in blocks {
-                let Some(markdown) =
-                    parser_block_markdown_after_sibling_edits(base, mutation, edits, block)
-                else {
+                let Some(markdown) = parser_block_markdown_after_sibling_edits(
+                    base, mutation, edits, operations, block,
+                ) else {
                     continue;
                 };
-                let (start, end) = resolve_location(mutation, edits, &block.location)?;
+                let (start, mut end) = resolve_location(mutation, edits, &block.location)?;
+                end += parser_block_end_extension(edits, operations, mutation, block) as u32;
                 targets.verify_parser_block(start, end, block, &markdown)?;
             }
             Ok(VerifiedResult::None)
@@ -1615,6 +1618,7 @@ fn parser_block_markdown_after_sibling_edits(
     base: &Document,
     mutation: usize,
     edits: &[AppliedEdit<'_>],
+    operations: &[PatchOp],
     block: &ParserBlockExpectation,
 ) -> Option<String> {
     let ResultLocation::Base(span) = block.location else {
@@ -1626,7 +1630,10 @@ fn parser_block_markdown_after_sibling_edits(
     let mut local_edits = edits
         .iter()
         .filter(|edit| edit.mutation != mutation)
-        .filter(|edit| edit.edit.end > start && edit.edit.start < end)
+        .filter(|edit| {
+            (edit.edit.end > start && edit.edit.start < end)
+                || edit_extends_parser_block_end(edit, operations, end)
+        })
         .collect::<Vec<_>>();
     if local_edits
         .iter()
@@ -1648,6 +1655,36 @@ fn parser_block_markdown_after_sibling_edits(
         );
     }
     Some(markdown)
+}
+
+fn parser_block_end_extension(
+    edits: &[AppliedEdit<'_>],
+    operations: &[PatchOp],
+    mutation: usize,
+    block: &ParserBlockExpectation,
+) -> usize {
+    let ResultLocation::Base(span) = block.location else {
+        return 0;
+    };
+    edits
+        .iter()
+        .filter(|edit| edit.mutation != mutation)
+        .filter(|edit| edit_extends_parser_block_end(edit, operations, span.byte_end as usize))
+        .map(|edit| edit.edit.replacement.len())
+        .sum()
+}
+
+fn edit_extends_parser_block_end(
+    edit: &AppliedEdit<'_>,
+    operations: &[PatchOp],
+    block_end: usize,
+) -> bool {
+    edit.edit.start == block_end
+        && edit.edit.end == block_end
+        && matches!(
+            operations.get(edit.operation),
+            Some(PatchOp::InsertTableRow { .. })
+        )
 }
 
 fn resolve_location(

@@ -49,6 +49,12 @@ and Unix device/inode before
 staging and immediately before atomic rename. Permissions are preserved and
 no-change patches verify the file without replacing it.
 
+`map` emits a tagged `GuardAuthority` because it describes every target kind.
+Patch operations use narrower evidence types from `md schema`; construct that
+operation-specific target from the mapped address, revision, span, and etag
+rather than copying the tagged `guard` object verbatim. Rust callers use the
+provided `TryFrom<&TargetSnapshot>` conversions.
+
 On macOS, extended attributes such as Finder tags are copied to the replacement
 file. POSIX ACL cloning and hard-link topology are not yet preserved; see
 [`docs/follow-ups/file-metadata.md`](docs/follow-ups/file-metadata.md).

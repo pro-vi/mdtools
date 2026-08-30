@@ -88,10 +88,10 @@ impl LineIndex {
         &self,
         sp: Sourcepos,
         source: &str,
-        is_indented_code: bool,
+        kind: BlockKind,
         heading_line: Option<usize>,
     ) -> SourceSpan {
-        let mut span = if is_indented_code {
+        let mut span = if kind == BlockKind::IndentedCode {
             // For indented code blocks, comrak reports start.column=5 (after the
             // 4-space indent) and end.column=0 (sentinel for blank-line termination).
             let byte_start = self.to_byte(sp.start.line, 1).unwrap_or(0) as u32;
@@ -122,6 +122,14 @@ impl LineIndex {
             self.sourcepos_to_span(sp)
         };
 
+        if kind == BlockKind::ThematicBreak && sp.end.column == 0 && sp.end.line > 1 {
+            let content_line = sp.end.line - 1;
+            if let Some(byte_end) = self.line_content_end(source, content_line) {
+                span.line_end = content_line as u32;
+                span.byte_end = byte_end as u32;
+            }
+        }
+
         if let Some(line) = heading_line {
             if let Some(byte_start) = self.heading_line_start(source, line) {
                 span.byte_start = byte_start;
@@ -129,6 +137,18 @@ impl LineIndex {
         }
 
         span
+    }
+
+    fn line_content_end(&self, source: &str, line: usize) -> Option<usize> {
+        let start = self.to_byte(line, 1)?;
+        let mut end = source.as_bytes()[start..]
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map_or(source.len(), |offset| start + offset);
+        if end > start && source.as_bytes()[end - 1] == b'\r' {
+            end -= 1;
+        }
+        Some(end)
     }
 
     fn heading_line_start(&self, source: &str, line: usize) -> Option<u32> {
@@ -389,10 +409,8 @@ impl ParsedDocument {
                         None
                     };
                     let kind = node_value_to_block_kind(&data.value)?;
-                    let is_indented = matches!(kind, BlockKind::IndentedCode);
                     let heading_line = heading_meta.map(|(_, _, line, _)| line);
-                    let span =
-                        line_index.sourcepos_to_span_fixup(sp, &source, is_indented, heading_line);
+                    let span = line_index.sourcepos_to_span_fixup(sp, &source, kind, heading_line);
                     drop(data);
 
                     let heading = heading_meta
@@ -472,9 +490,8 @@ impl ParsedDocument {
                 None
             };
             let kind = node_value_to_block_kind(&data.value)?;
-            let is_indented = matches!(kind, BlockKind::IndentedCode);
             let heading_line = heading_meta.map(|(_, _, line, _)| line);
-            let span = line_index.sourcepos_to_span_fixup(sp, &source, is_indented, heading_line);
+            let span = line_index.sourcepos_to_span_fixup(sp, &source, kind, heading_line);
             drop(data);
 
             let heading = heading_meta
