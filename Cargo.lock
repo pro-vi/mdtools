@@ -448,7 +448,6 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "toml",
- "walkdir",
 ]
 
 [[package]]

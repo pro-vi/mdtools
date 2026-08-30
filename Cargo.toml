@@ -32,7 +32,7 @@ required-features = ["cli"]
 [features]
 default = ["cli"]
 file = []
-cli = ["file", "dep:clap", "dep:walkdir"]
+cli = ["file", "dep:clap"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
@@ -44,7 +44,6 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 libc = "0.2"
 toml = "0.8"
-walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"

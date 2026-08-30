@@ -164,6 +164,19 @@ fn nochange_commit_verifies_without_replacing_the_inode() {
 }
 
 #[test]
+fn nochange_commit_rejects_intervening_drift() {
+    let directory = unique_directory("nochange-drift");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "before\n").unwrap();
+    let loaded = file::load(&path).unwrap();
+    let patch = replacement_patch(loaded.document(), "before\n");
+    let prepared = loaded.prepare_patch(&patch).unwrap();
+    std::fs::write(&path, "external\n").unwrap();
+    assert!(prepared.commit().is_err());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "external\n");
+}
+
+#[test]
 fn stdout_outcome_does_not_mutate_the_loaded_file() {
     let directory = unique_directory("stdout");
     let path = directory.join("doc.md");
