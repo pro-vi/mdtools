@@ -5,6 +5,7 @@ use mdtools::HeadingMatchMode;
 #[test]
 fn protocol_schema_covers_every_authoritative_surface() {
     let schema = protocol_schema();
+    assert_eq!(schema["schema_version"], "mdtools.v2");
     for key in [
         "target_address",
         "target_query",
