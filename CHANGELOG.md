@@ -3,10 +3,10 @@
 Releases are git tags on this repository. There is no crates.io package — see
 `docs/decisions/2026-08-25-git-tags-are-the-release-boundary.md`.
 
-Consume a release by pinning its tag:
+Consume a release by pinning an existing tag from `git tag --list`:
 
 ```toml
-mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "v0.3.0", default-features = false }
+mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "<released-tag>", default-features = false }
 ```
 
 Versions follow semver over the **library** surface — the public items under
@@ -15,6 +15,8 @@ version, which moves independently of the crate version. Before 1.0, a breaking
 library change bumps the minor.
 
 ## Unreleased — v0.3.0
+
+The `v0.3.0` tag does not exist until this release is cut.
 
 This is a complete breaking replacement of the v0.2 public API and CLI.
 

@@ -129,4 +129,40 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         "unknown": true
     }))
     .is_err());
+
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "search",
+        "text": "",
+        "match_mode": "literal",
+        "block_kinds": []
+    }))
+    .is_err());
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "section",
+        "text": "",
+        "match_mode": "contains"
+    }))
+    .is_err());
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "section",
+        "text": "",
+        "match_mode": "exact"
+    }))
+    .is_ok());
+
+    let schema = protocol_schema();
+    let variants = schema["target_query"]["oneOf"].as_array().unwrap();
+    let search = variants
+        .iter()
+        .find(|variant| variant["properties"]["type"]["const"] == "search")
+        .unwrap();
+    assert_eq!(search["properties"]["text"]["minLength"], 1);
+    let section = variants
+        .iter()
+        .find(|variant| variant["properties"]["type"]["const"] == "section")
+        .unwrap();
+    assert_eq!(
+        section["allOf"][0]["then"]["properties"]["text"]["minLength"],
+        1
+    );
 }

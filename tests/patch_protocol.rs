@@ -2,9 +2,9 @@ use mdtools::core_error::CoreError;
 use mdtools::document::Document;
 use mdtools::fragment::SectionFragment;
 use mdtools::patch::{
-    FrontmatterFieldIdentity, FrontmatterPatchTarget, HeadingPatchTarget, HeadingSectionIdentity,
-    Patch, PatchOp, PatchReceipt, PreamblePatchTarget, ReplaceBlockTarget, SectionInsertionTarget,
-    SectionPatchTarget, TaskIdentity, TaskPatchTarget,
+    BlockInsertionTarget, DocumentEdge, FrontmatterFieldIdentity, FrontmatterPatchTarget,
+    HeadingPatchTarget, HeadingSectionIdentity, Patch, PatchOp, PatchReceipt, PreamblePatchTarget,
+    ReplaceBlockTarget, SectionInsertionTarget, SectionPatchTarget, TaskIdentity, TaskPatchTarget,
 };
 use mdtools::target::{GuardAuthority, TargetAddress, TargetSnapshot, TargetSummary};
 use mdtools::{BlockKind, MutationDisposition};
@@ -211,6 +211,54 @@ fn patch_evidence_and_identity_paths_reject_empty_wire_values() {
             .is_err()
         );
     }
+}
+
+#[test]
+fn patch_decoder_enforces_schema_cardinality_and_insert_payloads() {
+    let document = Document::parse("body\n").unwrap();
+    assert!(serde_json::from_value::<Patch>(serde_json::json!({
+        "base_revision": document.revision(),
+        "operations": []
+    }))
+    .is_err());
+
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::InsertBlock {
+            target: BlockInsertionTarget::DocumentEdge {
+                edge: DocumentEdge::End,
+                revision: document.revision().clone(),
+            },
+            markdown: "inserted".into(),
+        }],
+    };
+    let mut wire = serde_json::to_value(patch).unwrap();
+    wire["operations"][0]["markdown"] = serde_json::json!("");
+    assert!(serde_json::from_value::<Patch>(wire).is_err());
+}
+
+#[test]
+fn move_section_receipts_reject_preamble_identities() {
+    let revision = Document::parse("# H\n").unwrap().revision().clone();
+    let preamble = serde_json::json!({
+        "address": { "kind": "preamble" },
+        "revision": revision
+    });
+    let wire = serde_json::json!({
+        "operation": "move_section",
+        "destination_before": preamble,
+        "outcome": {
+            "disposition": "no_change",
+            "before": preamble,
+            "after": preamble
+        }
+    });
+    assert!(serde_json::from_value::<PatchReceipt>(wire).is_err());
+
+    let schema = mdtools::protocol::patch_receipt_schema();
+    let rendered = serde_json::to_string(&schema["$defs"]["MoveSectionOutcome"]).unwrap();
+    assert!(rendered.contains("HeadingSectionIdentity"));
+    assert!(!rendered.contains("#/$defs/SectionIdentity\""));
 }
 
 #[test]

@@ -107,7 +107,7 @@ pub fn protocol_schema() -> serde_json::Value {
         "schema_version": crate::model::SCHEMA_VERSION,
         "commands": CLI_COMMANDS,
         "target_address": serde_json::to_value(schema_for!(TargetAddress)).expect("target address schema serializes"),
-        "target_query": serde_json::to_value(schema_for!(TargetQuery)).expect("target query schema serializes"),
+        "target_query": target_query_schema(),
         "query_result": serde_json::to_value(schema_for!(QueryResult)).expect("query result schema serializes"),
         "target_snapshot": serde_json::to_value(schema_for!(TargetSnapshot)).expect("target snapshot schema serializes"),
         "target_read": serde_json::to_value(schema_for!(TargetRead)).expect("target read schema serializes"),
@@ -116,6 +116,39 @@ pub fn protocol_schema() -> serde_json::Value {
         "patch_preview": serde_json::to_value(schema_for!(PatchPreview)).expect("patch preview schema serializes"),
         "error_envelope": output_schema::<ErrorEnvelope<'static>>(),
     })
+}
+
+fn target_query_schema() -> serde_json::Value {
+    let mut schema =
+        serde_json::to_value(schema_for!(TargetQuery)).expect("target query schema serializes");
+    for variant in schema["oneOf"]
+        .as_array_mut()
+        .expect("target query schema has variants")
+    {
+        match variant["properties"]["type"]["const"].as_str() {
+            Some("search") => {
+                variant["properties"]["text"]["minLength"] = serde_json::json!(1);
+            }
+            Some("section") => {
+                variant["allOf"] = serde_json::json!([{
+                    "if": {
+                        "properties": {
+                            "match_mode": {
+                                "enum": ["contains", "contains_ignore_case"]
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "text": { "minLength": 1 }
+                        }
+                    }
+                }]);
+            }
+            _ => {}
+        }
+    }
+    schema
 }
 
 fn output_schema<T: JsonSchema>() -> serde_json::Value {

@@ -257,7 +257,7 @@ impl<'de> Deserialize<'de> for TargetQuery {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(match StrictTargetQuery::deserialize(deserializer)? {
+        let query = match StrictTargetQuery::deserialize(deserializer)? {
             StrictTargetQuery::All {} => Self::All,
             StrictTargetQuery::Kind { kind } => Self::Kind { kind },
             StrictTargetQuery::Section { text, match_mode } => Self::Section { text, match_mode },
@@ -273,7 +273,9 @@ impl<'de> Deserialize<'de> for TargetQuery {
                 match_mode,
                 block_kinds,
             },
-        })
+        };
+        validate_query(&query).map_err(serde::de::Error::custom)?;
+        Ok(query)
     }
 }
 

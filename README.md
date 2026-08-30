@@ -44,7 +44,8 @@ md patch README.md --from patch.json --in-place
 ```
 
 Every mutation carries a document revision and target guard. The file adapter
-rechecks the canonical referent, source revision, and Unix device/inode before
+accepts regular files only, rechecks the canonical referent, source revision,
+and Unix device/inode before
 staging and immediately before atomic rename. Permissions are preserved and
 no-change patches verify the file without replacing it.
 

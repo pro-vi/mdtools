@@ -256,8 +256,8 @@ enum ReceiptDraft {
         disposition: MutationDisposition,
     },
     MoveSection {
-        before: SectionIdentity,
-        destination_before: SectionIdentity,
+        before: HeadingSectionIdentity,
+        destination_before: HeadingSectionIdentity,
         disposition: MutationDisposition,
     },
     SetTaskStatus {
@@ -526,11 +526,15 @@ fn section_expected_kind(address: &crate::target::SectionAddress) -> ExpectedKin
 
 fn atomic_plan(
     operation: usize,
-    claims: Vec<ConflictRegion>,
+    mut claims: Vec<ConflictRegion>,
     edits: Vec<ByteEdit>,
     result: ResultExpectation,
     receipt: ReceiptDraft,
 ) -> PlannedMutation {
+    claims.extend(edits.iter().map(|edit| ConflictRegion::Source {
+        start: edit.start,
+        end: edit.end,
+    }));
     PlannedMutation {
         claims: claims
             .into_iter()
@@ -1024,9 +1028,11 @@ fn plan_move_section(
     let claims = vec![move_interval(source.guard.span, destination.guard.span)];
     let source_address = source.address();
     let destination_address = destination.address();
-    let before =
-        SectionIdentity::try_from(&super::resolve_section_snapshot(document, &source_address)?)?;
-    let destination_before = SectionIdentity::try_from(&super::resolve_section_snapshot(
+    let before = HeadingSectionIdentity::try_from(&super::resolve_section_snapshot(
+        document,
+        &source_address,
+    )?)?;
+    let destination_before = HeadingSectionIdentity::try_from(&super::resolve_section_snapshot(
         document,
         &destination_address,
     )?)?;
@@ -1288,7 +1294,7 @@ fn plan_frontmatter_group(
         .ok_or_else(|| {
             CoreError::PatchInvariant("non-frontmatter operation entered group".into())
         })?;
-    let claims = operations
+    let mut claims = operations
         .iter()
         .map(|(operation, patch_op)| {
             let path = match patch_op {
@@ -1351,9 +1357,23 @@ fn plan_frontmatter_group(
             draft,
         });
     }
+    let edits = plan
+        .edit
+        .into_iter()
+        .map(ByteEdit::from)
+        .collect::<Vec<_>>();
+    if let (Some((operation, _)), Some(edit)) = (operations.first(), edits.first()) {
+        claims.push(IndexedClaim {
+            operation: *operation,
+            region: ConflictRegion::Source {
+                start: edit.start,
+                end: edit.end,
+            },
+        });
+    }
     Ok(PlannedMutation {
         claims,
-        edits: plan.edit.into_iter().map(ByteEdit::from).collect(),
+        edits,
         results,
         receipts,
     })
@@ -1964,7 +1984,7 @@ impl ReceiptDraft {
                 destination_before,
                 disposition,
             } => {
-                let after = SectionIdentity::try_from(&target(result)?)?;
+                let after = HeadingSectionIdentity::try_from(&target(result)?)?;
                 let outcome = if disposition == MutationDisposition::NoChange {
                     MoveSectionOutcome::NoChange { before, after }
                 } else if disposition == MutationDisposition::Replaced {
@@ -2106,15 +2126,12 @@ mod tests {
                 && !plan.results.is_empty()
                 && plan.results.len() == plan.receipts.len()
         }));
-        assert_eq!(plans[0].claims.len(), 1);
         assert_eq!(plans[0].edits.len(), 1);
         assert_eq!(plans[0].results.len(), 1);
         assert_eq!(plans[0].receipts.len(), 1);
-        assert_eq!(plans[1].claims.len(), 1);
         assert_eq!(plans[1].edits.len(), 2);
         assert_eq!(plans[1].results.len(), 1);
         assert_eq!(plans[1].receipts.len(), 1);
-        assert_eq!(plans[2].claims.len(), 2);
         assert_eq!(plans[2].edits.len(), 1);
         assert_eq!(plans[2].results.len(), 2);
         assert_eq!(plans[2].receipts.len(), 2);
@@ -2126,6 +2143,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![2, 3]
         );
+        for plan in &plans {
+            assert_edits_are_claimed(plan);
+        }
         assert!(matches!(
             &plans[2].results[0].expectation,
             ResultExpectation::FrontmatterField {
@@ -2189,12 +2209,12 @@ mod tests {
         let plans = plan_operations(&document, &operations).unwrap();
         assert_eq!(plans.len(), 3);
         for (operation, plan) in plans.iter().enumerate() {
-            assert_eq!(plan.claims.len(), 1);
             assert_eq!(plan.edits.len(), 1);
             assert_eq!(plan.results.len(), 1);
             assert_eq!(plan.receipts.len(), 1);
             assert_eq!(plan.results[0].operation, operation);
             assert_eq!(plan.receipts[0].operation, operation);
+            assert_edits_are_claimed(plan);
         }
         assert!(matches!(
             plans[0].results[0].expectation,
@@ -2210,6 +2230,18 @@ mod tests {
         ));
 
         println!("{}", render_plans(&plans));
+    }
+
+    fn assert_edits_are_claimed(plan: &PlannedMutation) {
+        for edit in &plan.edits {
+            assert!(plan.claims.iter().any(|claim| {
+                matches!(
+                    claim.region,
+                    ConflictRegion::Source { start, end }
+                        if start == edit.start && end == edit.end
+                )
+            }));
+        }
     }
 
     fn render_plans(plans: &[PlannedMutation]) -> String {

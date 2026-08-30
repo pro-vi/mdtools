@@ -19,10 +19,12 @@ mod planner;
 pub struct Patch {
     pub base_revision: DocumentRevision,
     #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty_operations")]
     pub operations: Vec<PatchOp>,
 }
 
 impl Patch {
+    #[cfg(feature = "file")]
     pub(crate) fn mutates_frontmatter(&self) -> bool {
         self.operations.iter().any(|operation| {
             matches!(
@@ -45,6 +47,8 @@ pub enum PatchOp {
     },
     InsertBlock {
         target: BlockInsertionTarget,
+        #[schemars(length(min = 1))]
+        #[serde(deserialize_with = "deserialize_non_empty_string")]
         markdown: String,
     },
     MoveBlock {
@@ -60,6 +64,7 @@ pub enum PatchOp {
         target: SectionInsertionTarget,
         fragment: SectionFragment,
     },
+    /// Replace the preamble with the supplied literal Markdown bytes.
     ReplacePreamble {
         target: PreamblePatchTarget,
         #[schemars(length(min = 1))]
@@ -368,7 +373,7 @@ pub enum PatchReceipt {
         outcome: DeleteSectionOutcome,
     },
     MoveSection {
-        destination_before: SectionIdentity,
+        destination_before: HeadingSectionIdentity,
         outcome: MoveSectionOutcome,
     },
     SetTaskStatus {
@@ -498,12 +503,12 @@ pub enum DeleteSectionOutcome {
 #[serde(tag = "disposition", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MoveSectionOutcome {
     NoChange {
-        before: SectionIdentity,
-        after: SectionIdentity,
+        before: HeadingSectionIdentity,
+        after: HeadingSectionIdentity,
     },
     Replaced {
-        before: SectionIdentity,
-        after: SectionIdentity,
+        before: HeadingSectionIdentity,
+        after: HeadingSectionIdentity,
     },
 }
 
@@ -590,6 +595,20 @@ where
         Err(serde::de::Error::custom("markdown must not be empty"))
     } else {
         Ok(value)
+    }
+}
+
+fn deserialize_non_empty_operations<'de, D>(deserializer: D) -> Result<Vec<PatchOp>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let operations = Vec::<PatchOp>::deserialize(deserializer)?;
+    if operations.is_empty() {
+        Err(serde::de::Error::custom(
+            "patch operations must not be empty",
+        ))
+    } else {
+        Ok(operations)
     }
 }
 

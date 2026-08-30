@@ -47,9 +47,11 @@ or command inventories.
 ## Files
 
 - Core remains source-in/source-out.
-- The `file` feature resolves the canonical referent, captures file identity,
-  preserves permissions, owns its temp inode, syncs staged bytes, rechecks
-  identity and revision, and atomically renames.
+- On Unix, the `file` feature resolves a regular canonical referent, captures
+  file identity, preserves ownership and permission bits, owns its temp inode,
+  syncs staged bytes, rechecks identity and revision, and atomically renames.
+  The feature fails to compile on non-Unix targets until equivalent locking and
+  identity primitives exist there.
 - A file change after preparation refuses commit. No-change patches verify but
   do not replace the file.
 
