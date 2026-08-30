@@ -568,18 +568,6 @@ fn plan_insert_block(
         document, target,
     ))];
     let content = normalize_line_endings(markdown, document.line_ending_style());
-    if content.is_empty() {
-        return Ok(atomic_plan(
-            operation,
-            claims,
-            Vec::new(),
-            ResultExpectation::None,
-            ReceiptDraft::InsertBlock {
-                target: BlockInsertionEvidence::from(target),
-                disposition: MutationDisposition::NoChange,
-            },
-        ));
-    }
     let fragment = parse_block_fragment("insert_block", &content)?;
     let insert_byte = super::insertion_base_anchor(document, target);
     let before = &document.source()[..insert_byte];
@@ -1903,10 +1891,6 @@ impl ReceiptDraft {
                 disposition,
             } => {
                 let outcome = match disposition {
-                    MutationDisposition::NoChange => InsertBlockOutcome::NoChange {
-                        target: insertion,
-                        result_revision: revision,
-                    },
                     MutationDisposition::Inserted => InsertBlockOutcome::Inserted {
                         target: insertion,
                         after: BlockIdentity::try_from(&target(result)?)?,

@@ -420,10 +420,6 @@ pub struct ReplaceBlockState {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "disposition", rename_all = "snake_case", deny_unknown_fields)]
 pub enum InsertBlockOutcome {
-    NoChange {
-        target: BlockInsertionEvidence,
-        result_revision: DocumentRevision,
-    },
     Inserted {
         target: BlockInsertionEvidence,
         after: BlockIdentity,
@@ -1105,7 +1101,6 @@ impl ReplaceBlockOutcome {
 impl InsertBlockOutcome {
     fn disposition(&self) -> MutationDisposition {
         match self {
-            Self::NoChange { .. } => MutationDisposition::NoChange,
             Self::Inserted { .. } => MutationDisposition::Inserted,
         }
     }

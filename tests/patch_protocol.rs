@@ -541,6 +541,11 @@ fn generated_schema_is_strict_and_covers_patch_and_receipt() {
             .contains("inserted")
     );
     assert!(!receipt_rendered.contains("base_revision"));
+    assert!(
+        !serde_json::to_string(&schema["patch_receipt"]["$defs"]["InsertBlockOutcome"])
+            .unwrap()
+            .contains("no_change")
+    );
     assert_eq!(schema["patch"]["properties"]["operations"]["minItems"], 1);
     assert!(schema["patch"]["properties"]["operations"]
         .get("maxItems")

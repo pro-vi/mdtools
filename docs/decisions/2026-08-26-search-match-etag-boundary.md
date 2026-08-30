@@ -1,7 +1,7 @@
 # Search match etags fingerprint exact spans
 
 **Date:** 2026-08-26
-**Status:** accepted 2026-08-26
+**Status:** superseded 2026-08-30 by the unified `mdtools.v2` architecture recorded in `CHANGELOG.md`
 **Deciders:** Provi, Codex
 
 ## Context
@@ -64,6 +64,9 @@ Negative:
 - A second verified consumer needs a different search-evidence granularity.
 
 ## References
+
+The paths below are historical v0.2.0 locations and were removed by the
+`mdtools.v2` architecture.
 
 - `src/fingerprint.rs`
 - `src/model.rs`
