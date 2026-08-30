@@ -1,13 +1,12 @@
 use mdtools::document::Document;
 use mdtools::fragment::SectionFragment;
-use mdtools::model::{BlockKind, HeadingMatchMode, InsertMode, TaskStatus};
 use mdtools::patch::{
     BlockInsertionTarget, DocumentEdge, FrontmatterPatchTarget, HeadingPatchTarget, Patch, PatchOp,
     PreamblePatchTarget, RelativePosition, ReplaceBlockTarget, SectionMovePosition,
     SectionPatchTarget, TablePatchTarget, TableRowPatchTarget, TaskPatchTarget,
 };
 use mdtools::target::{TargetAddress, TargetKind, TargetSnapshot, TargetSummary};
-use mdtools::{section::SectionIndex, section::SectionTarget, section_edit};
+use mdtools::{BlockKind, TaskStatus};
 
 fn apply(document: &Document, operations: Vec<PatchOp>) -> Document {
     Patch {
@@ -351,7 +350,7 @@ fn preamble_replacement_preserves_literal_boundaries() {
         assert_eq!(outcome.document.source(), expected);
         assert_eq!(
             outcome.receipts[0].disposition(),
-            mdtools::model::MutationDisposition::Replaced
+            mdtools::MutationDisposition::Replaced
         );
     }
 }
@@ -449,7 +448,7 @@ fn block_insertion_retains_reference_definitions_owned_by_the_fragment() {
     assert!(outcome.document.source().ends_with(markdown));
     assert_eq!(
         outcome.receipts[0].disposition(),
-        mdtools::model::MutationDisposition::Inserted
+        mdtools::MutationDisposition::Inserted
     );
 }
 
@@ -557,75 +556,5 @@ fn section_move_planning_preserves_strict_frontmatter_policy() {
         outcome.document.source().find("# B").unwrap()
             < outcome.document.source().find("# A").unwrap()
     );
-    assert!(outcome.document.frontmatter().is_some());
-}
-
-#[test]
-fn explicit_section_move_plans_match_legacy_boundary_rules() {
-    struct Case {
-        source: &'static str,
-        moving: &'static str,
-        destination: &'static str,
-        position: SectionMovePosition,
-        mode: InsertMode,
-    }
-    let cases = [
-        Case {
-            source: "# Doc\n\nA Title\n-------\nsetext body\n\n## B\nbody b\n",
-            moving: "A Title",
-            destination: "B",
-            position: SectionMovePosition::AfterSibling,
-            mode: InsertMode::AfterSibling,
-        },
-        Case {
-            source: "# Doc\n\nA Title\n-------\nsetext body\n\n## B\n",
-            moving: "A Title",
-            destination: "B",
-            position: SectionMovePosition::AfterSibling,
-            mode: InsertMode::AfterSibling,
-        },
-        Case {
-            source: "# Doc\n\nA\n-\na body\n\n## B\nb body\n\n## C\nc body",
-            moving: "C",
-            destination: "A",
-            position: SectionMovePosition::BeforeSibling,
-            mode: InsertMode::BeforeSibling,
-        },
-        Case {
-            source: "# Doc\r\n\r\nA\r\n-\r\na body\r\n\r\n## C\r\nc body",
-            moving: "C",
-            destination: "A",
-            position: SectionMovePosition::BeforeSibling,
-            mode: InsertMode::BeforeSibling,
-        },
-    ];
-
-    for case in cases {
-        let document = Document::parse(case.source).unwrap();
-        let index = SectionIndex::new(&document);
-        let selector =
-            |heading: &str| SectionTarget::heading(heading, None, HeadingMatchMode::Exact).unwrap();
-        let legacy = section_edit::move_section(
-            &document,
-            index.resolve(&selector(case.moving)).unwrap(),
-            index.resolve(&selector(case.destination)).unwrap(),
-            case.mode,
-            true,
-            None,
-            None,
-        )
-        .unwrap();
-        let patch = Patch {
-            base_revision: document.revision().clone(),
-            operations: vec![PatchOp::MoveSection {
-                source: HeadingPatchTarget::try_from(&section(&document, case.moving)).unwrap(),
-                destination: HeadingPatchTarget::try_from(&section(&document, case.destination))
-                    .unwrap(),
-                position: case.position,
-                keep_level: true,
-            }],
-        };
-        let outcome = patch.apply(&document).unwrap();
-        assert_eq!(outcome.document.source(), legacy.content, "{}", case.moving);
-    }
+    assert!(outcome.document.has_frontmatter());
 }

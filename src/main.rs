@@ -1,10 +1,5 @@
-pub use mdtools::errors;
-pub use mdtools::model;
-pub use mdtools::parser;
-
 mod cli;
-mod commands;
-mod multifile;
+mod errors;
 mod output;
 
 use clap::Parser;
@@ -35,30 +30,6 @@ fn run(cli: &Cli) -> Result<(), CommandError> {
         Command::Read(args) => cli::structural::run_read(args),
         Command::Query(args) => cli::structural::run_query(args),
         Command::Patch(args) => cli::structural::run_patch(args, cli.json),
-        Command::Outline(args) => commands::outline::run(args, cli.json),
-        Command::Section(args) => commands::section::run_section(args, cli.json),
-        Command::Blocks(args) => commands::blocks::run_blocks(args, cli.json),
-        Command::Block(args) => commands::blocks::run_block(args, cli.json),
-        Command::ReplaceSection(args) => commands::section::run_replace_section(args, cli.json),
-        Command::DeleteSection(args) => commands::section::run_delete_section(args, cli.json),
-        Command::ReplaceBlock(args) => commands::replace::run_replace_block(args, cli.json),
-        Command::InsertBlock(args) => commands::replace::run_insert_block(args, cli.json),
-        Command::DeleteBlock(args) => commands::replace::run_delete_block(args, cli.json),
-        Command::MoveBlock(args) => commands::move_block::run_move_block(args, cli.json),
-        Command::Search(args) => commands::search::run(args, cli.json),
-        Command::Links(args) => commands::links::run(args, cli.json),
-        Command::Frontmatter(args) => commands::frontmatter::run(args, cli.json),
-        Command::Collect(args) => commands::collect::run(args, cli.json),
-        Command::Stats(args) => commands::stats::run(args, cli.json),
-        Command::Set(args) => commands::set::run(args, cli.json),
-        Command::Table(args) => commands::table::run(args, cli.json),
-        Command::ReplaceTableRow(args) => commands::table::run_replace_table_row(args, cli.json),
-        Command::InsertTableRow(args) => commands::table::run_insert_table_row(args, cli.json),
-        Command::DeleteTableRow(args) => commands::table::run_delete_table_row(args, cli.json),
-        Command::Tasks(args) => commands::tasks::run_tasks(args, cli.json),
-        Command::Task(args) => commands::tasks::run_task(args, cli.json),
-        Command::SetTask(args) => commands::tasks::run_set_task(args, cli.json),
-        Command::MoveSection(args) => commands::move_section::run_move_section(args, cli.json),
-        Command::Schema(args) => commands::schema::run(args, cli.json),
+        Command::Schema => output::write_json(&mdtools::protocol::protocol_schema()),
     }
 }

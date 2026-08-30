@@ -1,10 +1,10 @@
 use mdtools::document::Document;
-use mdtools::model::{BlockKind, TaskStatus};
 use mdtools::patch::{
     BlockInsertionTarget, FrontmatterPatchTarget, HeadingPatchTarget, Patch, PatchOp,
     ReplaceBlockTarget, SectionMovePosition, TableRowPatchTarget, TaskPatchTarget,
 };
 use mdtools::target::{TargetAddress, TargetKind, TargetSnapshot, TargetSummary};
+use mdtools::{BlockKind, TaskStatus};
 
 fn block_with(document: &Document, needle: &str) -> TargetSnapshot {
     document
@@ -597,7 +597,7 @@ fn block_move_planning_preserves_strict_frontmatter_policy() {
         outcome.document.source(),
         "---\ntitle: [\n---\n# H\n\ntwo\n\none\n"
     );
-    assert!(outcome.document.frontmatter().is_some());
+    assert!(outcome.document.has_frontmatter());
 }
 
 #[test]
@@ -726,7 +726,7 @@ fn shifted_nochange_block_receipt_has_distinct_before_and_after_identities() {
     let after = outcome.receipts[1].replace_block_after().unwrap();
     assert_eq!(
         outcome.receipts[1].disposition(),
-        mdtools::model::MutationDisposition::NoChange
+        mdtools::MutationDisposition::NoChange
     );
     assert_eq!(before.address.ordinal, 1);
     assert_eq!(before.revision, *document.revision());
@@ -925,7 +925,7 @@ fn all_nochange_patch_skips_write() {
     assert!(outcome
         .receipts
         .iter()
-        .all(|receipt| receipt.disposition() == mdtools::model::MutationDisposition::NoChange));
+        .all(|receipt| receipt.disposition() == mdtools::MutationDisposition::NoChange));
 }
 
 #[test]

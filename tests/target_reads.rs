@@ -1,8 +1,8 @@
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
-use mdtools::model::{BlockKind, MutationDisposition};
 use mdtools::read::TargetRead;
 use mdtools::target::{JsonValueKind, TargetAddress, TargetKind, TargetSummary};
+use mdtools::{BlockKind, MutationDisposition};
 
 const SOURCE: &str = "---\ntitle: Demo\n---\n\nlead\n\n# Work\n\nRead [guide](guide.md).\n\n- [x] finished\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
 
@@ -92,6 +92,19 @@ fn semantic_targets_return_distinct_typed_values() {
 }
 
 #[test]
+fn document_read_carries_the_retained_stats_view() {
+    let document = Document::parse("# One\n\nbody words\n").unwrap();
+    let read = document
+        .resolve(&TargetAddress::Document)
+        .unwrap()
+        .read_document(&document)
+        .unwrap();
+    assert_eq!(read.stats.heading_count, 1);
+    assert_eq!(read.stats.word_count, 3);
+    assert_eq!(read.stats.line_count, document.line_count());
+}
+
+#[test]
 fn table_read_markdown_is_an_unchanged_block_replacement_payload() {
     let document = Document::parse("| Name | State |\n| --- | --- |\n| A | open |\n").unwrap();
     let table_snapshot = document
@@ -113,12 +126,20 @@ fn table_read_markdown_is_an_unchanged_block_replacement_payload() {
         .unwrap()
         .read_table(&document)
         .unwrap();
-    let legacy_index = mdtools::table::tables(&document).unwrap()[0].block_index;
-    let outcome = mdtools::block_edit::prepare_replace(&document, legacy_index, None)
-        .unwrap()
-        .apply(table.markdown.clone());
-    assert_eq!(outcome.disposition, MutationDisposition::NoChange);
-    assert_eq!(outcome.content, document.source());
+    let outcome = mdtools::patch::Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![mdtools::patch::PatchOp::ReplaceBlock {
+            target: mdtools::patch::ReplaceBlockTarget::try_from(&table_snapshot).unwrap(),
+            markdown: table.markdown.clone(),
+        }],
+    }
+    .apply(&document)
+    .unwrap();
+    assert_eq!(
+        outcome.receipts[0].disposition(),
+        MutationDisposition::NoChange
+    );
+    assert_eq!(outcome.document.source(), document.source());
 }
 
 #[test]
@@ -269,7 +290,7 @@ fn lexical_selection_is_separate_from_positional_containment() {
         .unwrap();
     assert_eq!(
         preamble.selection_span,
-        Some(mdtools::model::SourceSpan {
+        Some(mdtools::SourceSpan {
             line_start: 1,
             line_end: 1,
             byte_start: 0,

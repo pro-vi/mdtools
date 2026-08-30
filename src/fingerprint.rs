@@ -14,14 +14,6 @@ use crate::core_error::CoreError;
 #[serde(transparent)]
 pub struct TargetEtag(#[schemars(length(equal = 64), regex(pattern = "^[0-9a-f]{64}$"))] String);
 
-/// A caller-supplied comparison token.
-///
-/// Unlike [`TargetEtag`], this may contain any string so the versioned CLI can
-/// preserve its historical "malformed token means mismatch" behavior. It can
-/// never be returned by a read operation as a valid target fingerprint.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TargetEtagGuard(String);
-
 impl TargetEtag {
     pub fn for_bytes(bytes: &[u8]) -> Self {
         Self(format!("{:x}", Sha256::digest(bytes)))
@@ -29,32 +21,6 @@ impl TargetEtag {
 
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-
-    pub fn into_string(self) -> String {
-        self.0
-    }
-}
-
-impl TargetEtagGuard {
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for TargetEtagGuard {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
-impl From<TargetEtag> for TargetEtagGuard {
-    fn from(value: TargetEtag) -> Self {
-        Self(value.into_string())
     }
 }
 

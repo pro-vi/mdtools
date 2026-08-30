@@ -1,4 +1,3 @@
-use crate::block_edit::GuardRole;
 use crate::model::SourceSpan;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -6,15 +5,6 @@ pub struct SectionMatch {
     pub block_index: u32,
     pub occurrence: u32,
     pub line: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum EtagTarget {
-    Task(String),
-    Frontmatter,
-    Block(u32),
-    Section(String),
-    Table(u32),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -112,39 +102,6 @@ pub enum CoreError {
     },
     NotTaskList {
         block_index: u32,
-    },
-    TargetEtagMismatch {
-        target: EtagTarget,
-        expected: String,
-        actual: String,
-    },
-    TargetEtagAmbiguous {
-        target_kind: &'static str,
-        expected: String,
-        count: usize,
-    },
-    BlockMoveEtagMismatch {
-        role: GuardRole,
-        index: u32,
-        expected: String,
-        actual: String,
-    },
-    BlockMoveEtagAmbiguous {
-        role: GuardRole,
-        index: u32,
-        expected: String,
-        count: usize,
-    },
-    SectionMoveEtagMismatch {
-        role: GuardRole,
-        selector: String,
-        expected: String,
-        actual: String,
-    },
-    SectionMoveEtagAmbiguous {
-        role: GuardRole,
-        expected: String,
-        count: usize,
     },
     DocumentRevisionMismatch {
         expected: String,
@@ -273,57 +230,6 @@ impl std::fmt::Display for CoreError {
             Self::NotTaskList { block_index } => {
                 write!(f, "block {block_index} has no task items")
             }
-            Self::TargetEtagMismatch {
-                target,
-                expected,
-                actual,
-            } => write!(
-                f,
-                "{target:?} etag mismatch: expected {expected:?}, found {actual:?}"
-            ),
-            Self::TargetEtagAmbiguous {
-                target_kind,
-                expected,
-                count,
-            } => write!(
-                f,
-                "{target_kind} etag {expected:?} is ambiguous: {count} same-content {target_kind}s share this fingerprint"
-            ),
-            Self::BlockMoveEtagMismatch {
-                role,
-                index,
-                expected,
-                actual,
-            } => write!(
-                f,
-                "{role:?} block {index} etag mismatch: expected {expected:?}, found {actual:?}"
-            ),
-            Self::BlockMoveEtagAmbiguous {
-                role,
-                index,
-                expected,
-                count,
-            } => write!(
-                f,
-                "{role:?} block {index} etag {expected:?} is ambiguous across {count} blocks"
-            ),
-            Self::SectionMoveEtagMismatch {
-                role,
-                selector,
-                expected,
-                actual,
-            } => write!(
-                f,
-                "{role:?} section {selector} etag mismatch: expected {expected:?}, found {actual:?}"
-            ),
-            Self::SectionMoveEtagAmbiguous {
-                role,
-                expected,
-                count,
-            } => write!(
-                f,
-                "{role:?} section etag {expected:?} is ambiguous across {count} sections"
-            ),
             Self::DocumentRevisionMismatch { expected, actual } => write!(
                 f,
                 "document revision mismatch: expected {expected:?}, found {actual:?}"

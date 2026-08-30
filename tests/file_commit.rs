@@ -2,9 +2,9 @@
 
 use mdtools::document::Document;
 use mdtools::file::{self, PersistenceError};
-use mdtools::model::{BlockKind, MutationDisposition};
 use mdtools::patch::{Patch, PatchOp, ReplaceBlockTarget};
 use mdtools::target::{TargetKind, TargetSummary};
+use mdtools::{BlockKind, MutationDisposition};
 use std::path::PathBuf;
 
 fn unique_directory(tag: &str) -> PathBuf {

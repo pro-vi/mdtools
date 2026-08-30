@@ -284,7 +284,6 @@ pub struct LinkInfo {
 
 #[derive(Clone, Debug)]
 pub struct FrontmatterInfo {
-    pub raw: String,
     pub span: SourceSpan,
     pub format: FrontmatterFormat,
 }
@@ -375,10 +374,7 @@ impl ParsedDocument {
             match &data.value {
                 NodeValue::FrontMatter(_) => {
                     let fm_span = line_index.frontmatter_sourcepos_to_span(sp, &source);
-                    let fm_raw =
-                        source[fm_span.byte_start as usize..fm_span.byte_end as usize].to_string();
                     frontmatter = Some(FrontmatterInfo {
-                        raw: fm_raw,
                         span: fm_span,
                         format: frontmatter_format,
                     });
@@ -1308,31 +1304,8 @@ pub fn validate_table_row_payload(payload: &str, expected_columns: usize) -> Res
         .collect::<Vec<_>>()
         .join(" | ");
     let synthetic_table = format!("| {} |\n| {} |\n{}\n", headers, delimiter, payload);
-    let projection = extract_table_data(&synthetic_table)?;
-
-    if projection.rows.len() != 1 {
-        return Err(CoreError::InvalidTableRow(
-            "table row payload must parse as exactly one GFM table data row".to_string(),
-        ));
-    }
-
-    let actual_columns = projection.rows[0].len();
-    if actual_columns != expected_columns {
-        return Err(CoreError::InvalidTableRow(format!(
-            "table row column count {} does not match table column count {}",
-            actual_columns, expected_columns
-        )));
-    }
-
-    Ok(())
-}
-
-/// Extract structured table data from a markdown source fragment
-/// containing a single table. The source should be the sliced text
-/// of a Table block (obtained via ParsedDocument::slice()).
-pub fn extract_table_data(table_source: &str) -> Result<TableData, CoreError> {
     let projection = extract_table_projection(
-        table_source,
+        &synthetic_table,
         SourceSpan {
             line_start: 1,
             line_end: 1,
@@ -1341,11 +1314,21 @@ pub fn extract_table_data(table_source: &str) -> Result<TableData, CoreError> {
         },
     )?;
 
-    Ok(TableData {
-        headers: projection.headers,
-        alignments: projection.alignments,
-        rows: projection.rows.into_iter().map(|row| row.cells).collect(),
-    })
+    if projection.rows.len() != 1 {
+        return Err(CoreError::InvalidTableRow(
+            "table row payload must parse as exactly one GFM table data row".to_string(),
+        ));
+    }
+
+    let actual_columns = projection.rows[0].cells.len();
+    if actual_columns != expected_columns {
+        return Err(CoreError::InvalidTableRow(format!(
+            "table row column count {} does not match table column count {}",
+            actual_columns, expected_columns
+        )));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

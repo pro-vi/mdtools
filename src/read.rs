@@ -12,6 +12,7 @@ use crate::target::{ResolvedLocator, ResolvedTarget, TargetKind, TargetSnapshot}
 pub struct DocumentRead {
     pub snapshot: TargetSnapshot,
     pub source: String,
+    pub stats: crate::model::DocumentStats,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
@@ -128,6 +129,7 @@ pub fn read(document: &Document, target: &ResolvedTarget) -> Result<TargetRead, 
             Ok(TargetRead::Document(DocumentRead {
                 snapshot,
                 source: document.source().to_string(),
+                stats: crate::stats::document_stats(document),
             }))
         }
         (TargetKind::Frontmatter, ResolvedLocator::Node(_)) => {

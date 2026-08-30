@@ -2,11 +2,11 @@ use std::collections::HashSet;
 
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
-use mdtools::model::{HeadingMatchMode, TaskStatus};
 use mdtools::target::{
     GuardAuthority, HeadingAddressSegment, LinkParentAddress, SectionAddress, TargetAddress,
     TargetKind, TargetQuery, TargetSummary,
 };
+use mdtools::{BlockKind, HeadingMatchMode, SearchMatchMode, TaskStatus};
 
 const SOURCE: &str = "---\ntitle: Demo\nnested:\n  state: open\n---\n\nlead [pre](pre.md)\n\n# Root\n\nintro [guide](guide.md)\n\n- [ ] task [task](task.md)\n\n| Name | State |\n| --- | --- |\n| A | open |\n\n## Same\n\none\n\n## Same\n\ntwo\n\n# Other\n\n## Same\n\nthree\n";
 
@@ -64,9 +64,9 @@ fn fuzzy_multi_match_query_cannot_silently_become_one_address() {
     };
     let matches = document.query(&query).unwrap();
     assert_eq!(matches.len(), 3);
-    assert!(matches
-        .iter()
-        .all(|snapshot| snapshot.kind == TargetKind::Section));
+    assert!(matches.iter().all(|result| result
+        .target()
+        .is_some_and(|target| target.kind == TargetKind::Section)));
     assert!(matches!(
         document.query_one(&query),
         Err(CoreError::AmbiguousTargetQuery { count: 3 })
@@ -291,7 +291,7 @@ fn task_query_filters_snapshots_without_creating_addresses() {
         .unwrap();
     assert_eq!(matches.len(), 1);
     assert!(matches!(
-        matches[0].summary,
+        matches[0].target().unwrap().summary,
         TargetSummary::Task {
             status: TaskStatus::Pending,
             ..
@@ -391,34 +391,23 @@ fn table_row_line_ending_positions_keep_the_same_snapshot() {
 }
 
 #[test]
-fn new_and_legacy_locate_paths_agree_on_shared_semantic_targets() {
-    let source = "# Work\n\nparagraph\n\n- [ ] task\n\n| h |\n|---|\n| v |\n";
-    let document = Document::parse(source).unwrap();
-    for needle in ["paragraph", "task", "| v |"] {
-        let offset = source.find(needle).unwrap() as u32;
-        let legacy = mdtools::locate::locate(&document, offset).unwrap();
-        let current = document.locate_targets(offset).unwrap();
-
-        if let Some(block) = legacy.block {
-            assert!(current.iter().any(|snapshot| {
-                snapshot.kind == TargetKind::Block && snapshot.selection_span == Some(block.span)
-            }));
-        }
-        if let Some(section) = legacy.section {
-            assert!(current.iter().any(|snapshot| {
-                matches!(snapshot.kind, TargetKind::Section | TargetKind::Preamble)
-                    && snapshot.selection_span == Some(section.span)
-            }));
-        }
-        if let Some(task) = legacy.task {
-            assert!(current.iter().any(|snapshot| {
-                snapshot.kind == TargetKind::Task && snapshot.selection_span == Some(task.span)
-            }));
-        }
-        if let Some(row) = legacy.table_row {
-            assert!(current.iter().any(|snapshot| {
-                snapshot.kind == TargetKind::TableRow && snapshot.selection_span == Some(row.span)
-            }));
-        }
-    }
+fn search_query_returns_evidence_that_cannot_resolve_as_mutation_authority() {
+    let document = Document::parse("# Work\n\nfind needle here\n").unwrap();
+    let query = TargetQuery::Search {
+        text: "needle".into(),
+        match_mode: SearchMatchMode::Literal,
+        block_kinds: vec![BlockKind::Paragraph],
+    };
+    let results = document.query(&query).unwrap();
+    let [result] = results.as_slice() else {
+        panic!("one search result")
+    };
+    let evidence = result.evidence().expect("search yields evidence");
+    assert_eq!(document.slice(&evidence.span).unwrap(), "needle");
+    assert!(document.resolve(&evidence.target).is_ok());
+    assert!(matches!(
+        document.query_one(&query),
+        Err(CoreError::InvalidSelector(reason))
+            if reason.contains("cannot resolve as one mutable target")
+    ));
 }

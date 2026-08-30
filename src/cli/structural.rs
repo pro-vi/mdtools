@@ -129,11 +129,11 @@ fn decode_json<T: serde::de::DeserializeOwned>(
     };
     serde_json::from_str(&source).map_err(|error| {
         CommandError::new(
-            DiagnosticCode::InvalidSelector,
+            DiagnosticCode::InvalidInput,
             format!(
-                "invalid {expected} JSON: {error}; use `md schema --protocol` for the generated JSON shape"
+                "invalid {expected} JSON: {error}; use `md schema` for the generated JSON shape"
             ),
         )
-        .with_hint("use `md schema --protocol` for the generated JSON shape")
+        .with_hint("use `md schema` for the generated JSON shape")
     })
 }

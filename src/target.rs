@@ -10,7 +10,8 @@ use crate::fingerprint::TargetEtag;
 use crate::frontmatter;
 use crate::index::{DocumentIndex, IndexInstanceId, IndexNode, IndexNodeId};
 use crate::model::{
-    BlockKind, FrontmatterFormat, HeadingMatchMode, LinkKind, SourceSpan, TaskStatus,
+    BlockKind, FrontmatterFormat, HeadingMatchMode, LinkKind, SearchMatchMode, SourceSpan,
+    TaskStatus,
 };
 use crate::revision::DocumentRevision;
 
@@ -215,6 +216,11 @@ pub enum TargetQuery {
     FrontmatterField {
         path: Vec<String>,
     },
+    Search {
+        text: String,
+        match_mode: SearchMatchMode,
+        block_kinds: Vec<BlockKind>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -239,6 +245,11 @@ enum StrictTargetQuery {
     FrontmatterField {
         path: Vec<String>,
     },
+    Search {
+        text: String,
+        match_mode: SearchMatchMode,
+        block_kinds: Vec<BlockKind>,
+    },
 }
 
 impl<'de> Deserialize<'de> for TargetQuery {
@@ -253,7 +264,48 @@ impl<'de> Deserialize<'de> for TargetQuery {
             StrictTargetQuery::Task { status, contains } => Self::Task { status, contains },
             StrictTargetQuery::Link { text, destination } => Self::Link { text, destination },
             StrictTargetQuery::FrontmatterField { path } => Self::FrontmatterField { path },
+            StrictTargetQuery::Search {
+                text,
+                match_mode,
+                block_kinds,
+            } => Self::Search {
+                text,
+                match_mode,
+                block_kinds,
+            },
         })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EvidenceRange {
+    pub target: TargetAddress,
+    pub span: SourceSpan,
+    pub etag: TargetEtag,
+    pub preview: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum QueryResult {
+    Target { target: TargetSnapshot },
+    Evidence { evidence: EvidenceRange },
+}
+
+impl QueryResult {
+    pub fn target(&self) -> Option<&TargetSnapshot> {
+        match self {
+            Self::Target { target } => Some(target),
+            Self::Evidence { .. } => None,
+        }
+    }
+
+    pub fn evidence(&self) -> Option<&EvidenceRange> {
+        match self {
+            Self::Evidence { evidence } => Some(evidence),
+            Self::Target { .. } => None,
+        }
     }
 }
 
@@ -504,21 +556,47 @@ pub fn map(document: &Document) -> Result<Vec<TargetSnapshot>, CoreError> {
         .collect())
 }
 
-pub fn query(document: &Document, query: &TargetQuery) -> Result<Vec<TargetSnapshot>, CoreError> {
+pub fn query(document: &Document, query: &TargetQuery) -> Result<Vec<QueryResult>, CoreError> {
     validate_query(query)?;
+    if let TargetQuery::Search {
+        text,
+        match_mode,
+        block_kinds,
+    } = query
+    {
+        return Ok(
+            crate::search::evidence_ranges(document, text, *match_mode, block_kinds)
+                .into_iter()
+                .map(|evidence| QueryResult::Evidence { evidence })
+                .collect(),
+        );
+    }
+    Ok(query_resolved(document, query)?
+        .into_iter()
+        .map(|resolved| QueryResult::Target {
+            target: resolved.snapshot,
+        })
+        .collect())
+}
+
+fn query_resolved(
+    document: &Document,
+    query: &TargetQuery,
+) -> Result<Vec<ResolvedTarget>, CoreError> {
     Ok(collect_resolved(document)?
         .into_iter()
         .filter(|resolved| query_matches(query, &resolved.snapshot))
-        .map(|resolved| resolved.snapshot)
         .collect())
 }
 
 pub fn query_one(document: &Document, query: &TargetQuery) -> Result<ResolvedTarget, CoreError> {
     validate_query(query)?;
-    let mut matches = collect_resolved(document)?
-        .into_iter()
-        .filter(|resolved| query_matches(query, &resolved.snapshot))
-        .collect::<Vec<_>>();
+    if matches!(query, TargetQuery::Search { .. }) {
+        return Err(CoreError::InvalidSelector(
+            "search evidence cannot resolve as one mutable target".into(),
+        ));
+    }
+    let mut matches = query_resolved(document, query)?;
     match matches.len() {
         0 => Err(CoreError::TargetNotFound {
             target: format!("query {query:?}"),
@@ -1077,11 +1155,16 @@ fn query_matches(query: &TargetQuery, snapshot: &TargetSnapshot) -> bool {
             &snapshot.address,
             TargetAddress::FrontmatterField { path: actual } if actual == path
         ),
+        TargetQuery::Search { .. } => false,
     }
 }
 
 fn validate_query(query: &TargetQuery) -> Result<(), CoreError> {
-    if matches!(
+    if matches!(query, TargetQuery::Search { text, .. } if text.is_empty()) {
+        Err(CoreError::InvalidSelector(
+            "search query text cannot be empty".into(),
+        ))
+    } else if matches!(
         query,
         TargetQuery::Section {
             text,

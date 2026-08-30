@@ -1,9 +1,9 @@
 #![cfg(feature = "cli")]
 
 use mdtools::document::Document;
-use mdtools::model::BlockKind;
 use mdtools::patch::{Patch, PatchOp, ReplaceBlockTarget};
 use mdtools::target::{TargetAddress, TargetKind, TargetQuery, TargetSummary};
+use mdtools::BlockKind;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -89,7 +89,8 @@ fn map_read_and_query_emit_clean_json() {
     assert!(queried.stderr.is_empty());
     let queried: Vec<serde_json::Value> = serde_json::from_slice(&queried.stdout).unwrap();
     assert_eq!(queried.len(), 1);
-    assert_eq!(queried[0]["kind"], "task");
+    assert_eq!(queried[0]["type"], "target");
+    assert_eq!(queried[0]["target"]["kind"], "task");
 }
 
 #[test]
@@ -119,6 +120,30 @@ fn query_accepts_json_from_stdin_without_prompting() {
     assert!(output.stderr.is_empty());
     let result: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["target"]["kind"], "section");
+}
+
+#[test]
+fn query_search_returns_non_mutable_evidence_ranges() {
+    let directory = unique_directory("search");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "# Work\n\nfind needle here\n").unwrap();
+    let query = serde_json::to_string(&TargetQuery::Search {
+        text: "needle".into(),
+        match_mode: mdtools::SearchMatchMode::Literal,
+        block_kinds: Vec::new(),
+    })
+    .unwrap();
+    let output = md()
+        .args(["query", path.to_str().unwrap(), "--query", &query])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let result: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["type"], "evidence");
+    assert_eq!(result[0]["evidence"]["preview"], "find needle here");
+    assert_eq!(result[0]["evidence"]["target"]["kind"], "block");
 }
 
 #[test]
@@ -165,8 +190,7 @@ fn patch_stdout_is_non_mutating_and_in_place_is_guarded() {
         .unwrap();
     assert!(!retry.status.success());
     assert!(
-        String::from_utf8_lossy(&retry.stderr)
-            .contains("document changed since the edit candidate was created"),
+        String::from_utf8_lossy(&retry.stderr).contains("document revision mismatch"),
         "stderr: {}",
         String::from_utf8_lossy(&retry.stderr)
     );
@@ -201,7 +225,7 @@ fn structural_help_and_protocol_schema_are_discoverable() {
         assert!(help.contains("Example"));
     }
 
-    let schema = md().args(["schema", "--protocol"]).output().unwrap();
+    let schema = md().arg("schema").output().unwrap();
     assert!(schema.status.success());
     assert!(schema.stderr.is_empty());
     let schema: serde_json::Value = serde_json::from_slice(&schema.stdout).unwrap();
@@ -229,5 +253,5 @@ fn invalid_protocol_json_fails_fast_with_schema_guidance() {
     assert!(output.stdout.is_empty());
     let error = String::from_utf8(output.stderr).unwrap();
     assert!(error.contains("invalid TargetQuery JSON"));
-    assert!(error.contains("md schema --protocol"));
+    assert!(error.contains("md schema"));
 }

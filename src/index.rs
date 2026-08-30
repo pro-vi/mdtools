@@ -414,8 +414,20 @@ impl DocumentIndex {
         self.node_by_address.get(address).copied()
     }
 
-    pub(crate) fn section_span(&self, heading_span: SourceSpan, byte_end: u32) -> SourceSpan {
-        section_span(&self.projection, heading_span, byte_end)
+    pub(crate) fn address_for_parser_block(&self, parser_index: u32) -> Option<&TargetAddress> {
+        self.nodes.iter().find_map(|entry| match entry.node {
+            IndexNode::Heading {
+                parser_index: index,
+                ..
+            } if index == parser_index => entry
+                .parent
+                .and_then(|section| self.address_for_node(section)),
+            IndexNode::BodyBlock {
+                parser_index: index,
+                ..
+            } if index == parser_index => self.address_for_node(entry.id),
+            _ => None,
+        })
     }
 
     pub(crate) fn section_block_indices(&self, heading_block_index: Option<u32>) -> Vec<u32> {
@@ -472,16 +484,6 @@ impl DocumentIndex {
             )
             .then(|| node.span())
         })
-    }
-
-    #[cfg(test)]
-    fn source_order(&self) -> impl Iterator<Item = IndexNodeId> + '_ {
-        self.source_order.iter().copied()
-    }
-
-    #[cfg(test)]
-    fn span(&self, id: IndexNodeId) -> SourceSpan {
-        self.nodes[id.0 as usize].node.span()
     }
 
     fn render_node(&self, id: IndexNodeId, depth: usize, rendered: &mut String) {
@@ -745,223 +747,5 @@ fn heading_source_name(kind: HeadingSourceKind) -> &'static str {
     match kind {
         HeadingSourceKind::Atx => "atx",
         HeadingSourceKind::Setext => "setext",
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::block;
-    use crate::document::Document;
-    use crate::fingerprint::TargetEtag;
-    use crate::frontmatter;
-    use crate::link;
-    use crate::section::SectionIndex;
-    use crate::table;
-    use crate::task;
-
-    #[test]
-    fn source_order_uses_byte_positions_instead_of_parser_order() {
-        let projection =
-            ParsedDocument::parse(include_str!("../tests/fixtures/footnote_midbody.md").into())
-                .unwrap();
-        let index = DocumentIndex::build(projection);
-        let starts = index
-            .source_order()
-            .map(|id| index.span(id).byte_start)
-            .collect::<Vec<_>>();
-        assert!(starts.windows(2).all(|pair| pair[0] <= pair[1]));
-    }
-
-    #[test]
-    fn cached_index_matches_current_semantic_reads_field_for_field() {
-        let source = "---\ntitle: Demo\n---\n\n# [Work](work.md)\n\n- [ ] root\n  - ordinary\n    - [x] child\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
-        let document = Document::parse_for_frontmatter(source).unwrap();
-        let index = document.index();
-
-        let frontmatter_read = frontmatter::read(&document).unwrap();
-        let frontmatter_node = index
-            .nodes
-            .iter()
-            .find_map(|entry| match entry.node {
-                IndexNode::Frontmatter { span, format } => Some((span, format)),
-                _ => None,
-            })
-            .unwrap();
-        assert_eq!(frontmatter_read.span, Some(frontmatter_node.0));
-        assert_eq!(frontmatter_read.format, Some(frontmatter_node.1));
-        let frontmatter_source = document.slice(&frontmatter_node.0).unwrap();
-        assert_eq!(frontmatter_read.raw.as_deref(), Some(frontmatter_source));
-        assert_eq!(
-            frontmatter_read.data,
-            frontmatter::parse_data(frontmatter_source, frontmatter_node.1).unwrap()
-        );
-
-        let block_reads = block::blocks(&document);
-        for entry in &index.nodes {
-            match &entry.node {
-                IndexNode::BodyBlock {
-                    parser_index,
-                    kind,
-                    span,
-                    table: indexed_table,
-                    ..
-                } => {
-                    let current = &block_reads[*parser_index as usize];
-                    assert_eq!(current.index, *parser_index);
-                    assert_eq!(current.kind, *kind);
-                    assert_eq!(current.span, *span);
-                    let content = document.slice(span).unwrap();
-                    assert_eq!(current.etag, TargetEtag::for_bytes(content.as_bytes()));
-                    if let Some(indexed_table) = indexed_table {
-                        let current_table =
-                            table::table(&document, *parser_index, &Default::default()).unwrap();
-                        assert_eq!(current_table.span, *span);
-                        assert_eq!(current_table.headers, indexed_table.headers);
-                        assert_eq!(current_table.alignments, indexed_table.alignments);
-                    }
-                }
-                IndexNode::Heading {
-                    parser_index,
-                    level,
-                    text,
-                    span,
-                } => {
-                    let current = &document.blocks()[*parser_index as usize];
-                    let heading = current.heading.as_ref().unwrap();
-                    assert_eq!(current.span, *span);
-                    assert_eq!(heading.level, *level);
-                    assert_eq!(heading.text, *text);
-                }
-                _ => {}
-            }
-        }
-
-        let outline = SectionIndex::new(&document).outline();
-        for entry in &index.nodes {
-            if let IndexNode::Section {
-                span,
-                heading_span,
-                level,
-                text,
-            } = &entry.node
-            {
-                let current = outline
-                    .iter()
-                    .find(|section| section.heading.span == *heading_span)
-                    .unwrap();
-                assert_eq!(current.section_span, *span);
-                assert_eq!(current.heading.span, *heading_span);
-                assert_eq!(current.heading.level, *level);
-                assert_eq!(current.heading.text, *text);
-            }
-        }
-
-        let task_reads = task::tasks(&document, &Default::default()).unwrap();
-        for entry in &index.nodes {
-            if let IndexNode::TaskItem {
-                span,
-                child_path,
-                task_index,
-                status,
-                depth,
-                summary_text,
-                ..
-            } = &entry.node
-            {
-                let block_index = owning_source_block(index, entry.id);
-                let current = task_reads
-                    .iter()
-                    .find(|task| {
-                        task.loc.block_index() == block_index && task.loc.child_path() == child_path
-                    })
-                    .unwrap();
-                assert_eq!(current.task_index, *task_index);
-                assert_eq!(current.status, *status);
-                assert_eq!(current.depth, *depth);
-                assert_eq!(current.span, *span);
-                assert_eq!(current.summary_text, *summary_text);
-                let owning_section = owning_section(index, entry.id);
-                assert_eq!(
-                    current.nearest_heading.as_deref(),
-                    owning_section.as_ref().map(|(_, text)| text.as_str())
-                );
-                assert_eq!(
-                    current.nearest_heading_block_index,
-                    owning_section.map(|(block_index, _)| block_index)
-                );
-            }
-        }
-
-        let link_reads = link::links(&document);
-        for entry in &index.nodes {
-            if let IndexNode::Link {
-                span,
-                occurrence,
-                kind,
-                text,
-                destination,
-                title,
-            } = &entry.node
-            {
-                let block_index = owning_source_block(index, entry.id);
-                let current = link_reads
-                    .iter()
-                    .filter(|link| link.source_block_index == block_index)
-                    .nth(*occurrence as usize)
-                    .unwrap();
-                assert_eq!(current.span, *span);
-                assert_eq!(current.kind, *kind);
-                assert_eq!(current.text, *text);
-                assert_eq!(current.destination, *destination);
-                assert_eq!(current.title, *title);
-            }
-        }
-
-        for entry in &index.nodes {
-            if let IndexNode::TableRow {
-                span,
-                ordinal,
-                cells,
-            } = &entry.node
-            {
-                let block_index = owning_source_block(index, entry.id);
-                let cached = document.blocks()[block_index as usize]
-                    .table
-                    .as_ref()
-                    .unwrap();
-                assert_eq!(cached.rows[*ordinal as usize].span, *span);
-                assert_eq!(cached.rows[*ordinal as usize].cells, *cells);
-            }
-        }
-    }
-
-    fn owning_source_block(index: &DocumentIndex, mut id: IndexNodeId) -> u32 {
-        loop {
-            let entry = &index.nodes[id.0 as usize];
-            match entry.node {
-                IndexNode::BodyBlock { parser_index, .. }
-                | IndexNode::Heading { parser_index, .. } => return parser_index,
-                _ => id = entry.parent.expect("semantic node has a source block"),
-            }
-        }
-    }
-
-    fn owning_section(index: &DocumentIndex, mut id: IndexNodeId) -> Option<(u32, String)> {
-        loop {
-            let entry = &index.nodes[id.0 as usize];
-            if let IndexNode::Section { ref text, .. } = entry.node {
-                let parser_index = index.nodes.iter().find_map(|candidate| {
-                    if candidate.parent == Some(entry.id) {
-                        if let IndexNode::Heading { parser_index, .. } = candidate.node {
-                            return Some(parser_index);
-                        }
-                    }
-                    None
-                })?;
-                return Some((parser_index, text.clone()));
-            }
-            id = entry.parent?;
-        }
     }
 }

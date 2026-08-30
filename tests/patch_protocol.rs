@@ -1,13 +1,13 @@
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
 use mdtools::fragment::SectionFragment;
-use mdtools::model::{BlockKind, MutationDisposition};
 use mdtools::patch::{
     FrontmatterFieldIdentity, FrontmatterPatchTarget, HeadingPatchTarget, HeadingSectionIdentity,
     Patch, PatchOp, PatchReceipt, PreamblePatchTarget, ReplaceBlockTarget, SectionInsertionTarget,
     SectionPatchTarget, TaskIdentity, TaskPatchTarget,
 };
 use mdtools::target::{GuardAuthority, TargetAddress, TargetSnapshot, TargetSummary};
+use mdtools::{BlockKind, MutationDisposition};
 
 fn paragraph_snapshot(document: &Document) -> TargetSnapshot {
     document
@@ -377,18 +377,18 @@ fn candidate_reparse_preserves_each_document_parse_policy() {
     };
 
     let lenient_outcome = patch_for(&lenient).apply(&lenient).unwrap();
-    assert!(lenient.frontmatter().is_none());
-    assert!(lenient_outcome.document.frontmatter().is_none());
+    assert!(!lenient.has_frontmatter());
+    assert!(!lenient_outcome.document.has_frontmatter());
 
     let strict = Document::parse_for_frontmatter(source).unwrap();
     let strict_outcome = patch_for(&strict).apply(&strict).unwrap();
-    assert!(strict.frontmatter().is_some());
-    assert!(strict_outcome.document.frontmatter().is_some());
+    assert!(strict.has_frontmatter());
+    assert!(strict_outcome.document.has_frontmatter());
 
     let mutation = Document::parse_for_frontmatter_mutation(source).unwrap();
     let mutation_outcome = patch_for(&mutation).apply(&mutation).unwrap();
-    assert!(mutation.frontmatter().is_some());
-    assert!(mutation_outcome.document.frontmatter().is_some());
+    assert!(mutation.has_frontmatter());
+    assert!(mutation_outcome.document.has_frontmatter());
 }
 
 #[test]

@@ -1,6 +1,6 @@
-use mdtools::model::HeadingMatchMode;
 use mdtools::protocol::{protocol_schema, CLI_COMMANDS};
 use mdtools::target::TargetQuery;
+use mdtools::HeadingMatchMode;
 
 #[test]
 fn protocol_schema_covers_every_authoritative_surface() {
@@ -8,6 +8,7 @@ fn protocol_schema_covers_every_authoritative_surface() {
     for key in [
         "target_address",
         "target_query",
+        "query_result",
         "target_snapshot",
         "target_read",
         "patch",
@@ -20,6 +21,8 @@ fn protocol_schema_covers_every_authoritative_surface() {
     }
     assert!(schema["target_read"]["$defs"]["SectionFragment"].is_object());
     assert!(schema["target_snapshot"]["$defs"]["GuardAuthority"].is_object());
+    assert!(schema["target_query"].to_string().contains("search"));
+    assert!(schema["query_result"].to_string().contains("EvidenceRange"));
 }
 
 #[test]

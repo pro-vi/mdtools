@@ -1,230 +1,52 @@
-# mdtools — Project Instructions
-
-Structural markdown CLI for AI agents. Binary: `md`. Rust + comrak.
-
-> ⚠️ **PUBLIC REPOSITORY** (`github.com/pro-vi/mdtools`). Never commit: secrets / API
-> keys, **other projects' internals** (tickets, architecture, IP — e.g. fract-ai),
-> agent/session transcripts or dumps (`agent_output.txt`, `*.pi-audit.jsonl`,
-> `guard.log`), or personal usage telemetry. The private research/benchmarking loop
-> lives in gitignored **`.loop/`**; machine-specific workflow goes in gitignored
-> **`CLAUDE.local.md`**. When unsure if something is public-safe, keep it out — a leak
-> in git history needs a force-push rewrite to undo.
+# mdtools contributor notes
 
 ## Architecture
 
-**Parser boundary:** All comrak interaction is in `src/parser.rs`. The rest of the codebase sees only model types (`src/model.rs`), never comrak types. This is the core invariant.
+- `Document` owns immutable source, parse policy, revision, and one
+  source-ordered `DocumentIndex`.
+- `TargetQuery` is fuzzy discovery. `TargetAddress` is exact identity.
+- `TargetSnapshot` separates selection from `GuardAuthority`.
+- `ResolvedTarget` is bound to one document-index instance.
+- Reads stay typed by Markdown domain.
+- Search returns `EvidenceRange`, never mutation authority.
+- `Patch` is one-base, fully preflighted, non-overlapping, applied once, and
+  reparsed once before receipts are finalized.
+- Core code performs no filesystem I/O. The `file` feature owns verified atomic
+  commit safety.
+- Rust protocol types generate JSON Schema and shared five-command metadata.
 
-**Command pattern:**
-- Read commands: parse → extract → emit JSON or TSV
-- Mutation commands: parse → find target → read content via `output::read_content(args.from.as_deref())` → splice at byte offsets → emit `MutationResult`
-- Multifile: `multifile::resolve_paths()` → `for_each_file()` with error aggregation
-- Metadata aggregation: `md frontmatter` stays per-file/JSONL; `md collect` is the
-  read-only vault-as-table surface with ordered `headers`/`rows` output.
+## CLI
 
-**Key files:**
-- `src/cli.rs` — all command args (clap derive)
-- `src/model.rs` — all types, schema version `mdtools.v1`
-- `src/parser.rs` — comrak boundary, `ParsedDocument`, `BlockInfo`, `TaskItemInfo`
-- `src/output.rs` — JSON/text output, `read_content()` for `--from` flag
-- `src/locate.rs` — position → target: `locate(document, byte_offset)` and
-  `locate_line` return the enclosing block, section, task item, and table row
-  with their etags. Library-only, no CLI command. A position between blocks is
-  `Ok` with `block: None` (a click on a blank line is a real position); only a
-  byte offset at or past the end of the source is an error. **`document.blocks()`
-  is not in source order** — comrak emits footnote definitions after the blocks
-  referencing them — so position lookups scan and both `SectionIndex` lookups
-  key off source position, never block adjacency.
-- `src/commands/` — one module per command group
+The public binary has exactly five commands:
 
-## Design rules
-
-- **Markdown primitives only.** If it's in the GFM spec or comrak AST, it's our domain. Task IDs (`0.1`), phase headings, metadata patterns — consumer's job via `jq`.
-- **Probe lifecycle is portfolio-owned.** `probes/README.md` is the canonical mutable
-  status surface and `probes/TEMPLATE.md` is the starting contract. One evidence
-  question maps to one PR by default, with protocol, inspected source, and execution
-  kept as separate commits and authority transitions inside that PR. Never execute
-  newly authored probe code before source inspection. A protocol-only PR requires an
-  explicit owner decision or an independently reusable contract. Every probe PR
-  updates the portfolio before merge; stopped-before-execution work earns no result
-  label and authorizes no production architecture.
-- **Keep `collect` narrow.** `md collect` is frontmatter aggregation only: one row per
-  discovered Markdown file, requested-field order preserved, missing metadata kept as
-  blank/null cells, and partial per-file parse failures reported without turning it
-  into a mutation/query engine.
-- **Loc carries no identity; etag fingerprints content.** Loc is a structural dot-path (`9.0`, `14.4.0`) — no versioning in the loc itself. For drift-safety, `md blocks`/`md block`, `md section --json`, `md table --json`, `md tasks --json`, and `md task <LOC> <FILE> --json` expose a target `etag` (full lowercase SHA-256 exact-byte content fingerprint). `md frontmatter --json` exposes one whole-frontmatter-state `etag` plus top-level `present` metadata, and the field-projection JSON path keeps the same state token. Each `md search --json` match exposes an `etag` for the exact original-source bytes covered by `match_span`; it does not cover the lossy preview, identify one occurrence, or feed a mutation guard. `replace-block`/`delete-block`/`insert-block --before|--after`, `replace-section`/`delete-section`, `replace-table-row`/`insert-table-row`/`delete-table-row`, `set`, and `set-task` accept `--expect-etag <hash>`, while `move-block` and `move-section` accept `--expect-source-etag <hash>` and `--expect-dest-etag <hash>`, to fail-closed (exit 4) as `EtagMismatch` when the current fingerprint differs or `EtagAmbiguous` when that fingerprint is non-unique among current same-kind targets. `set` checks the frontmatter guard before any mutation, no-op, stdout, or write path; `move-block` and `move-section` check source first and destination second before any no-op or write path; table-row ambiguity recovery runs through `md table --json` plus the intended `--index`, not section occurrence flags. This guards the read→mutate path against target-content drift, so the safe pattern is still read, mutate, then re-query before the next mutation.
-- **Re-query pattern is the moat.** Agents use `md tasks --json` to discover locs, then `md task <LOC> <FILE> --json` or `md frontmatter --json` to read an exact mutation target, mutate, then re-query for fresh locs or frontmatter etags. Design new commands to support this cycle. Locs must be cheap to re-derive.
-- **Payload-bearing vs payload-free mutations.** `replace-section`, `replace-block`, `replace-table-row`, `insert-table-row`, and `insert-block` accept `--from PATH` (or stdin). Agents write temp files instead of shell-escaping heredocs. `delete-table-row` is intentionally payload-free: selector only, no stdin or `--from`. `replace-block`, `replace-table-row`, and `insert-table-row` strip one trailing line-ending from the content (matching the newline-excluded target-span convention) so the trailing `\n` that `cat`/editors/`echo` universally append doesn't inject a spurious blank line; the strip is skipped for blocks whose span includes a trailing newline (indented code), while table-row replacement preserves the row's existing line ending by keeping it outside the replaced span and table-row insertion keeps any copied separator outside the inserted payload span.
-- **Hybrid > pure.** Agents perform best with both `md` and unix tools. Don't try to replace `sed` for simple edits.
-
-## Comrak pin
-
-`comrak = "=0.51.0"` — exact pin. `set-task` does 1-byte replacement at `symbol_byte_offset` from `NodeTaskItem.symbol_sourcepos`. Comrak changed sourcepos behavior across 0.48-0.51. When upgrading: re-run full test suite, verify CRLF/frontmatter/multibyte fixtures.
-
-Parser options: `relaxed_tasklist_matching: false`, `tasklist_in_table: false` (strict GFM).
-
-## Known limitations
-
-- `section --ignore-case` uses Rust lowercase projection, not Unicode normalization or full case folding; composed and decomposed spellings still differ unless lowercase alone makes them equal
-- T6 (complex multi-edit) fails in all modes — agent planning limitation, not tool gap
-- `--expect-etag` / `--expect-source-etag` / `--expect-dest-etag` are
-  **content-addressed, not identity-addressed**, but block, section, table, and task
-  guards now **fail closed on hash ambiguity**: when the expected fingerprint matches
-  more than one same-kind target in the document (identical duplicates), the mutation
-  exits 4 with `etag_ambiguous` instead of silently authorizing the wrong duplicate.
-  Table-row ambiguity is scoped to current top-level whole-table matches and recovery
-  runs through `md table --json` plus the intended `--index`. True identity binding
-  (neighbor-aware / context-sensitive anchors) remains follow-up — it trades against
-  "loc carries no identity". Re-query-before-mutate remains the recommended pattern.
-  **Concurrency boundary (do not overclaim):** the guard is a *same-invocation
-  drift check* — md reads the target, checks the fingerprint, and splices+renames
-  within one process. It is **not a cross-process compare-and-swap and not a
-  lock**: a concurrent external writer between md's read and its atomic rename is
-  out of scope (the read→rename window is a documented std-only residual, alongside
-  the tempfile check→rename/check→unlink gaps). Serialize concurrent mutators
-  externally (the pi-mdtools adapter uses a per-file mutation queue).
-- **Bench ablation integrity (maintain this).** The no-md / `native*` baselines must keep
-  `md` unreachable by *every* form — the `./md` workdir copy, bare `md` on PATH, and the
-  `BASH_ENV` the claude-cli shell never sources. This recurred as a bypass **5× across axes**
-  (2026-06) before being closed by one `MD_REAL_MODES` predicate (new modes default to
-  md-excluded) **plus** a fail-closed `_assert_no_md_reachable` preflight that proves
-  unreachability before any run (`bench/harness.py`). **Never add a no-md/ablation mode without
-  routing it through that predicate + preflight** — a new axis silently contaminates the
-  attribution data, and contaminated data outlives the code fix (a re-measure is part of the
-  fix, not optional). **This generalizes from modes to RUNNERS:** enabling a new native-capable
-  runner (2026-06-13: `pi-json`) requires verifying the preflight probes *that runner's actual
-  PATH* — pi prepends `~/.pi/agent/bin` (`getShellEnv`), invisible to the harness `child_env`, so
-  `_assert_no_md_reachable` gained `extra_path_dirs` to probe it. A new runner with its own
-  PATH-prepend needs the same, or a real `md` there is unreachable to the proof yet reachable to
-  the agent. (Decision record: `docs/decisions/2026-06-13-pi-json-native-arm.md`.)
-
-## Task loc format
-
-`BLOCK.CHILD[.CHILD...]` — e.g., `9.0` (block 9, child 0), `14.4.0` (nested grandchild). For blockquote tasks, sibling lists get a list-counter prefix: `0.0.0` vs `0.1.0`.
-
-Use `md task <LOC> <FILE>` to read one task's exact parser-owned source span. In JSON mode, use `.task.etag` as the guarded `md set-task --expect-etag` value.
-
-Use `md tasks <FILE|DIR>... [-r] [--status pending|done] [--contains <TEXT>]
-[--under <SELECTOR> [--occurrence <N>]]` to narrow task discovery. `--contains`
-is a case-sensitive literal substring match against each task's parser-produced
-summary plaintext. `--under` selects an exact, case-sensitive heading section
-and includes tasks in its descendant sections through that section's
-`SectionEntry.block_indices`; `:preamble` selects the preamble and rejects
-`--occurrence`. `--occurrence` is a 1-based duplicate-heading selector and
-requires `--under`. The section, status, and summary filters use logical AND
-and do not change task locs or duplicate-task visibility.
-
-## Releases
-
-Releases are annotated git tags on this repository (`vMAJOR.MINOR.PATCH`, matching
-`package.version`). Nothing is published to crates.io. A consumer depends on the URL
-and pins a tag, taking `default-features = false` for the library without `clap`,
-`walkdir`, or the `md` binary. Semver covers the **library** surface under `src/lib.rs`;
-the CLI's `mdtools.v1` JSON schema version moves independently. Keep the `include`
-allowlist in `Cargo.toml` correct even though git dependencies ignore it — it is what
-keeps `cargo package` publishable if that decision ever reverses. Rationale and revisit
-triggers: `docs/decisions/2026-08-25-git-tags-are-the-release-boundary.md`.
-
-## Build & test
-
-```bash
-cargo build --release
-cargo test                           # full Rust test suite
-cargo test --test cli_tasks          # task-specific tests
-python bench/harness.py --md-binary target/release/md  # validate 20 benchmark scorers
+```text
+md map <FILE>
+md read <FILE> --address <JSON> | --from <PATH|->
+md query <FILE> --query <JSON> | --from <PATH|->
+md patch <FILE> --patch <JSON> | --from <PATH|-> [--in-place]
+md schema
 ```
 
-## Benchmark
+CLI code may decode inputs, call library operations, and render outputs. It may
+not contain Markdown traversal or mutation semantics.
 
-**Do not cite pre-v3 benchmark headlines.** The old Haiku/Sonnet/Opus numbers are
-retracted. Current v3 result: `md` shows large directional weak-model lifts with clean
-no-md ablations, but the preregistered broad headline failed certification. The paired
-lift estimates are +28.3pp (Haiku shell), +27.5pp (Haiku native), and +30.8pp
-(GPT-5.4-mini native); their 95% CI lower bounds are +10.0pp, +9.2pp, and +10.8pp,
-below the frozen +15pp floor. Treat the broad result as directional/exploratory.
+## Parser boundary
 
-Supported claim: `md` helps weak/tool-poor agents read and target Markdown structure
-more reliably, mainly reducing wrong-target, format, and quoting failures. Not
-supported: a certified broad benchmark headline, a frontier-native-tool edge, a
->10k-line document edge, or a proven agent advantage from `--expect-etag`. Sources:
-`bench/RESULTS.md`, `bench/V3.md`, and
-`docs/decisions/2026-07-04-md-positioning-after-probes.md`.
+`comrak = "=0.51.0"` is exact-pinned. Comrak types stay inside `src/parser.rs`.
+When upgrading, run all fixtures, especially CRLF, setext, footnotes,
+multiline code spans, frontmatter, tables, and multibyte source spans.
 
-Default corpus: 28 tasks in `bench/tasks/tasks.json`; v3 headline aggregation uses the
-24 core tasks and reports adversarially mined tasks separately. Dual scoring:
-v3-neutral primary plus diagnostic scorer.
+## Verification
 
-```bash
-# Run single task
-python bench/harness.py --run --runner oai-loop --mode hybrid \
-  --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
-  --oai-api-key $OMLX_API_KEY --task T10
-
-# Full matrix — one invocation PER mode. `--mode` is single-valued (action="store"):
-# repeated `--mode A --mode B` flags silently keep only the LAST. Loop to run a matrix.
-for MODE in unix mdtools hybrid; do
-  python bench/harness.py --run --runner oai-loop --mode $MODE \
-    --md-binary target/release/md --oai-api-base http://localhost:10240/v1 \
-    --oai-api-key $OMLX_API_KEY --model Qwen3.5-27B-4bit
-done
-
-# Analyze
-python bench/analyze.py /tmp/bench_*.txt
-python bench/report.py /tmp/bench_*.txt --markdown
+```sh
+cargo test --all-targets
+cargo check --no-default-features
+cargo check --features file
+cargo fmt --all -- --check
+RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --document-private-items
+cargo clippy --all-targets -- -D warnings -A clippy::enum_variant_names -A clippy::large_enum_variant
+git diff --check
 ```
 
-## Auto-research (candidate pipeline)
-
-`bench/auto_research.py` runs the full candidate pipeline in one command:
-generator (mdtools-blind) → realism review → harness measurement (3 modes) →
-unix-adversary review → manifest assembly.
-
-```bash
-# Generate + measure a new candidate (uses primary model by default)
-python bench/auto_research.py \
-  --md-binary target/release/md \
-  --api-base http://localhost:10240/v1 \
-  --api-key $OMLX_API_KEY
-
-# Dry-run (skip harness measurement — just generator + reviews)
-python bench/auto_research.py \
-  --md-binary target/release/md \
-  --api-base http://localhost:10240/v1 \
-  --api-key $OMLX_API_KEY \
-  --skip-measure
-
-# Use a specific generator model (e.g. gemma for speed, Qwen for quality)
-python bench/auto_research.py \
-  --md-binary target/release/md \
-  --api-base http://localhost:10240/v1 \
-  --api-key $OMLX_API_KEY \
-  --model gemma-4-e4b-it-8bit
-```
-
-Outputs land in `bench/search/candidates/<slug>/`. Status values:
-- `pending-cross-seed` — gap exists, AST-structural, ready for N=3 promotion gate
-- `rejected-hybrid-fail-no-gap` — both modes failed; generator made task too hard
-- `rejected-both-pass-no-gap` — no gap; unix solved it too
-- `rejected-planning` — realism review said no
-- `rejected-<gap-label>` — gap exists but unix adversary labeled it non-structural
-
-OAI endpoint: `http://localhost:10240/v1`, API key in `~/.omlx/settings.json`.
-
-## Task families
-
-| Family | Tasks | mdtools advantage |
-|--------|-------|-------------------|
-| Extraction | T1,T5,T9,T11,T16,T19 | Strong — structural query vs multi-pass grep |
-| Targeted mutation | T7,T10,T13,T20 | Moderate — loc addressing vs line numbers |
-| Batch mutation | T12 | Strong — md set-task in a loop |
-| Multi-step | T15,T18 | Strong — re-query pattern handles drift |
-| Content delivery | T2,T3,T8,T17 | Moderate — --from avoids shell escaping |
-| Safe-fail | T14 | Strong — md tasks detects ambiguity |
-| Text manipulation | T4,T6 | Weak — unix wins simple sed/awk |
-
-## Next steps (from improvement plan)
-
-1. Ship to the original consumer (oracle-loop integration)
-2. Instrument real deployment (track tool choice, re-query rate)
-3. T6 is the roadmap signal — transactional multi-edit gap, not a bug to fix
-4. `md batch` is NOT on the roadmap (Pro review: prove planning vs execution gap first)
-5. Table row mutations shipped (`replace-table-row`, `insert-table-row`, `delete-table-row`). `md collect` now covers the narrow vault-as-table read path; keep follow-on work out of mutation/query-engine territory.
+Do not add a second selector, guard, patch, receipt, command inventory, or
+schema authority.

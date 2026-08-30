@@ -1,12 +1,12 @@
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
 use mdtools::fragment::SectionFragment;
-use mdtools::model::{MutationDisposition, TaskStatus};
 use mdtools::patch::{
     HeadingPatchTarget, Patch, PatchOp, PatchReceipt, PreamblePatchTarget, SectionInsertionTarget,
     TableRowPatchTarget, TaskPatchTarget,
 };
 use mdtools::target::{TargetAddress, TargetKind, TargetSnapshot, TargetSummary};
+use mdtools::{MutationDisposition, TaskStatus};
 
 fn section(document: &Document, heading: &str) -> TargetSnapshot {
     document

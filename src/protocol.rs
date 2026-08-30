@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::patch::{Patch, PatchReceipt};
 use crate::read::TargetRead;
-use crate::target::{TargetAddress, TargetQuery, TargetSnapshot};
+use crate::target::{QueryResult, TargetAddress, TargetQuery, TargetSnapshot};
 
 pub const MAP_SUMMARY: &str = "Map every canonical Markdown target in source order";
 pub const READ_SUMMARY: &str = "Read one exact target through its typed Markdown view";
@@ -39,7 +39,7 @@ pub const CLI_COMMANDS: &[CliCommandMetadata] = &[
         name: "query",
         summary: QUERY_SUMMARY,
         input: "TargetQuery",
-        output: "TargetSnapshot[]",
+        output: "QueryResult[]",
         mutating: false,
     },
     CliCommandMetadata {
@@ -73,6 +73,7 @@ pub fn protocol_schema() -> serde_json::Value {
         "commands": CLI_COMMANDS,
         "target_address": serde_json::to_value(schema_for!(TargetAddress)).expect("target address schema serializes"),
         "target_query": serde_json::to_value(schema_for!(TargetQuery)).expect("target query schema serializes"),
+        "query_result": serde_json::to_value(schema_for!(QueryResult)).expect("query result schema serializes"),
         "target_snapshot": serde_json::to_value(schema_for!(TargetSnapshot)).expect("target snapshot schema serializes"),
         "target_read": serde_json::to_value(schema_for!(TargetRead)).expect("target read schema serializes"),
         "patch": patch_schema(),

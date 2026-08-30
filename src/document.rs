@@ -1,9 +1,6 @@
 //! Immutable operation-facing Markdown document.
 //!
-//! [`ParsedDocument`] remains available as the
-//! low-level parser projection for compatibility. Core operations accept this
-//! wrapper so callers cannot mutate source bytes independently of their spans
-//! and revision.
+//! Parser-specific state remains private behind the indexed target API.
 
 use crate::core_error::CoreError;
 use crate::index::DocumentIndex;
@@ -11,7 +8,7 @@ use crate::model::{LineEndingStyle, SourceSpan};
 use crate::parser::{BlockInfo, FrontmatterInfo, FrontmatterState, ParsePolicy, ParsedDocument};
 use crate::read::TargetRead;
 use crate::revision::DocumentRevision;
-use crate::target::{ResolvedTarget, TargetAddress, TargetQuery, TargetSnapshot};
+use crate::target::{QueryResult, ResolvedTarget, TargetAddress, TargetQuery, TargetSnapshot};
 
 pub struct Document {
     index: DocumentIndex,
@@ -44,12 +41,16 @@ impl Document {
         &self.index.projection().source
     }
 
-    pub fn blocks(&self) -> &[BlockInfo] {
+    pub(crate) fn blocks(&self) -> &[BlockInfo] {
         &self.index.projection().blocks
     }
 
-    pub fn frontmatter(&self) -> Option<&FrontmatterInfo> {
+    pub(crate) fn frontmatter(&self) -> Option<&FrontmatterInfo> {
         self.index.projection().frontmatter.as_ref()
+    }
+
+    pub fn has_frontmatter(&self) -> bool {
+        self.frontmatter().is_some()
     }
 
     pub fn line_count(&self) -> u32 {
@@ -88,7 +89,7 @@ impl Document {
         self.index.projection().revision()
     }
 
-    pub fn frontmatter_state(&self) -> FrontmatterState<'_> {
+    pub(crate) fn frontmatter_state(&self) -> FrontmatterState<'_> {
         self.index.projection().frontmatter_state()
     }
 
@@ -104,7 +105,7 @@ impl Document {
         crate::target::map(self)
     }
 
-    pub fn query(&self, query: &TargetQuery) -> Result<Vec<TargetSnapshot>, CoreError> {
+    pub fn query(&self, query: &TargetQuery) -> Result<Vec<QueryResult>, CoreError> {
         crate::target::query(self, query)
     }
 
@@ -131,11 +132,5 @@ impl Document {
             ParsePolicy::StrictRead => Self::parse_for_frontmatter(source),
             ParsePolicy::Mutation => Self::parse_for_frontmatter_mutation(source),
         }
-    }
-
-    /// Read-only access to the low-level parser projection for adapters that
-    /// still need parser-specific metadata during migration.
-    pub fn projection(&self) -> &ParsedDocument {
-        self.index.projection()
     }
 }

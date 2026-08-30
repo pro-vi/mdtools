@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use mdtools::document::Document;
-use mdtools::model::TaskStatus;
 use mdtools::patch::{Patch, PatchOp, TaskPatchTarget};
 use mdtools::target::{TargetKind, TargetQuery};
+use mdtools::TaskStatus;
 
 fn bench_parse_progress(c: &mut Criterion) {
     let source = include_str!("../bench/inputs/t5_progress.md");
