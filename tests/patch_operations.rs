@@ -178,6 +178,26 @@ fn block_move_carries_the_moved_blocks_own_separator() {
 }
 
 #[test]
+fn block_move_preserves_unindexed_content_in_the_moved_blocks_gap() {
+    let document = Document::parse("A text\n\n[^1]: note text\n\nB text").unwrap();
+    let outcome = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::MoveBlock {
+            source: ReplaceBlockTarget::try_from(&block_with(&document, "A text")).unwrap(),
+            destination: ReplaceBlockTarget::try_from(&block_with(&document, "B text")).unwrap(),
+            position: RelativePosition::After,
+        }],
+    }
+    .apply(&document)
+    .unwrap();
+
+    assert_eq!(
+        outcome.document.source(),
+        "B text\n\nA text\n\n[^1]: note text\n\n"
+    );
+}
+
+#[test]
 fn task_frontmatter_and_table_operations_use_semantic_targets() {
     let source = "---\na.b: old\n---\n\n# Work\n\n- [ ] task\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
     let document = Document::parse_for_frontmatter_mutation(source).unwrap();

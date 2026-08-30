@@ -695,8 +695,7 @@ fn plan_move_block(
     let mut replacement = String::with_capacity(interval_end - interval_start);
     let mut moved_range = 0..0;
     let mut block_expectations = Vec::with_capacity(high - low + 1);
-    for slot in low..=high {
-        let parser_index = order[slot];
+    for (slot, parser_index) in order.iter().copied().enumerate().take(high + 1).skip(low) {
         let block = &document.blocks()[parser_index as usize];
         let block_start = replacement.len();
         replacement.push_str(document.slice_unchecked(&block.span));
@@ -712,11 +711,7 @@ fn plan_move_block(
                 range: block_start..block_end,
             },
         });
-        let gap_owner = if slot == high {
-            source_order[slot]
-        } else {
-            parser_index
-        };
+        let gap_owner = parser_index;
         let gap_start = document.blocks()[gap_owner as usize].span.byte_end as usize;
         let original_position = source_order
             .iter()
@@ -730,6 +725,15 @@ fn plan_move_block(
         if slot < high && gap.trim().is_empty() && trailing_line_breaks(gap) < 2 {
             replacement.push_str(newline(document.line_ending_style()));
             replacement.push_str(newline(document.line_ending_style()));
+        } else if slot == high && gap.trim().is_empty() {
+            let terminal_owner = source_order[high];
+            let terminal_gap_start =
+                document.blocks()[terminal_owner as usize].span.byte_end as usize;
+            let terminal_gap_end = source_order
+                .get(high + 1)
+                .map(|index| document.blocks()[*index as usize].span.byte_start as usize)
+                .unwrap_or(document.source().len());
+            replacement.push_str(&document.source()[terminal_gap_start..terminal_gap_end]);
         } else {
             replacement.push_str(gap);
         }
