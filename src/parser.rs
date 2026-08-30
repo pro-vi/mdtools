@@ -342,7 +342,6 @@ impl ParsedDocument {
 
     fn parse_inner(source: String, mode: ParsePolicy) -> Result<Self, CoreError> {
         reject_oversized_source(source.len())?;
-        reject_excessive_nesting(&source)?;
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(delimiter);
@@ -476,7 +475,6 @@ impl ParsedDocument {
 
     pub(crate) fn parse_without_frontmatter(source: String) -> Result<Self, CoreError> {
         reject_oversized_source(source.len())?;
-        reject_excessive_nesting(&source)?;
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(None); // No frontmatter delimiter
         let arena = Arena::new();
@@ -670,36 +668,6 @@ fn reject_oversized_source(source_len: usize) -> Result<(), CoreError> {
     } else {
         Ok(())
     }
-}
-
-fn reject_excessive_nesting(source: &str) -> Result<(), CoreError> {
-    const MAX_PREFIX_NESTING: usize = 1024;
-    for line in source.lines() {
-        let mut rest = line.trim_start_matches([' ', '\t']);
-        let mut depth = 0;
-        while let Some(after) = rest.strip_prefix('>') {
-            depth += 1;
-            if depth > MAX_PREFIX_NESTING {
-                return Err(CoreError::ParseFailed(format!(
-                    "Markdown nesting exceeds the supported depth of {MAX_PREFIX_NESTING}"
-                )));
-            }
-            rest = after;
-            let mut whitespace = 0;
-            while whitespace < 4 {
-                if let Some(after_space) = rest.strip_prefix(' ') {
-                    rest = after_space;
-                    whitespace += 1;
-                } else if let Some(after_tab) = rest.strip_prefix('\t') {
-                    rest = after_tab;
-                    whitespace += 1;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 fn reject_excessive_ast_depth<'a>(root: &'a AstNode<'a>) -> Result<(), CoreError> {

@@ -488,28 +488,8 @@ fn patch_fragments_apply_document_resource_limits_before_parsing() {
     assert!(matches!(
         patch.apply(&document),
         Err(mdtools::core_error::CoreError::ParseFailed(message))
-            if message.contains("nesting exceeds")
+            if message.contains("AST exceeds")
     ));
-
-    for separator in [
-        "> ", ">  ", ">   ", ">    ", ">\t", ">\t ", ">\t  ", ">\t   ", "> \t  ",
-    ] {
-        let patch = Patch {
-            base_revision: document.revision().clone(),
-            operations: vec![PatchOp::InsertBlock {
-                target: BlockInsertionTarget::DocumentEdge {
-                    edge: DocumentEdge::End,
-                    revision: document.revision().clone(),
-                },
-                markdown: format!("{}nested", separator.repeat(2_048)),
-            }],
-        };
-        assert!(matches!(
-            patch.apply(&document),
-            Err(mdtools::core_error::CoreError::ParseFailed(message))
-                if message.contains("nesting exceeds")
-        ));
-    }
 
     let emphasis = "*".repeat(5_000);
     let patch = Patch {
@@ -527,6 +507,19 @@ fn patch_fragments_apply_document_resource_limits_before_parsing() {
         Err(mdtools::core_error::CoreError::ParseFailed(message))
             if message.contains("AST exceeds")
     ));
+
+    let literal_quotes = format!("```text\n{}\n```", ">".repeat(2_048));
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::InsertBlock {
+            target: BlockInsertionTarget::DocumentEdge {
+                edge: DocumentEdge::End,
+                revision: document.revision().clone(),
+            },
+            markdown: literal_quotes,
+        }],
+    };
+    assert!(patch.apply(&document).is_ok());
 }
 
 #[test]

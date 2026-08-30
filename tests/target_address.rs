@@ -437,6 +437,6 @@ fn excessive_blockquote_nesting_returns_a_typed_parse_error() {
     let source = format!("{} deep\n", ">".repeat(2048));
     assert!(matches!(
         Document::parse(source),
-        Err(CoreError::ParseFailed(reason)) if reason.contains("nesting exceeds")
+        Err(CoreError::ParseFailed(reason)) if reason.contains("AST exceeds")
     ));
 }
