@@ -682,7 +682,13 @@ fn reject_excessive_nesting(source: &str) -> Result<(), CoreError> {
                     "Markdown nesting exceeds the supported depth of {MAX_PREFIX_NESTING}"
                 )));
             }
-            rest = after.strip_prefix(' ').unwrap_or(after);
+            rest = after;
+            for _ in 0..3 {
+                let Some(after_space) = rest.strip_prefix(' ') else {
+                    break;
+                };
+                rest = after_space;
+            }
         }
     }
     Ok(())

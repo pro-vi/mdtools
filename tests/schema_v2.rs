@@ -149,6 +149,11 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         "match_mode": "exact"
     }))
     .is_ok());
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "frontmatter_field",
+        "path": []
+    }))
+    .is_err());
 
     let schema = protocol_schema();
     let variants = schema["target_query"]["oneOf"].as_array().unwrap();
@@ -165,4 +170,9 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         section["allOf"][0]["then"]["properties"]["text"]["minLength"],
         1
     );
+    let frontmatter = variants
+        .iter()
+        .find(|variant| variant["properties"]["type"]["const"] == "frontmatter_field")
+        .unwrap();
+    assert_eq!(frontmatter["properties"]["path"]["minItems"], 1);
 }

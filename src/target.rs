@@ -214,6 +214,7 @@ pub enum TargetQuery {
         destination: Option<String>,
     },
     FrontmatterField {
+        #[schemars(length(min = 1))]
         path: Vec<String>,
     },
     Search {
@@ -1168,7 +1169,11 @@ fn query_matches(query: &TargetQuery, snapshot: &TargetSnapshot) -> bool {
 }
 
 fn validate_query(query: &TargetQuery) -> Result<(), CoreError> {
-    if matches!(query, TargetQuery::Search { text, .. } if text.is_empty()) {
+    if matches!(query, TargetQuery::FrontmatterField { path } if path.is_empty()) {
+        Err(CoreError::InvalidSelector(
+            "frontmatter field query path cannot be empty".into(),
+        ))
+    } else if matches!(query, TargetQuery::Search { text, .. } if text.is_empty()) {
         Err(CoreError::InvalidSelector(
             "search query text cannot be empty".into(),
         ))
