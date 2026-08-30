@@ -68,13 +68,8 @@ impl LoadedFile {
     }
 
     pub fn prepare_patch(self, patch: &Patch) -> Result<PreparedFilePatch, PersistenceError> {
-        let document = if patch.mutates_frontmatter() {
-            Document::parse_for_frontmatter_mutation(self.document.source().to_string())?
-        } else {
-            self.document
-        };
-        let base_revision = document.revision().clone();
-        let outcome = patch.apply(&document)?;
+        let base_revision = self.document.revision().clone();
+        let outcome = patch.apply(&self.document)?;
         Ok(PreparedFilePatch {
             target: self.target,
             base_revision,
@@ -369,8 +364,20 @@ fn restore_unix_metadata(
     use std::os::fd::AsRawFd;
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-    if unsafe { libc::fchown(file.as_raw_fd(), metadata.uid(), metadata.gid()) } != 0 {
-        return Err(std::io::Error::last_os_error().into());
+    let temporary = file.metadata()?;
+    if (temporary.uid(), temporary.gid()) != (metadata.uid(), metadata.gid())
+        && unsafe { libc::fchown(file.as_raw_fd(), metadata.uid(), metadata.gid()) } != 0
+    {
+        let cause = std::io::Error::last_os_error();
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!(
+                "cannot preserve file ownership uid={} gid={}: {cause}",
+                metadata.uid(),
+                metadata.gid()
+            ),
+        )
+        .into());
     }
     file.set_permissions(std::fs::Permissions::from_mode(metadata.mode() & 0o7777))?;
     Ok(())

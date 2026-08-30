@@ -54,6 +54,9 @@ or command inventories.
   identity primitives exist there.
 - A file change after preparation refuses commit. No-change patches verify but
   do not replace the file.
+- A leading `---` or `+++` line is treated as frontmatter intent. Frontmatter
+  mutation refuses when that intent does not form a valid mutable block; callers
+  must disambiguate a leading thematic break before adding frontmatter.
 
 ## CLI
 

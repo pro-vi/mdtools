@@ -376,6 +376,49 @@ fn frontmatter_field_mutation_rejects_lossy_round_trip_and_preserves_crlf() {
 }
 
 #[test]
+fn core_patch_refuses_unclaimed_frontmatter_delimiters() {
+    for source in ["---\na: [\n---\n\nbody\n", "---\n\n# Title\n"] {
+        let document = Document::parse(source).unwrap();
+        let target = document
+            .resolve(&TargetAddress::FrontmatterField {
+                path: vec!["a".into()],
+            })
+            .unwrap();
+        let patch = Patch {
+            base_revision: document.revision().clone(),
+            operations: vec![PatchOp::SetFrontmatter {
+                target: FrontmatterPatchTarget::try_from(target.snapshot()).unwrap(),
+                value: serde_json::json!("new"),
+            }],
+        };
+        assert!(matches!(
+            patch.apply(&document),
+            Err(mdtools::core_error::CoreError::FrontmatterParseFailed(_))
+        ));
+        assert_eq!(document.source(), source);
+    }
+}
+
+#[test]
+fn rust_insert_block_rejects_an_empty_payload() {
+    let document = Document::parse("body\n").unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::InsertBlock {
+            target: BlockInsertionTarget::DocumentEdge {
+                edge: DocumentEdge::End,
+                revision: document.revision().clone(),
+            },
+            markdown: String::new(),
+        }],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::InvalidPatch(_))
+    ));
+}
+
+#[test]
 fn block_insertion_must_create_exactly_one_body_block() {
     let document = Document::parse("body\n").unwrap();
     let patch = Patch {

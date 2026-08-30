@@ -3,7 +3,10 @@ use serde::Serialize;
 
 use crate::patch::{Patch, PatchReceipt};
 use crate::read::TargetRead;
-use crate::target::{QueryResult, TargetAddress, TargetQuery, TargetSnapshot};
+use crate::target::{
+    QueryResult, TargetAddress, TargetQuery, TargetSnapshot, NON_EMPTY_QUERY_TEXT_MIN_LENGTH,
+    NON_EMPTY_SECTION_MATCH_MODES,
+};
 
 pub const MAP_SUMMARY: &str = "Map every canonical Markdown target in source order";
 pub const READ_SUMMARY: &str = "Read one exact target through its typed Markdown view";
@@ -127,20 +130,23 @@ fn target_query_schema() -> serde_json::Value {
     {
         match variant["properties"]["type"]["const"].as_str() {
             Some("search") => {
-                variant["properties"]["text"]["minLength"] = serde_json::json!(1);
+                variant["properties"]["text"]["minLength"] =
+                    serde_json::json!(NON_EMPTY_QUERY_TEXT_MIN_LENGTH);
             }
             Some("section") => {
+                let modes = serde_json::to_value(NON_EMPTY_SECTION_MATCH_MODES)
+                    .expect("section match modes serialize");
                 variant["allOf"] = serde_json::json!([{
                     "if": {
                         "properties": {
                             "match_mode": {
-                                "enum": ["contains", "contains_ignore_case"]
+                                "enum": modes
                             }
                         }
                     },
                     "then": {
                         "properties": {
-                            "text": { "minLength": 1 }
+                            "text": { "minLength": NON_EMPTY_QUERY_TEXT_MIN_LENGTH }
                         }
                     }
                 }]);

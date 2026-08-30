@@ -126,6 +126,13 @@ pub(crate) fn plan_path_batch(
         .iter()
         .any(|disposition| *disposition != MutationDisposition::NoChange);
     if has_changes {
+        if state.raw.is_none()
+            && crate::parser::detect_frontmatter_delimiter(document.source()).is_some()
+        {
+            return Err(CoreError::FrontmatterParseFailed(
+                "leading frontmatter delimiter is not a valid mutable frontmatter block".into(),
+            ));
+        }
         if let Some(raw) = state.raw {
             let round_trip = normalize_line_endings(
                 &serialize(&original_data, format)?,

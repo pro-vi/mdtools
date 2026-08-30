@@ -109,7 +109,9 @@ pub fn run_patch(arguments: &ApplyPatchArgs, json: bool) -> Result<(), CommandEr
     };
     if arguments.in_place {
         if let Err(error) = output::write_json(&outcome.receipts) {
-            eprintln!("file commit succeeded, but receipt output failed: {error}");
+            eprintln!(
+                "file commit succeeded, but receipt output failed and cannot be regenerated; run `md map` to observe the committed state: {error}"
+            );
         }
         Ok(())
     } else if json {

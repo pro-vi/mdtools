@@ -192,7 +192,7 @@ pub fn strip_frontmatter_delimiters(raw: &str) -> String {
 }
 
 /// Detect which frontmatter delimiter to use by inspecting the first line.
-fn detect_frontmatter_delimiter(source: &str) -> Option<&'static str> {
+pub(crate) fn detect_frontmatter_delimiter(source: &str) -> Option<&'static str> {
     let first_line = source.lines().next().unwrap_or("");
     if first_line == "---" {
         Some("---")

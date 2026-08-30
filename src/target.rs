@@ -223,6 +223,12 @@ pub enum TargetQuery {
     },
 }
 
+pub(crate) const NON_EMPTY_SECTION_MATCH_MODES: &[HeadingMatchMode] = &[
+    HeadingMatchMode::Contains,
+    HeadingMatchMode::ContainsIgnoreCase,
+];
+pub(crate) const NON_EMPTY_QUERY_TEXT_MIN_LENGTH: u64 = 1;
+
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 enum StrictTargetQuery {
@@ -1166,13 +1172,9 @@ fn validate_query(query: &TargetQuery) -> Result<(), CoreError> {
         Err(CoreError::InvalidSelector(
             "search query text cannot be empty".into(),
         ))
-    } else if matches!(
-        query,
-        TargetQuery::Section {
-            text,
-            match_mode: HeadingMatchMode::Contains | HeadingMatchMode::ContainsIgnoreCase,
-        } if text.is_empty()
-    ) {
+    } else if matches!(query, TargetQuery::Section { text, match_mode }
+        if text.is_empty() && NON_EMPTY_SECTION_MATCH_MODES.contains(match_mode))
+    {
         Err(CoreError::InvalidSelector(
             "empty section text cannot be used with contains matching".into(),
         ))

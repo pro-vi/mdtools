@@ -269,7 +269,19 @@ fn atomic_commit_preserves_group_and_special_mode_bits() {
     let path = directory.join("doc.md");
     std::fs::write(&path, "before\n").unwrap();
     let path_c = std::ffi::CString::new(path.to_string_lossy().as_bytes()).unwrap();
-    assert_eq!(unsafe { libc::chown(path_c.as_ptr(), u32::MAX, 80) }, 0);
+    let primary_group = unsafe { libc::getgid() };
+    let group_count = unsafe { libc::getgroups(0, std::ptr::null_mut()) };
+    assert!(group_count >= 0);
+    let mut groups = vec![0; group_count as usize];
+    if group_count > 0 {
+        assert_eq!(
+            unsafe { libc::getgroups(group_count, groups.as_mut_ptr()) },
+            group_count
+        );
+    }
+    if let Some(group) = groups.into_iter().find(|group| *group != primary_group) {
+        assert_eq!(unsafe { libc::chown(path_c.as_ptr(), u32::MAX, group) }, 0);
+    }
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o2640)).unwrap();
     let before = std::fs::metadata(&path).unwrap();
 

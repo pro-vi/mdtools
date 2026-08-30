@@ -558,6 +558,11 @@ fn plan_insert_block(
     target: &BlockInsertionTarget,
     markdown: &str,
 ) -> Result<PlannedMutation, CoreError> {
+    if markdown.is_empty() {
+        return Err(CoreError::InvalidPatch(
+            "insert_block markdown must not be empty".into(),
+        ));
+    }
     let claims = vec![ConflictRegion::point(super::insertion_base_anchor(
         document, target,
     ))];
