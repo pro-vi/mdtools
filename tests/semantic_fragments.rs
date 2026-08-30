@@ -81,6 +81,30 @@ fn semantic_read_is_one_relative_atx_subtree() {
 }
 
 #[test]
+fn semantic_render_changes_only_indexed_headings_inside_containers() {
+    let source = "# Root\n\nbody\n\n```md\n# fenced\n```\n\n> # quoted\n\n- # listed\n\n<div>\n# html\n</div>\n\n[^1]:\n    # footnote\n";
+    let document = Document::parse(source).unwrap();
+    let read = document
+        .resolve(&section(&document, "Root").address)
+        .unwrap()
+        .read_section(&document)
+        .unwrap();
+    let SectionFragment::Semantic { markdown } = read.fragment else {
+        unreachable!("section reads are semantic fragments")
+    };
+    let outcome = replace_section(
+        &document,
+        "Root",
+        semantic(&markdown.replace("\n\nbody\n", "\n\nchanged\n")),
+    )
+    .unwrap();
+    assert_eq!(
+        outcome.document.source(),
+        "# Root\n\nchanged\n\n```md\n# fenced\n```\n\n> # quoted\n\n- # listed\n\n<div>\n# html\n</div>\n\n[^1]:\n    # footnote"
+    );
+}
+
+#[test]
 fn semantic_boundary_variants_converge_and_crlf_is_destination_owned() {
     let expected = "# Parent\r\n\r\nbody\r\n\r\n## Child\r\n\r\ntext";
     for fragment in [
@@ -92,6 +116,16 @@ fn semantic_boundary_variants_converge_and_crlf_is_destination_owned() {
         let outcome = insert_section(&document, "Parent", semantic(fragment)).unwrap();
         assert_eq!(outcome.document.source(), expected);
     }
+}
+
+#[test]
+fn mixed_line_ending_destination_uses_lf_for_new_semantic_bytes() {
+    let document = Document::parse("# Parent\r\n\r\nbody\n").unwrap();
+    let outcome = insert_section(&document, "Parent", semantic("# Child")).unwrap();
+    assert_eq!(
+        outcome.document.source(),
+        "# Parent\r\n\r\nbody\n\n## Child"
+    );
 }
 
 #[test]
@@ -138,6 +172,13 @@ fn semantic_replacement_keeps_flush_adjacent_heading_closure() {
         .document
         .resolve(&section(&outcome.document, "B").address)
         .is_ok());
+}
+
+#[test]
+fn changed_semantic_final_section_uses_canonical_no_final_newline() {
+    let document = Document::parse("# A\n\nbody\n").unwrap();
+    let outcome = replace_section(&document, "A", semantic("# A\n\nchanged")).unwrap();
+    assert_eq!(outcome.document.source(), "# A\n\nchanged");
 }
 
 #[test]
@@ -231,12 +272,20 @@ fn semantic_replace_uses_the_indexed_parent_level() {
 #[test]
 fn semantic_insert_uses_each_parent_actual_level() {
     for (source, parent, expected) in [
-        ("# Parent\n\nbody", "Parent", "## Child"),
-        ("### Deep\n\nbody", "Deep", "#### Child"),
+        (
+            "# Parent\n\nbody",
+            "Parent",
+            "# Parent\n\nbody\n\n## Child\n\nbody",
+        ),
+        (
+            "### Deep\n\nbody",
+            "Deep",
+            "### Deep\n\nbody\n\n#### Child\n\nbody",
+        ),
     ] {
         let document = Document::parse(source).unwrap();
         let outcome = insert_section(&document, parent, semantic("# Child\n\nbody")).unwrap();
-        assert!(outcome.document.source().contains(expected));
+        assert_eq!(outcome.document.source(), expected);
         let PatchReceipt::InsertSection { outcome: receipt } = &outcome.receipts[0] else {
             panic!("insert_section receipt")
         };
@@ -339,12 +388,16 @@ fn empty_preamble_replacement_is_rejected_without_residue() {
 #[test]
 fn invalid_semantic_fragments_fail_before_edits() {
     let document = Document::parse("# Parent\n\nbody\n").unwrap();
-    for markdown in ["", "body", "lead\n\n# Child", "# One\n\n# Two"] {
+    for (markdown, expected) in [
+        ("", "section fragment cannot be empty"),
+        ("body", "exactly one root section"),
+        ("lead\n\n# Child", "non-whitespace before its root heading"),
+        ("# One\n\n# Two", "exactly one root section"),
+    ] {
         assert!(matches!(
             insert_section(&document, "Parent", semantic(markdown)),
-            Err(CoreError::InvalidPatch(_))
+            Err(CoreError::InvalidPatch(reason)) if reason.contains(expected)
         ));
-        assert_eq!(document.source(), "# Parent\n\nbody\n");
     }
 }
 
@@ -401,7 +454,31 @@ fn heading_depth_overflow_is_typed_and_aborts_the_patch() {
             relative_level: 2
         })
     ));
-    assert_eq!(document.source(), "##### Parent\n\nbody\n");
+}
+
+#[test]
+fn heading_depth_overflow_aborts_a_mixed_patch_before_any_candidate() {
+    let document = Document::parse("##### Parent\n\n- [ ] task\n").unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::SetTaskStatus {
+                target: TaskPatchTarget::try_from(&task(&document)).unwrap(),
+                status: TaskStatus::Done,
+            },
+            PatchOp::InsertSection {
+                target: SectionInsertionTarget::try_from(&section(&document, "Parent")).unwrap(),
+                fragment: semantic("# Child\n\n## Too deep"),
+            },
+        ],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(CoreError::HeadingDepthOverflow {
+            parent_level: 5,
+            relative_level: 2
+        })
+    ));
 }
 
 #[test]
@@ -423,7 +500,8 @@ fn section_insertions_conflict_but_unrelated_task_edits_compose() {
     };
     assert!(matches!(
         conflict.apply(&document),
-        Err(CoreError::PatchInvariant(_))
+        Err(CoreError::PatchInvariant(reason))
+            if reason == "operations 0 and 1 overlap semantically"
     ));
 
     let parent = HeadingPatchTarget::try_from(&section(&document, "Parent")).unwrap();
@@ -442,7 +520,8 @@ fn section_insertions_conflict_but_unrelated_task_edits_compose() {
     };
     assert!(matches!(
         conflict.apply(&document),
-        Err(CoreError::PatchInvariant(_))
+        Err(CoreError::PatchInvariant(reason))
+            if reason == "operations 0 and 1 overlap semantically"
     ));
 
     let task = TaskPatchTarget::try_from(&task(&document)).unwrap();
@@ -461,8 +540,60 @@ fn section_insertions_conflict_but_unrelated_task_edits_compose() {
     }
     .apply(&document)
     .unwrap();
-    assert!(composed.document.source().contains("## Child"));
+    assert!(section(&composed.document, "Child")
+        .summary
+        .eq(&TargetSummary::Section {
+            level: 2,
+            heading: "Child".into(),
+        }));
     assert!(composed.document.source().contains("- [x] task"));
+}
+
+#[test]
+fn insertion_appends_after_existing_children_before_the_next_sibling() {
+    let document =
+        Document::parse("# Parent\n\n## Existing\n\nold\n\n# Following\n\nnext\n").unwrap();
+    let outcome = insert_section(&document, "Parent", semantic("# New\n\nnew")).unwrap();
+    assert_eq!(
+        outcome.document.source(),
+        "# Parent\n\n## Existing\n\nold\n\n## New\n\nnew\n\n# Following\n\nnext\n"
+    );
+}
+
+#[test]
+fn boundary_insertion_conflicts_with_following_sibling_replacement() {
+    let document = Document::parse("# Parent\n\nbody\n\n# Following\n\nnext\n").unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::InsertSection {
+                target: SectionInsertionTarget::try_from(&section(&document, "Parent")).unwrap(),
+                fragment: semantic("# Child"),
+            },
+            PatchOp::ReplaceSection {
+                target: HeadingPatchTarget::try_from(&section(&document, "Following")).unwrap(),
+                fragment: semantic("# Changed\n\nnext"),
+            },
+        ],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(CoreError::PatchInvariant(reason))
+            if reason == "operations 0 and 1 overlap semantically"
+    ));
+}
+
+#[test]
+fn context_that_absorbs_an_inserted_heading_fails_final_section_closure() {
+    let document = Document::parse("# Parent\n\n```\nunclosed\n").unwrap();
+    let error = insert_section(&document, "Parent", semantic("# Child"))
+        .err()
+        .expect("inserted heading is absorbed by the unclosed fence");
+    assert!(matches!(
+        error,
+        CoreError::PatchInvariant(reason)
+            if reason.contains("exactly one declared section")
+    ));
 }
 
 #[test]
