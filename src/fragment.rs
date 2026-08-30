@@ -89,31 +89,71 @@ impl PreparedSectionFragment {
         match &self.mode {
             PreparedMode::Literal(markdown) => Ok(markdown.clone()),
             PreparedMode::Semantic => {
-                let document = Document::parse_fragment(self.canonical.clone())?;
-                let mut rendered = self.canonical.clone();
-                let mut edits = document
-                    .index()
-                    .source_block_indices()
-                    .into_iter()
-                    .filter_map(|index| {
-                        let block = &document.blocks()[index as usize];
-                        block.heading.as_ref().map(|heading| {
-                            Ok((
-                                heading.marker_span.byte_start as usize,
-                                heading.marker_span.byte_end as usize,
-                                checked_absolute_level(parent_level, heading.level)?,
-                            ))
-                        })
-                    })
-                    .collect::<Result<Vec<_>, CoreError>>()?;
-                edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
-                for (start, end, level) in edits {
-                    rendered.replace_range(start..end, &"#".repeat(level as usize));
-                }
+                let root_level = checked_absolute_level(parent_level, 1)?;
+                let rendered = rebase_section_headings(&self.canonical, root_level)?;
                 Ok(normalize_line_endings(&rendered, line_endings))
             }
         }
     }
+}
+
+pub(crate) fn rebase_section_headings(
+    source: &str,
+    new_root_level: u8,
+) -> Result<String, CoreError> {
+    let document = Document::parse_fragment(source.to_string())?;
+    let mut headings = document
+        .index()
+        .source_block_indices()
+        .into_iter()
+        .filter_map(|index| {
+            let block = &document.blocks()[index as usize];
+            block.heading.as_ref().map(|heading| (block.span, heading))
+        })
+        .collect::<Vec<_>>();
+    headings.sort_by_key(|(span, _)| span.byte_start);
+    let Some((_, root)) = headings.first() else {
+        return Err(invalid_fragment("section fragment has no root heading"));
+    };
+    let old_root_level = root.level;
+    let mut rendered = source.to_string();
+    let mut edits = Vec::with_capacity(headings.len());
+    for (span, heading) in headings {
+        let relative_level = heading
+            .level
+            .checked_sub(old_root_level)
+            .and_then(|level| level.checked_add(1))
+            .ok_or_else(|| invalid_fragment("fragment heading escapes its root section"))?;
+        let parent_level = new_root_level
+            .checked_sub(1)
+            .ok_or_else(|| invalid_fragment("section root level must be at least one"))?;
+        let absolute_level = checked_absolute_level(parent_level, relative_level)?;
+        match heading.kind {
+            HeadingSourceKind::Atx => edits.push((
+                heading.marker_span.byte_start as usize,
+                heading.marker_span.byte_end as usize,
+                "#".repeat(absolute_level as usize),
+            )),
+            HeadingSourceKind::Setext => edits.push((
+                span.byte_start as usize,
+                span.byte_end as usize,
+                format!(
+                    "{} {}",
+                    "#".repeat(absolute_level as usize),
+                    setext_heading_content(
+                        source,
+                        span.byte_start as usize,
+                        heading.marker_span.byte_start as usize,
+                    )
+                ),
+            )),
+        }
+    }
+    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    for (start, end, replacement) in edits {
+        rendered.replace_range(start..end, &replacement);
+    }
+    Ok(rendered)
 }
 
 fn checked_absolute_level(parent_level: u8, relative_level: u8) -> Result<u8, CoreError> {

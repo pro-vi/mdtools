@@ -103,7 +103,7 @@ pub(crate) fn plan_section_move(
     }
     let mut moved = document.slice_unchecked(&source_span).to_string();
     if delta != 0 {
-        moved = rewrite_atx_levels(moved, &source, parsed, source_span.byte_start, delta as i8)?;
+        moved = crate::fragment::rebase_section_headings(&moved, new_level)?;
     }
     let separator = if document.line_ending_style() == LineEndingStyle::Crlf {
         "\r\n"
@@ -385,7 +385,7 @@ pub fn move_section(
         [source_span.byte_start as usize..source_span.byte_end as usize]
         .to_string();
     if delta != 0 {
-        moved = rewrite_atx_levels(moved, &source, parsed, source_span.byte_start, delta)?;
+        moved = crate::fragment::rebase_section_headings(&moved, new_level)?;
     }
     let source_start = source_span.byte_start;
     let source_end = source_span.byte_end;
@@ -790,39 +790,6 @@ fn moved_section_reparses_at(
         return section_end == moved_end;
     }
     false
-}
-
-fn rewrite_atx_levels(
-    moved: String,
-    section: &SectionEntry,
-    parsed: &ParsedDocument,
-    source_start: u32,
-    delta: i8,
-) -> Result<String, CoreError> {
-    let mut bytes = moved.into_bytes();
-    let mut edits = Vec::new();
-    for index in &section.block_indices {
-        let block = &parsed.blocks[*index as usize];
-        let Some(heading) = &block.heading else {
-            continue;
-        };
-        if heading.kind != HeadingSourceKind::Atx {
-            continue;
-        }
-        let marker = heading.marker_span;
-        edits.push((
-            (marker.byte_start - source_start) as usize,
-            (marker.byte_end - source_start) as usize,
-            (heading.level as i32 + delta as i32) as usize,
-        ));
-    }
-    edits.sort_by(|left, right| right.0.cmp(&left.0));
-    for (start, end, level) in edits {
-        bytes.splice(start..end, vec![b'#'; level]);
-    }
-    String::from_utf8(bytes).map_err(|_| {
-        CoreError::InvalidSelector("internal: ATX rewrite produced invalid UTF-8".into())
-    })
 }
 
 fn count_trailing_line_breaks(bytes: &[u8], start: usize, lower: usize) -> (usize, bool) {

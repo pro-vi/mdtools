@@ -270,6 +270,27 @@ fn semantic_fragment_retains_reference_definitions() {
 }
 
 #[test]
+fn move_section_relevel_preserves_the_retained_setext_refusal() {
+    let document = Document::parse("# Parent\n\nbody\n\nSibling\n=======\n\nchild\n").unwrap();
+    let error = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::MoveSection {
+            source: HeadingPatchTarget::try_from(&section(&document, "Sibling")).unwrap(),
+            destination: HeadingPatchTarget::try_from(&section(&document, "Parent")).unwrap(),
+            position: mdtools::patch::SectionMovePosition::IntoAsChild,
+            keep_level: false,
+        }],
+    }
+    .apply(&document)
+    .err()
+    .expect("retained move API rejects setext releveling");
+    assert!(matches!(
+        error,
+        CoreError::InvalidSelector(reason) if reason.contains("setext heading")
+    ));
+}
+
+#[test]
 fn literal_section_and_preamble_replacement_preserve_exact_bytes() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
     let literal = "## B\r\n\r\nbody\r\n";
