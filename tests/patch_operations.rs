@@ -419,6 +419,26 @@ fn rust_insert_block_rejects_an_empty_payload() {
 }
 
 #[test]
+fn patch_fragments_apply_document_resource_limits_before_parsing() {
+    let document = Document::parse("body\n").unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::InsertBlock {
+            target: BlockInsertionTarget::DocumentEdge {
+                edge: DocumentEdge::End,
+                revision: document.revision().clone(),
+            },
+            markdown: format!("{} nested", ">".repeat(2_048)),
+        }],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::ParseFailed(message))
+            if message.contains("nesting exceeds")
+    ));
+}
+
+#[test]
 fn block_insertion_must_create_exactly_one_body_block() {
     let document = Document::parse("body\n").unwrap();
     let patch = Patch {

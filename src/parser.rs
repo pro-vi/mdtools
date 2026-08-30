@@ -474,6 +474,8 @@ impl ParsedDocument {
     }
 
     pub(crate) fn parse_without_frontmatter(source: String) -> Result<Self, CoreError> {
+        reject_oversized_source(source.len())?;
+        reject_excessive_nesting(&source)?;
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(None); // No frontmatter delimiter
         let arena = Arena::new();
