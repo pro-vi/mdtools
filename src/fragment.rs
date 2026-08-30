@@ -154,7 +154,7 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
     })?;
     if !source[..root_span.byte_start as usize]
         .chars()
-        .all(char::is_whitespace)
+        .all(is_markdown_boundary_whitespace)
     {
         return Err(invalid_fragment(
             "section fragment cannot contain non-whitespace before its root heading",
@@ -236,7 +236,7 @@ fn last_content_line_end(source: &str, start: usize, end: usize) -> usize {
             }
             if source[line_start..content_end]
                 .chars()
-                .any(|character| !character.is_whitespace())
+                .any(|character| !is_markdown_blank_line_content(character))
             {
                 last_content_end = content_end;
             }
@@ -248,6 +248,14 @@ fn last_content_line_end(source: &str, start: usize, end: usize) -> usize {
         position += 1;
     }
     last_content_end
+}
+
+fn is_markdown_boundary_whitespace(character: char) -> bool {
+    matches!(character, ' ' | '\t' | '\r' | '\n')
+}
+
+fn is_markdown_blank_line_content(character: char) -> bool {
+    matches!(character, ' ' | '\t')
 }
 
 fn invalid_fragment(reason: impl Into<String>) -> CoreError {

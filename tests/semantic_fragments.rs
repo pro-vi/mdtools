@@ -95,6 +95,38 @@ fn semantic_boundary_variants_converge_and_crlf_is_destination_owned() {
 }
 
 #[test]
+fn unicode_whitespace_paragraph_survives_semantic_read_and_changed_replace() {
+    let source = "# A\n\nbody\n\n\u{3000}\n\n# B\n";
+    let document = Document::parse(source).unwrap();
+    let read = document
+        .resolve(&section(&document, "A").address)
+        .unwrap()
+        .read_section(&document)
+        .unwrap();
+    assert_eq!(read.fragment, semantic("# A\n\nbody\n\n\u{3000}"));
+
+    let SectionFragment::Semantic { markdown } = read.fragment else {
+        unreachable!("section reads are semantic fragments")
+    };
+    let outcome =
+        replace_section(&document, "A", semantic(&markdown.replace("body", "body2"))).unwrap();
+    assert_eq!(
+        outcome.document.source(),
+        "# A\n\nbody2\n\n\u{3000}\n\n# B\n"
+    );
+}
+
+#[test]
+fn nonbreaking_space_before_fragment_root_is_not_a_blank_boundary() {
+    let document = Document::parse("# Parent\n\nbody\n").unwrap();
+    assert!(matches!(
+        insert_section(&document, "Parent", semantic("\u{a0}\n\n# Child")),
+        Err(CoreError::InvalidPatch(reason))
+            if reason.contains("non-whitespace before its root heading")
+    ));
+}
+
+#[test]
 fn semantic_replacement_keeps_flush_adjacent_heading_closure() {
     let document = Document::parse("# A\nbody\n# B\nnext\n").unwrap();
     let outcome = replace_section(&document, "A", semantic("# Renamed\n\nchanged")).unwrap();
