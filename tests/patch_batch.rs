@@ -411,7 +411,7 @@ fn moving_a_mid_document_footnote_definition_uses_source_order() {
 }
 
 #[test]
-fn block_move_rejects_candidate_that_absorbs_an_untouched_html_bystander() {
+fn block_move_preserves_an_untouched_html_bystander() {
     let document = Document::parse("a\n<div>x</div>\n\nb\n").unwrap();
     let patch = Patch {
         base_revision: document.revision().clone(),
@@ -421,11 +421,24 @@ fn block_move_rejects_candidate_that_absorbs_an_untouched_html_bystander() {
             position: mdtools::patch::RelativePosition::After,
         }],
     };
-    assert!(matches!(
-        patch.apply(&document),
-        Err(mdtools::core_error::CoreError::PatchInvariant(message))
-            if message.contains("closure")
-    ));
+    let outcome = patch.apply(&document).unwrap();
+    let html_blocks = outcome
+        .document
+        .map()
+        .unwrap()
+        .into_iter()
+        .filter(|snapshot| {
+            matches!(
+                snapshot.summary,
+                TargetSummary::Block {
+                    kind: mdtools::BlockKind::HtmlBlock,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(html_blocks, 1);
+    assert!(outcome.document.source().contains("<div>x</div>"));
 }
 
 #[test]

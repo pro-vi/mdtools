@@ -712,12 +712,27 @@ fn plan_move_block(
                 range: block_start..block_end,
             },
         });
-        let gap_start = document.blocks()[source_order[slot] as usize].span.byte_end as usize;
+        let gap_owner = if slot == high {
+            source_order[slot]
+        } else {
+            parser_index
+        };
+        let gap_start = document.blocks()[gap_owner as usize].span.byte_end as usize;
+        let original_position = source_order
+            .iter()
+            .position(|index| *index == gap_owner)
+            .expect("moved block belongs to source order");
         let gap_end = source_order
-            .get(slot + 1)
+            .get(original_position + 1)
             .map(|index| document.blocks()[*index as usize].span.byte_start as usize)
             .unwrap_or(document.source().len());
-        replacement.push_str(&document.source()[gap_start..gap_end]);
+        let gap = &document.source()[gap_start..gap_end];
+        if slot < high && gap.trim().is_empty() && trailing_line_breaks(gap) < 2 {
+            replacement.push_str(newline(document.line_ending_style()));
+            replacement.push_str(newline(document.line_ending_style()));
+        } else {
+            replacement.push_str(gap);
+        }
     }
     let unchanged = replacement == document.source()[interval_start..interval_end];
     let (edits, result, disposition) = if unchanged {

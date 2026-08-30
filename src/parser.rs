@@ -348,6 +348,7 @@ impl ParsedDocument {
         let opts = comrak_opts(delimiter);
         let arena = Arena::new();
         let root = parse_document(&arena, &source, &opts);
+        reject_excessive_ast_depth(root)?;
 
         // Check if frontmatter exists and is valid
         let mut has_frontmatter_node = false;
@@ -480,6 +481,7 @@ impl ParsedDocument {
         let opts = comrak_opts(None); // No frontmatter delimiter
         let arena = Arena::new();
         let root = parse_document(&arena, &source, &opts);
+        reject_excessive_ast_depth(root)?;
 
         let mut blocks = Vec::new();
 
@@ -696,6 +698,23 @@ fn reject_excessive_nesting(source: &str) -> Result<(), CoreError> {
                 }
             }
         }
+    }
+    Ok(())
+}
+
+fn reject_excessive_ast_depth<'a>(root: &'a AstNode<'a>) -> Result<(), CoreError> {
+    const MAX_AST_DEPTH: usize = 2_048;
+    let mut pending = root
+        .children()
+        .map(|node| (node, 1usize))
+        .collect::<Vec<_>>();
+    while let Some((node, depth)) = pending.pop() {
+        if depth > MAX_AST_DEPTH {
+            return Err(CoreError::ParseFailed(format!(
+                "Markdown AST exceeds the supported depth of {MAX_AST_DEPTH}"
+            )));
+        }
+        pending.extend(node.children().map(|child| (child, depth + 1)));
     }
     Ok(())
 }

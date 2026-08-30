@@ -128,6 +128,56 @@ fn section_replace_delete_and_move_preserve_existing_kernels() {
 }
 
 #[test]
+fn block_move_carries_the_moved_blocks_own_separator() {
+    let source = "# H\n\n```\nx\n```\nP1\n\nP2\n";
+    let document = Document::parse(source).unwrap();
+    let blocks = snapshots(&document, TargetKind::Block);
+    let fence = blocks
+        .iter()
+        .find(|snapshot| {
+            matches!(
+                snapshot.summary,
+                TargetSummary::Block {
+                    kind: BlockKind::CodeFence,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    let p2 = blocks
+        .iter()
+        .find(|snapshot| {
+            matches!(&snapshot.summary, TargetSummary::Block { preview, .. } if preview == "P2")
+        })
+        .unwrap();
+    let outcome = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::MoveBlock {
+            source: ReplaceBlockTarget::try_from(fence).unwrap(),
+            destination: ReplaceBlockTarget::try_from(p2).unwrap(),
+            position: RelativePosition::After,
+        }],
+    }
+    .apply(&document)
+    .unwrap();
+    let kinds = snapshots(&outcome.document, TargetKind::Block)
+        .into_iter()
+        .map(|snapshot| match snapshot.summary {
+            TargetSummary::Block { kind, .. } => kind,
+            _ => unreachable!(),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        kinds,
+        vec![
+            BlockKind::Paragraph,
+            BlockKind::Paragraph,
+            BlockKind::CodeFence
+        ]
+    );
+}
+
+#[test]
 fn task_frontmatter_and_table_operations_use_semantic_targets() {
     let source = "---\n\"a.b\": old\n---\n\n# Work\n\n- [ ] task\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
     let document = Document::parse_for_frontmatter_mutation(source).unwrap();
@@ -456,6 +506,23 @@ fn patch_fragments_apply_document_resource_limits_before_parsing() {
                 if message.contains("nesting exceeds")
         ));
     }
+
+    let emphasis = "*".repeat(5_000);
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::InsertBlock {
+            target: BlockInsertionTarget::DocumentEdge {
+                edge: DocumentEdge::End,
+                revision: document.revision().clone(),
+            },
+            markdown: format!("{emphasis}nested{emphasis}"),
+        }],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::ParseFailed(message))
+            if message.contains("AST exceeds")
+    ));
 }
 
 #[test]
