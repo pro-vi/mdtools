@@ -13,8 +13,7 @@ or command inventories.
 
 - `Document` owns immutable source, revision, parse policy, and one
   source-ordered `DocumentIndex`.
-- Documents and patch fragments are limited to 1 MiB before parsing; AST depth
-  is checked iteratively before recursive semantic projection.
+- AST depth is checked iteratively before recursive semantic projection.
 - `TargetQuery` performs discovery. `TargetAddress` contains exact identity
   only.
 - `TargetSnapshot` separates its optional selected span from
