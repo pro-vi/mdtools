@@ -1,9 +1,10 @@
 use mdtools::document::Document;
+use mdtools::fragment::SectionFragment;
 use mdtools::model::{BlockKind, HeadingMatchMode, InsertMode, TaskStatus};
 use mdtools::patch::{
     BlockInsertionTarget, DocumentEdge, FrontmatterPatchTarget, HeadingPatchTarget, Patch, PatchOp,
-    RelativePosition, ReplaceBlockTarget, SectionMovePosition, SectionPatchTarget,
-    TablePatchTarget, TableRowPatchTarget, TaskPatchTarget,
+    PreamblePatchTarget, RelativePosition, ReplaceBlockTarget, SectionMovePosition,
+    SectionPatchTarget, TablePatchTarget, TableRowPatchTarget, TaskPatchTarget,
 };
 use mdtools::target::{TargetAddress, TargetKind, TargetSnapshot, TargetSummary};
 use mdtools::{section::SectionIndex, section::SectionTarget, section_edit};
@@ -93,7 +94,7 @@ fn block_delete_insert_and_move_use_canonical_evidence() {
 #[test]
 fn section_replace_delete_and_move_preserve_existing_kernels() {
     let document = Document::parse("# A\n\na\n\n# B\n\nb\n\n# C\n\nc\n").unwrap();
-    let a = SectionPatchTarget::try_from(&section(&document, "A")).unwrap();
+    let a = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();
     let b = SectionPatchTarget::try_from(&section(&document, "B")).unwrap();
     let move_b = HeadingPatchTarget::try_from(&section(&document, "B")).unwrap();
     let c = HeadingPatchTarget::try_from(&section(&document, "C")).unwrap();
@@ -102,7 +103,9 @@ fn section_replace_delete_and_move_preserve_existing_kernels() {
         &document,
         vec![PatchOp::ReplaceSection {
             target: a,
-            markdown: "# A\n\nchanged\n".into(),
+            fragment: SectionFragment::Semantic {
+                markdown: "# A\n\nchanged".into(),
+            },
         }],
     );
     assert!(replaced.source().contains("changed"));
@@ -326,9 +329,9 @@ fn block_insertion_after_and_unterminated_end_synthesizes_a_blank_boundary() {
 }
 
 #[test]
-fn preamble_replacement_handles_empty_source_and_trailing_boundary_whitespace() {
+fn preamble_replacement_preserves_literal_boundaries() {
     for (source, markdown, expected) in [
-        ("# H\n", "lead", "lead\n\n# H\n"),
+        ("# H\n", "lead\n\n", "lead\n\n# H\n"),
         ("intro\n\n# H\n", "lead\n\n", "lead\n\n\n\n# H\n"),
     ] {
         let document = Document::parse(source).unwrap();
@@ -338,8 +341,8 @@ fn preamble_replacement_handles_empty_source_and_trailing_boundary_whitespace() 
             .unwrap();
         let outcome = Patch {
             base_revision: document.revision().clone(),
-            operations: vec![PatchOp::ReplaceSection {
-                target: SectionPatchTarget::try_from(&preamble).unwrap(),
+            operations: vec![PatchOp::ReplacePreamble {
+                target: PreamblePatchTarget::try_from(&preamble).unwrap(),
                 markdown: markdown.into(),
             }],
         }
@@ -360,13 +363,15 @@ fn heading_section_replacement_never_resolves_as_preamble() {
         let patch = Patch {
             base_revision: document.revision().clone(),
             operations: vec![PatchOp::ReplaceSection {
-                target: SectionPatchTarget::try_from(&section(&document, "A")).unwrap(),
-                markdown: markdown.into(),
+                target: HeadingPatchTarget::try_from(&section(&document, "A")).unwrap(),
+                fragment: SectionFragment::Literal {
+                    markdown: markdown.into(),
+                },
             }],
         };
         assert!(matches!(
             patch.apply(&document),
-            Err(mdtools::core_error::CoreError::PatchInvariant(_))
+            Err(mdtools::core_error::CoreError::InvalidPatch(_))
         ));
     }
 }
@@ -477,29 +482,33 @@ fn document_start_insertion_uses_the_first_source_block_after_frontmatter() {
 #[test]
 fn section_replacement_must_preserve_one_section_target() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
-    let target = SectionPatchTarget::try_from(&section(&document, "A")).unwrap();
+    let target = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();
     let patch = Patch {
         base_revision: document.revision().clone(),
         operations: vec![PatchOp::ReplaceSection {
             target,
-            markdown: "plain\n".into(),
+            fragment: SectionFragment::Literal {
+                markdown: "plain\n".into(),
+            },
         }],
     };
     assert!(matches!(
         patch.apply(&document),
-        Err(mdtools::core_error::CoreError::PatchInvariant(_))
+        Err(mdtools::core_error::CoreError::InvalidPatch(_))
     ));
 }
 
 #[test]
 fn renamed_section_receipt_carries_the_result_address() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
-    let target = SectionPatchTarget::try_from(&section(&document, "A")).unwrap();
+    let target = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();
     let patch = Patch {
         base_revision: document.revision().clone(),
         operations: vec![PatchOp::ReplaceSection {
             target,
-            markdown: "# Renamed\n\nbody\n".into(),
+            fragment: SectionFragment::Semantic {
+                markdown: "# Renamed\n\nbody".into(),
+            },
         }],
     };
     let outcome = patch.apply(&document).unwrap();
@@ -512,15 +521,11 @@ fn renamed_section_receipt_carries_the_result_address() {
     let (before, after) = match section_outcome {
         mdtools::patch::ReplaceSectionOutcome::NoChange { before, after }
         | mdtools::patch::ReplaceSectionOutcome::Replaced { before, after } => (before, after),
-        mdtools::patch::ReplaceSectionOutcome::Deleted { .. } => panic!("section survived"),
     };
-    assert_ne!(before.address, after.address);
+    assert_ne!(before.path, after.path);
     assert_eq!(after.revision, *outcome.document.revision());
-    let target = match &after.address {
-        mdtools::target::SectionAddress::Preamble => TargetAddress::Preamble,
-        mdtools::target::SectionAddress::Heading { path } => {
-            TargetAddress::Section { path: path.clone() }
-        }
+    let target = TargetAddress::Section {
+        path: after.path.clone(),
     };
     assert!(outcome.document.resolve(&target).is_ok());
 }

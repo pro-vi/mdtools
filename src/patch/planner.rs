@@ -176,6 +176,7 @@ enum ResultExpectation {
     Preamble {
         location: ResultLocation,
     },
+    Section(SectionResultExpectation),
     FrontmatterField {
         path: Vec<String>,
         expected: FrontmatterExpectedValue,
@@ -196,6 +197,12 @@ struct BlockFragmentShape {
     kind: BlockKind,
     block_start: usize,
     block_end: usize,
+}
+
+struct SectionResultExpectation {
+    location: ResultLocation,
+    parent_path: Vec<crate::target::HeadingAddressSegment>,
+    canonical: String,
 }
 
 struct ParserBlockExpectation {
@@ -234,7 +241,14 @@ enum ReceiptDraft {
         disposition: MutationDisposition,
     },
     ReplaceSection {
-        before: SectionIdentity,
+        before: HeadingSectionIdentity,
+        disposition: MutationDisposition,
+    },
+    InsertSection {
+        parent_before: HeadingSectionIdentity,
+    },
+    ReplacePreamble {
+        before: PreambleIdentity,
         disposition: MutationDisposition,
     },
     DeleteSection {
@@ -456,8 +470,14 @@ fn plan_operation(
             destination,
             position,
         } => plan_move_block(document, operation_index, source, destination, *position),
-        PatchOp::ReplaceSection { target, markdown } => {
-            plan_replace_section(document, operation_index, target, markdown)
+        PatchOp::ReplaceSection { target, fragment } => {
+            plan_replace_section(document, operation_index, target, fragment)
+        }
+        PatchOp::InsertSection { target, fragment } => {
+            plan_insert_section(document, operation_index, target, fragment)
+        }
+        PatchOp::ReplacePreamble { target, markdown } => {
+            plan_replace_preamble(document, operation_index, target, markdown)
         }
         PatchOp::DeleteSection { target } => plan_delete_section(document, operation_index, target),
         PatchOp::MoveSection {
@@ -501,18 +521,6 @@ fn section_expected_kind(address: &crate::target::SectionAddress) -> ExpectedKin
     match address {
         crate::target::SectionAddress::Preamble => ExpectedKind::Preamble,
         crate::target::SectionAddress::Heading { .. } => ExpectedKind::HeadingSection,
-    }
-}
-
-fn section_result(
-    address: &crate::target::SectionAddress,
-    location: ResultLocation,
-) -> ResultExpectation {
-    match address {
-        crate::target::SectionAddress::Preamble => ResultExpectation::Preamble { location },
-        crate::target::SectionAddress::Heading { .. } => {
-            target_result(ExpectedKind::HeadingSection, location)
-        }
     }
 }
 
@@ -756,70 +764,71 @@ fn plan_move_block(
 fn plan_replace_section(
     document: &Document,
     operation: usize,
-    target: &SectionPatchTarget,
-    markdown: &str,
+    target: &HeadingPatchTarget,
+    fragment: &crate::fragment::SectionFragment,
 ) -> Result<PlannedMutation, CoreError> {
     let claims = vec![ConflictRegion::span(target.guard.span)];
-    let current = super::resolve_section_snapshot(document, &target.address)?;
-    let before = SectionIdentity::try_from(&current)?;
-    let normalized = normalize_line_endings(markdown, document.line_ending_style());
-    let follows = target.guard.span.byte_end as usize != document.source().len();
-    let replacement = if matches!(target.address, crate::target::SectionAddress::Preamble) {
-        let mut replacement = normalized;
-        if follows {
+    let address = TargetAddress::Section {
+        path: target.path.clone(),
+    };
+    let current = document.resolve(&address)?;
+    let before = HeadingSectionIdentity::try_from(current.snapshot())?;
+    let current_read = current.read_section(document)?;
+    let prepared = fragment.prepare()?;
+    let original = document.slice_unchecked(&target.guard.span);
+    let semantic_unchanged = prepared.is_semantic()
+        && current_read.fragment
+            == crate::fragment::SectionFragment::Semantic {
+                markdown: prepared.canonical().to_string(),
+            };
+    let literal_unchanged = matches!(fragment, crate::fragment::SectionFragment::Literal { markdown } if markdown == original);
+    let disposition = if semantic_unchanged || literal_unchanged {
+        MutationDisposition::NoChange
+    } else {
+        MutationDisposition::Replaced
+    };
+    let parent_path = target.path[..target.path.len() - 1].to_vec();
+    let parent_level = heading_level_for_path(document, &parent_path)?;
+    let (edits, result) = if disposition == MutationDisposition::NoChange {
+        (
+            Vec::new(),
+            ResultExpectation::Section(SectionResultExpectation {
+                location: ResultLocation::Base(target.guard.span),
+                parent_path,
+                canonical: prepared.canonical().to_string(),
+            }),
+        )
+    } else {
+        let mut replacement = prepared.render(parent_level, document.line_ending_style())?;
+        if prepared.rendered_root_level(parent_level)? <= parent_level {
+            return Err(CoreError::InvalidPatch(
+                "literal replacement root must remain beneath the structural parent".into(),
+            ));
+        }
+        let follows = target.guard.span.byte_end as usize != document.source().len();
+        if prepared.is_semantic() && follows {
             let suffix = &document.source()[target.guard.span.byte_end as usize..];
             let present = trailing_line_breaks(&replacement) + leading_line_breaks(suffix);
             replacement.push_str(
                 &newline(document.line_ending_style()).repeat(2usize.saturating_sub(present)),
             );
         }
-        replacement
-    } else {
-        crate::section_edit::preserve_following_boundary(
-            document.slice_unchecked(&target.guard.span),
-            &normalized,
-            follows,
-        )
-    };
-    let original = document.slice_unchecked(&target.guard.span);
-    let disposition = if replacement == original {
-        MutationDisposition::NoChange
-    } else if replacement.is_empty() {
-        MutationDisposition::Deleted
-    } else {
-        MutationDisposition::Replaced
-    };
-    let (edits, result) = match disposition {
-        MutationDisposition::NoChange => (
-            Vec::new(),
-            section_result(&target.address, ResultLocation::Base(target.guard.span)),
-        ),
-        MutationDisposition::Replaced => {
-            let len = replacement.len();
-            (
-                vec![ByteEdit {
-                    start: target.guard.span.byte_start as usize,
-                    end: target.guard.span.byte_end as usize,
-                    replacement,
-                }],
-                section_result(
-                    &target.address,
-                    ResultLocation::Edit {
-                        edit: 0,
-                        range: 0..len,
-                    },
-                ),
-            )
-        }
-        MutationDisposition::Deleted => (
+        let len = replacement.len();
+        (
             vec![ByteEdit {
                 start: target.guard.span.byte_start as usize,
                 end: target.guard.span.byte_end as usize,
-                replacement: String::new(),
+                replacement,
             }],
-            ResultExpectation::None,
-        ),
-        MutationDisposition::Inserted => unreachable!(),
+            ResultExpectation::Section(SectionResultExpectation {
+                location: ResultLocation::Edit {
+                    edit: 0,
+                    range: 0..len,
+                },
+                parent_path,
+                canonical: prepared.canonical().to_string(),
+            }),
+        )
     };
     Ok(atomic_plan(
         operation,
@@ -831,6 +840,132 @@ fn plan_replace_section(
             disposition,
         },
     ))
+}
+
+fn plan_insert_section(
+    document: &Document,
+    operation: usize,
+    target: &SectionInsertionTarget,
+    fragment: &crate::fragment::SectionFragment,
+) -> Result<PlannedMutation, CoreError> {
+    let parent_address = TargetAddress::Section {
+        path: target.parent.path.clone(),
+    };
+    let parent = document.resolve(&parent_address)?;
+    let parent_before = HeadingSectionIdentity::try_from(parent.snapshot())?;
+    let parent_level = heading_level_for_path(document, &target.parent.path)?;
+    let prepared = fragment.prepare()?;
+    if prepared.rendered_root_level(parent_level)? <= parent_level {
+        return Err(CoreError::InvalidPatch(
+            "literal insertion root must be deeper than its structural parent".into(),
+        ));
+    }
+    let content = prepared.render(parent_level, document.line_ending_style())?;
+    let insert_byte = target.parent.guard.span.byte_end as usize;
+    let mut replacement = content;
+    if prepared.is_semantic() {
+        let before = &document.source()[..insert_byte];
+        let after = &document.source()[insert_byte..];
+        let line_ending = newline(document.line_ending_style());
+        let leading_present = trailing_line_breaks(before) + leading_line_breaks(&replacement);
+        let trailing_present = trailing_line_breaks(&replacement) + leading_line_breaks(after);
+        let mut bounded = String::new();
+        bounded.push_str(&line_ending.repeat(2usize.saturating_sub(leading_present)));
+        bounded.push_str(&replacement);
+        bounded.push_str(
+            &line_ending
+                .repeat((usize::from(!after.is_empty()) * 2).saturating_sub(trailing_present)),
+        );
+        replacement = bounded;
+    }
+    let len = replacement.len();
+    Ok(atomic_plan(
+        operation,
+        vec![ConflictRegion::point(insert_byte)],
+        vec![ByteEdit {
+            start: insert_byte,
+            end: insert_byte,
+            replacement,
+        }],
+        ResultExpectation::Section(SectionResultExpectation {
+            location: ResultLocation::Edit {
+                edit: 0,
+                range: 0..len,
+            },
+            parent_path: target.parent.path.clone(),
+            canonical: prepared.canonical().to_string(),
+        }),
+        ReceiptDraft::InsertSection { parent_before },
+    ))
+}
+
+fn plan_replace_preamble(
+    document: &Document,
+    operation: usize,
+    target: &PreamblePatchTarget,
+    markdown: &str,
+) -> Result<PlannedMutation, CoreError> {
+    let current = document.resolve(&TargetAddress::Preamble)?;
+    let before = PreambleIdentity::try_from(current.snapshot())?;
+    let original = document.slice_unchecked(&target.guard.span);
+    let disposition = if markdown == original {
+        MutationDisposition::NoChange
+    } else {
+        MutationDisposition::Replaced
+    };
+    let (edits, result) = if disposition == MutationDisposition::NoChange {
+        (
+            Vec::new(),
+            ResultExpectation::Preamble {
+                location: ResultLocation::Base(target.guard.span),
+            },
+        )
+    } else {
+        (
+            vec![ByteEdit {
+                start: target.guard.span.byte_start as usize,
+                end: target.guard.span.byte_end as usize,
+                replacement: markdown.to_string(),
+            }],
+            ResultExpectation::Preamble {
+                location: ResultLocation::Edit {
+                    edit: 0,
+                    range: 0..markdown.len(),
+                },
+            },
+        )
+    };
+    Ok(atomic_plan(
+        operation,
+        vec![ConflictRegion::span(target.guard.span)],
+        edits,
+        result,
+        ReceiptDraft::ReplacePreamble {
+            before,
+            disposition,
+        },
+    ))
+}
+
+fn heading_level_for_path(
+    document: &Document,
+    path: &[crate::target::HeadingAddressSegment],
+) -> Result<u8, CoreError> {
+    if path.is_empty() {
+        return Ok(0);
+    }
+    let snapshot = document
+        .resolve(&TargetAddress::Section {
+            path: path.to_vec(),
+        })?
+        .snapshot()
+        .clone();
+    let TargetSummary::Section { level, .. } = snapshot.summary else {
+        return Err(CoreError::PatchInvariant(
+            "heading address resolved without section summary".into(),
+        ));
+    };
+    Ok(level)
 }
 
 fn plan_delete_section(
@@ -1400,6 +1535,15 @@ fn verify_result(
                 end,
             )?))
         }
+        ResultExpectation::Section(expectation) => {
+            let (start, end) = resolve_location(mutation, edits, &expectation.location)?;
+            Ok(VerifiedResult::Target(targets.section_within(
+                candidate,
+                start,
+                end,
+                expectation,
+            )?))
+        }
     }
 }
 
@@ -1465,6 +1609,7 @@ struct ResultTargetIndex {
     snapshots: HashMap<(ExpectedKind, u32, u32), TargetSnapshot>,
     blocks: Vec<TargetSnapshot>,
     preamble: Option<TargetSnapshot>,
+    sections: Vec<TargetSnapshot>,
     parser_blocks: HashMap<(u32, u32), (BlockKind, String)>,
 }
 
@@ -1473,6 +1618,7 @@ impl ResultTargetIndex {
         let mut snapshots = HashMap::new();
         let mut blocks = Vec::new();
         let mut preamble = None;
+        let mut sections = Vec::new();
         let parser_blocks = document
             .index()
             .source_block_indices()
@@ -1508,6 +1654,8 @@ impl ResultTargetIndex {
                 blocks.push(snapshot.clone());
             } else if kind == ExpectedKind::Preamble {
                 preamble = Some(snapshot.clone());
+            } else if kind == ExpectedKind::HeadingSection {
+                sections.push(snapshot.clone());
             }
             snapshots.insert((kind, span.byte_start, span.byte_end), snapshot);
         }
@@ -1515,6 +1663,7 @@ impl ResultTargetIndex {
             snapshots,
             blocks,
             preamble,
+            sections,
             parser_blocks,
         })
     }
@@ -1616,6 +1765,57 @@ impl ResultTargetIndex {
         }
         Ok(snapshot.clone())
     }
+
+    fn section_within(
+        &self,
+        document: &Document,
+        region_start: u32,
+        region_end: u32,
+        expectation: &SectionResultExpectation,
+    ) -> Result<TargetSnapshot, CoreError> {
+        let matches = self
+            .sections
+            .iter()
+            .filter(|snapshot| {
+                let TargetAddress::Section { path } = &snapshot.address else {
+                    return false;
+                };
+                path.len() == expectation.parent_path.len() + 1
+                    && path.starts_with(&expectation.parent_path)
+                    && snapshot.selection_span.is_some_and(|span| {
+                        span.byte_start >= region_start && span.byte_end <= region_end
+                    })
+            })
+            .collect::<Vec<_>>();
+        let [snapshot] = matches.as_slice() else {
+            return Err(CoreError::PatchInvariant(format!(
+                "operation must produce exactly one direct child section inside bytes {region_start}..{region_end}"
+            )));
+        };
+        let span = snapshot.selection_span.ok_or_else(|| {
+            CoreError::PatchInvariant("result section has no selection span".into())
+        })?;
+        let leading = &document.source()[region_start as usize..span.byte_start as usize];
+        let trailing = &document.source()[span.byte_end as usize..region_end as usize];
+        if !leading.chars().all(char::is_whitespace) || !trailing.chars().all(char::is_whitespace) {
+            return Err(CoreError::PatchInvariant(
+                "section result has non-whitespace outside its selected subtree".into(),
+            ));
+        }
+        let read = document
+            .resolve(&snapshot.address)?
+            .read_section(document)?;
+        if read.fragment
+            != (crate::fragment::SectionFragment::Semantic {
+                markdown: expectation.canonical.clone(),
+            })
+        {
+            return Err(CoreError::PatchInvariant(
+                "section result differs from its planned semantic subtree".into(),
+            ));
+        }
+        Ok((*snapshot).clone())
+    }
 }
 
 impl ReceiptDraft {
@@ -1696,22 +1896,37 @@ impl ReceiptDraft {
                 before,
                 disposition,
             } => {
+                let after = HeadingSectionIdentity::try_from(&target(result)?)?;
                 let outcome = match disposition {
-                    MutationDisposition::NoChange | MutationDisposition::Replaced => {
-                        let after = SectionIdentity::try_from(&target(result)?)?;
-                        if disposition == MutationDisposition::NoChange {
-                            ReplaceSectionOutcome::NoChange { before, after }
-                        } else {
-                            ReplaceSectionOutcome::Replaced { before, after }
-                        }
+                    MutationDisposition::NoChange => {
+                        ReplaceSectionOutcome::NoChange { before, after }
                     }
-                    MutationDisposition::Deleted => ReplaceSectionOutcome::Deleted {
-                        before,
-                        result_revision: revision,
-                    },
+                    MutationDisposition::Replaced => {
+                        ReplaceSectionOutcome::Replaced { before, after }
+                    }
                     other => return Err(impossible("replace_section", other)),
                 };
                 PatchReceipt::ReplaceSection { outcome }
+            }
+            Self::InsertSection { parent_before } => PatchReceipt::InsertSection {
+                outcome: InsertSectionOutcome::Inserted {
+                    parent_before,
+                    after: HeadingSectionIdentity::try_from(&target(result)?)?,
+                },
+            },
+            Self::ReplacePreamble {
+                before,
+                disposition,
+            } => {
+                let after = PreambleIdentity::try_from(&target(result)?)?;
+                let outcome = if disposition == MutationDisposition::NoChange {
+                    ReplacePreambleOutcome::NoChange { before, after }
+                } else if disposition == MutationDisposition::Replaced {
+                    ReplacePreambleOutcome::Replaced { before, after }
+                } else {
+                    return Err(impossible("replace_preamble", disposition));
+                };
+                PatchReceipt::ReplacePreamble { outcome }
             }
             Self::DeleteSection {
                 before,
@@ -1925,6 +2140,66 @@ mod tests {
         println!("{}", render_plans(&plans));
     }
 
+    #[test]
+    fn semantic_section_plans_are_complete_at_construction() {
+        let document = Document::parse("lead\n\n# Parent\n\n## Child\n\nbody\n").unwrap();
+        let snapshots = document.map().unwrap();
+        let by_heading = |heading: &str| {
+            snapshots
+                .iter()
+                .find(|snapshot| {
+                    matches!(&snapshot.summary, TargetSummary::Section { heading: value, .. } if value == heading)
+                })
+                .unwrap()
+        };
+        let preamble = snapshots
+            .iter()
+            .find(|snapshot| snapshot.kind == TargetKind::Preamble)
+            .unwrap();
+        let operations = vec![
+            PatchOp::ReplaceSection {
+                target: HeadingPatchTarget::try_from(by_heading("Child")).unwrap(),
+                fragment: crate::fragment::SectionFragment::Semantic {
+                    markdown: "# Renamed".into(),
+                },
+            },
+            PatchOp::InsertSection {
+                target: SectionInsertionTarget::try_from(by_heading("Parent")).unwrap(),
+                fragment: crate::fragment::SectionFragment::Semantic {
+                    markdown: "# Inserted".into(),
+                },
+            },
+            PatchOp::ReplacePreamble {
+                target: PreamblePatchTarget::try_from(preamble).unwrap(),
+                markdown: "new lead".into(),
+            },
+        ];
+        let plans = plan_operations(&document, &operations).unwrap();
+        assert_eq!(plans.len(), 3);
+        for (operation, plan) in plans.iter().enumerate() {
+            assert_eq!(plan.claims.len(), 1);
+            assert_eq!(plan.edits.len(), 1);
+            assert_eq!(plan.results.len(), 1);
+            assert_eq!(plan.receipts.len(), 1);
+            assert_eq!(plan.results[0].operation, operation);
+            assert_eq!(plan.receipts[0].operation, operation);
+        }
+        assert!(matches!(
+            plans[0].results[0].expectation,
+            ResultExpectation::Section(_)
+        ));
+        assert!(matches!(
+            plans[1].results[0].expectation,
+            ResultExpectation::Section(_)
+        ));
+        assert!(matches!(
+            plans[2].results[0].expectation,
+            ResultExpectation::Preamble { .. }
+        ));
+
+        println!("{}", render_plans(&plans));
+    }
+
     fn render_plans(plans: &[PlannedMutation]) -> String {
         let mut rendered = String::new();
         for (index, plan) in plans.iter().enumerate() {
@@ -1982,6 +2257,7 @@ mod tests {
             ResultExpectation::TargetWithBlockClosure { .. } => "target_with_block_closure",
             ResultExpectation::BlockFragment { .. } => "block_fragment",
             ResultExpectation::Preamble { .. } => "preamble",
+            ResultExpectation::Section(_) => "section",
             ResultExpectation::FrontmatterField { .. } => "frontmatter_field",
         }
     }
@@ -1993,6 +2269,8 @@ mod tests {
             ReceiptDraft::InsertBlock { .. } => "insert_block",
             ReceiptDraft::MoveBlock { .. } => "move_block",
             ReceiptDraft::ReplaceSection { .. } => "replace_section",
+            ReceiptDraft::InsertSection { .. } => "insert_section",
+            ReceiptDraft::ReplacePreamble { .. } => "replace_preamble",
             ReceiptDraft::DeleteSection { .. } => "delete_section",
             ReceiptDraft::MoveSection { .. } => "move_section",
             ReceiptDraft::SetTaskStatus { .. } => "set_task_status",

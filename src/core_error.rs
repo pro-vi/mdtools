@@ -29,6 +29,10 @@ pub enum CoreError {
         reason: String,
     },
     InvalidPatch(String),
+    HeadingDepthOverflow {
+        parent_level: u8,
+        relative_level: u8,
+    },
     TargetAuthorityMismatch {
         target: String,
         expected: String,
@@ -172,6 +176,13 @@ impl std::fmt::Display for CoreError {
                 write!(f, "invalid target address: {reason}")
             }
             Self::InvalidPatch(reason) => write!(f, "invalid patch: {reason}"),
+            Self::HeadingDepthOverflow {
+                parent_level,
+                relative_level,
+            } => write!(
+                f,
+                "heading depth overflow: parent level {parent_level} plus relative level {relative_level} exceeds level 6"
+            ),
             Self::TargetAuthorityMismatch {
                 target,
                 expected,

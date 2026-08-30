@@ -25,6 +25,7 @@ pub struct SectionRead {
     pub level: u8,
     pub heading: String,
     pub markdown: String,
+    pub fragment: crate::fragment::SectionFragment,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -174,12 +175,16 @@ fn read_index_node(
         }
         IndexNode::Section {
             span, level, text, ..
-        } => Ok(TargetRead::Section(SectionRead {
-            snapshot,
-            level: *level,
-            heading: text.clone(),
-            markdown: document.slice(span)?.to_string(),
-        })),
+        } => {
+            let fragment = crate::fragment::SectionFragment::from_placed_section(document, *span)?;
+            Ok(TargetRead::Section(SectionRead {
+                snapshot,
+                level: *level,
+                heading: text.clone(),
+                markdown: document.slice(span)?.to_string(),
+                fragment,
+            }))
+        }
         IndexNode::BodyBlock {
             span,
             parser_index,

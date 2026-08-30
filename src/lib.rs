@@ -7,6 +7,7 @@ pub mod document;
 pub mod edit;
 pub mod errors;
 pub mod fingerprint;
+pub mod fragment;
 pub mod frontmatter;
 pub mod index;
 pub mod link;

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::fingerprint::TargetEtag;
+use crate::fragment::SectionFragment;
 use crate::index::IndexNode;
 use crate::model::{BlockKind, MutationDisposition, SourceSpan};
 use crate::revision::DocumentRevision;
@@ -41,7 +42,15 @@ pub enum PatchOp {
         position: RelativePosition,
     },
     ReplaceSection {
-        target: SectionPatchTarget,
+        target: HeadingPatchTarget,
+        fragment: SectionFragment,
+    },
+    InsertSection {
+        target: SectionInsertionTarget,
+        fragment: SectionFragment,
+    },
+    ReplacePreamble {
+        target: PreamblePatchTarget,
         markdown: String,
     },
     DeleteSection {
@@ -180,7 +189,21 @@ pub struct SectionPatchTarget {
 #[serde(deny_unknown_fields)]
 pub struct HeadingPatchTarget {
     #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty")]
     pub path: Vec<crate::target::HeadingAddressSegment>,
+    pub revision: DocumentRevision,
+    pub guard: SelectionGuard,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SectionInsertionTarget {
+    pub parent: HeadingPatchTarget,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreamblePatchTarget {
     pub revision: DocumentRevision,
     pub guard: SelectionGuard,
 }
@@ -260,6 +283,21 @@ pub struct SectionIdentity {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct HeadingSectionIdentity {
+    #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty")]
+    pub path: Vec<crate::target::HeadingAddressSegment>,
+    pub revision: DocumentRevision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreambleIdentity {
+    pub revision: DocumentRevision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TaskIdentity {
     pub block: BlockAddress,
     #[schemars(length(min = 1))]
@@ -302,6 +340,12 @@ pub enum PatchReceipt {
     },
     ReplaceSection {
         outcome: ReplaceSectionOutcome,
+    },
+    InsertSection {
+        outcome: InsertSectionOutcome,
+    },
+    ReplacePreamble {
+        outcome: ReplacePreambleOutcome,
     },
     DeleteSection {
         outcome: DeleteSectionOutcome,
@@ -389,16 +433,34 @@ pub enum MoveBlockOutcome {
 #[serde(tag = "disposition", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ReplaceSectionOutcome {
     NoChange {
-        before: SectionIdentity,
-        after: SectionIdentity,
+        before: HeadingSectionIdentity,
+        after: HeadingSectionIdentity,
     },
     Replaced {
-        before: SectionIdentity,
-        after: SectionIdentity,
+        before: HeadingSectionIdentity,
+        after: HeadingSectionIdentity,
     },
-    Deleted {
-        before: SectionIdentity,
-        result_revision: DocumentRevision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "disposition", rename_all = "snake_case", deny_unknown_fields)]
+pub enum InsertSectionOutcome {
+    Inserted {
+        parent_before: HeadingSectionIdentity,
+        after: HeadingSectionIdentity,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "disposition", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ReplacePreambleOutcome {
+    NoChange {
+        before: PreambleIdentity,
+        after: PreambleIdentity,
+    },
+    Replaced {
+        before: PreambleIdentity,
+        after: PreambleIdentity,
     },
 }
 
@@ -489,6 +551,19 @@ pub struct PatchOutcome {
     pub receipts: Vec<PatchReceipt>,
 }
 
+fn deserialize_non_empty<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let values = Vec::<T>::deserialize(deserializer)?;
+    if values.is_empty() {
+        Err(serde::de::Error::custom("path must not be empty"))
+    } else {
+        Ok(values)
+    }
+}
+
 impl TryFrom<&TargetSnapshot> for ReplaceBlockTarget {
     type Error = CoreError;
 
@@ -576,6 +651,40 @@ impl TryFrom<&TargetSnapshot> for HeadingPatchTarget {
         };
         Ok(Self {
             path: path.clone(),
+            revision: snapshot.revision.clone(),
+            guard: SelectionGuard {
+                span: *span,
+                etag: etag.clone(),
+            },
+        })
+    }
+}
+
+impl TryFrom<&TargetSnapshot> for SectionInsertionTarget {
+    type Error = CoreError;
+
+    fn try_from(snapshot: &TargetSnapshot) -> Result<Self, Self::Error> {
+        Ok(Self {
+            parent: HeadingPatchTarget::try_from(snapshot)?,
+        })
+    }
+}
+
+impl TryFrom<&TargetSnapshot> for PreamblePatchTarget {
+    type Error = CoreError;
+
+    fn try_from(snapshot: &TargetSnapshot) -> Result<Self, Self::Error> {
+        if snapshot.kind != TargetKind::Preamble || snapshot.address != TargetAddress::Preamble {
+            return Err(CoreError::InvalidPatch(
+                "replace_preamble requires preamble evidence".into(),
+            ));
+        }
+        let GuardAuthority::Selection { span, etag } = &snapshot.guard else {
+            return Err(CoreError::InvalidPatch(
+                "replace_preamble requires selection authority".into(),
+            ));
+        };
+        Ok(Self {
             revision: snapshot.revision.clone(),
             guard: SelectionGuard {
                 span: *span,
@@ -792,6 +901,42 @@ impl TryFrom<&TargetSnapshot> for SectionIdentity {
     }
 }
 
+impl TryFrom<&TargetSnapshot> for HeadingSectionIdentity {
+    type Error = CoreError;
+
+    fn try_from(snapshot: &TargetSnapshot) -> Result<Self, Self::Error> {
+        let TargetAddress::Section { path } = &snapshot.address else {
+            return Err(CoreError::PatchInvariant(
+                "heading section identity requires a heading address".into(),
+            ));
+        };
+        if snapshot.kind != TargetKind::Section {
+            return Err(CoreError::PatchInvariant(
+                "heading section identity requires a section target".into(),
+            ));
+        }
+        Ok(Self {
+            path: path.clone(),
+            revision: snapshot.revision.clone(),
+        })
+    }
+}
+
+impl TryFrom<&TargetSnapshot> for PreambleIdentity {
+    type Error = CoreError;
+
+    fn try_from(snapshot: &TargetSnapshot) -> Result<Self, Self::Error> {
+        if snapshot.kind != TargetKind::Preamble || snapshot.address != TargetAddress::Preamble {
+            return Err(CoreError::PatchInvariant(
+                "preamble identity requires a preamble target".into(),
+            ));
+        }
+        Ok(Self {
+            revision: snapshot.revision.clone(),
+        })
+    }
+}
+
 impl TryFrom<&TargetSnapshot> for TaskIdentity {
     type Error = CoreError;
 
@@ -868,6 +1013,8 @@ impl PatchReceipt {
             Self::InsertBlock { outcome } => outcome.disposition(),
             Self::MoveBlock { outcome, .. } => outcome.disposition(),
             Self::ReplaceSection { outcome } => outcome.disposition(),
+            Self::InsertSection { outcome } => outcome.disposition(),
+            Self::ReplacePreamble { outcome } => outcome.disposition(),
             Self::MoveSection { outcome, .. } => outcome.disposition(),
             Self::SetTaskStatus { outcome } => outcome.disposition(),
             Self::SetFrontmatter { outcome } => outcome.disposition(),
@@ -938,7 +1085,23 @@ impl ReplaceSectionOutcome {
         match self {
             Self::NoChange { .. } => MutationDisposition::NoChange,
             Self::Replaced { .. } => MutationDisposition::Replaced,
-            Self::Deleted { .. } => MutationDisposition::Deleted,
+        }
+    }
+}
+
+impl InsertSectionOutcome {
+    fn disposition(&self) -> MutationDisposition {
+        match self {
+            Self::Inserted { .. } => MutationDisposition::Inserted,
+        }
+    }
+}
+
+impl ReplacePreambleOutcome {
+    fn disposition(&self) -> MutationDisposition {
+        match self {
+            Self::NoChange { .. } => MutationDisposition::NoChange,
+            Self::Replaced { .. } => MutationDisposition::Replaced,
         }
     }
 }
@@ -1025,9 +1188,10 @@ fn preflight_operation_evidence(document: &Document, operation: &PatchOp) -> Res
             verify_block_target(document, source)?;
             verify_block_target(document, destination)
         }
-        PatchOp::ReplaceSection { target, .. } | PatchOp::DeleteSection { target } => {
-            verify_section_target(document, target)
-        }
+        PatchOp::ReplaceSection { target, .. } => verify_heading_target(document, target),
+        PatchOp::InsertSection { target, .. } => verify_heading_target(document, &target.parent),
+        PatchOp::ReplacePreamble { target, .. } => verify_preamble_target(document, target),
+        PatchOp::DeleteSection { target } => verify_section_target(document, target),
         PatchOp::MoveSection {
             source,
             destination,
@@ -1175,6 +1339,19 @@ fn verify_section_target(
     };
     let resolved = document.resolve(&address)?;
     verify_selection_guard(&address, &target.guard, &resolved.snapshot().guard)
+}
+
+fn verify_preamble_target(
+    document: &Document,
+    target: &PreamblePatchTarget,
+) -> Result<(), CoreError> {
+    verify_revision(document, &target.revision)?;
+    let resolved = document.resolve(&TargetAddress::Preamble)?;
+    verify_selection_guard(
+        &TargetAddress::Preamble,
+        &target.guard,
+        &resolved.snapshot().guard,
+    )
 }
 
 fn verify_heading_target(

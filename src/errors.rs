@@ -257,6 +257,15 @@ impl From<CoreError> for CommandError {
                 DiagnosticCode::InvalidSelector,
                 format!("invalid patch: {reason}"),
             ),
+            CoreError::HeadingDepthOverflow {
+                parent_level,
+                relative_level,
+            } => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!(
+                    "heading depth overflow: parent level {parent_level} plus relative level {relative_level} exceeds level 6"
+                ),
+            ),
             CoreError::TargetAuthorityMismatch {
                 target,
                 expected,
