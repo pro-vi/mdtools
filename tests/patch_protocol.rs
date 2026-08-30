@@ -3,8 +3,8 @@ use mdtools::document::Document;
 use mdtools::fragment::SectionFragment;
 use mdtools::model::{BlockKind, MutationDisposition};
 use mdtools::patch::{
-    FrontmatterFieldIdentity, FrontmatterPatchTarget, HeadingPatchTarget, Patch, PatchOp,
-    PatchReceipt, PreamblePatchTarget, ReplaceBlockTarget, SectionInsertionTarget,
+    FrontmatterFieldIdentity, FrontmatterPatchTarget, HeadingPatchTarget, HeadingSectionIdentity,
+    Patch, PatchOp, PatchReceipt, PreamblePatchTarget, ReplaceBlockTarget, SectionInsertionTarget,
     SectionPatchTarget, TaskIdentity, TaskPatchTarget,
 };
 use mdtools::target::{GuardAuthority, TargetAddress, TargetSnapshot, TargetSummary};
@@ -162,6 +162,16 @@ fn patch_evidence_and_identity_paths_reject_empty_wire_values() {
     let mut heading = serde_json::to_value(HeadingPatchTarget::try_from(section).unwrap()).unwrap();
     heading["path"] = serde_json::json!([]);
     assert!(serde_json::from_value::<HeadingPatchTarget>(heading).is_err());
+
+    let mut zero_heading =
+        serde_json::to_value(HeadingPatchTarget::try_from(section).unwrap()).unwrap();
+    zero_heading["path"][0]["occurrence"] = serde_json::json!(0);
+    assert!(serde_json::from_value::<HeadingPatchTarget>(zero_heading).is_err());
+
+    let mut zero_receipt_identity =
+        serde_json::to_value(HeadingSectionIdentity::try_from(section).unwrap()).unwrap();
+    zero_receipt_identity["path"][0]["occurrence"] = serde_json::json!(0);
+    assert!(serde_json::from_value::<HeadingSectionIdentity>(zero_receipt_identity).is_err());
 
     let mut delete = serde_json::to_value(SectionPatchTarget::try_from(section).unwrap()).unwrap();
     delete["address"]["path"] = serde_json::json!([]);

@@ -14,13 +14,38 @@ use crate::model::{
 };
 use crate::revision::DocumentRevision;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct HeadingAddressSegment {
     pub text: String,
     /// 1-based occurrence among equal-text sibling headings.
     #[schemars(range(min = 1))]
     pub occurrence: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StrictHeadingAddressSegment {
+    text: String,
+    occurrence: u32,
+}
+
+impl<'de> Deserialize<'de> for HeadingAddressSegment {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let segment = StrictHeadingAddressSegment::deserialize(deserializer)?;
+        if segment.occurrence == 0 {
+            return Err(serde::de::Error::custom(
+                "heading occurrence must be 1-based",
+            ));
+        }
+        Ok(Self {
+            text: segment.text,
+            occurrence: segment.occurrence,
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, JsonSchema)]
