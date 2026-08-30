@@ -660,10 +660,14 @@ impl ParsedDocument {
 }
 
 fn reject_oversized_source(source_len: usize) -> Result<(), CoreError> {
-    if source_len > u32::MAX as usize {
+    // LineIndex stores one initial line start plus at most one start per byte.
+    // Keeping the source one byte below u32::MAX makes both byte offsets and
+    // the worst-case line count representable by SourceSpan's u32 fields.
+    const MAX_SOURCE_BYTES: usize = u32::MAX as usize - 1;
+    if source_len > MAX_SOURCE_BYTES {
         Err(CoreError::ParseFailed(format!(
             "document is {source_len} bytes; maximum supported size is {} bytes",
-            u32::MAX
+            MAX_SOURCE_BYTES
         )))
     } else {
         Ok(())
@@ -1415,9 +1419,9 @@ mod projection_policy_tests {
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn oversized_sources_fail_before_offsets_can_wrap() {
-        assert!(reject_oversized_source(u32::MAX as usize).is_ok());
+        assert!(reject_oversized_source(u32::MAX as usize - 1).is_ok());
         assert!(matches!(
-            reject_oversized_source(u32::MAX as usize + 1),
+            reject_oversized_source(u32::MAX as usize),
             Err(CoreError::ParseFailed(message)) if message.contains("maximum supported size")
         ));
     }
