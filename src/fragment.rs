@@ -15,9 +15,17 @@ use crate::target::{TargetAddress, TargetKind};
 #[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SectionFragment {
     /// One relative section subtree. Headings are rebased at placement time.
-    Semantic { markdown: String },
+    Semantic {
+        #[schemars(length(min = 1))]
+        #[serde(deserialize_with = "deserialize_non_empty_markdown")]
+        markdown: String,
+    },
     /// Exact caller bytes. No rebasing, trimming, or line-ending conversion.
-    Literal { markdown: String },
+    Literal {
+        #[schemars(length(min = 1))]
+        #[serde(deserialize_with = "deserialize_non_empty_markdown")]
+        markdown: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -310,4 +318,16 @@ fn is_markdown_blank_line_content(character: char) -> bool {
 
 fn invalid_fragment(reason: impl Into<String>) -> CoreError {
     CoreError::InvalidPatch(reason.into())
+}
+
+fn deserialize_non_empty_markdown<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    if value.is_empty() {
+        Err(serde::de::Error::custom("markdown must not be empty"))
+    } else {
+        Ok(value)
+    }
 }

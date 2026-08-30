@@ -1,7 +1,12 @@
 use mdtools::core_error::CoreError;
 use mdtools::document::Document;
+use mdtools::fragment::SectionFragment;
 use mdtools::model::{BlockKind, MutationDisposition};
-use mdtools::patch::{Patch, PatchOp, PatchReceipt, ReplaceBlockTarget};
+use mdtools::patch::{
+    FrontmatterFieldIdentity, FrontmatterPatchTarget, HeadingPatchTarget, Patch, PatchOp,
+    PatchReceipt, PreamblePatchTarget, ReplaceBlockTarget, SectionInsertionTarget,
+    SectionPatchTarget, TaskIdentity, TaskPatchTarget,
+};
 use mdtools::target::{GuardAuthority, TargetAddress, TargetSnapshot, TargetSummary};
 
 fn paragraph_snapshot(document: &Document) -> TargetSnapshot {
@@ -17,6 +22,17 @@ fn paragraph_snapshot(document: &Document) -> TargetSnapshot {
                     ..
                 }
             )
+        })
+        .unwrap()
+}
+
+fn section_snapshot(document: &Document, heading: &str) -> TargetSnapshot {
+    document
+        .map()
+        .unwrap()
+        .into_iter()
+        .find(|snapshot| {
+            matches!(&snapshot.summary, TargetSummary::Section { heading: value, .. } if value == heading)
         })
         .unwrap()
 }
@@ -75,6 +91,116 @@ fn unchanged_replacement_is_byte_identical_and_round_trips_receipt() {
         serde_json::from_value::<PatchReceipt>(wire).unwrap(),
         *receipt
     );
+}
+
+#[test]
+fn new_u5_wire_shapes_round_trip_and_execute() {
+    for fragment in [
+        SectionFragment::Semantic {
+            markdown: "# Child".into(),
+        },
+        SectionFragment::Literal {
+            markdown: "\n\n## Child".into(),
+        },
+    ] {
+        let wire = serde_json::to_value(&fragment).unwrap();
+        assert_eq!(
+            serde_json::from_value::<SectionFragment>(wire).unwrap(),
+            fragment
+        );
+    }
+
+    let document = Document::parse("# Parent\n\nbody").unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::InsertSection {
+            target: SectionInsertionTarget::try_from(&section_snapshot(&document, "Parent"))
+                .unwrap(),
+            fragment: SectionFragment::Semantic {
+                markdown: "# Child".into(),
+            },
+        }],
+    };
+    let decoded: Patch = serde_json::from_value(serde_json::to_value(&patch).unwrap()).unwrap();
+    let outcome = decoded.apply(&document).unwrap();
+    assert!(outcome.document.source().contains("## Child"));
+    let receipt = serde_json::to_value(&outcome.receipts[0]).unwrap();
+    assert_eq!(
+        serde_json::from_value::<PatchReceipt>(receipt).unwrap(),
+        outcome.receipts[0]
+    );
+
+    let document = Document::parse("lead\n\n# H\n").unwrap();
+    let preamble = document.resolve(&TargetAddress::Preamble).unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::ReplacePreamble {
+            target: PreamblePatchTarget::try_from(preamble.snapshot()).unwrap(),
+            markdown: "new lead".into(),
+        }],
+    };
+    let decoded: Patch = serde_json::from_value(serde_json::to_value(&patch).unwrap()).unwrap();
+    assert_eq!(
+        decoded.apply(&document).unwrap().document.source(),
+        "new lead\n\n# H\n"
+    );
+}
+
+#[test]
+fn patch_evidence_and_identity_paths_reject_empty_wire_values() {
+    let document = Document::parse("# H\n\n- [ ] task\n").unwrap();
+    let snapshots = document.map().unwrap();
+    let section = snapshots
+        .iter()
+        .find(|snapshot| snapshot.kind == mdtools::target::TargetKind::Section)
+        .unwrap();
+    let task = snapshots
+        .iter()
+        .find(|snapshot| snapshot.kind == mdtools::target::TargetKind::Task)
+        .unwrap();
+
+    let mut heading = serde_json::to_value(HeadingPatchTarget::try_from(section).unwrap()).unwrap();
+    heading["path"] = serde_json::json!([]);
+    assert!(serde_json::from_value::<HeadingPatchTarget>(heading).is_err());
+
+    let mut delete = serde_json::to_value(SectionPatchTarget::try_from(section).unwrap()).unwrap();
+    delete["address"]["path"] = serde_json::json!([]);
+    assert!(serde_json::from_value::<SectionPatchTarget>(delete).is_err());
+
+    let mut task_target = serde_json::to_value(TaskPatchTarget::try_from(task).unwrap()).unwrap();
+    task_target["path"] = serde_json::json!([]);
+    assert!(serde_json::from_value::<TaskPatchTarget>(task_target).is_err());
+
+    let mut task_identity = serde_json::to_value(TaskIdentity::try_from(task).unwrap()).unwrap();
+    task_identity["path"] = serde_json::json!([]);
+    assert!(serde_json::from_value::<TaskIdentity>(task_identity).is_err());
+
+    let document = Document::parse_for_frontmatter_mutation("---\na: old\n---\n\nbody\n").unwrap();
+    let field = document
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["a".into()],
+        })
+        .unwrap();
+    let mut field_target =
+        serde_json::to_value(FrontmatterPatchTarget::try_from(field.snapshot()).unwrap()).unwrap();
+    field_target["path"] = serde_json::json!([]);
+    assert!(serde_json::from_value::<FrontmatterPatchTarget>(field_target).is_err());
+
+    let mut field_identity =
+        serde_json::to_value(FrontmatterFieldIdentity::try_from(field.snapshot()).unwrap())
+            .unwrap();
+    field_identity["path"] = serde_json::json!([]);
+    assert!(serde_json::from_value::<FrontmatterFieldIdentity>(field_identity).is_err());
+
+    for mode in ["semantic", "literal"] {
+        assert!(
+            serde_json::from_value::<SectionFragment>(serde_json::json!({
+                "mode": mode,
+                "markdown": ""
+            }))
+            .is_err()
+        );
+    }
 }
 
 #[test]

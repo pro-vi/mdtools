@@ -223,6 +223,7 @@ impl HeadingPatchTarget {
 pub struct TaskPatchTarget {
     pub block: BlockAddress,
     #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty")]
     pub path: Vec<u32>,
     pub revision: DocumentRevision,
     pub guard: SelectionGuard,
@@ -264,6 +265,7 @@ pub struct FrontmatterGuard {
 #[serde(deny_unknown_fields)]
 pub struct FrontmatterPatchTarget {
     #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty")]
     pub path: Vec<String>,
     pub revision: DocumentRevision,
     pub guard: FrontmatterGuard,
@@ -303,6 +305,7 @@ pub struct PreambleIdentity {
 pub struct TaskIdentity {
     pub block: BlockAddress,
     #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty")]
     pub path: Vec<u32>,
     pub revision: DocumentRevision,
 }
@@ -311,6 +314,7 @@ pub struct TaskIdentity {
 #[serde(deny_unknown_fields)]
 pub struct FrontmatterFieldIdentity {
     #[schemars(length(min = 1))]
+    #[serde(deserialize_with = "deserialize_non_empty")]
     pub path: Vec<String>,
     pub revision: DocumentRevision,
 }
