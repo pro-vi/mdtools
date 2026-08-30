@@ -349,6 +349,49 @@ fn invalid_semantic_fragments_fail_before_edits() {
 }
 
 #[test]
+fn literal_section_depth_guards_reject_structurally_valid_wrong_placement() {
+    let document = Document::parse("# Parent\n\n## Child\n\nbody\n").unwrap();
+    assert!(matches!(
+        replace_section(
+            &document,
+            "Child",
+            SectionFragment::Literal {
+                markdown: "# Demoted\n\nbody".into(),
+            },
+        ),
+        Err(CoreError::InvalidPatch(reason))
+            if reason.contains("literal replacement root must remain beneath")
+    ));
+
+    let document = Document::parse("### Parent\n\nbody\n").unwrap();
+    assert!(matches!(
+        insert_section(
+            &document,
+            "Parent",
+            SectionFragment::Literal {
+                markdown: "### Sibling".into(),
+            },
+        ),
+        Err(CoreError::InvalidPatch(reason))
+            if reason.contains("literal insertion root must be deeper")
+    ));
+}
+
+#[test]
+fn structural_demotion_reports_declared_section_closure() {
+    let document = Document::parse("# P\n\n### Old\n\nold\n\n### Following\n\nbody\n").unwrap();
+    let error = replace_section(&document, "Old", semantic("# New\n\nnew\n"))
+        .err()
+        .expect("demotion across a following sibling must fail closure");
+    assert!(matches!(
+        error,
+        CoreError::PatchInvariant(reason)
+            if reason.contains("exactly one declared section")
+                && !reason.contains("direct child")
+    ));
+}
+
+#[test]
 fn heading_depth_overflow_is_typed_and_aborts_the_patch() {
     let document = Document::parse("##### Parent\n\nbody\n").unwrap();
     assert!(matches!(
@@ -540,7 +583,11 @@ fn fragment_and_section_operations_are_closed_in_the_schema() {
 
     let preamble = Document::parse("lead\n\n# A\n").unwrap();
     let preamble = preamble.resolve(&TargetAddress::Preamble).unwrap();
-    assert!(HeadingPatchTarget::try_from(preamble.snapshot()).is_err());
+    assert!(matches!(
+        HeadingPatchTarget::try_from(preamble.snapshot()),
+        Err(CoreError::InvalidPatch(reason))
+            if reason.contains("heading operation requires heading-section evidence")
+    ));
 }
 
 #[test]

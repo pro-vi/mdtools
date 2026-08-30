@@ -650,17 +650,17 @@ impl TryFrom<&TargetSnapshot> for HeadingPatchTarget {
     fn try_from(snapshot: &TargetSnapshot) -> Result<Self, Self::Error> {
         let TargetAddress::Section { path } = &snapshot.address else {
             return Err(CoreError::InvalidPatch(
-                "section move requires heading-section evidence".into(),
+                "heading operation requires heading-section evidence".into(),
             ));
         };
         if snapshot.kind != TargetKind::Section {
             return Err(CoreError::InvalidPatch(
-                "section move requires a section target".into(),
+                "heading operation requires a section target".into(),
             ));
         }
         let GuardAuthority::Selection { span, etag } = &snapshot.guard else {
             return Err(CoreError::InvalidPatch(
-                "section move requires selection authority".into(),
+                "heading operation requires selection authority".into(),
             ));
         };
         Ok(Self {

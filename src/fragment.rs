@@ -186,7 +186,7 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
         .collect::<Vec<_>>();
     let [root] = roots.as_slice() else {
         return Err(invalid_fragment(
-            "semantic section fragment must contain exactly one root section",
+            "section fragment must contain exactly one root section",
         ));
     };
     let root_span = root.selection_span.ok_or_else(|| {

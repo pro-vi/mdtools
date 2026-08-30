@@ -1794,7 +1794,7 @@ impl ResultTargetIndex {
             .collect::<Vec<_>>();
         let [snapshot] = matches.as_slice() else {
             return Err(CoreError::PatchInvariant(format!(
-                "operation must produce exactly one direct child section inside bytes {region_start}..{region_end}"
+                "operation must produce exactly one declared section inside bytes {region_start}..{region_end}"
             )));
         };
         let span = snapshot.selection_span.ok_or_else(|| {
