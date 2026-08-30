@@ -321,6 +321,7 @@ impl ParsedDocument {
     }
 
     fn parse_inner(source: String, mode: ParsePolicy) -> Result<Self, CoreError> {
+        reject_oversized_source(source.len())?;
         reject_excessive_nesting(&source)?;
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
@@ -636,6 +637,17 @@ impl ParsedDocument {
             (false, true) | (false, false) => LineEndingStyle::Lf,
             (true, true) => LineEndingStyle::Mixed,
         }
+    }
+}
+
+fn reject_oversized_source(source_len: usize) -> Result<(), CoreError> {
+    if source_len > u32::MAX as usize {
+        Err(CoreError::ParseFailed(format!(
+            "document is {source_len} bytes; maximum supported size is {} bytes",
+            u32::MAX
+        )))
+    } else {
+        Ok(())
     }
 }
 
@@ -1361,5 +1373,15 @@ mod projection_policy_tests {
             error,
             CoreError::ParseFailed("unclassified top-level parser node: Text".into())
         );
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn oversized_sources_fail_before_offsets_can_wrap() {
+        assert!(reject_oversized_source(u32::MAX as usize).is_ok());
+        assert!(matches!(
+            reject_oversized_source(u32::MAX as usize + 1),
+            Err(CoreError::ParseFailed(message)) if message.contains("maximum supported size")
+        ));
     }
 }

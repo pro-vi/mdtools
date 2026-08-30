@@ -106,7 +106,11 @@ fn document_read_carries_the_retained_stats_view() {
 
 #[test]
 fn document_stats_do_not_count_blockquote_markers_as_words() {
-    for source in [">> nested words\n", "> > nested words\n"] {
+    for source in [
+        ">> nested words\n",
+        "> > nested words\n",
+        "> - nested words\n",
+    ] {
         let document = Document::parse(source).unwrap();
         let read = document
             .resolve(&TargetAddress::Document)
@@ -115,6 +119,17 @@ fn document_stats_do_not_count_blockquote_markers_as_words() {
             .unwrap();
         assert_eq!(read.stats.word_count, 2, "{source:?}");
     }
+}
+
+#[test]
+fn document_stats_count_source_owned_footnote_preamble() {
+    let document = Document::parse("[^1]: note\n\n# H\n\nref[^1]\n").unwrap();
+    let read = document
+        .resolve(&TargetAddress::Document)
+        .unwrap()
+        .read_document(&document)
+        .unwrap();
+    assert_eq!(read.stats.section_count, 2);
 }
 
 #[test]

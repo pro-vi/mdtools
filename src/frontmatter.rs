@@ -2,7 +2,7 @@ use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::{normalize_line_endings, SourceEdit};
 use crate::fingerprint::TargetEtag;
-use crate::model::{FrontmatterFormat, MutationDisposition, SourceSpan};
+use crate::model::{FrontmatterFormat, LineEndingStyle, MutationDisposition, SourceSpan};
 use crate::parser::strip_frontmatter_delimiters;
 
 #[derive(Clone, Debug)]
@@ -105,19 +105,7 @@ pub(crate) fn plan_path_batch(
             "frontmatter must be a mapping/object, not a scalar or array".into(),
         ));
     }
-    if let Some(raw) = state.raw {
-        let round_trip =
-            normalize_line_endings(&serialize(&data, format)?, document.line_ending_style());
-        let comparison_source = match format {
-            FrontmatterFormat::Yaml => canonicalize_yaml_mapping_keys(raw),
-            FrontmatterFormat::Toml => raw.to_string(),
-        };
-        if round_trip != comparison_source {
-            return Err(CoreError::InvalidPatch(
-                "frontmatter formatting is not stable under field serialization".into(),
-            ));
-        }
-    }
+    let original_data = data.clone();
     let mut dispositions = Vec::with_capacity(mutations.len());
     for mutation in mutations {
         if mutation.path.is_empty() {
@@ -134,10 +122,27 @@ pub(crate) fn plan_path_batch(
             FrontmatterAction::Delete => delete_path(&mut data, &mutation.path, &display)?,
         });
     }
-    let edit = if dispositions
+    let has_changes = dispositions
         .iter()
-        .any(|disposition| *disposition != MutationDisposition::NoChange)
-    {
+        .any(|disposition| *disposition != MutationDisposition::NoChange);
+    if has_changes {
+        if let Some(raw) = state.raw {
+            let round_trip = normalize_line_endings(
+                &serialize(&original_data, format)?,
+                document.line_ending_style(),
+            );
+            let comparison_source = match format {
+                FrontmatterFormat::Yaml => canonicalize_yaml_mapping_keys(raw),
+                FrontmatterFormat::Toml => raw.to_string(),
+            };
+            if round_trip != comparison_source {
+                return Err(CoreError::InvalidPatch(
+                    "frontmatter formatting is not stable under field serialization".into(),
+                ));
+            }
+        }
+    }
+    let edit = if has_changes {
         let block =
             normalize_line_endings(&serialize(&data, format)?, document.line_ending_style());
         Some(match state.span {
@@ -154,13 +159,20 @@ pub(crate) fn plan_path_batch(
             None => SourceEdit {
                 start: 0,
                 end: 0,
-                replacement: format!("{block}\n"),
+                replacement: format!("{block}{}", insertion_line_ending(document)),
             },
         })
     } else {
         None
     };
     Ok(FrontmatterBatchPlan { edit, dispositions })
+}
+
+fn insertion_line_ending(document: &Document) -> &'static str {
+    match document.line_ending_style() {
+        LineEndingStyle::Crlf => "\r\n",
+        LineEndingStyle::Lf | LineEndingStyle::Mixed => "\n",
+    }
 }
 
 fn canonicalize_yaml_mapping_keys(raw: &str) -> String {

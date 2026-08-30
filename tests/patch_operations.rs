@@ -288,6 +288,26 @@ fn frontmatter_field_mutation_rejects_lossy_round_trip_and_preserves_crlf() {
         Err(mdtools::core_error::CoreError::InvalidPatch(_))
     ));
 
+    let unchanged_target = quoted
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["x".into()],
+        })
+        .unwrap();
+    let unchanged = Patch {
+        base_revision: quoted.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
+            target: FrontmatterPatchTarget::try_from(unchanged_target.snapshot()).unwrap(),
+            value: serde_json::json!("old"),
+        }],
+    }
+    .apply(&quoted)
+    .unwrap();
+    assert_eq!(unchanged.document.source(), quoted.source());
+    assert_eq!(
+        unchanged.receipts[0].disposition(),
+        mdtools::MutationDisposition::NoChange
+    );
+
     let quoted_toml = Document::parse_for_frontmatter_mutation(
         "+++\ntitle = 'hello'\nx = \"old\"\n+++\n\nbody\n",
     )
@@ -327,6 +347,30 @@ fn frontmatter_field_mutation_rejects_lossy_round_trip_and_preserves_crlf() {
     .unwrap();
     assert_eq!(
         outcome.document.source(),
+        "---\r\na: new\r\n---\r\n\r\nbody\r\n"
+    );
+
+    let absent = Document::parse_for_frontmatter_mutation("body\r\n").unwrap();
+    let target = absent
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["a".into()],
+        })
+        .unwrap();
+    let inserted = Patch {
+        base_revision: absent.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
+            target: FrontmatterPatchTarget::try_from(target.snapshot()).unwrap(),
+            value: serde_json::json!("new"),
+        }],
+    }
+    .apply(&absent)
+    .unwrap();
+    assert_eq!(
+        inserted.document.line_ending_style(),
+        mdtools::LineEndingStyle::Crlf
+    );
+    assert_eq!(
+        inserted.document.source(),
         "---\r\na: new\r\n---\r\n\r\nbody\r\n"
     );
 }

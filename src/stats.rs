@@ -13,10 +13,7 @@ pub fn document_stats(document: &Document) -> DocumentStats {
         .iter()
         .map(|block| block.links.len() as u32)
         .sum();
-    let has_preamble = document
-        .blocks()
-        .first()
-        .is_some_and(|block| block.heading.is_none());
+    let has_preamble = !document.index().section_block_indices(None).is_empty();
     let section_count = heading_count + u32::from(has_preamble);
     let word_count = document
         .blocks()
@@ -36,7 +33,7 @@ pub fn document_stats(document: &Document) -> DocumentStats {
             BlockKind::BlockQuote => document
                 .slice_unchecked(&block.span)
                 .lines()
-                .map(|line| blockquote_content(line).split_whitespace().count() as u32)
+                .map(|line| count_content_words(blockquote_content(line)))
                 .sum(),
             BlockKind::List => count_list_words(document.slice_unchecked(&block.span)),
             BlockKind::Table => count_table_words(document.slice_unchecked(&block.span)),
@@ -63,28 +60,28 @@ fn blockquote_content(mut line: &str) -> &str {
 }
 
 fn count_list_words(content: &str) -> u32 {
-    content
-        .lines()
-        .map(|line| {
-            let trimmed = line.trim_start();
-            let text = if trimmed.starts_with("- ")
-                || trimmed.starts_with("* ")
-                || trimmed.starts_with("+ ")
-            {
-                &trimmed[2..]
-            } else if let Some(rest) = strip_ordered_marker(trimmed) {
-                rest
-            } else {
-                trimmed
-            };
-            text.strip_prefix("[ ] ")
-                .or_else(|| text.strip_prefix("[x] "))
-                .or_else(|| text.strip_prefix("[X] "))
-                .unwrap_or(text)
-                .split_whitespace()
-                .count() as u32
-        })
-        .sum()
+    content.lines().map(count_content_words).sum()
+}
+
+fn count_content_words(line: &str) -> u32 {
+    let trimmed = line.trim_start();
+    let text =
+        if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+            &trimmed[2..]
+        } else if let Some(rest) = strip_ordered_marker(trimmed) {
+            rest
+        } else {
+            trimmed
+                .trim_start_matches('#')
+                .strip_prefix(' ')
+                .unwrap_or(trimmed)
+        };
+    text.strip_prefix("[ ] ")
+        .or_else(|| text.strip_prefix("[x] "))
+        .or_else(|| text.strip_prefix("[X] "))
+        .unwrap_or(text)
+        .split_whitespace()
+        .count() as u32
 }
 
 fn count_table_words(content: &str) -> u32 {
