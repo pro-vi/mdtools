@@ -739,6 +739,34 @@ fn block_deletion_refuses_to_merge_untouched_sibling_lists() {
 }
 
 #[test]
+fn task_edits_do_not_suppress_containing_block_closure() {
+    let source = "- [ ] a\n\npara\n\n- [x] b\n";
+    let document = Document::parse(source).unwrap();
+    let paragraph = ReplaceBlockTarget::try_from(&block_with(&document, "para")).unwrap();
+    let tasks = snapshots(&document, TargetKind::Task);
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::DeleteBlock { target: paragraph },
+            PatchOp::SetTaskStatus {
+                target: TaskPatchTarget::try_from(&tasks[0]).unwrap(),
+                status: TaskStatus::Done,
+            },
+            PatchOp::SetTaskStatus {
+                target: TaskPatchTarget::try_from(&tasks[1]).unwrap(),
+                status: TaskStatus::Pending,
+            },
+        ],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::PatchInvariant(message))
+            if message.contains("parser closure")
+    ));
+    assert_eq!(document.source(), source);
+}
+
+#[test]
 fn renamed_section_receipt_carries_the_result_address() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
     let target = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();

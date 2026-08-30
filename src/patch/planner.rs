@@ -56,6 +56,7 @@ pub(super) fn apply(patch: &Patch, document: &Document) -> Result<PatchOutcome, 
                 .iter()
                 .map(|result| {
                     verify_result(
+                        document,
                         &candidate,
                         &result_targets,
                         index,
@@ -211,7 +212,7 @@ struct SectionResultExpectation {
 
 struct ParserBlockExpectation {
     kind: BlockKind,
-    markdown: String,
+    source_span: SourceSpan,
     location: ResultLocation,
 }
 
@@ -704,7 +705,7 @@ fn plan_move_block(
         }
         block_expectations.push(ParserBlockExpectation {
             kind: block.kind,
-            markdown: document.slice_unchecked(&block.span).to_string(),
+            source_span: block.span,
             location: ResultLocation::Edit {
                 edit: 1,
                 range: block_start..block_end,
@@ -1027,9 +1028,9 @@ fn parser_block_closure_excluding(
             let block = &document.blocks()[index as usize];
             let deleted = block.span.byte_start >= deleted_span.byte_start
                 && block.span.byte_end <= deleted_span.byte_end;
-            (!deleted).then(|| ParserBlockExpectation {
+            (!deleted).then_some(ParserBlockExpectation {
                 kind: block.kind,
-                markdown: document.slice_unchecked(&block.span).to_string(),
+                source_span: block.span,
                 location: ResultLocation::Base(block.span),
             })
         })
@@ -1076,9 +1077,9 @@ fn plan_move_section(
                 block.span.byte_start >= interval_start && block.span.byte_end <= interval_end;
             let in_source = block.span.byte_start >= source.guard.span.byte_start
                 && block.span.byte_end <= source.guard.span.byte_end;
-            (in_interval && !in_source).then(|| ParserBlockExpectation {
+            (in_interval && !in_source).then_some(ParserBlockExpectation {
                 kind: block.kind,
-                markdown: document.slice_unchecked(&block.span).to_string(),
+                source_span: block.span,
                 location: ResultLocation::Base(block.span),
             })
         })
@@ -1499,6 +1500,7 @@ fn trailing_line_breaks(value: &str) -> usize {
 }
 
 fn verify_result(
+    base: &Document,
     candidate: &Document,
     targets: &ResultTargetIndex,
     mutation: usize,
@@ -1544,7 +1546,12 @@ fn verify_result(
         } => {
             for block in blocks {
                 let (start, end) = resolve_location(mutation, edits, &block.location)?;
-                targets.verify_parser_block(start, end, block)?;
+                targets.verify_parser_block(
+                    start,
+                    end,
+                    block,
+                    base.slice_unchecked(&block.source_span),
+                )?;
             }
             let (start, end) = resolve_location(mutation, edits, location)?;
             let snapshot = targets.get(*kind, start, end).cloned().ok_or_else(|| {
@@ -1568,11 +1575,13 @@ fn verify_result(
         }
         ResultExpectation::ParserBlockClosure { blocks } => {
             for block in blocks {
-                if parser_block_changed_by_another_mutation(mutation, edits, block) {
+                let Some(markdown) =
+                    parser_block_markdown_after_sibling_edits(base, mutation, edits, block)
+                else {
                     continue;
-                }
+                };
                 let (start, end) = resolve_location(mutation, edits, &block.location)?;
-                targets.verify_parser_block(start, end, block)?;
+                targets.verify_parser_block(start, end, block, &markdown)?;
             }
             Ok(VerifiedResult::None)
         }
@@ -1602,23 +1611,43 @@ fn verify_result(
     }
 }
 
-fn parser_block_changed_by_another_mutation(
+fn parser_block_markdown_after_sibling_edits(
+    base: &Document,
     mutation: usize,
     edits: &[AppliedEdit<'_>],
     block: &ParserBlockExpectation,
-) -> bool {
+) -> Option<String> {
     let ResultLocation::Base(span) = block.location else {
-        return false;
+        return Some(base.slice_unchecked(&block.source_span).to_string());
     };
-    edits.iter().any(|edit| {
-        edit.mutation != mutation
-            && ranges_overlap(
-                edit.edit.start,
-                edit.edit.end,
-                span.byte_start as usize,
-                span.byte_end as usize,
-            )
-    })
+    let start = span.byte_start as usize;
+    let end = span.byte_end as usize;
+    let mut markdown = base.slice_unchecked(&block.source_span).to_string();
+    let mut local_edits = edits
+        .iter()
+        .filter(|edit| edit.mutation != mutation)
+        .filter(|edit| edit.edit.end > start && edit.edit.start < end)
+        .collect::<Vec<_>>();
+    if local_edits
+        .iter()
+        .any(|edit| edit.edit.start <= start && edit.edit.end >= end)
+    {
+        return None;
+    }
+    if local_edits
+        .iter()
+        .any(|edit| edit.edit.start < start || edit.edit.end > end)
+    {
+        return Some(markdown);
+    }
+    local_edits.sort_by_key(|edit| std::cmp::Reverse((edit.edit.start, edit.edit.end)));
+    for edit in local_edits {
+        markdown.replace_range(
+            edit.edit.start - start..edit.edit.end - start,
+            &edit.edit.replacement,
+        );
+    }
+    Some(markdown)
 }
 
 fn resolve_location(
@@ -1758,13 +1787,14 @@ impl ResultTargetIndex {
         start: u32,
         end: u32,
         expected: &ParserBlockExpectation,
+        expected_markdown: &str,
     ) -> Result<(), CoreError> {
         let Some((kind, markdown)) = self.parser_blocks.get(&(start, end)) else {
             return Err(CoreError::PatchInvariant(format!(
                 "parser closure lost block at bytes {start}..{end}"
             )));
         };
-        if *kind != expected.kind || markdown != &expected.markdown {
+        if *kind != expected.kind || markdown != expected_markdown {
             return Err(CoreError::PatchInvariant(format!(
                 "parser closure changed block at bytes {start}..{end}"
             )));
