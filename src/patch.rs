@@ -51,6 +51,8 @@ pub enum PatchOp {
     },
     ReplacePreamble {
         target: PreamblePatchTarget,
+        #[schemars(length(min = 1))]
+        #[serde(deserialize_with = "deserialize_non_empty_string")]
         markdown: String,
     },
     DeleteSection {
@@ -561,6 +563,18 @@ where
         Err(serde::de::Error::custom("path must not be empty"))
     } else {
         Ok(values)
+    }
+}
+
+fn deserialize_non_empty_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    if value.is_empty() {
+        Err(serde::de::Error::custom("markdown must not be empty"))
+    } else {
+        Ok(value)
     }
 }
 

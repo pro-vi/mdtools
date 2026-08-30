@@ -319,6 +319,24 @@ fn literal_section_and_preamble_replacement_preserve_exact_bytes() {
 }
 
 #[test]
+fn empty_preamble_replacement_is_rejected_without_residue() {
+    let document = Document::parse("lead\n\n# H\n").unwrap();
+    let preamble = document.resolve(&TargetAddress::Preamble).unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::ReplacePreamble {
+            target: PreamblePatchTarget::try_from(preamble.snapshot()).unwrap(),
+            markdown: String::new(),
+        }],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(CoreError::InvalidPatch(reason))
+            if reason.contains("replace_preamble payload cannot be empty")
+    ));
+}
+
+#[test]
 fn invalid_semantic_fragments_fail_before_edits() {
     let document = Document::parse("# Parent\n\nbody\n").unwrap();
     for markdown in ["", "body", "lead\n\n# Child", "# One\n\n# Two"] {

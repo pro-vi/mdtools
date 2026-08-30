@@ -905,6 +905,11 @@ fn plan_replace_preamble(
     target: &PreamblePatchTarget,
     markdown: &str,
 ) -> Result<PlannedMutation, CoreError> {
+    if markdown.is_empty() {
+        return Err(CoreError::InvalidPatch(
+            "replace_preamble payload cannot be empty; use delete_section for removal".into(),
+        ));
+    }
     let current = document.resolve(&TargetAddress::Preamble)?;
     let before = PreambleIdentity::try_from(current.snapshot())?;
     let original = document.slice_unchecked(&target.guard.span);
