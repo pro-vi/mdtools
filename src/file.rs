@@ -133,20 +133,27 @@ pub fn load_for_frontmatter_read(path: &Path) -> Result<LoadedFile, PersistenceE
 
 pub fn read_source(path: &Path) -> Result<(String, FileTarget), PersistenceError> {
     let target = std::fs::canonicalize(path)?;
-    if !std::fs::metadata(&target)?.is_file() {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    let mut file = options.open(&target)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "document target must be a regular file",
         )
         .into());
     }
-    let mut file = std::fs::File::open(&target)?;
     let mut source = String::new();
     file.read_to_string(&mut source)?;
     #[cfg(unix)]
     let identity = {
         use std::os::unix::fs::MetadataExt;
-        let metadata = file.metadata()?;
         (metadata.dev(), metadata.ino())
     };
     let revision = DocumentRevision::for_source(&source);

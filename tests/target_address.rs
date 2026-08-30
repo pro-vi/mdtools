@@ -232,21 +232,13 @@ fn address_deserialization_rejects_unknown_fields_at_every_layer() {
 #[test]
 fn impossible_address_shapes_fail_before_lookup() {
     let document = Document::parse("# A\n").unwrap();
-    let invalid = [
-        TargetAddress::Task {
-            block: mdtools::target::BlockAddress {
-                section: SectionAddress::Preamble,
-                ordinal: 0,
-            },
-            path: Vec::new(),
+    let invalid = [TargetAddress::Task {
+        block: mdtools::target::BlockAddress {
+            section: SectionAddress::Preamble,
+            ordinal: 0,
         },
-        TargetAddress::Link {
-            parent: LinkParentAddress::Heading {
-                section: SectionAddress::Preamble,
-            },
-            occurrence: 0,
-        },
-    ];
+        path: Vec::new(),
+    }];
     for address in invalid {
         assert!(
             serde_json::from_value::<TargetAddress>(serde_json::to_value(&address).unwrap())
@@ -257,6 +249,12 @@ fn impossible_address_shapes_fail_before_lookup() {
             Err(CoreError::InvalidTargetAddress { .. })
         ));
     }
+    assert!(serde_json::from_value::<TargetAddress>(serde_json::json!({
+        "kind": "link",
+        "parent": { "kind": "heading", "section": { "kind": "preamble" } },
+        "occurrence": 0
+    }))
+    .is_err());
 }
 
 #[test]

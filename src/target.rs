@@ -67,10 +67,33 @@ pub struct BlockAddress {
     pub ordinal: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HeadingSectionAddress {
+    #[schemars(length(min = 1))]
+    pub path: Vec<HeadingAddressSegment>,
+}
+
+impl<'de> Deserialize<'de> for HeadingSectionAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            path: Vec<HeadingAddressSegment>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        validate_heading_path(&wire.path).map_err(serde::de::Error::custom)?;
+        Ok(Self { path: wire.path })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum LinkParentAddress {
-    Heading { section: SectionAddress },
+    Heading { section: HeadingSectionAddress },
     Block { block: BlockAddress },
 }
 
@@ -502,7 +525,12 @@ pub(crate) fn build_index_addresses(
                 let parent = entry.parent.expect("link owner");
                 let parent = if let Some(section) = heading_section.get(&parent) {
                     LinkParentAddress::Heading {
-                        section: section.clone(),
+                        section: match section {
+                            SectionAddress::Heading { path } => {
+                                HeadingSectionAddress { path: path.clone() }
+                            }
+                            SectionAddress::Preamble => unreachable!("heading owner is a section"),
+                        },
                     }
                 } else {
                     LinkParentAddress::Block {
@@ -1218,12 +1246,7 @@ pub fn validate_address(address: &TargetAddress) -> Result<(), CoreError> {
         }
         TargetAddress::TableRow { table, .. } => validate_section(&table.section),
         TargetAddress::Link { parent, .. } => match parent {
-            LinkParentAddress::Heading {
-                section: SectionAddress::Preamble,
-            } => Err(invalid_address(
-                "heading links require a heading section parent",
-            )),
-            LinkParentAddress::Heading { section } => validate_section(section),
+            LinkParentAddress::Heading { section } => validate_heading_path(&section.path),
             LinkParentAddress::Block { block } => validate_section(&block.section),
         },
         TargetAddress::Document | TargetAddress::Frontmatter | TargetAddress::Preamble => Ok(()),
@@ -1377,7 +1400,7 @@ impl std::fmt::Display for SectionAddress {
 impl std::fmt::Display for LinkParentAddress {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Heading { section } => write!(formatter, "heading={section}"),
+            Self::Heading { section } => write_heading_path(formatter, "heading", &section.path),
             Self::Block { block } => write!(formatter, "block={block}"),
         }
     }

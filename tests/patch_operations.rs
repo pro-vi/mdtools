@@ -179,7 +179,7 @@ fn block_move_carries_the_moved_blocks_own_separator() {
 
 #[test]
 fn task_frontmatter_and_table_operations_use_semantic_targets() {
-    let source = "---\n\"a.b\": old\n---\n\n# Work\n\n- [ ] task\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
+    let source = "---\na.b: old\n---\n\n# Work\n\n- [ ] task\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
     let document = Document::parse_for_frontmatter_mutation(source).unwrap();
     let task = TaskPatchTarget::try_from(&snapshots(&document, TargetKind::Task)[0]).unwrap();
     let table = snapshots(&document, TargetKind::Block)
@@ -269,7 +269,7 @@ fn task_frontmatter_and_table_operations_use_semantic_targets() {
 }
 
 #[test]
-fn frontmatter_patch_preserves_empty_key_segments() {
+fn frontmatter_empty_key_segments_remain_addressable_but_unstable_mutation_refuses() {
     let document =
         Document::parse_for_frontmatter_mutation("---\n\"\":\n  \"\": old\n---\n\nbody\n").unwrap();
     let address = TargetAddress::FrontmatterField {
@@ -277,21 +277,25 @@ fn frontmatter_patch_preserves_empty_key_segments() {
     };
     let resolved = document.resolve(&address).unwrap();
     let target = FrontmatterPatchTarget::try_from(resolved.snapshot()).unwrap();
-    let changed = apply(
-        &document,
-        vec![PatchOp::SetFrontmatter {
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
             target,
             value: serde_json::json!("new"),
         }],
-    );
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::InvalidPatch(_))
+    ));
     assert_eq!(
-        changed
+        document
             .resolve(&address)
             .unwrap()
-            .read_frontmatter_field(&changed)
+            .read_frontmatter_field(&document)
             .unwrap()
             .value,
-        Some(serde_json::json!("new"))
+        Some(serde_json::json!("old"))
     );
 }
 
