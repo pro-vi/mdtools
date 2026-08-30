@@ -1,4 +1,4 @@
-use schemars::{schema_for, JsonSchema};
+use schemars::{generate::SchemaSettings, schema_for, JsonSchema};
 use serde::Serialize;
 
 use crate::patch::{Patch, PatchReceipt};
@@ -64,13 +64,33 @@ pub struct PatchPreview {
     pub receipts: Vec<PatchReceipt>,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, JsonSchema)]
+pub enum ProtocolSchemaVersion {
+    #[serde(rename = "mdtools.v2")]
+    V2,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticCode {
+    Io,
+    Parse,
+    InvalidInput,
+    NotFound,
+    Conflict,
+    Invariant,
+}
+
 #[derive(Clone, Debug, Serialize, JsonSchema)]
-pub struct ErrorEnvelope {
-    pub schema_version: String,
-    pub error: String,
+pub struct ErrorEnvelope<'a> {
+    pub schema_version: ProtocolSchemaVersion,
+    pub error: DiagnosticCode,
+    #[schemars(range(min = 1, max = 4))]
     pub exit_code: u8,
-    pub message: String,
-    pub hint: Option<String>,
+    pub message: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "String")]
+    pub hint: Option<&'a str>,
 }
 
 pub fn patch_schema() -> serde_json::Value {
@@ -94,6 +114,14 @@ pub fn protocol_schema() -> serde_json::Value {
         "patch": patch_schema(),
         "patch_receipt": patch_receipt_schema(),
         "patch_preview": serde_json::to_value(schema_for!(PatchPreview)).expect("patch preview schema serializes"),
-        "error_envelope": serde_json::to_value(schema_for!(ErrorEnvelope)).expect("error envelope schema serializes"),
+        "error_envelope": output_schema::<ErrorEnvelope<'static>>(),
     })
+}
+
+fn output_schema<T: JsonSchema>() -> serde_json::Value {
+    let generator = SchemaSettings::draft2020_12()
+        .for_serialize()
+        .into_generator();
+    serde_json::to_value(generator.into_root_schema_for::<T>())
+        .expect("generated output schema serializes")
 }

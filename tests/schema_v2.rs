@@ -25,6 +25,31 @@ fn protocol_schema_covers_every_authoritative_surface() {
     assert!(schema["target_snapshot"]["$defs"]["GuardAuthority"].is_object());
     assert!(schema["target_query"].to_string().contains("search"));
     assert!(schema["query_result"].to_string().contains("EvidenceRange"));
+
+    let envelope = &schema["error_envelope"];
+    assert_eq!(
+        envelope["$defs"]["ProtocolSchemaVersion"]["enum"],
+        serde_json::json!(["mdtools.v2"])
+    );
+    assert_eq!(
+        envelope["$defs"]["DiagnosticCode"]["enum"],
+        serde_json::json!([
+            "io",
+            "parse",
+            "invalid_input",
+            "not_found",
+            "conflict",
+            "invariant"
+        ])
+    );
+    assert_eq!(envelope["properties"]["exit_code"]["minimum"], 1);
+    assert_eq!(envelope["properties"]["exit_code"]["maximum"], 4);
+    assert_eq!(envelope["properties"]["hint"]["type"], "string");
+    assert!(!envelope["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field == "hint"));
 }
 
 #[test]

@@ -1,17 +1,8 @@
 use mdtools::core_error::CoreError;
-use serde::Serialize;
+use mdtools::protocol::{ErrorEnvelope, ProtocolSchemaVersion};
 use std::process::ExitCode;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DiagnosticCode {
-    Io,
-    Parse,
-    InvalidInput,
-    NotFound,
-    Conflict,
-    Invariant,
-}
+pub use mdtools::protocol::DiagnosticCode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MdExitCode {
@@ -103,19 +94,9 @@ impl From<CoreError> for CommandError {
     }
 }
 
-#[derive(Serialize)]
-struct ErrorEnvelope<'a> {
-    schema_version: &'static str,
-    error: DiagnosticCode,
-    exit_code: u8,
-    message: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    hint: Option<&'a str>,
-}
-
 pub fn error_envelope_json(error: &CommandError, _file: Option<&str>) -> Option<serde_json::Value> {
     serde_json::to_value(ErrorEnvelope {
-        schema_version: mdtools::SCHEMA_VERSION,
+        schema_version: ProtocolSchemaVersion::V2,
         error: error.code,
         exit_code: error.exit_code as u8,
         message: &error.message,
