@@ -1,5 +1,6 @@
 //! Tests for `md tasks` and `md set-task` commands.
 
+use sha2::{Digest, Sha256};
 use std::process::Command;
 
 fn md() -> Command {
@@ -46,12 +47,7 @@ fn task_etag(path: &str, loc: &str) -> String {
 }
 
 fn content_etag(bytes: &[u8]) -> String {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for &byte in bytes {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    format!("{hash:016x}")
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn tmpfile(content: &str) -> String {

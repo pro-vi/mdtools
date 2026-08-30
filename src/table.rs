@@ -1,11 +1,11 @@
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
 use crate::edit::{
-    replacement_span_after, strip_one_trailing_newline, EditOutcome, EditPreservation,
+    replacement_span_after, strip_one_trailing_newline, EditOutcome, EditPreservation, SourceEdit,
 };
 use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{BlockKind, ColumnAlignment, MutationDisposition, SourceSpan};
-use crate::parser::{extract_table_projection, validate_table_row_payload, TableProjection};
+use crate::parser::{validate_table_row_payload, BlockInfo, TableProjection};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ColumnSelector {
@@ -69,6 +69,110 @@ pub struct PreparedTableRowEdit<'a> {
     guarded: bool,
 }
 
+pub(crate) enum TableResultLocation {
+    None,
+    Base(SourceSpan),
+    Replacement(std::ops::Range<usize>),
+}
+
+pub(crate) struct TableMutationPlan {
+    pub(crate) edit: Option<SourceEdit>,
+    pub(crate) disposition: MutationDisposition,
+    pub(crate) result: TableResultLocation,
+}
+
+pub(crate) fn plan_replace_row(
+    document: &Document,
+    table_block_index: u32,
+    row_index: u32,
+    payload: impl Into<String>,
+) -> Result<TableMutationPlan, CoreError> {
+    let prepared = prepare_replace_row(document, table_block_index, row_index, None)?;
+    let payload = strip_one_trailing_newline(payload.into());
+    validate_table_row_payload(&payload, prepared.table.headers.len())?;
+    let row = &prepared.table.rows[row_index as usize];
+    if payload == document.slice_unchecked(&row.span) {
+        Ok(TableMutationPlan {
+            edit: None,
+            disposition: MutationDisposition::NoChange,
+            result: TableResultLocation::Base(row.span),
+        })
+    } else {
+        let payload_len = payload.len();
+        Ok(TableMutationPlan {
+            edit: Some(SourceEdit {
+                start: row.span.byte_start as usize,
+                end: row.span.byte_end as usize,
+                replacement: payload,
+            }),
+            disposition: MutationDisposition::Replaced,
+            result: TableResultLocation::Replacement(0..payload_len),
+        })
+    }
+}
+
+pub(crate) fn plan_insert_row(
+    document: &Document,
+    table_block_index: u32,
+    row_index: u32,
+    payload: impl Into<String>,
+) -> Result<TableMutationPlan, CoreError> {
+    let prepared = prepare_insert_row(document, table_block_index, row_index, None)?;
+    let payload = strip_one_trailing_newline(payload.into());
+    validate_table_row_payload(&payload, prepared.table.headers.len())?;
+    let insertion = resolve_insertion(
+        document,
+        prepared.block_span,
+        &prepared.table,
+        prepared.row_index,
+    )?;
+    let (replacement, result) = match insertion.placement {
+        SeparatorPlacement::BeforePayload => {
+            let mut replacement = String::with_capacity(insertion.separator.len() + payload.len());
+            replacement.push_str(insertion.separator);
+            let start = replacement.len();
+            replacement.push_str(&payload);
+            let end = replacement.len();
+            (replacement, start..end)
+        }
+        SeparatorPlacement::AfterPayload => {
+            let mut replacement = String::with_capacity(payload.len() + insertion.separator.len());
+            replacement.push_str(&payload);
+            let end = replacement.len();
+            replacement.push_str(insertion.separator);
+            (replacement, 0..end)
+        }
+    };
+    Ok(TableMutationPlan {
+        edit: Some(SourceEdit {
+            start: insertion.insert_byte,
+            end: insertion.insert_byte,
+            replacement,
+        }),
+        disposition: MutationDisposition::Inserted,
+        result: TableResultLocation::Replacement(result),
+    })
+}
+
+pub(crate) fn plan_delete_row(
+    document: &Document,
+    table_block_index: u32,
+    row_index: u32,
+) -> Result<TableMutationPlan, CoreError> {
+    let prepared = prepare_replace_row(document, table_block_index, row_index, None)?;
+    let row = &prepared.table.rows[row_index as usize];
+    let deletion = deletion_span(document, row.span);
+    Ok(TableMutationPlan {
+        edit: Some(SourceEdit {
+            start: deletion.byte_start as usize,
+            end: deletion.byte_end as usize,
+            replacement: String::new(),
+        }),
+        disposition: MutationDisposition::Deleted,
+        result: TableResultLocation::None,
+    })
+}
+
 pub fn tables(document: &Document) -> Result<Vec<TableSummary>, CoreError> {
     let summaries = document
         .blocks()
@@ -76,12 +180,12 @@ pub fn tables(document: &Document) -> Result<Vec<TableSummary>, CoreError> {
         .filter(|block| block.kind == BlockKind::Table)
         .map(|block| {
             let source = document.slice_unchecked(&block.span);
-            let table = extract_table_projection(source, block.span)?;
+            let table = cached_table(block)?;
             Ok(TableSummary {
                 block_index: block.index,
                 span: block.span,
                 etag: TargetEtag::for_bytes(source.as_bytes()),
-                headers: table.headers,
+                headers: table.headers.clone(),
                 row_count: table.rows.len() as u32,
                 column_count: table.alignments.len() as u32,
             })
@@ -176,9 +280,8 @@ fn prepare_row_edit<'a>(
     expect_etag: Option<&TargetEtagGuard>,
     insertion: bool,
 ) -> Result<PreparedTableRowEdit<'a>, CoreError> {
-    let (block_span, source, actual) = resolve_table_source(document, table_block_index)?;
+    let (block_span, table, actual) = resolve_table(document, table_block_index)?;
     verify_table_guard(document, table_block_index, expect_etag, &actual)?;
-    let table = extract_table_projection(source, block_span)?;
     let row_count = table.rows.len() as u32;
     if (insertion && row_index > row_count) || (!insertion && row_index >= row_count) {
         return Err(CoreError::TableRowOutOfRange {
@@ -333,14 +436,6 @@ fn resolve_table(
     document: &Document,
     block_index: u32,
 ) -> Result<(SourceSpan, TableProjection, TargetEtag), CoreError> {
-    let (span, source, etag) = resolve_table_source(document, block_index)?;
-    Ok((span, extract_table_projection(source, span)?, etag))
-}
-
-fn resolve_table_source(
-    document: &Document,
-    block_index: u32,
-) -> Result<(SourceSpan, &str, TargetEtag), CoreError> {
     let block =
         document
             .blocks()
@@ -353,7 +448,20 @@ fn resolve_table_source(
         return Err(CoreError::NotTable { block_index });
     }
     let source = document.slice_unchecked(&block.span);
-    Ok((block.span, source, TargetEtag::for_bytes(source.as_bytes())))
+    Ok((
+        block.span,
+        cached_table(block)?.clone(),
+        TargetEtag::for_bytes(source.as_bytes()),
+    ))
+}
+
+fn cached_table(block: &BlockInfo) -> Result<&TableProjection, CoreError> {
+    block.table.as_ref().ok_or_else(|| {
+        CoreError::ParseFailed(format!(
+            "table block {} is missing its cached projection",
+            block.index
+        ))
+    })
 }
 
 fn verify_table_guard(

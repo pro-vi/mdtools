@@ -186,7 +186,7 @@ impl PreparedBlockInsert<'_> {
             output.push_str(newline);
         }
         output.push_str(after);
-        let reparsed = Document::parse(output.clone())?;
+        let reparsed = self.document.reparse(output.clone())?;
         let after_span = reparsed.span_for_byte_range(payload_start as u32, payload_end as u32);
         Ok(outcome(
             self.document,
@@ -255,7 +255,7 @@ pub fn move_block(
         expect_destination_etag,
     )?;
     let order = block_order(
-        document.blocks().len(),
+        &document.index().source_block_indices(),
         source_index,
         destination_index,
         destination_mode,
@@ -389,13 +389,13 @@ fn resolve_insert_location(
         }
         InsertLocation::Start => Ok((
             document
-                .frontmatter()
-                .map(|frontmatter| {
+                .index()
+                .first_source_block_span()
+                .map(|span| span.byte_start as usize)
+                .or_else(|| {
                     document
-                        .blocks()
-                        .first()
-                        .map(|block| block.span.byte_start as usize)
-                        .unwrap_or(frontmatter.span.byte_end as usize)
+                        .frontmatter()
+                        .map(|frontmatter| frontmatter.span.byte_end as usize)
                 })
                 .unwrap_or(0),
             None,
@@ -404,9 +404,18 @@ fn resolve_insert_location(
     }
 }
 
-fn block_order(count: usize, source: u32, destination: u32, mode: BlockMoveMode) -> Vec<u32> {
-    let mut order = (0..count as u32).collect::<Vec<_>>();
-    let moved = order.remove(source as usize);
+fn block_order(
+    source_order: &[u32],
+    source: u32,
+    destination: u32,
+    mode: BlockMoveMode,
+) -> Vec<u32> {
+    let mut order = source_order.to_vec();
+    let source_position = order
+        .iter()
+        .position(|index| *index == source)
+        .expect("resolved source exists in source order");
+    let moved = order.remove(source_position);
     let destination_position = order
         .iter()
         .position(|index| *index == destination)
@@ -420,22 +429,21 @@ fn block_order(count: usize, source: u32, destination: u32, mode: BlockMoveMode)
 }
 
 fn reconstruct(document: &Document, order: &[u32]) -> String {
-    let prefix_end = document
-        .blocks()
+    let source_order = document.index().source_block_indices();
+    let prefix_end = source_order
         .first()
-        .map(|block| block.span.byte_start as usize)
+        .map(|index| document.blocks()[*index as usize].span.byte_start as usize)
         .unwrap_or(document.source().len());
     let mut output = String::with_capacity(document.source().len());
     output.push_str(&document.source()[..prefix_end]);
-    let gaps = document
-        .blocks()
+    let gaps = source_order
         .iter()
         .enumerate()
-        .map(|(index, block)| {
-            let end = document
-                .blocks()
-                .get(index + 1)
-                .map(|next| next.span.byte_start as usize)
+        .map(|(slot, parser_index)| {
+            let block = &document.blocks()[*parser_index as usize];
+            let end = source_order
+                .get(slot + 1)
+                .map(|next| document.blocks()[*next as usize].span.byte_start as usize)
                 .unwrap_or(document.source().len());
             &document.source()[block.span.byte_end as usize..end]
         })
@@ -453,13 +461,14 @@ fn verify_structural_closure(
     order: &[u32],
     source_index: u32,
 ) -> Result<SourceSpan, CoreError> {
-    let reparsed = Document::parse(output)?;
-    if reparsed.blocks().len() != document.blocks().len() {
+    let reparsed = document.reparse(output)?;
+    let reparsed_order = reparsed.index().source_block_indices();
+    if reparsed_order.len() != order.len() {
         return Err(structural_closure_error());
     }
     for (position, original_index) in order.iter().enumerate() {
         let expected = &document.blocks()[*original_index as usize];
-        let actual = &reparsed.blocks()[position];
+        let actual = &reparsed.blocks()[reparsed_order[position] as usize];
         if actual.kind != expected.kind
             || reparsed.slice_unchecked(&actual.span) != document.slice_unchecked(&expected.span)
         {
@@ -470,7 +479,7 @@ fn verify_structural_closure(
         .iter()
         .position(|index| *index == source_index)
         .expect("source remains in permutation");
-    Ok(reparsed.blocks()[moved].span)
+    Ok(reparsed.blocks()[reparsed_order[moved] as usize].span)
 }
 
 fn structural_closure_error() -> CoreError {

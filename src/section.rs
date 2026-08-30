@@ -2,7 +2,7 @@ use std::num::NonZeroU32;
 
 use crate::core_error::{CoreError, SectionMatch};
 use crate::document::Document;
-use crate::fingerprint::content_etag;
+use crate::fingerprint::TargetEtag;
 use crate::model::{
     HeadingMatchMode, HeadingRef, OutlineEntry, SectionEntry, SectionKind, SectionSelector,
     SectionSelectorKind, SourceSpan,
@@ -142,25 +142,8 @@ impl SectionIndex {
             .filter_map(|block| {
                 let heading = block.heading.as_ref()?;
                 let byte_end = find_section_byte_end(document, block.index, heading.level);
-                let span = SourceSpan {
-                    line_start: block.span.line_start,
-                    line_end: section_line_end(document, byte_end),
-                    byte_start: block.span.byte_start,
-                    byte_end,
-                };
-                let block_indices = document
-                    .blocks()
-                    .iter()
-                    .skip(block.index as usize)
-                    .take_while(|candidate| {
-                        candidate.index == block.index
-                            || candidate
-                                .heading
-                                .as_ref()
-                                .is_none_or(|next| next.level > heading.level)
-                    })
-                    .map(|candidate| candidate.index)
-                    .collect();
+                let span = document.index().section_span(block.span, byte_end);
+                let block_indices = document.index().section_block_indices(Some(block.index));
 
                 Some(SectionEntry {
                     kind: SectionKind::Heading,
@@ -185,7 +168,8 @@ impl SectionIndex {
                     depth: heading.level,
                     block_indices,
                     span,
-                    etag: content_etag(document.slice_unchecked(&span).as_bytes()),
+                    etag: TargetEtag::for_bytes(document.slice_unchecked(&span).as_bytes())
+                        .into_string(),
                 })
             })
             .collect();
@@ -330,6 +314,31 @@ impl SectionIndex {
     }
 }
 
+pub(crate) fn resolve_address(
+    document: &Document,
+    address: &crate::target::SectionAddress,
+) -> Result<ResolvedSection, CoreError> {
+    let target_address = match address {
+        crate::target::SectionAddress::Preamble => crate::target::TargetAddress::Preamble,
+        crate::target::SectionAddress::Heading { path } => {
+            crate::target::TargetAddress::Section { path: path.clone() }
+        }
+    };
+    let resolved = document.resolve(&target_address)?;
+    let entry = match address {
+        crate::target::SectionAddress::Preamble => SectionIndex::new(document).preamble,
+        crate::target::SectionAddress::Heading { .. } => SectionIndex::new(document)
+            .section_for_byte(resolved.snapshot().selection_span.unwrap().byte_start)
+            .ok_or_else(|| CoreError::TargetNotFound {
+                target: target_address.to_string(),
+            })?,
+    };
+    Ok(ResolvedSection {
+        entry,
+        revision: document.revision().clone(),
+    })
+}
+
 /// 1-based position of a heading block among the exact-text matches for its
 /// own text, matching how `resolve_heading` counts occurrences.
 fn occurrence_of(document: &Document, text: &str, block_index: u32) -> u32 {
@@ -349,12 +358,7 @@ fn occurrence_of(document: &Document, text: &str, block_index: u32) -> u32 {
 }
 
 fn build_preamble(document: &Document) -> SectionEntry {
-    let block_indices = document
-        .blocks()
-        .iter()
-        .take_while(|block| block.heading.is_none())
-        .map(|block| block.index)
-        .collect::<Vec<_>>();
+    let block_indices = document.index().section_block_indices(None);
     // Bounds by source position, not by position in the block vec: comrak
     // emits footnote definitions after the blocks referencing them, so
     // first/last in vec order can yield byte_start > byte_end and panic the
@@ -401,7 +405,7 @@ fn build_preamble(document: &Document) -> SectionEntry {
         depth: 0,
         block_indices,
         span,
-        etag: content_etag(document.slice_unchecked(&span).as_bytes()),
+        etag: TargetEtag::for_bytes(document.slice_unchecked(&span).as_bytes()).into_string(),
     }
 }
 
@@ -418,18 +422,6 @@ fn find_section_byte_end(document: &Document, heading_index: u32, level: u8) -> 
                 .map(|_| block.span.byte_start)
         })
         .unwrap_or(document.source().len() as u32)
-}
-
-fn section_line_end(document: &Document, byte_end: u32) -> u32 {
-    if byte_end as usize >= document.source().len() {
-        return document.line_count();
-    }
-    let line_at_end = document.byte_to_line(byte_end);
-    if byte_end > 0 && document.source().as_bytes().get(byte_end as usize - 1) == Some(&b'\n') {
-        line_at_end - 1
-    } else {
-        line_at_end
-    }
 }
 
 fn heading_matches(actual: &str, expected: &str, mode: HeadingMatchMode) -> bool {

@@ -24,6 +24,31 @@ pub enum CoreError {
     InvalidTableRow(String),
     InvalidSelector(String),
     InvalidTargetEtag(String),
+    InvalidDocumentRevision(String),
+    InvalidTargetAddress {
+        reason: String,
+    },
+    InvalidPatch(String),
+    TargetAuthorityMismatch {
+        target: String,
+        expected: String,
+        actual: String,
+    },
+    PatchInvariant(String),
+    TargetNotFound {
+        target: String,
+    },
+    AmbiguousTargetQuery {
+        count: usize,
+    },
+    AmbiguousTargetAddress {
+        target: String,
+        count: usize,
+    },
+    TargetKindMismatch {
+        expected: &'static str,
+        actual: &'static str,
+    },
     InvalidKeyPath {
         path: String,
         reason: &'static str,
@@ -121,6 +146,7 @@ pub enum CoreError {
         expected: String,
         actual: String,
     },
+    DocumentIndexMismatch,
     InvalidSpan {
         span: SourceSpan,
         source_len: usize,
@@ -136,7 +162,35 @@ impl std::fmt::Display for CoreError {
             | Self::InvalidTableRow(message)
             | Self::InvalidSelector(message) => write!(f, "{message}"),
             Self::InvalidTargetEtag(value) => {
-                write!(f, "invalid target etag {value:?} (expected 16 hexadecimal characters)")
+                write!(f, "invalid target etag {value:?} (expected 64 hexadecimal characters)")
+            }
+            Self::InvalidDocumentRevision(value) => write!(
+                f,
+                "invalid document revision {value:?} (expected 64 hexadecimal characters)"
+            ),
+            Self::InvalidTargetAddress { reason } => {
+                write!(f, "invalid target address: {reason}")
+            }
+            Self::InvalidPatch(reason) => write!(f, "invalid patch: {reason}"),
+            Self::TargetAuthorityMismatch {
+                target,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "target authority mismatch for {target}: expected {expected}, found {actual}"
+            ),
+            Self::PatchInvariant(reason) => write!(f, "patch invariant failed: {reason}"),
+            Self::TargetNotFound { target } => write!(f, "target not found: {target}"),
+            Self::AmbiguousTargetQuery { count } => {
+                write!(f, "target query matched {count} targets; use an exact address")
+            }
+            Self::AmbiguousTargetAddress { target, count } => write!(
+                f,
+                "exact target address {target} resolved to {count} targets"
+            ),
+            Self::TargetKindMismatch { expected, actual } => {
+                write!(f, "target kind mismatch: expected {expected}, found {actual}")
             }
             Self::InvalidKeyPath { path, reason } => {
                 write!(f, "invalid key path {path:?}: {reason}")
@@ -263,6 +317,9 @@ impl std::fmt::Display for CoreError {
                 f,
                 "document revision mismatch: expected {expected:?}, found {actual:?}"
             ),
+            Self::DocumentIndexMismatch => {
+                write!(f, "resolved target belongs to a different document index")
+            }
             Self::InvalidSpan {
                 span,
                 source_len,

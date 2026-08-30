@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::fingerprint::TargetEtag;
@@ -6,7 +7,8 @@ pub const SCHEMA_VERSION: &str = "mdtools.v1";
 
 // --- Common types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SourceSpan {
     pub line_start: u32,
     pub line_end: u32,
@@ -14,7 +16,7 @@ pub struct SourceSpan {
     pub byte_end: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum LineEndingStyle {
     Lf,
     Crlf,
@@ -59,7 +61,7 @@ pub enum InsertLocation {
 
 // --- Block types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
 pub enum BlockKind {
@@ -172,7 +174,7 @@ pub struct SectionReadResult {
     pub content: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum LinkKind {
     Inline,
     Reference,
@@ -228,7 +230,7 @@ pub struct SearchResult {
     pub matches: Vec<SearchMatch>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum FrontmatterFormat {
     Yaml,
     Toml,
@@ -336,7 +338,7 @@ pub struct TableReadResult {
 
 // --- Task types ---
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
@@ -430,7 +432,7 @@ pub enum MutationCommandKind {
     MoveSection,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum MutationDisposition {
     NoChange,
     Replaced,

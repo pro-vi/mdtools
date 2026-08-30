@@ -1,6 +1,6 @@
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
-use crate::edit::{EditOutcome, EditPreservation};
+use crate::edit::{EditOutcome, EditPreservation, SourceEdit};
 use crate::fingerprint::{TargetEtag, TargetEtagGuard};
 use crate::model::{FrontmatterFormat, MutationDisposition, SourceSpan};
 use crate::parser::strip_frontmatter_delimiters;
@@ -25,6 +25,17 @@ pub struct FrontmatterEditTarget {
 pub enum FrontmatterAction {
     Set(serde_json::Value),
     Delete,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct FrontmatterPathMutation {
+    pub(crate) path: Vec<String>,
+    pub(crate) action: FrontmatterAction,
+}
+
+pub(crate) struct FrontmatterBatchPlan {
+    pub(crate) edit: Option<SourceEdit>,
+    pub(crate) dispositions: Vec<MutationDisposition>,
 }
 
 #[derive(Clone, Debug)]
@@ -200,6 +211,142 @@ pub fn edit(
         },
         content,
     })
+}
+
+pub(crate) fn plan_path_batch(
+    document: &Document,
+    mutations: &[FrontmatterPathMutation],
+) -> Result<FrontmatterBatchPlan, CoreError> {
+    if mutations.is_empty() {
+        return Ok(FrontmatterBatchPlan {
+            edit: None,
+            dispositions: Vec::new(),
+        });
+    }
+    let state = document.frontmatter_state();
+    let format = state.format.unwrap_or(FrontmatterFormat::Yaml);
+    let mut data = state
+        .raw
+        .map(|raw| parse_data(raw, format))
+        .transpose()?
+        .unwrap_or_else(empty_object);
+    if state.raw.is_some() && !data.is_object() {
+        return Err(CoreError::FrontmatterParseFailed(
+            "frontmatter must be a mapping/object, not a scalar or array".into(),
+        ));
+    }
+    let mut dispositions = Vec::with_capacity(mutations.len());
+    for mutation in mutations {
+        if mutation.path.is_empty() {
+            return Err(CoreError::InvalidKeyPath {
+                path: String::new(),
+                reason: "key path cannot be empty",
+            });
+        }
+        let display =
+            serde_json::to_string(&mutation.path).expect("frontmatter mutation path serializes");
+        dispositions.push(match &mutation.action {
+            FrontmatterAction::Set(value) => {
+                set_path_segments(&mut data, &mutation.path, &display, value.clone())?
+            }
+            FrontmatterAction::Delete => delete_path_segments(&mut data, &mutation.path, &display)?,
+        });
+    }
+    let edit = if dispositions
+        .iter()
+        .any(|disposition| *disposition != MutationDisposition::NoChange)
+    {
+        let block = serialize(&data, format)?;
+        Some(match state.span {
+            Some(span) => SourceEdit {
+                start: span.byte_start as usize,
+                end: span.byte_end as usize,
+                replacement: block,
+            },
+            None if document.source().is_empty() => SourceEdit {
+                start: 0,
+                end: 0,
+                replacement: block,
+            },
+            None => SourceEdit {
+                start: 0,
+                end: 0,
+                replacement: format!("{block}\n"),
+            },
+        })
+    } else {
+        None
+    };
+    Ok(FrontmatterBatchPlan { edit, dispositions })
+}
+
+fn set_path_segments(
+    root: &mut serde_json::Value,
+    segments: &[String],
+    display: &str,
+    value: serde_json::Value,
+) -> Result<MutationDisposition, CoreError> {
+    let mut current = root;
+    for (index, segment) in segments[..segments.len() - 1].iter().enumerate() {
+        let map = current
+            .as_object_mut()
+            .ok_or_else(|| CoreError::FrontmatterFieldConflict {
+                path: display.into(),
+                prefix: serde_json::to_string(&segments[..index]).unwrap(),
+            })?;
+        current = map.entry(segment.clone()).or_insert_with(empty_object);
+        if !current.is_object() {
+            return Err(CoreError::FrontmatterFieldConflict {
+                path: display.into(),
+                prefix: serde_json::to_string(&segments[..=index]).unwrap(),
+            });
+        }
+    }
+    let key = segments.last().unwrap();
+    let map = current
+        .as_object_mut()
+        .ok_or_else(|| CoreError::FrontmatterFieldConflict {
+            path: display.into(),
+            prefix: display.into(),
+        })?;
+    match map.get(key) {
+        Some(existing) if existing == &value => Ok(MutationDisposition::NoChange),
+        Some(_) => {
+            map.insert(key.clone(), value);
+            Ok(MutationDisposition::Replaced)
+        }
+        None => {
+            map.insert(key.clone(), value);
+            Ok(MutationDisposition::Inserted)
+        }
+    }
+}
+
+fn delete_path_segments(
+    root: &mut serde_json::Value,
+    segments: &[String],
+    display: &str,
+) -> Result<MutationDisposition, CoreError> {
+    let mut current = root;
+    for (index, segment) in segments[..segments.len() - 1].iter().enumerate() {
+        match current.as_object_mut().and_then(|map| map.get_mut(segment)) {
+            Some(value) if value.is_object() => current = value,
+            Some(_) => {
+                return Err(CoreError::FrontmatterFieldConflict {
+                    path: display.into(),
+                    prefix: serde_json::to_string(&segments[..=index]).unwrap(),
+                })
+            }
+            None => return Ok(MutationDisposition::NoChange),
+        }
+    }
+    let key = segments.last().unwrap();
+    Ok(current
+        .as_object_mut()
+        .and_then(|map| map.shift_remove(key))
+        .map_or(MutationDisposition::NoChange, |_| {
+            MutationDisposition::Deleted
+        }))
 }
 
 fn set_dot_path(

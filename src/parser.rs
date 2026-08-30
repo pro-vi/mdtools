@@ -5,6 +5,7 @@ use comrak::{
     nodes::{AstNode, NodeValue, Sourcepos},
     parse_document, Arena, Options,
 };
+use sha2::{Digest, Sha256};
 
 use crate::core_error::CoreError;
 use crate::model::*;
@@ -163,6 +164,9 @@ impl LineIndex {
 // --- Comrak options ---
 
 fn comrak_opts(delimiter: Option<&str>) -> Options<'static> {
+    // Every extension enabled here that can create a top-level block must have
+    // an explicit arm in `node_value_to_block_kind`. The classifier fails
+    // closed so an options change cannot silently reinterpret a new node kind.
     let mut options = Options::default();
     options.extension.table = true;
     options.extension.strikethrough = true;
@@ -208,9 +212,11 @@ pub struct ParsedDocument {
     pub frontmatter: Option<FrontmatterInfo>,
     line_index: LineIndex,
     revision: DocumentRevision,
+    policy: ParsePolicy,
 }
 
 /// A projected top-level block.
+#[derive(Clone, Debug)]
 pub struct BlockInfo {
     pub index: u32,
     pub kind: BlockKind,
@@ -218,8 +224,10 @@ pub struct BlockInfo {
     pub heading: Option<HeadingInfo>,
     pub links: Vec<LinkInfo>,
     pub task_items: Vec<TaskItemInfo>,
+    pub table: Option<TableProjection>,
 }
 
+#[derive(Clone, Debug)]
 pub struct TaskItemInfo {
     pub child_path: Vec<u32>,
     pub task_index: u32,
@@ -230,12 +238,13 @@ pub struct TaskItemInfo {
     pub summary_text: String,
 }
 
+#[derive(Clone, Debug)]
 pub struct HeadingInfo {
     pub level: u8,
     pub text: String,
     pub kind: HeadingSourceKind,
-    /// Byte span covering only the `#` run for ATX headings. None for setext.
-    pub marker_span: Option<SourceSpan>,
+    /// Byte span covering the ATX `#` run or the setext underline marker.
+    pub marker_span: SourceSpan,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -244,6 +253,7 @@ pub enum HeadingSourceKind {
     Setext,
 }
 
+#[derive(Clone, Debug)]
 pub struct LinkInfo {
     pub kind: LinkKind,
     pub text: String,
@@ -252,6 +262,7 @@ pub struct LinkInfo {
     pub span: SourceSpan,
 }
 
+#[derive(Clone, Debug)]
 pub struct FrontmatterInfo {
     pub raw: String,
     pub span: SourceSpan,
@@ -266,7 +277,7 @@ pub struct FrontmatterState<'a> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum FrontmatterParseMode {
+pub(crate) enum ParsePolicy {
     Lenient,
     StrictRead,
     Mutation,
@@ -274,23 +285,23 @@ enum FrontmatterParseMode {
 
 impl ParsedDocument {
     pub fn parse(source: String) -> Result<Self, CoreError> {
-        Self::parse_inner(source, FrontmatterParseMode::Lenient)
+        Self::parse_inner(source, ParsePolicy::Lenient)
     }
 
     /// Parse for frontmatter reads. A closed frontmatter block must parse
     /// semantically; an unmatched opening delimiter remains ordinary Markdown
     /// and is reported as absent for CLI compatibility.
     pub fn parse_for_frontmatter(source: String) -> Result<Self, CoreError> {
-        Self::parse_inner(source, FrontmatterParseMode::StrictRead)
+        Self::parse_inner(source, ParsePolicy::StrictRead)
     }
 
     /// Parse for frontmatter mutation commands, which must fail closed on malformed
     /// or unclosed leading frontmatter instead of treating it as absent.
     pub fn parse_for_frontmatter_mutation(source: String) -> Result<Self, CoreError> {
-        Self::parse_inner(source, FrontmatterParseMode::Mutation)
+        Self::parse_inner(source, ParsePolicy::Mutation)
     }
 
-    fn parse_inner(source: String, mode: FrontmatterParseMode) -> Result<Self, CoreError> {
+    fn parse_inner(source: String, mode: ParsePolicy) -> Result<Self, CoreError> {
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(delimiter);
@@ -314,7 +325,7 @@ impl ParsedDocument {
             }
         }
 
-        if matches!(mode, FrontmatterParseMode::Mutation) && !has_frontmatter_node {
+        if matches!(mode, ParsePolicy::Mutation) && !has_frontmatter_node {
             if let Some(delimiter) = delimiter {
                 return Err(CoreError::FrontmatterParseFailed(format!(
                     "unclosed frontmatter (no closing '{}')",
@@ -323,7 +334,7 @@ impl ParsedDocument {
             }
         }
 
-        if matches!(mode, FrontmatterParseMode::Lenient)
+        if matches!(mode, ParsePolicy::Lenient)
             && has_frontmatter_node
             && frontmatter_raw.as_ref().is_some_and(|raw| {
                 !frontmatter_content_is_semantically_valid(raw, frontmatter_format)
@@ -355,39 +366,47 @@ impl ParsedDocument {
                 }
                 _ => {
                     let heading_meta = if let NodeValue::Heading(h) = &data.value {
-                        Some((h.level, h.setext, sp.start.line))
+                        Some((h.level, h.setext, sp.start.line, sp.end.line))
                     } else {
                         None
                     };
-                    let kind = node_value_to_block_kind(&data.value);
+                    let kind = node_value_to_block_kind(&data.value)?;
                     let is_indented = matches!(kind, BlockKind::IndentedCode);
-                    let heading_line = heading_meta.map(|(_, _, line)| line);
+                    let heading_line = heading_meta.map(|(_, _, line, _)| line);
                     let span =
                         line_index.sourcepos_to_span_fixup(sp, &source, is_indented, heading_line);
                     drop(data);
 
-                    let heading = heading_meta.map(|(level, setext, line)| {
-                        let text = collect_heading_text(node);
-                        let kind = if setext {
-                            HeadingSourceKind::Setext
-                        } else {
-                            HeadingSourceKind::Atx
-                        };
-                        let marker_span = if setext {
-                            None
-                        } else {
-                            compute_atx_marker_span(&line_index, &source, line)
-                        };
-                        HeadingInfo {
-                            level,
-                            text,
-                            kind,
-                            marker_span,
-                        }
-                    });
+                    let heading = heading_meta
+                        .map(|(level, setext, line, end_line)| {
+                            let text = collect_heading_text(node);
+                            let kind = if setext {
+                                HeadingSourceKind::Setext
+                            } else {
+                                HeadingSourceKind::Atx
+                            };
+                            let marker_span = if setext {
+                                compute_setext_marker_span(&line_index, &source, end_line)
+                            } else {
+                                compute_atx_marker_span(&line_index, &source, line)
+                            }
+                            .ok_or_else(|| {
+                                CoreError::ParseFailed(format!(
+                                    "heading at line {line} has no recognized syntax marker"
+                                ))
+                            })?;
+                            Ok::<_, CoreError>(HeadingInfo {
+                                level,
+                                text,
+                                kind,
+                                marker_span,
+                            })
+                        })
+                        .transpose()?;
 
                     let links = collect_links(node, &line_index, &source);
-                    let task_items = collect_all_task_items(node, &line_index);
+                    let task_items = collect_all_task_items(node, &line_index, span);
+                    let table = project_table_node(node, &line_index, &source, None);
 
                     blocks.push(BlockInfo {
                         index: blocks.len() as u32,
@@ -396,6 +415,7 @@ impl ParsedDocument {
                         heading,
                         links,
                         task_items,
+                        table,
                     });
                 }
             }
@@ -408,10 +428,11 @@ impl ParsedDocument {
             frontmatter,
             line_index,
             revision,
+            policy: mode,
         })
     }
 
-    fn parse_without_frontmatter(source: String) -> Result<Self, CoreError> {
+    pub(crate) fn parse_without_frontmatter(source: String) -> Result<Self, CoreError> {
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(None); // No frontmatter delimiter
         let arena = Arena::new();
@@ -423,38 +444,46 @@ impl ParsedDocument {
             let data = node.data.borrow();
             let sp = data.sourcepos;
             let heading_meta = if let NodeValue::Heading(h) = &data.value {
-                Some((h.level, h.setext, sp.start.line))
+                Some((h.level, h.setext, sp.start.line, sp.end.line))
             } else {
                 None
             };
-            let kind = node_value_to_block_kind(&data.value);
+            let kind = node_value_to_block_kind(&data.value)?;
             let is_indented = matches!(kind, BlockKind::IndentedCode);
-            let heading_line = heading_meta.map(|(_, _, line)| line);
+            let heading_line = heading_meta.map(|(_, _, line, _)| line);
             let span = line_index.sourcepos_to_span_fixup(sp, &source, is_indented, heading_line);
             drop(data);
 
-            let heading = heading_meta.map(|(level, setext, line)| {
-                let text = collect_heading_text(node);
-                let kind = if setext {
-                    HeadingSourceKind::Setext
-                } else {
-                    HeadingSourceKind::Atx
-                };
-                let marker_span = if setext {
-                    None
-                } else {
-                    compute_atx_marker_span(&line_index, &source, line)
-                };
-                HeadingInfo {
-                    level,
-                    text,
-                    kind,
-                    marker_span,
-                }
-            });
+            let heading = heading_meta
+                .map(|(level, setext, line, end_line)| {
+                    let text = collect_heading_text(node);
+                    let kind = if setext {
+                        HeadingSourceKind::Setext
+                    } else {
+                        HeadingSourceKind::Atx
+                    };
+                    let marker_span = if setext {
+                        compute_setext_marker_span(&line_index, &source, end_line)
+                    } else {
+                        compute_atx_marker_span(&line_index, &source, line)
+                    }
+                    .ok_or_else(|| {
+                        CoreError::ParseFailed(format!(
+                            "heading at line {line} has no recognized syntax marker"
+                        ))
+                    })?;
+                    Ok::<_, CoreError>(HeadingInfo {
+                        level,
+                        text,
+                        kind,
+                        marker_span,
+                    })
+                })
+                .transpose()?;
 
             let links = collect_links(node, &line_index, &source);
-            let task_items = collect_all_task_items(node, &line_index);
+            let task_items = collect_all_task_items(node, &line_index, span);
+            let table = project_table_node(node, &line_index, &source, None);
 
             blocks.push(BlockInfo {
                 index: block_index as u32,
@@ -463,6 +492,7 @@ impl ParsedDocument {
                 heading,
                 links,
                 task_items,
+                table,
             });
         }
 
@@ -473,11 +503,16 @@ impl ParsedDocument {
             frontmatter: None,
             line_index,
             revision,
+            policy: ParsePolicy::Lenient,
         })
     }
 
     pub fn line_count(&self) -> u32 {
         self.line_index.line_count()
+    }
+
+    pub(crate) fn policy(&self) -> ParsePolicy {
+        self.policy
     }
 
     /// Find the line number for a given byte offset.
@@ -593,7 +628,7 @@ fn frontmatter_state_etag(raw: Option<&str>) -> String {
     const ABSENT_DOMAIN: &[u8] = b"mdtools.frontmatter.absent";
     const PRESENT_DOMAIN: &[u8] = b"mdtools.frontmatter.present\0";
 
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut hash = Sha256::new();
     let bytes = raw.map(str::as_bytes);
     let domain = if bytes.is_some() {
         PRESENT_DOMAIN
@@ -601,18 +636,12 @@ fn frontmatter_state_etag(raw: Option<&str>) -> String {
         ABSENT_DOMAIN
     };
 
-    for &b in domain {
-        hash ^= b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
+    hash.update(domain);
     if let Some(bytes) = bytes {
-        for &b in bytes {
-            hash ^= b as u64;
-            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-        }
+        hash.update(bytes);
     }
 
-    format!("{:016x}", hash)
+    format!("{:x}", hash.finalize())
 }
 
 /// Compute the byte span covering an ATX heading's `#` run.
@@ -647,6 +676,38 @@ fn compute_atx_marker_span(
         line_end: line as u32,
         byte_start: marker_start as u32,
         byte_end: p as u32,
+    })
+}
+
+/// Compute the byte span covering a setext heading's `=` or `-` underline.
+fn compute_setext_marker_span(
+    line_index: &LineIndex,
+    source: &str,
+    line: usize,
+) -> Option<SourceSpan> {
+    let line_start = line_index.to_byte(line, 1)?;
+    let line_end = source.as_bytes()[line_start..]
+        .iter()
+        .position(|byte| *byte == b'\n')
+        .map_or(source.len(), |offset| line_start + offset);
+    let line_bytes = &source.as_bytes()[line_start..line_end];
+    let mut start = 0usize;
+    while start < line_bytes.len() && start < 3 && line_bytes[start] == b' ' {
+        start += 1;
+    }
+    let marker = *line_bytes.get(start)?;
+    if !matches!(marker, b'=' | b'-') {
+        return None;
+    }
+    let mut end = start;
+    while line_bytes.get(end) == Some(&marker) {
+        end += 1;
+    }
+    Some(SourceSpan {
+        line_start: line as u32,
+        line_end: line as u32,
+        byte_start: (line_start + start) as u32,
+        byte_end: (line_start + end) as u32,
     })
 }
 
@@ -696,14 +757,12 @@ fn collect_task_items<'a>(
                     summary_text,
                 });
 
-                // Recurse into nested lists within this task item
-                for grandchild in child.children() {
-                    let gc_data = grandchild.data.borrow();
-                    if matches!(gc_data.value, NodeValue::List(_)) {
-                        drop(gc_data);
-                        items.extend(collect_task_items(grandchild, line_index, &path, depth + 1));
-                    }
-                }
+                items.extend(collect_nested_task_items(
+                    child,
+                    line_index,
+                    &path,
+                    depth + 1,
+                ));
 
                 task_counter += 1;
             }
@@ -713,14 +772,12 @@ fn collect_task_items<'a>(
                 let mut path = prefix.to_vec();
                 path.push(child_counter as u32);
 
-                // Regular items can contain nested lists with task items
-                for grandchild in child.children() {
-                    let gc_data = grandchild.data.borrow();
-                    if matches!(gc_data.value, NodeValue::List(_)) {
-                        drop(gc_data);
-                        items.extend(collect_task_items(grandchild, line_index, &path, depth + 1));
-                    }
-                }
+                items.extend(collect_nested_task_items(
+                    child,
+                    line_index,
+                    &path,
+                    depth + 1,
+                ));
             }
             _ => {
                 drop(data);
@@ -731,13 +788,42 @@ fn collect_task_items<'a>(
     items
 }
 
+fn collect_nested_task_items<'a>(
+    item: &'a AstNode<'a>,
+    line_index: &LineIndex,
+    item_path: &[u32],
+    depth: u32,
+) -> Vec<TaskItemInfo> {
+    let nested_lists = item
+        .children()
+        .filter(|child| matches!(child.data.borrow().value, NodeValue::List(_)))
+        .collect::<Vec<_>>();
+    let needs_list_ordinal = nested_lists.len() > 1;
+    let mut items = Vec::new();
+    for (list_ordinal, nested_list) in nested_lists.into_iter().enumerate() {
+        let mut prefix = item_path.to_vec();
+        if needs_list_ordinal {
+            // A single nested list keeps the existing compact loc. Multiple
+            // sibling lists need their own segment or their item ordinals
+            // collide (for example, bullet item 0 and ordered item 0).
+            prefix.push(list_ordinal as u32);
+        }
+        items.extend(collect_task_items(nested_list, line_index, &prefix, depth));
+    }
+    items
+}
+
 /// Find all task items under any block node by walking descendants for List nodes.
 /// Handles task lists inside blockquotes, callouts, and other containers.
-fn collect_all_task_items<'a>(node: &'a AstNode<'a>, line_index: &LineIndex) -> Vec<TaskItemInfo> {
+fn collect_all_task_items<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+    block_span: SourceSpan,
+) -> Vec<TaskItemInfo> {
     let data = node.data.borrow();
     if matches!(data.value, NodeValue::List(_)) {
         drop(data);
-        return collect_task_items(node, line_index, &[], 0);
+        return clamp_task_spans(collect_task_items(node, line_index, &[], 0), block_span);
     }
     drop(data);
 
@@ -747,6 +833,16 @@ fn collect_all_task_items<'a>(node: &'a AstNode<'a>, line_index: &LineIndex) -> 
     let mut items = Vec::new();
     let mut list_counter = 0u32;
     find_list_descendants(node, line_index, &mut items, &mut list_counter);
+    clamp_task_spans(items, block_span)
+}
+
+fn clamp_task_spans(mut items: Vec<TaskItemInfo>, block_span: SourceSpan) -> Vec<TaskItemInfo> {
+    for item in &mut items {
+        item.span.byte_start = item.span.byte_start.max(block_span.byte_start);
+        item.span.byte_end = item.span.byte_end.min(block_span.byte_end);
+        item.span.line_start = item.span.line_start.max(block_span.line_start);
+        item.span.line_end = item.span.line_end.min(block_span.line_end);
+    }
     items
 }
 
@@ -786,8 +882,10 @@ fn collect_task_item_text<'a>(node: &'a AstNode<'a>) -> String {
 
 // --- Node projection helpers ---
 
-fn node_value_to_block_kind(value: &NodeValue) -> BlockKind {
-    match value {
+/// Keep this projection exhaustive with the top-level nodes enabled by
+/// [`comrak_opts`]. Unknown nodes are an options/projection contract failure.
+fn node_value_to_block_kind(value: &NodeValue) -> Result<BlockKind, CoreError> {
+    let kind = match value {
         NodeValue::Heading(_) => BlockKind::Heading,
         NodeValue::Paragraph => BlockKind::Paragraph,
         NodeValue::List(_) => BlockKind::List,
@@ -798,9 +896,18 @@ fn node_value_to_block_kind(value: &NodeValue) -> BlockKind {
         NodeValue::Table(_) => BlockKind::Table,
         NodeValue::HtmlBlock(_) => BlockKind::HtmlBlock,
         NodeValue::FootnoteDefinition(_) => BlockKind::FootnoteDefinition,
-        // Anything else at top level is unexpected — treat as paragraph
-        _ => BlockKind::Paragraph,
-    }
+        unexpected => {
+            let debug = format!("{unexpected:?}");
+            let name = debug
+                .split(['(', '{'])
+                .next()
+                .unwrap_or("unknown parser node");
+            return Err(CoreError::ParseFailed(format!(
+                "unclassified top-level parser node: {name}"
+            )));
+        }
+    };
+    Ok(kind)
 }
 
 /// Collect plaintext heading content by walking inline children.
@@ -899,7 +1006,7 @@ fn classify_link_kind(source: &str, span: &SourceSpan, _url: &str) -> LinkKind {
     LinkKind::Inline
 }
 
-/// Find the index of the ] that closes the link text in [text](url) or [text][ref].
+/// Find the index of the `]` that closes the link text in `[text](url)` or `[text][ref]`.
 /// Handles nested brackets.
 fn find_link_text_close(src: &str) -> Option<usize> {
     if !src.starts_with('[') {
@@ -934,6 +1041,90 @@ pub struct TableProjection {
     pub headers: Vec<String>,
     pub alignments: Vec<ColumnAlignment>,
     pub rows: Vec<ProjectedTableRow>,
+}
+
+fn project_table_node<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+    source: &str,
+    block_span: Option<SourceSpan>,
+) -> Option<TableProjection> {
+    use comrak::nodes::TableAlignment;
+
+    let data = node.data.borrow();
+    let NodeValue::Table(table_meta) = &data.value else {
+        return None;
+    };
+    let alignments = table_meta
+        .alignments
+        .iter()
+        .map(|alignment| match alignment {
+            TableAlignment::None => ColumnAlignment::None,
+            TableAlignment::Left => ColumnAlignment::Left,
+            TableAlignment::Center => ColumnAlignment::Center,
+            TableAlignment::Right => ColumnAlignment::Right,
+        })
+        .collect();
+    drop(data);
+
+    let mut headers = Vec::new();
+    let mut rows = Vec::new();
+    for row_node in node.children() {
+        let row_data = row_node.data.borrow();
+        let NodeValue::TableRow(is_header) = row_data.value else {
+            continue;
+        };
+        let local_span = physical_table_row_span(line_index, source, row_data.sourcepos);
+        let row_span = block_span.map_or(local_span, |span| offset_span(local_span, span));
+        drop(row_data);
+
+        let cells = row_node
+            .children()
+            .map(|cell_node| {
+                let mut text = String::new();
+                collect_text_recursive(cell_node, &mut text);
+                text.trim().to_string()
+            })
+            .collect::<Vec<_>>();
+        if is_header {
+            headers = cells;
+        } else {
+            rows.push(ProjectedTableRow {
+                cells,
+                span: row_span,
+            });
+        }
+    }
+
+    Some(TableProjection {
+        headers,
+        alignments,
+        rows,
+    })
+}
+
+/// Span of one physical table-row line, including its legal 0-3 spaces of
+/// indentation and excluding its line ending.
+fn physical_table_row_span(
+    line_index: &LineIndex,
+    source: &str,
+    sourcepos: Sourcepos,
+) -> SourceSpan {
+    let line = sourcepos.start.line as u32;
+    let byte_start = line_index.line_start_byte(line).unwrap_or(0);
+    let mut byte_end = line_index.line_start_byte(line + 1).unwrap_or(source.len());
+    if source.as_bytes().get(byte_end.wrapping_sub(1)) == Some(&b'\n') {
+        byte_end -= 1;
+        if source.as_bytes().get(byte_end.wrapping_sub(1)) == Some(&b'\r') {
+            byte_end -= 1;
+        }
+    }
+    SourceSpan {
+        line_start: line,
+        line_end: line,
+        byte_start: byte_start as u32,
+        byte_end: byte_end as u32,
+    }
 }
 
 fn count_table_row_columns(payload: &str) -> (usize, bool) {
@@ -975,62 +1166,14 @@ pub fn extract_table_projection(
     table_source: &str,
     block_span: SourceSpan,
 ) -> Result<TableProjection, CoreError> {
-    use comrak::nodes::TableAlignment;
-
     let line_index = LineIndex::new(table_source);
     let arena = Arena::new();
     let opts = comrak_opts(None);
     let root = parse_document(&arena, table_source, &opts);
 
     for node in root.children() {
-        let data = node.data.borrow();
-        if let NodeValue::Table(ref table_meta) = data.value {
-            let alignments: Vec<ColumnAlignment> = table_meta
-                .alignments
-                .iter()
-                .map(|a| match a {
-                    TableAlignment::None => ColumnAlignment::None,
-                    TableAlignment::Left => ColumnAlignment::Left,
-                    TableAlignment::Center => ColumnAlignment::Center,
-                    TableAlignment::Right => ColumnAlignment::Right,
-                })
-                .collect();
-
-            drop(data);
-
-            let mut headers = Vec::new();
-            let mut rows = Vec::new();
-
-            for row_node in node.children() {
-                let row_data = row_node.data.borrow();
-                if let NodeValue::TableRow(is_header) = row_data.value {
-                    let row_span =
-                        offset_span(line_index.sourcepos_to_span(row_data.sourcepos), block_span);
-                    drop(row_data);
-
-                    let mut cells = Vec::new();
-                    for cell_node in row_node.children() {
-                        let mut text = String::new();
-                        collect_text_recursive(cell_node, &mut text);
-                        cells.push(text.trim().to_string());
-                    }
-
-                    if is_header {
-                        headers = cells;
-                    } else {
-                        rows.push(ProjectedTableRow {
-                            cells,
-                            span: row_span,
-                        });
-                    }
-                }
-            }
-
-            return Ok(TableProjection {
-                headers,
-                alignments,
-                rows,
-            });
+        if let Some(table) = project_table_node(node, &line_index, table_source, Some(block_span)) {
+            return Ok(table);
         }
     }
 
@@ -1109,4 +1252,18 @@ pub fn extract_table_data(table_source: &str) -> Result<TableData, CoreError> {
         alignments: projection.alignments,
         rows: projection.rows.into_iter().map(|row| row.cells).collect(),
     })
+}
+
+#[cfg(test)]
+mod projection_policy_tests {
+    use super::*;
+
+    #[test]
+    fn unclassified_parser_nodes_fail_instead_of_becoming_paragraphs() {
+        let error = node_value_to_block_kind(&NodeValue::Text("inline".into())).unwrap_err();
+        assert_eq!(
+            error,
+            CoreError::ParseFailed("unclassified top-level parser node: Text".into())
+        );
+    }
 }

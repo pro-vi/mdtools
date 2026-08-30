@@ -205,7 +205,7 @@ fn search_etag_spec_contract_stays_synchronized() {
         "pub struct SearchMatch { // [id:contract-search-match]\n    pub block_index: u32,\n    pub block_kind: BlockKind,\n    pub match_span: SourceSpan,\n    pub etag: TargetEtag,"
     ));
     assert!(spec.contains("[id:sem-search-match-etag]"));
-    assert!(spec.contains("lowercase 16-character hexadecimal string"));
+    assert!(spec.contains("full lowercase 64-character SHA-256 hexadecimal strings"));
     let example_etag = mdtools::fingerprint::TargetEtag::for_bytes(b"method");
     assert!(spec.contains(&format!("\"etag\": \"{example_etag}\"")));
 }

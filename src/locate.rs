@@ -20,7 +20,7 @@ use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::fingerprint::TargetEtag;
 use crate::model::{BlockKind, SectionEntry, SourceSpan};
-use crate::parser::{extract_table_projection, BlockInfo};
+use crate::parser::BlockInfo;
 use crate::section::SectionIndex;
 use crate::task::{self, TaskLoc, TaskRecord};
 
@@ -173,7 +173,12 @@ fn table_row_at(
     byte_offset: u32,
 ) -> Result<Option<LocatedTableRow>, CoreError> {
     let source = document.source();
-    let projection = extract_table_projection(document.slice_unchecked(&block.span), block.span)?;
+    let projection = block.table.as_ref().ok_or_else(|| {
+        CoreError::ParseFailed(format!(
+            "table block {} is missing its cached projection",
+            block.index
+        ))
+    })?;
     Ok(projection
         .rows
         .iter()

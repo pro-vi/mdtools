@@ -243,7 +243,49 @@ impl From<CoreError> for CommandError {
             }
             CoreError::InvalidTargetEtag(value) => Self::new(
                 DiagnosticCode::InvalidSelector,
-                format!("invalid target etag {value:?} (expected 16 hexadecimal characters)"),
+                format!("invalid target etag {value:?} (expected 64 hexadecimal characters)"),
+            ),
+            CoreError::InvalidDocumentRevision(value) => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("invalid document revision {value:?} (expected 64 hexadecimal characters)"),
+            ),
+            CoreError::InvalidTargetAddress { reason } => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("invalid target address: {reason}"),
+            ),
+            CoreError::InvalidPatch(reason) => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("invalid patch: {reason}"),
+            ),
+            CoreError::TargetAuthorityMismatch {
+                target,
+                expected,
+                actual,
+            } => Self::new(
+                DiagnosticCode::EtagMismatch,
+                format!(
+                    "target authority mismatch for {target}: expected {expected}, found {actual}"
+                ),
+            ),
+            CoreError::PatchInvariant(reason) => Self::new(
+                DiagnosticCode::ParseFailed,
+                format!("patch invariant failed: {reason}"),
+            ),
+            CoreError::TargetNotFound { target } => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("target not found: {target}"),
+            ),
+            CoreError::AmbiguousTargetQuery { count } => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("target query matched {count} targets; use an exact address"),
+            ),
+            CoreError::AmbiguousTargetAddress { target, count } => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("exact target address {target} resolved to {count} targets"),
+            ),
+            CoreError::TargetKindMismatch { expected, actual } => Self::new(
+                DiagnosticCode::InvalidSelector,
+                format!("target kind mismatch: expected {expected}, found {actual}"),
             ),
             CoreError::BlockIndexOutOfRange { index, block_count } => {
                 Self::block_out_of_range(index, block_count)
@@ -400,6 +442,11 @@ impl From<CoreError> for CommandError {
             )
             .with_hint("re-read the document and rebuild the edit candidate before retrying")
             .with_context(Self::etag_ctx(&expected, &actual)),
+            CoreError::DocumentIndexMismatch => Self::new(
+                DiagnosticCode::EtagMismatch,
+                "resolved target belongs to a different document index",
+            )
+            .with_hint("resolve the target again against this document"),
             CoreError::InvalidSpan { .. } => {
                 Self::new(DiagnosticCode::InvalidSelector, error.to_string())
             }

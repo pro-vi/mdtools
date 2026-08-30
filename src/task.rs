@@ -109,28 +109,23 @@ pub struct TaskEditTarget {
 }
 
 pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskRecord>, CoreError> {
+    let section_index = SectionIndex::new(document);
     let selected = query
         .under
         .as_ref()
         .map(|selector| {
-            SectionIndex::new(document)
-                .resolve(selector)
-                .map(|section| {
-                    section
-                        .block_indices
-                        .iter()
-                        .copied()
-                        .collect::<HashSet<_>>()
-                })
+            section_index.resolve(selector).map(|section| {
+                section
+                    .block_indices
+                    .iter()
+                    .copied()
+                    .collect::<HashSet<_>>()
+            })
         })
         .transpose()?;
     let mut entries = Vec::new();
-    let mut nearest_heading = (None, None);
 
     for block in document.blocks() {
-        if let Some(heading) = &block.heading {
-            nearest_heading = (Some(heading.text.clone()), Some(block.index));
-        }
         if selected
             .as_ref()
             .is_some_and(|indices| !indices.contains(&block.index))
@@ -140,6 +135,7 @@ pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskRecord>, 
         if block.task_items.is_empty() {
             continue;
         }
+        let nearest_heading = nearest_heading(&section_index, block.index);
         for item in &block.task_items {
             if query.status.is_some_and(|status| item.status != status) {
                 continue;
@@ -159,7 +155,7 @@ pub fn tasks(document: &Document, query: &TaskQuery) -> Result<Vec<TaskRecord>, 
 
 pub fn task(document: &Document, loc: &TaskLoc) -> Result<TaskRead, CoreError> {
     let (block, item) = resolve_task(document, loc)?;
-    let heading = nearest_heading(document.blocks(), block.index);
+    let heading = nearest_heading(&SectionIndex::new(document), block.index);
     Ok(TaskRead {
         task: task_record(document, block, item, &heading),
         content: document.slice_unchecked(&item.span).to_string(),
@@ -272,16 +268,11 @@ fn resolve_task<'a>(
     Ok((block, item))
 }
 
-fn nearest_heading(blocks: &[BlockInfo], before_index: u32) -> (Option<String>, Option<u32>) {
-    blocks[..before_index as usize]
-        .iter()
-        .rev()
-        .find_map(|block| {
-            block
-                .heading
-                .as_ref()
-                .map(|heading| (Some(heading.text.clone()), Some(block.index)))
-        })
+fn nearest_heading(index: &SectionIndex, block_index: u32) -> (Option<String>, Option<u32>) {
+    index
+        .section_for_block(block_index)
+        .and_then(|section| section.heading)
+        .map(|heading| (Some(heading.text), Some(heading.block_index)))
         .unwrap_or((None, None))
 }
 

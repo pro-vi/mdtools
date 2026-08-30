@@ -1,6 +1,8 @@
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use sha2::{Digest, Sha256};
+
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn md() -> Command {
@@ -40,7 +42,7 @@ fn raw_frontmatter_etag(raw: Option<&str>) -> String {
     const ABSENT_DOMAIN: &[u8] = b"mdtools.frontmatter.absent";
     const PRESENT_DOMAIN: &[u8] = b"mdtools.frontmatter.present\0";
 
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut hash = Sha256::new();
     let bytes = raw.map(str::as_bytes);
     let domain = if bytes.is_some() {
         PRESENT_DOMAIN
@@ -48,18 +50,12 @@ fn raw_frontmatter_etag(raw: Option<&str>) -> String {
         ABSENT_DOMAIN
     };
 
-    for &b in domain {
-        hash ^= b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
+    hash.update(domain);
     if let Some(bytes) = bytes {
-        for &b in bytes {
-            hash ^= b as u64;
-            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-        }
+        hash.update(bytes);
     }
 
-    format!("{:016x}", hash)
+    format!("{:x}", hash.finalize())
 }
 
 fn assert_stale_missing_delete_conflict_preserves_bytes(

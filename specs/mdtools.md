@@ -1040,7 +1040,7 @@ Example JSON payloads:
       "block_index": 4,
       "block_kind": "Paragraph",
       "match_span": { "line_start": 15, "line_end": 15, "byte_start": 260, "byte_end": 266 },
-      "etag": "230c05e5fb0433b0",
+      "etag": "5b7e6bf2dc4a32a6aa4770cd5639c2c7af890fc86c273b5c8567fe5382086bf3",
       "preview": "This method keeps the body text intact."
     }
   ]
@@ -1123,7 +1123,7 @@ Document model rules:
 - `md collect` applies Markdown-extension filtering only when expanding directory operands. Explicit file operands are read directly even when they do not end in `.md` or `.markdown`. [id:sem-collect-explicit-file-operands]
 - `search` matches content spans inside block bodies, not structural node names; heading text participates only when `BlockKind::Heading` is included in the filter set. [id:sem-search-content]
 - `SearchMatch.match_span` identifies the exact matched content occurrence inside the document source, not the containing block span. In `LiteralIgnoreCase`, if the folded match touches bytes emitted by a source scalar that expands under Rust `char::to_lowercase` (for example `İ` lowering to `i` plus U+0307), `match_span` maps outward to that whole original scalar while remaining exact at neighboring scalar boundaries. [id:sem-search-match-span]
-- `SearchMatch.etag` fingerprints the exact original-source bytes covered by `match_span`. `TargetEtag` serializes as the same lowercase 16-character hexadecimal string carried by the `String`-typed etag fields. It is read evidence, not a mutation guard; it does not cover the lossy `preview` or identify one occurrence among byte-identical matches. A library caller addresses an occurrence by document identity plus span, while a CLI consumer normally uses the returned file plus span. [id:sem-search-match-etag]
+- `SearchMatch.etag` fingerprints the exact original-source bytes covered by `match_span`. All target etags serialize as full lowercase 64-character SHA-256 hexadecimal strings, including fields that remain `String`-typed until their U7 removal. It is read evidence, not a mutation guard; it does not cover the lossy `preview` or identify one occurrence among byte-identical matches. A library caller addresses an occurrence by document identity plus span, while a CLI consumer normally uses the returned file plus span. [id:sem-search-match-etag]
 - `preview` is a single-line human-readable summary and is not a stable identifier. [id:sem-preview-nonidentity]
 - `DocumentStats` counting rules: `word_count` counts whitespace-delimited tokens in the plaintext rendering of all block bodies (headings, paragraphs, list items, and table cells contribute; code fence contents, HTML block contents, and frontmatter do not). `heading_count` counts top-level headings only (matching `OutlineResult.entries.len()`). `block_count` counts top-level Phase 1 blocks (matching `BlocksResult.entries.len()`). `link_count` counts all links (matching `LinksResult.entries.len()`). `section_count` counts all sections including the preamble when it is non-empty; an empty preamble (zero blocks before the first heading) does not contribute to `section_count`. `line_count` counts newline characters in the raw source plus one (i.e. the last line counts even without a trailing newline). [id:sem-stats-counting-rules]
 

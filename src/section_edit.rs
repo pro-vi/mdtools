@@ -3,9 +3,13 @@ use std::collections::HashSet;
 use crate::block_edit::GuardRole;
 use crate::core_error::{CoreError, EtagTarget};
 use crate::document::Document;
-use crate::edit::{normalize_line_endings, replacement_span_after, EditOutcome, EditPreservation};
+use crate::edit::{
+    normalize_line_endings, replacement_span_after, EditOutcome, EditPreservation, SourceEdit,
+};
 use crate::fingerprint::{TargetEtag, TargetEtagGuard};
-use crate::model::{InsertMode, LineEndingStyle, MutationDisposition, SectionEntry, SourceSpan};
+use crate::model::{
+    BlockKind, InsertMode, LineEndingStyle, MutationDisposition, SectionEntry, SourceSpan,
+};
 use crate::parser::{HeadingSourceKind, ParsedDocument};
 use crate::section::{ResolvedSection, SectionIndex};
 
@@ -24,6 +28,184 @@ pub struct PreparedSectionReplace<'a> {
     document: &'a Document,
     section: SectionEntry,
     guarded: bool,
+}
+
+pub(crate) struct PlannedSectionMove {
+    pub(crate) edits: Vec<SourceEdit>,
+    pub(crate) result_edit: usize,
+    pub(crate) result_range: std::ops::Range<usize>,
+}
+
+pub(crate) fn plan_section_move(
+    document: &Document,
+    source: ResolvedSection,
+    destination: ResolvedSection,
+    destination_mode: InsertMode,
+    keep_level: bool,
+) -> Result<PlannedSectionMove, CoreError> {
+    source.ensure_document(document)?;
+    destination.ensure_document(document)?;
+    let source = source.into_entry();
+    let destination = destination.into_entry();
+    let parsed = document.projection();
+    let source_span = source.span;
+    let destination_span = destination.span;
+    let insert_byte = match destination_mode {
+        InsertMode::AfterSibling | InsertMode::IntoAsChild => destination_span.byte_end,
+        InsertMode::BeforeSibling => destination_span.byte_start,
+    };
+    let destination_level = destination
+        .heading
+        .as_ref()
+        .map(|heading| heading.level)
+        .ok_or_else(|| {
+            CoreError::InvalidSelector(
+                "destination must be a heading section, not the preamble".into(),
+            )
+        })?;
+    let source_level = source
+        .heading
+        .as_ref()
+        .map(|heading| heading.level)
+        .ok_or_else(|| {
+            CoreError::InvalidSelector("source must be a heading section, not the preamble".into())
+        })?;
+    let destination_inside_source = destination_span.byte_start >= source_span.byte_start
+        && destination_span.byte_end <= source_span.byte_end;
+    let source_inside_destination = source_span.byte_start >= destination_span.byte_start
+        && source_span.byte_end <= destination_span.byte_end;
+    if destination_inside_source {
+        return Err(CoreError::InvalidSelector(
+            "cannot move-section: destination is inside source".into(),
+        ));
+    }
+    if source_inside_destination
+        && matches!(
+            destination_mode,
+            InsertMode::AfterSibling | InsertMode::IntoAsChild
+        )
+    {
+        return Err(CoreError::InvalidSelector(
+            "cannot move-section: destination contains source; insert position is ambiguous".into(),
+        ));
+    }
+    let new_level = match destination_mode {
+        InsertMode::AfterSibling | InsertMode::BeforeSibling => destination_level,
+        InsertMode::IntoAsChild => destination_level + 1,
+    };
+    let delta = if keep_level {
+        0
+    } else {
+        new_level as i32 - source_level as i32
+    };
+    if delta != 0 {
+        validate_relevel(parsed, &source, delta)?;
+    }
+    let mut moved = document.slice_unchecked(&source_span).to_string();
+    if delta != 0 {
+        moved = rewrite_atx_levels(moved, &source, parsed, source_span.byte_start, delta as i8)?;
+    }
+    let separator = if document.line_ending_style() == LineEndingStyle::Crlf {
+        "\r\n"
+    } else {
+        "\n"
+    };
+    let source_start = source_span.byte_start;
+    let source_end = source_span.byte_end;
+    let content_follows = if insert_byte <= source_start {
+        insert_byte < source_start || (source_end as usize) < document.source().len()
+    } else {
+        (insert_byte as usize) < document.source().len()
+    };
+    if content_follows && !moved.ends_with('\n') {
+        moved.push_str(separator);
+    }
+    if content_follows
+        && following_setext_heading(parsed, insert_byte, source_start, source_end).is_some()
+    {
+        let trailing = count_trailing_line_breaks(moved.as_bytes(), moved.len(), 0).0;
+        let last_kind = source
+            .block_indices
+            .last()
+            .map(|index| document.blocks()[*index as usize].kind)
+            .unwrap_or(BlockKind::Paragraph);
+        moved.push_str(
+            &separator.repeat(setext_boundary_breaks(last_kind).saturating_sub(trailing)),
+        );
+    }
+    let starts_setext = parsed
+        .blocks
+        .get(source.block_indices[0] as usize)
+        .and_then(|block| block.heading.as_ref())
+        .is_some_and(|heading| heading.kind == HeadingSourceKind::Setext);
+    let (walk_start, lower_bound) = if insert_byte <= source_start {
+        (insert_byte as usize, 0)
+    } else if insert_byte == source_end {
+        (source_start as usize, 0)
+    } else {
+        (insert_byte as usize, source_end as usize)
+    };
+    let (preceding_breaks, has_preceding) =
+        count_trailing_line_breaks(document.source().as_bytes(), walk_start, lower_bound);
+    let moved_breaks = count_leading_line_breaks(moved.as_bytes());
+    let leading_count = if starts_setext {
+        preceding_block_kind(document, source_span, insert_byte)
+            .map(setext_boundary_breaks)
+            .unwrap_or(0)
+            .saturating_sub(preceding_breaks + moved_breaks)
+    } else if has_preceding {
+        1usize.saturating_sub(preceding_breaks + moved_breaks)
+    } else {
+        0
+    };
+    let leading = separator.repeat(leading_count);
+    let mut insertion = String::with_capacity(leading.len() + moved.len());
+    insertion.push_str(&leading);
+    let result_start = insertion.len();
+    insertion.push_str(&moved);
+    let result_end = insertion.len();
+    Ok(PlannedSectionMove {
+        edits: vec![
+            SourceEdit {
+                start: source_start as usize,
+                end: source_end as usize,
+                replacement: String::new(),
+            },
+            SourceEdit {
+                start: insert_byte as usize,
+                end: insert_byte as usize,
+                replacement: insertion,
+            },
+        ],
+        result_edit: 1,
+        result_range: result_start..result_end,
+    })
+}
+
+fn preceding_block_kind(
+    document: &Document,
+    source: SourceSpan,
+    insert_byte: u32,
+) -> Option<BlockKind> {
+    document
+        .index()
+        .source_block_indices()
+        .into_iter()
+        .filter_map(|index| {
+            let block = &document.blocks()[index as usize];
+            let inside_source = block.span.byte_start >= source.byte_start
+                && block.span.byte_end <= source.byte_end;
+            (!inside_source && block.span.byte_start < insert_byte).then_some(block)
+        })
+        .max_by_key(|block| block.span.byte_start)
+        .map(|block| block.kind)
+}
+
+fn setext_boundary_breaks(kind: BlockKind) -> usize {
+    match kind {
+        BlockKind::Heading | BlockKind::CodeFence | BlockKind::ThematicBreak => 1,
+        _ => 2,
+    }
 }
 
 pub fn prepare_replace<'a>(
@@ -220,6 +402,7 @@ pub fn move_section(
             following_setext_heading(parsed, insert_byte, source_start, source_end)
         {
             let extra = choose_trailing_separators(
+                document,
                 document.source(),
                 &moved,
                 separator,
@@ -254,6 +437,7 @@ pub fn move_section(
         .unwrap_or_default();
     let leading_count = if starts_setext {
         choose_setext_leading_separators(
+            document,
             document.source(),
             &moved,
             separator,
@@ -279,6 +463,7 @@ pub fn move_section(
     );
     let expected_level = (source_level as i32 + delta as i32) as u8;
     if !moved_section_reparses_at(
+        document,
         &content,
         moved_start as usize,
         moved.len(),
@@ -326,7 +511,7 @@ fn verify_unmoved_structure(
     moved_start: u32,
     moved_len: usize,
 ) -> Result<(), CoreError> {
-    let reparsed = Document::parse(output)?;
+    let reparsed = document.reparse(output)?;
     let source_indices = source.block_indices.iter().copied().collect::<HashSet<_>>();
     let moved_end = moved_start + moved_len as u32;
     let original = document
@@ -460,6 +645,7 @@ fn splice(
 
 #[allow(clippy::too_many_arguments)]
 fn choose_setext_leading_separators(
+    document: &Document,
     source: &str,
     moved: &str,
     separator: &str,
@@ -479,7 +665,14 @@ fn choose_setext_leading_separators(
                 source_start,
                 source_end,
             );
-            moved_section_reparses_at(&candidate, start as usize, moved.len(), text, level)
+            moved_section_reparses_at(
+                document,
+                &candidate,
+                start as usize,
+                moved.len(),
+                text,
+                level,
+            )
         })
         .unwrap_or(2)
 }
@@ -509,6 +702,7 @@ fn following_setext_heading(
 
 #[allow(clippy::too_many_arguments)]
 fn choose_trailing_separators(
+    document: &Document,
     source: &str,
     moved: &str,
     separator: &str,
@@ -530,6 +724,7 @@ fn choose_trailing_separators(
                 source_end,
             );
             setext_heading_reparses_at(
+                document,
                 &candidate,
                 start as usize + candidate_moved.len(),
                 text,
@@ -539,11 +734,17 @@ fn choose_trailing_separators(
         .unwrap_or(2)
 }
 
-fn setext_heading_reparses_at(output: &str, start: usize, text: &str, level: u8) -> bool {
-    let Ok(parsed) = ParsedDocument::parse(output.to_string()) else {
+fn setext_heading_reparses_at(
+    document: &Document,
+    output: &str,
+    start: usize,
+    text: &str,
+    level: u8,
+) -> bool {
+    let Ok(parsed) = document.reparse(output.to_string()) else {
         return false;
     };
-    parsed.blocks.iter().any(|block| {
+    parsed.blocks().iter().any(|block| {
         block.heading.as_ref().is_some_and(|heading| {
             heading.kind == HeadingSourceKind::Setext
                 && heading.text == text
@@ -554,17 +755,18 @@ fn setext_heading_reparses_at(output: &str, start: usize, text: &str, level: u8)
 }
 
 fn moved_section_reparses_at(
+    document: &Document,
     output: &str,
     moved_start: usize,
     moved_len: usize,
     text: &str,
     level: u8,
 ) -> bool {
-    let Ok(parsed) = ParsedDocument::parse(output.to_string()) else {
+    let Ok(parsed) = document.reparse(output.to_string()) else {
         return false;
     };
     let moved_end = moved_start + moved_len;
-    for (index, block) in parsed.blocks.iter().enumerate() {
+    for (index, block) in parsed.blocks().iter().enumerate() {
         let Some(heading) = &block.heading else {
             continue;
         };
@@ -575,7 +777,7 @@ fn moved_section_reparses_at(
             continue;
         }
         let section_end = parsed
-            .blocks
+            .blocks()
             .iter()
             .skip(index + 1)
             .find_map(|next| {
@@ -607,9 +809,7 @@ fn rewrite_atx_levels(
         if heading.kind != HeadingSourceKind::Atx {
             continue;
         }
-        let marker = heading.marker_span.ok_or_else(|| {
-            CoreError::InvalidSelector("internal: ATX heading missing marker_span".into())
-        })?;
+        let marker = heading.marker_span;
         edits.push((
             (marker.byte_start - source_start) as usize,
             (marker.byte_end - source_start) as usize,
@@ -695,7 +895,11 @@ fn moved_span_after(content: &str, start: u32, length: usize) -> SourceSpan {
     }
 }
 
-fn preserve_following_boundary(section: &str, replacement: &str, follows: bool) -> String {
+pub(crate) fn preserve_following_boundary(
+    section: &str,
+    replacement: &str,
+    follows: bool,
+) -> String {
     if replacement.is_empty() || !follows {
         return replacement.to_string();
     }

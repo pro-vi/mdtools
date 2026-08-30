@@ -102,7 +102,7 @@ fn table_list_json() {
     assert_eq!(json["tables"][0]["headers"][0], "Name");
     assert_eq!(json["tables"][0]["row_count"], 2);
     assert_eq!(json["tables"][0]["column_count"], 2);
-    assert_eq!(json["tables"][0]["etag"].as_str().unwrap().len(), 16);
+    assert_eq!(json["tables"][0]["etag"].as_str().unwrap().len(), 64);
 }
 
 // --- Read table ---
@@ -133,7 +133,7 @@ fn table_read_json() {
     assert_eq!(json["rows"][0], serde_json::json!(["Alpha", "100"]));
     assert_eq!(json["rows"][1], serde_json::json!(["Beta", "200"]));
     assert_eq!(json["block_index"], 1);
-    assert_eq!(json["etag"].as_str().unwrap().len(), 16);
+    assert_eq!(json["etag"].as_str().unwrap().len(), 64);
 }
 
 #[test]

@@ -175,7 +175,7 @@ $ md tasks roadmap.md --under 'Milestone' --occurrence 2
 
 # Read one task and its etag for a guarded write
 $ md task 9.3 progress.md --json | jq -r '.task.etag'
-2cce4d9d8f0df9f1
+34a04005bcaf206eec990bd9637d9fdb6725e0a0c0d4aebf003f17f4c956eb5c
 
 # Mark a task done by structural location
 $ md set-task 9.3 progress.md -i --status done
@@ -302,7 +302,7 @@ Multi-file streaming commands emit per-file envelope rows plus one aggregate row
 
 ```sh
 $ md task 9.3 progress.md --json | jq -r '.task.etag'
-2cce4d9d8f0df9f1
+34a04005bcaf206eec990bd9637d9fdb6725e0a0c0d4aebf003f17f4c956eb5c
 ```
 
 ```sh
@@ -319,7 +319,7 @@ $ md --json outline doc.md
         "span": { "line_start": 1, "line_end": 1, "byte_start": 0, "byte_end": 14 }
       },
       "section_span": { "line_start": 1, "line_end": 24, "byte_start": 0, "byte_end": 272 },
-      "etag": "2cce4d9d8f0df9f1"
+      "etag": "34a04005bcaf206eec990bd9637d9fdb6725e0a0c0d4aebf003f17f4c956eb5c"
     }
   ]
 }

@@ -1,6 +1,13 @@
 use crate::model::{LineEndingStyle, MutationDisposition, SourceSpan};
 use crate::revision::DocumentRevision;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SourceEdit {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) replacement: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct EditOutcome<T> {
     pub base_revision: DocumentRevision,

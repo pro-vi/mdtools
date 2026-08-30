@@ -100,7 +100,7 @@ fn search_json_etags_match_library_results_and_exact_source_bytes() {
             etag,
             TargetEtag::for_bytes(exact_source.as_bytes()).as_str()
         );
-        assert_eq!(etag.len(), 16);
+        assert_eq!(etag.len(), 64);
         assert!(etag
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));

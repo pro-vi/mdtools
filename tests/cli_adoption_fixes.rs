@@ -424,7 +424,7 @@ fn insert_block_before_expect_etag_mismatch_fails_closed() {
 
 #[test]
 fn expect_etag_roundtrip_crlf_content() {
-    // etag is FNV-1a over the block's source bytes; a CRLF document must round-trip
+    // etag is SHA-256 over the block's source bytes; a CRLF document must round-trip
     // through read → etag → guarded mutate. (comrak-pin-sensitive fixture per CLAUDE.md.)
     let tmp = tempfile("# Title\r\n\r\nFirst para.\r\n\r\nSecond para.\r\n");
     let etag = block_etag(&tmp, 1);
