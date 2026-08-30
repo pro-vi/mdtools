@@ -660,10 +660,11 @@ impl ParsedDocument {
 }
 
 fn reject_oversized_source(source_len: usize) -> Result<(), CoreError> {
-    if source_len > u32::MAX as usize {
+    const MAX_SOURCE_BYTES: usize = 1024 * 1024;
+    if source_len > MAX_SOURCE_BYTES {
         Err(CoreError::ParseFailed(format!(
             "document is {source_len} bytes; maximum supported size is {} bytes",
-            u32::MAX
+            MAX_SOURCE_BYTES
         )))
     } else {
         Ok(())
@@ -1393,13 +1394,21 @@ mod projection_policy_tests {
         );
     }
 
-    #[cfg(target_pointer_width = "64")]
     #[test]
-    fn oversized_sources_fail_before_offsets_can_wrap() {
-        assert!(reject_oversized_source(u32::MAX as usize).is_ok());
-        assert!(matches!(
-            reject_oversized_source(u32::MAX as usize + 1),
-            Err(CoreError::ParseFailed(message)) if message.contains("maximum supported size")
-        ));
+    fn document_and_fragment_parsers_reject_sources_above_preparse_limit() {
+        const LIMIT: usize = 1024 * 1024;
+        assert!(reject_oversized_source(LIMIT).is_ok());
+        let oversized = "x".repeat(LIMIT + 1);
+
+        for result in [
+            ParsedDocument::parse(oversized.clone()),
+            ParsedDocument::parse_without_frontmatter(oversized.clone()),
+        ] {
+            assert!(matches!(
+                result,
+                Err(CoreError::ParseFailed(message))
+                    if message.contains("maximum supported size")
+            ));
+        }
     }
 }
