@@ -246,12 +246,19 @@ pub struct HeadingInfo {
     /// Byte span covering the ATX `#` run or the setext underline marker.
     pub marker_span: SourceSpan,
     pub(crate) line_breaks: Vec<HeadingLineBreak>,
+    pub(crate) multiline_code_spans: Vec<HeadingCodeSpan>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct HeadingLineBreak {
-    pub(crate) line: u32,
+    pub(crate) span: SourceSpan,
     pub(crate) kind: HeadingLineBreakKind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct HeadingCodeSpan {
+    pub(crate) span: SourceSpan,
+    pub(crate) literal: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -413,7 +420,11 @@ impl ParsedDocument {
                                 text,
                                 kind,
                                 marker_span,
-                                line_breaks: collect_heading_line_breaks(node),
+                                line_breaks: collect_heading_line_breaks(node, &line_index),
+                                multiline_code_spans: collect_multiline_heading_code_spans(
+                                    node,
+                                    &line_index,
+                                ),
                             })
                         })
                         .transpose()?;
@@ -491,7 +502,11 @@ impl ParsedDocument {
                         text,
                         kind,
                         marker_span,
-                        line_breaks: collect_heading_line_breaks(node),
+                        line_breaks: collect_heading_line_breaks(node, &line_index),
+                        multiline_code_spans: collect_multiline_heading_code_spans(
+                            node,
+                            &line_index,
+                        ),
                     })
                 })
                 .transpose()?;
@@ -932,14 +947,18 @@ fn collect_heading_text<'a>(node: &'a AstNode<'a>) -> String {
     text
 }
 
-fn collect_heading_line_breaks<'a>(node: &'a AstNode<'a>) -> Vec<HeadingLineBreak> {
+fn collect_heading_line_breaks<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+) -> Vec<HeadingLineBreak> {
     let mut breaks = Vec::new();
-    collect_heading_line_breaks_recursive(node, &mut breaks);
+    collect_heading_line_breaks_recursive(node, line_index, &mut breaks);
     breaks
 }
 
 fn collect_heading_line_breaks_recursive<'a>(
     node: &'a AstNode<'a>,
+    line_index: &LineIndex,
     breaks: &mut Vec<HeadingLineBreak>,
 ) {
     for child in node.children() {
@@ -951,14 +970,33 @@ fn collect_heading_line_breaks_recursive<'a>(
         };
         if let Some(kind) = kind {
             breaks.push(HeadingLineBreak {
-                line: data.sourcepos.start.line as u32,
+                span: line_index.sourcepos_to_span(data.sourcepos),
                 kind,
             });
         } else {
             drop(data);
-            collect_heading_line_breaks_recursive(child, breaks);
+            collect_heading_line_breaks_recursive(child, line_index, breaks);
         }
     }
+}
+
+fn collect_multiline_heading_code_spans<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+) -> Vec<HeadingCodeSpan> {
+    node.descendants()
+        .filter_map(|child| {
+            let data = child.data.borrow();
+            let NodeValue::Code(code) = &data.value else {
+                return None;
+            };
+            let span = line_index.sourcepos_to_span(data.sourcepos);
+            (span.line_start != span.line_end).then(|| HeadingCodeSpan {
+                span,
+                literal: code.literal.clone(),
+            })
+        })
+        .collect()
 }
 
 fn collect_text_recursive<'a>(node: &'a AstNode<'a>, out: &mut String) {
@@ -968,12 +1006,20 @@ fn collect_text_recursive<'a>(node: &'a AstNode<'a>, out: &mut String) {
             NodeValue::Text(t) => out.push_str(t),
             NodeValue::Code(c) => out.push_str(&c.literal),
             NodeValue::SoftBreak | NodeValue::LineBreak => out.push(' '),
+            NodeValue::HtmlInline(html) if is_html_line_break(html) => out.push(' '),
             _ => {
                 drop(data);
                 collect_text_recursive(child, out);
             }
         }
     }
+}
+
+fn is_html_line_break(html: &str) -> bool {
+    matches!(
+        html.trim().to_ascii_lowercase().as_str(),
+        "<br>" | "<br/>" | "<br />"
+    )
 }
 
 /// Collect links from a block node by walking all descendants.

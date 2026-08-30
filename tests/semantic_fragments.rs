@@ -234,7 +234,33 @@ fn multiline_setext_hard_breaks_become_inline_breaks() {
             inserted.document.source(),
             "# Parent\n\nbody\n\n## Foo<br />bar\n\nbody"
         );
+        assert!(matches!(
+            section(&inserted.document, "Foo bar").summary,
+            TargetSummary::Section { level: 2, .. }
+        ));
     }
+}
+
+#[test]
+fn multiline_setext_code_span_preserves_normalized_code_whitespace() {
+    let document = Document::parse("`Foo \n bar`\n=====\n\nbody\n").unwrap();
+    let read = document
+        .resolve(&section(&document, "Foo  bar").address)
+        .unwrap()
+        .read_section(&document)
+        .unwrap();
+    assert_eq!(read.fragment, semantic("# `Foo  bar`\n\nbody"));
+
+    let parent = Document::parse("# Parent\n\nbody").unwrap();
+    let inserted = insert_section(&parent, "Parent", read.fragment).unwrap();
+    assert_eq!(
+        inserted.document.source(),
+        "# Parent\n\nbody\n\n## `Foo  bar`\n\nbody"
+    );
+    assert!(matches!(
+        section(&inserted.document, "Foo  bar").summary,
+        TargetSummary::Section { level: 2, .. }
+    ));
 }
 
 #[test]

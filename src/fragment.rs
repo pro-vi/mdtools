@@ -268,36 +268,40 @@ fn setext_heading_content(
     span: SourceSpan,
     heading: &HeadingInfo,
 ) -> Result<String, CoreError> {
-    let lines = source[span.byte_start as usize..heading.marker_span.byte_start as usize]
-        .lines()
+    let source_start = span.byte_start as usize;
+    let source_end = heading.marker_span.byte_start as usize;
+    let mut content = source[source_start..source_end].to_string();
+    let mut edits = heading
+        .line_breaks
+        .iter()
+        .filter(|line_break| {
+            line_break.span.byte_start as usize >= source_start
+                && line_break.span.byte_end as usize <= source_end
+        })
+        .map(|line_break| {
+            (
+                line_break.span.byte_start as usize - source_start,
+                line_break.span.byte_end as usize - source_start,
+                match line_break.kind {
+                    HeadingLineBreakKind::Soft => " ".to_string(),
+                    HeadingLineBreakKind::Hard => "<br />".to_string(),
+                },
+            )
+        })
+        .chain(heading.multiline_code_spans.iter().map(|code| {
+            (
+                code.span.byte_start as usize - source_start,
+                code.span.byte_end as usize - source_start,
+                format_code_span(&code.literal),
+            )
+        }))
         .collect::<Vec<_>>();
-    let mut content = String::new();
-    for (index, raw_line) in lines.iter().enumerate() {
-        let line = raw_line
-            .trim_start_matches([' ', '\t'])
-            .trim_end_matches('\r');
-        let is_last = index + 1 == lines.len();
-        if is_last {
-            content.push_str(line.trim_end_matches([' ', '\t']));
-            continue;
-        }
-        let source_line = span.line_start + index as u32;
-        let line_break = heading
-            .line_breaks
-            .iter()
-            .find(|line_break| line_break.line == source_line)
-            .map(|line_break| line_break.kind);
-        match line_break {
-            Some(HeadingLineBreakKind::Hard) => {
-                content.push_str(strip_hard_break_marker(line));
-                content.push_str("<br />");
-            }
-            Some(HeadingLineBreakKind::Soft) | None => {
-                content.push_str(line.trim_end_matches([' ', '\t']));
-                content.push(' ');
-            }
-        }
+    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    for (start, end, replacement) in edits {
+        content.replace_range(start..end, &replacement);
     }
+    content = content.replace("\r\n", "\n").replace('\n', " ");
+    let content = content.trim_matches([' ', '\t', '\r']).to_string();
     if content.is_empty() {
         Err(invalid_fragment("setext heading has no canonical content"))
     } else {
@@ -305,12 +309,26 @@ fn setext_heading_content(
     }
 }
 
-fn strip_hard_break_marker(line: &str) -> &str {
-    let trailing_spaces = line.bytes().rev().take_while(|byte| *byte == b' ').count();
-    if trailing_spaces >= 2 {
-        line[..line.len() - trailing_spaces].trim_end_matches('\t')
+fn format_code_span(literal: &str) -> String {
+    let mut longest_run = 0;
+    let mut current_run = 0;
+    for byte in literal.bytes() {
+        if byte == b'`' {
+            current_run += 1;
+            longest_run = longest_run.max(current_run);
+        } else {
+            current_run = 0;
+        }
+    }
+    let fence = "`".repeat(longest_run + 1);
+    let all_spaces = literal.bytes().all(|byte| byte == b' ');
+    let needs_padding = literal.starts_with('`')
+        || literal.ends_with('`')
+        || (!all_spaces && literal.starts_with(' ') && literal.ends_with(' '));
+    if needs_padding {
+        format!("{fence} {literal} {fence}")
     } else {
-        line.strip_suffix('\\').unwrap_or(line)
+        format!("{fence}{literal}{fence}")
     }
 }
 
