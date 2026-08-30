@@ -53,8 +53,10 @@ or command inventories.
   syncs staged bytes, rechecks identity and revision, and atomically renames.
   The feature fails to compile on non-Unix targets until equivalent locking and
   identity primitives exist there.
-- A file change after preparation refuses commit. No-change patches verify but
-  do not replace the file.
+- Writers that honor the same advisory lock serialize through verification and
+  rename. A detected file change after preparation refuses commit; a writer
+  that ignores the lock can still race the final verification. No-change
+  patches verify but do not replace the file.
 - A leading `---` or `+++` line is treated as frontmatter intent. Frontmatter
   mutation refuses when that intent does not form a valid mutable block; callers
   must disambiguate a leading thematic break before adding frontmatter. An empty
