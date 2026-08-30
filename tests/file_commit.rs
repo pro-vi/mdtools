@@ -175,3 +175,74 @@ fn stdout_outcome_does_not_mutate_the_loaded_file() {
     assert_eq!(outcome.document.source(), "candidate\n");
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "before\n");
 }
+
+#[cfg(unix)]
+#[test]
+fn concurrent_commits_from_one_base_cannot_both_succeed() {
+    let directory = unique_directory("concurrent");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "before\n").unwrap();
+    let first = file::load(&path).unwrap();
+    let second = file::load(&path).unwrap();
+    let first_patch = replacement_patch(first.document(), "first");
+    let second_patch = replacement_patch(second.document(), "second");
+    let first = first.prepare_patch(&first_patch).unwrap();
+    let second = second.prepare_patch(&second_patch).unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let run = |prepared: mdtools::file::PreparedFilePatch,
+               barrier: std::sync::Arc<std::sync::Barrier>| {
+        std::thread::spawn(move || {
+            barrier.wait();
+            prepared.commit()
+        })
+    };
+    let one = run(first, barrier.clone());
+    let two = run(second, barrier.clone());
+    barrier.wait();
+    let results = [one.join().unwrap(), two.join().unwrap()];
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+    assert!(matches!(
+        std::fs::read_to_string(&path).unwrap().as_str(),
+        "first\n" | "second\n"
+    ));
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn atomic_commit_preserves_extended_attributes() {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+    let directory = unique_directory("xattr");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "before\n").unwrap();
+    let path_c = CString::new(path.as_os_str().as_bytes()).unwrap();
+    let name = CString::new("user.custom").unwrap();
+    let value = b"kept";
+    assert_eq!(
+        unsafe {
+            libc::setxattr(
+                path_c.as_ptr(),
+                name.as_ptr(),
+                value.as_ptr().cast(),
+                value.len(),
+                0,
+                0,
+            )
+        },
+        0
+    );
+    let loaded = file::load(&path).unwrap();
+    let patch = replacement_patch(loaded.document(), "after");
+    loaded.prepare_patch(&patch).unwrap().commit().unwrap();
+    let size = unsafe {
+        libc::getxattr(
+            path_c.as_ptr(),
+            name.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+            0,
+            0,
+        )
+    };
+    assert_eq!(size, 4);
+}

@@ -48,6 +48,10 @@ rechecks the canonical referent, source revision, and Unix device/inode before
 staging and immediately before atomic rename. Permissions are preserved and
 no-change patches verify the file without replacing it.
 
+On macOS, extended attributes such as Finder tags are copied to the replacement
+file. POSIX ACL cloning and hard-link topology are not yet preserved; see
+[`docs/follow-ups/file-metadata.md`](docs/follow-ups/file-metadata.md).
+
 ## Rust library
 
 ```toml

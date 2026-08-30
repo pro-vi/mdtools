@@ -92,12 +92,15 @@ impl PreparedFilePatch {
     }
 
     pub fn commit(self) -> Result<PatchOutcome, PersistenceError> {
+        let _lock = lock_exclusive(&self.target)?;
         verify_unchanged(&self.target, &self.base_revision)?;
         if self.outcome.document.revision() != &self.base_revision {
-            commit_source(
-                &self.target,
+            let temporary = temporary_sibling_path(&self.target.target);
+            atomic_replace(
+                &self.target.target,
+                &temporary,
                 self.outcome.document.source(),
-                &self.base_revision,
+                Some(&self.target),
             )?;
         }
         Ok(self.outcome)
@@ -111,6 +114,8 @@ pub struct FileTarget {
     revision: DocumentRevision,
     #[cfg(unix)]
     identity: (u64, u64),
+    #[cfg(unix)]
+    file: std::fs::File,
 }
 
 pub fn load(path: &Path) -> Result<LoadedFile, PersistenceError> {
@@ -138,6 +143,8 @@ pub fn read_source(path: &Path) -> Result<(String, FileTarget), PersistenceError
             revision,
             #[cfg(unix)]
             identity,
+            #[cfg(unix)]
+            file,
         },
     ))
 }
@@ -166,9 +173,39 @@ pub fn commit_source(
     content: &str,
     expected_revision: &DocumentRevision,
 ) -> Result<(), PersistenceError> {
+    let _lock = lock_exclusive(target)?;
     verify_unchanged(target, expected_revision)?;
     let temporary = temporary_sibling_path(&target.target);
     atomic_replace(&target.target, &temporary, content, Some(target))
+}
+
+#[cfg(unix)]
+struct FileLock<'a>(&'a std::fs::File);
+
+#[cfg(unix)]
+impl Drop for FileLock<'_> {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+        unsafe {
+            libc::flock(self.0.as_raw_fd(), libc::LOCK_UN);
+        }
+    }
+}
+
+#[cfg(unix)]
+fn lock_exclusive(target: &FileTarget) -> Result<FileLock<'_>, PersistenceError> {
+    use std::os::fd::AsRawFd;
+    let result = unsafe { libc::flock(target.file.as_raw_fd(), libc::LOCK_EX) };
+    if result == 0 {
+        Ok(FileLock(&target.file))
+    } else {
+        Err(std::io::Error::last_os_error().into())
+    }
+}
+
+#[cfg(not(unix))]
+fn lock_exclusive(_target: &FileTarget) -> Result<(), PersistenceError> {
+    Ok(())
 }
 
 fn verify_target(target: &FileTarget) -> Result<(), PersistenceError> {
@@ -263,6 +300,8 @@ fn atomic_replace(
 
     let staged = (|| -> Result<(), PersistenceError> {
         temporary_file.set_permissions(original_permissions)?;
+        #[cfg(target_os = "macos")]
+        copy_extended_attributes(target, temporary)?;
         temporary_file.write_all(content.as_bytes())?;
         temporary_file.sync_all()?;
         #[cfg(unix)]
@@ -281,12 +320,93 @@ fn atomic_replace(
     })();
     drop(temporary_file);
 
-    let result =
-        staged.and_then(|()| std::fs::rename(temporary, target).map_err(PersistenceError::from));
+    let result = staged.and_then(|()| {
+        std::fs::rename(temporary, target)?;
+        if let Some(parent) = target.parent() {
+            std::fs::File::open(parent)?.sync_all()?;
+        }
+        Ok(())
+    });
     if result.is_err() {
         cleanup_owned_temporary(temporary, created);
     }
     result
+}
+
+#[cfg(target_os = "macos")]
+fn copy_extended_attributes(source: &Path, destination: &Path) -> Result<(), PersistenceError> {
+    use std::ffi::{CStr, CString};
+    use std::os::unix::ffi::OsStrExt;
+    let source = CString::new(source.as_os_str().as_bytes()).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "source path contains NUL")
+    })?;
+    let destination = CString::new(destination.as_os_str().as_bytes()).map_err(|_| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "destination path contains NUL",
+        )
+    })?;
+    let size = unsafe { libc::listxattr(source.as_ptr(), std::ptr::null_mut(), 0, 0) };
+    if size < 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    let mut names = vec![0u8; size as usize];
+    if size > 0
+        && unsafe { libc::listxattr(source.as_ptr(), names.as_mut_ptr().cast(), names.len(), 0) }
+            < 0
+    {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    for raw_name in names
+        .split_inclusive(|byte| *byte == 0)
+        .filter(|name| !name.is_empty())
+    {
+        let name = CStr::from_bytes_until_nul(raw_name).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid xattr name")
+        })?;
+        let value_size = unsafe {
+            libc::getxattr(
+                source.as_ptr(),
+                name.as_ptr(),
+                std::ptr::null_mut(),
+                0,
+                0,
+                0,
+            )
+        };
+        if value_size < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let mut value = vec![0u8; value_size as usize];
+        if value_size > 0
+            && unsafe {
+                libc::getxattr(
+                    source.as_ptr(),
+                    name.as_ptr(),
+                    value.as_mut_ptr().cast(),
+                    value.len(),
+                    0,
+                    0,
+                )
+            } < 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if unsafe {
+            libc::setxattr(
+                destination.as_ptr(),
+                name.as_ptr(),
+                value.as_ptr().cast(),
+                value.len(),
+                0,
+                0,
+            )
+        } < 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
