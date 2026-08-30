@@ -179,7 +179,7 @@ fn task_frontmatter_and_table_operations_use_semantic_targets() {
             .read_frontmatter_field(&frontmatter_changed)
             .unwrap()
             .value,
-        "new"
+        Some(serde_json::json!("new"))
     );
     let frontmatter_deleted = apply(
         &document,
@@ -194,7 +194,7 @@ fn task_frontmatter_and_table_operations_use_semantic_targets() {
             .read_frontmatter_field(&frontmatter_deleted)
             .unwrap()
             .value,
-        serde_json::Value::Null
+        None
     );
 
     let row_replaced = apply(
@@ -241,7 +241,52 @@ fn frontmatter_patch_preserves_empty_key_segments() {
             .read_frontmatter_field(&changed)
             .unwrap()
             .value,
-        "new"
+        Some(serde_json::json!("new"))
+    );
+}
+
+#[test]
+fn frontmatter_field_mutation_rejects_lossy_round_trip_and_preserves_crlf() {
+    let commented = Document::parse_for_frontmatter_mutation(
+        "---\n# pinned comment\naliases: [a, b]\n---\n\nbody\n",
+    )
+    .unwrap();
+    let target = commented
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["aliases".into()],
+        })
+        .unwrap();
+    let patch = Patch {
+        base_revision: commented.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
+            target: FrontmatterPatchTarget::try_from(target.snapshot()).unwrap(),
+            value: serde_json::json!(["c"]),
+        }],
+    };
+    assert!(matches!(
+        patch.apply(&commented),
+        Err(mdtools::core_error::CoreError::InvalidPatch(_))
+    ));
+
+    let crlf =
+        Document::parse_for_frontmatter_mutation("---\r\na: old\r\n---\r\n\r\nbody\r\n").unwrap();
+    let target = crlf
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["a".into()],
+        })
+        .unwrap();
+    let outcome = Patch {
+        base_revision: crlf.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
+            target: FrontmatterPatchTarget::try_from(target.snapshot()).unwrap(),
+            value: serde_json::json!("new"),
+        }],
+    }
+    .apply(&crlf)
+    .unwrap();
+    assert_eq!(
+        outcome.document.source(),
+        "---\r\na: new\r\n---\r\n\r\nbody\r\n"
     );
 }
 
@@ -557,4 +602,24 @@ fn section_move_planning_preserves_strict_frontmatter_policy() {
             < outcome.document.source().find("# A").unwrap()
     );
     assert!(outcome.document.has_frontmatter());
+}
+
+#[test]
+fn move_section_accepts_flush_eof_destination_without_trailing_newline() {
+    let document = Document::parse("# A\n\na\n\n# B\n\nb").unwrap();
+    let outcome = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::MoveSection {
+            source: HeadingPatchTarget::try_from(&section(&document, "A")).unwrap(),
+            destination: HeadingPatchTarget::try_from(&section(&document, "B")).unwrap(),
+            position: SectionMovePosition::AfterSibling,
+            keep_level: true,
+        }],
+    }
+    .apply(&document)
+    .unwrap();
+    assert!(
+        outcome.document.source().find("# B").unwrap()
+            < outcome.document.source().find("# A").unwrap()
+    );
 }

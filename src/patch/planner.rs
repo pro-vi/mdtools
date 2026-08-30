@@ -1559,8 +1559,8 @@ fn resolve_location(
 ) -> Result<(u32, u32), CoreError> {
     match location {
         ResultLocation::Base(span) => Ok((
-            transform_base_offset(span.byte_start as usize, edits)? as u32,
-            transform_base_offset(span.byte_end as usize, edits)? as u32,
+            transform_base_offset(span.byte_start as usize, edits, true)? as u32,
+            transform_base_offset(span.byte_end as usize, edits, false)? as u32,
         )),
         ResultLocation::Edit { edit, range } => {
             let applied = edits
@@ -1578,10 +1578,17 @@ fn resolve_location(
     }
 }
 
-fn transform_base_offset(offset: usize, edits: &[AppliedEdit<'_>]) -> Result<usize, CoreError> {
+fn transform_base_offset(
+    offset: usize,
+    edits: &[AppliedEdit<'_>],
+    include_insertion_at_boundary: bool,
+) -> Result<usize, CoreError> {
     let mut transformed = offset as i64;
     for edit in edits {
-        if edit.edit.end <= offset {
+        let before = edit.edit.end < offset
+            || (edit.edit.end == offset
+                && (edit.edit.start != edit.edit.end || include_insertion_at_boundary));
+        if before {
             transformed +=
                 edit.edit.replacement.len() as i64 - (edit.edit.end - edit.edit.start) as i64;
         }

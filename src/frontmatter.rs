@@ -1,6 +1,6 @@
 use crate::core_error::CoreError;
 use crate::document::Document;
-use crate::edit::SourceEdit;
+use crate::edit::{normalize_line_endings, SourceEdit};
 use crate::fingerprint::TargetEtag;
 use crate::model::{FrontmatterFormat, MutationDisposition, SourceSpan};
 use crate::parser::strip_frontmatter_delimiters;
@@ -105,6 +105,13 @@ pub(crate) fn plan_path_batch(
             "frontmatter must be a mapping/object, not a scalar or array".into(),
         ));
     }
+    if let Some(raw) = state.raw {
+        if frontmatter_has_lossy_syntax(raw) {
+            return Err(CoreError::InvalidPatch(
+                "frontmatter contains comments, aliases, or formatting that cannot be preserved by a field mutation".into(),
+            ));
+        }
+    }
     let mut dispositions = Vec::with_capacity(mutations.len());
     for mutation in mutations {
         if mutation.path.is_empty() {
@@ -125,7 +132,8 @@ pub(crate) fn plan_path_batch(
         .iter()
         .any(|disposition| *disposition != MutationDisposition::NoChange)
     {
-        let block = serialize(&data, format)?;
+        let block =
+            normalize_line_endings(&serialize(&data, format)?, document.line_ending_style());
         Some(match state.span {
             Some(span) => SourceEdit {
                 start: span.byte_start as usize,
@@ -147,6 +155,19 @@ pub(crate) fn plan_path_batch(
         None
     };
     Ok(FrontmatterBatchPlan { edit, dispositions })
+}
+
+fn frontmatter_has_lossy_syntax(raw: &str) -> bool {
+    raw.lines().any(|line| {
+        let trimmed = line.trim();
+        !matches!(trimmed, "---" | "+++")
+            && (trimmed.starts_with('#')
+                || trimmed.contains(" #")
+                || trimmed.contains('[')
+                || trimmed.contains('{')
+                || trimmed.contains("&")
+                || trimmed.contains("*"))
+    })
 }
 
 fn set_path(
