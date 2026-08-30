@@ -437,7 +437,7 @@ fn patch_fragments_apply_document_resource_limits_before_parsing() {
             if message.contains("nesting exceeds")
     ));
 
-    for separator in ["> ", ">  ", ">   "] {
+    for separator in ["> ", ">  ", ">   ", ">    ", ">\t"] {
         let patch = Patch {
             base_revision: document.revision().clone(),
             operations: vec![PatchOp::InsertBlock {

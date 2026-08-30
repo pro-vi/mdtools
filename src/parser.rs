@@ -683,11 +683,17 @@ fn reject_excessive_nesting(source: &str) -> Result<(), CoreError> {
                 )));
             }
             rest = after;
-            for _ in 0..3 {
-                let Some(after_space) = rest.strip_prefix(' ') else {
+            let mut columns = 0;
+            while columns < 4 {
+                if let Some(after_space) = rest.strip_prefix(' ') {
+                    rest = after_space;
+                    columns += 1;
+                } else if let Some(after_tab) = rest.strip_prefix('\t') {
+                    rest = after_tab;
+                    columns = 4;
+                } else {
                     break;
-                };
-                rest = after_space;
+                }
             }
         }
     }
