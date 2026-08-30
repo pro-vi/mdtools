@@ -105,6 +105,17 @@ fn document_read_carries_the_retained_stats_view() {
 }
 
 #[test]
+fn document_stats_do_not_count_blockquote_markers_as_words() {
+    let document = Document::parse(">> nested words\n").unwrap();
+    let read = document
+        .resolve(&TargetAddress::Document)
+        .unwrap()
+        .read_document(&document)
+        .unwrap();
+    assert_eq!(read.stats.word_count, 2);
+}
+
+#[test]
 fn table_read_markdown_is_an_unchanged_block_replacement_payload() {
     let document = Document::parse("| Name | State |\n| --- | --- |\n| A | open |\n").unwrap();
     let table_snapshot = document
@@ -158,7 +169,7 @@ fn missing_frontmatter_field_is_exactly_addressable_and_reads_as_null() {
         }
     ));
     let read = resolved.read_frontmatter_field(&document).unwrap();
-    assert_eq!(read.value, serde_json::Value::Null);
+    assert_eq!(read.value, None);
 }
 
 #[test]
@@ -177,7 +188,7 @@ fn present_null_frontmatter_value_is_not_reported_as_missing() {
     ));
     assert_eq!(
         resolved.read_frontmatter_field(&document).unwrap().value,
-        serde_json::Value::Null
+        Some(serde_json::Value::Null)
     );
 }
 

@@ -321,6 +321,7 @@ impl ParsedDocument {
     }
 
     fn parse_inner(source: String, mode: ParsePolicy) -> Result<Self, CoreError> {
+        reject_excessive_nesting(&source)?;
         let delimiter = detect_frontmatter_delimiter(&source);
         let line_index = LineIndex::new(&source);
         let opts = comrak_opts(delimiter);
@@ -636,6 +637,24 @@ impl ParsedDocument {
             (true, true) => LineEndingStyle::Mixed,
         }
     }
+}
+
+fn reject_excessive_nesting(source: &str) -> Result<(), CoreError> {
+    const MAX_PREFIX_NESTING: usize = 1024;
+    for line in source.lines() {
+        let mut rest = line.trim_start_matches([' ', '\t']);
+        let mut depth = 0;
+        while let Some(after) = rest.strip_prefix('>') {
+            depth += 1;
+            if depth > MAX_PREFIX_NESTING {
+                return Err(CoreError::ParseFailed(format!(
+                    "Markdown nesting exceeds the supported depth of {MAX_PREFIX_NESTING}"
+                )));
+            }
+            rest = after.strip_prefix(' ').unwrap_or(after);
+        }
+    }
+    Ok(())
 }
 
 fn frontmatter_content_is_semantically_valid(raw: &str, format: FrontmatterFormat) -> bool {

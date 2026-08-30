@@ -1,5 +1,5 @@
 use clap::{ArgGroup, Args};
-use serde::Serialize;
+use std::io::Write;
 use std::path::PathBuf;
 
 use crate::errors::{CommandError, DiagnosticCode};
@@ -57,12 +57,6 @@ pub struct ApplyPatchArgs {
     pub in_place: bool,
 }
 
-#[derive(Serialize)]
-struct PatchPreview<'a> {
-    source: &'a str,
-    receipts: &'a [mdtools::patch::PatchReceipt],
-}
-
 pub fn run_map(arguments: &MapArgs) -> Result<(), CommandError> {
     let loaded = mdtools::file::load(&arguments.file).map_err(output::persistence_error)?;
     output::write_json(&loaded.document().map()?)
@@ -107,13 +101,14 @@ pub fn run_patch(arguments: &ApplyPatchArgs, json: bool) -> Result<(), CommandEr
     if arguments.in_place {
         output::write_json(&outcome.receipts)
     } else if json {
-        output::write_json(&PatchPreview {
-            source: outcome.document.source(),
-            receipts: &outcome.receipts,
+        output::write_json(&mdtools::protocol::PatchPreview {
+            source: outcome.document.source().to_string(),
+            receipts: outcome.receipts,
         })
     } else {
-        print!("{}", outcome.document.source());
-        Ok(())
+        std::io::stdout()
+            .write_all(outcome.document.source().as_bytes())
+            .map_err(CommandError::from)
     }
 }
 

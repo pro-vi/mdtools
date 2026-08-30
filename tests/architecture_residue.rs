@@ -2,14 +2,21 @@ use std::process::Command;
 
 #[test]
 fn public_source_has_no_previous_authority_names() {
-    let source = [
-        include_str!("../src/lib.rs"),
-        include_str!("../src/main.rs"),
-        include_str!("../src/cli.rs"),
-        include_str!("../src/model.rs"),
-        include_str!("../src/protocol.rs"),
-    ]
-    .join("\n");
+    fn collect(directory: &std::path::Path, source: &mut String) {
+        for entry in std::fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                collect(&path, source);
+            } else if path.extension().and_then(|value| value.to_str()) == Some("rs") {
+                source.push_str(&std::fs::read_to_string(path).unwrap());
+            }
+        }
+    }
+    let mut source = String::new();
+    collect(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut source,
+    );
     for removed in [
         "SectionIndex",
         "SectionTarget",

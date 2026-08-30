@@ -46,7 +46,7 @@ pub const CLI_COMMANDS: &[CliCommandMetadata] = &[
         name: "patch",
         summary: PATCH_SUMMARY,
         input: "Patch",
-        output: "PatchReceipt[] or Markdown",
+        output: "PatchReceipt[], PatchPreview, or Markdown",
         mutating: true,
     },
     CliCommandMetadata {
@@ -57,6 +57,12 @@ pub const CLI_COMMANDS: &[CliCommandMetadata] = &[
         mutating: false,
     },
 ];
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct PatchPreview {
+    pub source: String,
+    pub receipts: Vec<PatchReceipt>,
+}
 
 pub fn patch_schema() -> serde_json::Value {
     serde_json::to_value(schema_for!(Patch)).expect("generated patch schema serializes")
@@ -78,5 +84,6 @@ pub fn protocol_schema() -> serde_json::Value {
         "target_read": serde_json::to_value(schema_for!(TargetRead)).expect("target read schema serializes"),
         "patch": patch_schema(),
         "patch_receipt": patch_receipt_schema(),
+        "patch_preview": serde_json::to_value(schema_for!(PatchPreview)).expect("patch preview schema serializes"),
     })
 }

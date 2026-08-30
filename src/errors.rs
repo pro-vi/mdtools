@@ -34,7 +34,6 @@ pub struct CommandError {
     pub code: DiagnosticCode,
     pub message: String,
     pub hint: Option<String>,
-    pub payload_delivered: bool,
 }
 
 impl CommandError {
@@ -50,7 +49,6 @@ impl CommandError {
             code,
             message: message.into(),
             hint: None,
-            payload_delivered: false,
         }
     }
 

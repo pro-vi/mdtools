@@ -255,3 +255,19 @@ fn invalid_protocol_json_fails_fast_with_schema_guidance() {
     assert!(error.contains("invalid TargetQuery JSON"));
     assert!(error.contains("md schema"));
 }
+
+#[test]
+fn json_output_to_a_closed_pipe_does_not_panic() {
+    let directory = unique_directory("closed-pipe");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "# H\n\nbody\n").unwrap();
+    let mut child = md()
+        .args(["--json", "map", path.to_str().unwrap()])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdout.take());
+    let output = child.wait_with_output().unwrap();
+    assert_ne!(output.status.code(), Some(101));
+}

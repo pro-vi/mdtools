@@ -178,7 +178,7 @@ fn frontmatter_path_segments_distinguish_literal_dots_from_nesting() {
             .read_frontmatter_field(&document)
             .unwrap()
             .value,
-        "literal"
+        Some(serde_json::json!("literal"))
     );
     assert_eq!(
         document
@@ -187,7 +187,7 @@ fn frontmatter_path_segments_distinguish_literal_dots_from_nesting() {
             .read_frontmatter_field(&document)
             .unwrap()
             .value,
-        "nested"
+        Some(serde_json::json!("nested"))
     );
 }
 
@@ -209,7 +209,7 @@ fn empty_frontmatter_keys_are_exactly_addressable() {
     assert_eq!(resolved.snapshot(), &mapped);
     assert_eq!(
         resolved.read_frontmatter_field(&document).unwrap().value,
-        "value"
+        Some(serde_json::json!("value"))
     );
 }
 
@@ -409,5 +409,36 @@ fn search_query_returns_evidence_that_cannot_resolve_as_mutation_authority() {
         document.query_one(&query),
         Err(CoreError::InvalidSelector(reason))
             if reason.contains("cannot resolve as one mutable target")
+    ));
+}
+
+#[test]
+fn search_evidence_is_returned_in_source_order_with_footnotes() {
+    let document =
+        Document::parse("needle top\n\n[^1]: needle foot\n\n# Later\n\nneedle later[^1]\n")
+            .unwrap();
+    let results = document
+        .query(&TargetQuery::Search {
+            text: "needle".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+        })
+        .unwrap();
+    let starts = results
+        .iter()
+        .map(|result| result.evidence().unwrap().span.byte_start)
+        .collect::<Vec<_>>();
+    assert!(
+        starts.windows(2).all(|pair| pair[0] < pair[1]),
+        "{starts:?}"
+    );
+}
+
+#[test]
+fn excessive_blockquote_nesting_returns_a_typed_parse_error() {
+    let source = format!("{} deep\n", ">".repeat(2048));
+    assert!(matches!(
+        Document::parse(source),
+        Err(CoreError::ParseFailed(reason)) if reason.contains("nesting exceeds")
     ));
 }

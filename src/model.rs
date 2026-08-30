@@ -13,6 +13,7 @@ pub struct SourceSpan {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum LineEndingStyle {
     Lf,
     Crlf,
@@ -20,6 +21,7 @@ pub enum LineEndingStyle {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum HeadingMatchMode {
     Exact,
     ExactIgnoreCase,
@@ -42,8 +44,7 @@ pub(crate) enum InsertMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
+#[serde(rename_all = "snake_case")]
 pub enum BlockKind {
     Heading,
     Paragraph,
@@ -64,6 +65,7 @@ impl std::fmt::Display for BlockKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum LinkKind {
     Inline,
     Reference,
@@ -77,12 +79,14 @@ impl std::fmt::Display for LinkKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum FrontmatterFormat {
     Yaml,
     Toml,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ColumnAlignment {
     None,
     Left,
@@ -91,9 +95,7 @@ pub enum ColumnAlignment {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[serde(rename_all = "lowercase")]
-#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
 pub enum TaskStatus {
     Pending,
     Done,

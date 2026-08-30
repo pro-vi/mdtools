@@ -59,7 +59,7 @@ pub(crate) fn evidence_ranges(
     match_mode: SearchMatchMode,
     block_kinds: &[BlockKind],
 ) -> Vec<EvidenceRange> {
-    raw_search(document, text, match_mode, block_kinds)
+    let mut evidence = raw_search(document, text, match_mode, block_kinds)
         .into_iter()
         .filter_map(|matched| {
             document
@@ -73,7 +73,9 @@ pub(crate) fn evidence_ranges(
                     preview: matched.preview,
                 })
         })
-        .collect()
+        .collect::<Vec<_>>();
+    evidence.sort_by_key(|range| (range.span.byte_start, range.span.byte_end));
+    evidence
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

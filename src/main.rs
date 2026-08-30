@@ -13,9 +13,9 @@ fn main() -> ExitCode {
     match run(&cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            if cli.json && !e.payload_delivered {
+            if cli.json {
                 if let Some(envelope) = errors::error_envelope_json(&e, None) {
-                    println!("{}", envelope);
+                    let _ = serde_json::to_writer(std::io::stdout().lock(), &envelope);
                 }
             }
             eprintln!("{}", e);

@@ -29,10 +29,20 @@ pub fn document_stats(document: &Document) -> DocumentStats {
                 .unwrap_or_else(|| document.slice_unchecked(&block.span))
                 .split_whitespace()
                 .count() as u32,
-            BlockKind::Paragraph | BlockKind::BlockQuote => document
+            BlockKind::Paragraph => document
                 .slice_unchecked(&block.span)
                 .split_whitespace()
                 .count() as u32,
+            BlockKind::BlockQuote => document
+                .slice_unchecked(&block.span)
+                .lines()
+                .map(|line| {
+                    line.trim_start()
+                        .trim_start_matches('>')
+                        .split_whitespace()
+                        .count() as u32
+                })
+                .sum(),
             BlockKind::List => count_list_words(document.slice_unchecked(&block.span)),
             BlockKind::Table => count_table_words(document.slice_unchecked(&block.span)),
             _ => 0,

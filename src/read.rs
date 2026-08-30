@@ -76,7 +76,7 @@ pub struct FrontmatterRead {
 pub struct FrontmatterFieldRead {
     pub snapshot: TargetSnapshot,
     pub path: Vec<String>,
-    pub value: serde_json::Value,
+    pub value: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
@@ -147,9 +147,7 @@ pub fn read(document: &Document, target: &ResolvedTarget) -> Result<TargetRead, 
             Ok(TargetRead::FrontmatterField(FrontmatterFieldRead {
                 snapshot,
                 path: path.clone(),
-                value: crate::target::project_frontmatter_field(&record.data, path)
-                    .cloned()
-                    .unwrap_or(serde_json::Value::Null),
+                value: crate::target::project_frontmatter_field(&record.data, path).cloned(),
             }))
         }
         (_, ResolvedLocator::Node(node)) => read_index_node(document, *node, snapshot),

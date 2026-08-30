@@ -31,9 +31,8 @@ identity, and retained move behavior to implementation.
   absorbing an inserted heading, remain final structural-closure errors.
 - `PreambleIdentity` carries only the document revision because its address is
   the constant preamble address.
-- `src/fragment.rs` owns heading rebasing. Retained section-move adapters call
-  that authority but continue rejecting setext releveling until U7 removes the
-  legacy surface.
+- `src/fragment.rs` owns heading rebasing. `MoveSection` calls that authority
+  and rejects setext releveling unless the caller keeps the original levels.
 
 ## Consequences
 
