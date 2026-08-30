@@ -822,6 +822,26 @@ fn table_append_extends_containing_block_during_sibling_deletion_closure() {
 }
 
 #[test]
+fn last_table_row_deletion_shrinks_containing_block_during_sibling_closure() {
+    let source = "para\n\n| A |\n| --- |\n| x |\n| y |\n";
+    let document = Document::parse(source).unwrap();
+    let paragraph = ReplaceBlockTarget::try_from(&block_with(&document, "para")).unwrap();
+    let rows = snapshots(&document, TargetKind::TableRow);
+    let outcome = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::DeleteBlock { target: paragraph },
+            PatchOp::DeleteTableRow {
+                target: TableRowPatchTarget::try_from(&rows[1]).unwrap(),
+            },
+        ],
+    }
+    .apply(&document)
+    .unwrap();
+    assert_eq!(outcome.document.source(), "\n\n| A |\n| --- |\n| x |\n");
+}
+
+#[test]
 fn renamed_section_receipt_carries_the_result_address() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
     let target = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();

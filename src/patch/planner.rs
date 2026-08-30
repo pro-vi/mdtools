@@ -1582,8 +1582,8 @@ fn verify_result(
                 ) else {
                     continue;
                 };
-                let (start, mut end) = resolve_location(mutation, edits, &block.location)?;
-                end += parser_block_end_extension(edits, operations, mutation, block) as u32;
+                let (start, _) = resolve_location(mutation, edits, &block.location)?;
+                let end = start + markdown.len() as u32;
                 targets.verify_parser_block(start, end, block, &markdown)?;
             }
             Ok(VerifiedResult::None)
@@ -1632,7 +1632,7 @@ fn parser_block_markdown_after_sibling_edits(
         .filter(|edit| edit.mutation != mutation)
         .filter(|edit| {
             (edit.edit.end > start && edit.edit.start < end)
-                || edit_extends_parser_block_end(edit, operations, end)
+                || edit_is_table_row_boundary_change(edit, operations, start, end)
         })
         .collect::<Vec<_>>();
     if local_edits
@@ -1641,50 +1641,49 @@ fn parser_block_markdown_after_sibling_edits(
     {
         return None;
     }
-    if local_edits
-        .iter()
-        .any(|edit| edit.edit.start < start || edit.edit.end > end)
-    {
+    if local_edits.iter().any(|edit| {
+        (edit.edit.start < start || edit.edit.end > end)
+            && !edit_is_table_row_boundary_change(edit, operations, start, end)
+    }) {
         return Some(markdown);
     }
+    let deletes_last_table_row = local_edits.iter().any(|edit| {
+        matches!(
+            operations.get(edit.operation),
+            Some(PatchOp::DeleteTableRow { .. })
+        ) && edit.edit.start < end
+            && edit.edit.end > end
+    });
     local_edits.sort_by_key(|edit| std::cmp::Reverse((edit.edit.start, edit.edit.end)));
     for edit in local_edits {
         markdown.replace_range(
-            edit.edit.start - start..edit.edit.end - start,
+            edit.edit.start.max(start) - start..edit.edit.end.min(end) - start,
             &edit.edit.replacement,
         );
+    }
+    if deletes_last_table_row {
+        markdown = strip_one_trailing_newline(markdown);
     }
     Some(markdown)
 }
 
-fn parser_block_end_extension(
-    edits: &[AppliedEdit<'_>],
-    operations: &[PatchOp],
-    mutation: usize,
-    block: &ParserBlockExpectation,
-) -> usize {
-    let ResultLocation::Base(span) = block.location else {
-        return 0;
-    };
-    edits
-        .iter()
-        .filter(|edit| edit.mutation != mutation)
-        .filter(|edit| edit_extends_parser_block_end(edit, operations, span.byte_end as usize))
-        .map(|edit| edit.edit.replacement.len())
-        .sum()
-}
-
-fn edit_extends_parser_block_end(
+fn edit_is_table_row_boundary_change(
     edit: &AppliedEdit<'_>,
     operations: &[PatchOp],
+    block_start: usize,
     block_end: usize,
 ) -> bool {
-    edit.edit.start == block_end
-        && edit.edit.end == block_end
-        && matches!(
-            operations.get(edit.operation),
-            Some(PatchOp::InsertTableRow { .. })
-        )
+    match operations.get(edit.operation) {
+        Some(PatchOp::InsertTableRow { .. }) => {
+            edit.edit.start == block_end && edit.edit.end == block_end
+        }
+        Some(PatchOp::DeleteTableRow { .. }) => {
+            edit.edit.start >= block_start
+                && edit.edit.start < block_end
+                && edit.edit.end > block_end
+        }
+        _ => false,
+    }
 }
 
 fn resolve_location(
