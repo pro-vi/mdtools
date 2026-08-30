@@ -14,7 +14,8 @@ identity, and retained move behavior to implementation.
 ## Decision
 
 - Accept any valid single-root semantic section syntax and normalize it to one
-  relative ATX subtree. Setext soft breaks become spaces.
+  relative ATX subtree. Setext soft breaks become spaces and hard breaks become
+  inline `<br />` elements so the canonical heading remains one ATX line.
 - Treat only spaces and tabs as blank-line content. Unicode whitespace remains
   Markdown content and cannot be discarded as owned boundary space.
 - Render semantic fragments with the destination line-ending style. A mixed
