@@ -1305,10 +1305,12 @@ pub fn extract_table_projection(
     table_source: &str,
     block_span: SourceSpan,
 ) -> Result<TableProjection, CoreError> {
+    reject_oversized_source(table_source.len())?;
     let line_index = LineIndex::new(table_source);
     let arena = Arena::new();
     let opts = comrak_opts(None);
     let root = parse_document(&arena, table_source, &opts);
+    reject_excessive_ast_depth(root)?;
 
     for node in root.children() {
         if let Some(table) = project_table_node(node, &line_index, table_source, Some(block_span)) {
@@ -1398,6 +1400,16 @@ mod projection_policy_tests {
         let source = "x".repeat(1024 * 1024 + 1);
         let parsed = ParsedDocument::parse(source).unwrap();
         assert_eq!(parsed.source.len(), 1024 * 1024 + 1);
+    }
+
+    #[test]
+    fn synthetic_table_projection_applies_ast_depth_limit() {
+        let emphasis = "*".repeat(5_000);
+        let payload = format!("| {emphasis}nested{emphasis} |");
+        assert!(matches!(
+            validate_table_row_payload(&payload, 1),
+            Err(CoreError::ParseFailed(message)) if message.contains("AST exceeds")
+        ));
     }
 
     #[cfg(target_pointer_width = "64")]
