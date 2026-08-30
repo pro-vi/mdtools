@@ -159,6 +159,35 @@ fn setext_semantic_read_then_replace_is_byte_identical() {
 }
 
 #[test]
+fn multiline_setext_read_and_insertion_preserve_soft_break_semantics() {
+    let document = Document::parse("Foo\nbar\n=====\n\nbody\n").unwrap();
+    let read = document
+        .resolve(&section(&document, "Foo bar").address)
+        .unwrap()
+        .read_section(&document)
+        .unwrap();
+    assert_eq!(read.fragment, semantic("# Foo bar\n\nbody"));
+
+    let parent = Document::parse("# Parent\n\nbody").unwrap();
+    let inserted = insert_section(&parent, "Parent", semantic("A\nB\n===\n\nx")).unwrap();
+    assert_eq!(
+        inserted.document.source(),
+        "# Parent\n\nbody\n\n## A B\n\nx"
+    );
+}
+
+#[test]
+fn changed_setext_replacement_emits_declared_atx_source() {
+    let document = Document::parse("Title\n=====\n\nbody\n").unwrap();
+    let outcome = replace_section(&document, "Title", semantic("# Changed\n\nnew body")).unwrap();
+    assert_eq!(outcome.document.source(), "# Changed\n\nnew body");
+    assert_eq!(
+        outcome.receipts[0].disposition(),
+        MutationDisposition::Replaced
+    );
+}
+
+#[test]
 fn atx_semantic_read_then_replace_is_byte_identical() {
     let source = "## Title ##\n\nbody\n";
     let document = Document::parse(source).unwrap();

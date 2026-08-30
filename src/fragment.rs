@@ -203,9 +203,11 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
                 "#".repeat(relative_level as usize),
             )),
             HeadingSourceKind::Setext => {
-                let content = source
-                    [span.byte_start as usize..heading.marker_span.byte_start as usize]
-                    .trim_matches([' ', '\t', '\r', '\n']);
+                let content = setext_heading_content(
+                    source,
+                    span.byte_start as usize,
+                    heading.marker_span.byte_start as usize,
+                );
                 edits.push((
                     start,
                     span.byte_end as usize - root_start,
@@ -219,6 +221,14 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
         canonical.replace_range(start..end, &replacement);
     }
     Ok((canonical.replace("\r\n", "\n"), root_level))
+}
+
+fn setext_heading_content(source: &str, start: usize, marker_start: usize) -> String {
+    source[start..marker_start]
+        .lines()
+        .map(|line| line.trim_matches([' ', '\t', '\r']))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn last_content_line_end(source: &str, start: usize, end: usize) -> usize {
