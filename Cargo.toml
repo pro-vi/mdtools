@@ -31,7 +31,8 @@ required-features = ["cli"]
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:walkdir"]
+file = []
+cli = ["file", "dep:clap", "dep:walkdir"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }

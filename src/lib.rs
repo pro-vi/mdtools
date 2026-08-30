@@ -6,6 +6,8 @@ pub mod core_error;
 pub mod document;
 pub mod edit;
 pub mod errors;
+#[cfg(feature = "file")]
+pub mod file;
 pub mod fingerprint;
 pub mod fragment;
 pub mod frontmatter;
