@@ -671,6 +671,23 @@ fn section_replacement_must_preserve_one_section_target() {
 }
 
 #[test]
+fn section_deletion_preserves_every_surviving_parser_block() {
+    let source = "lead\n## A\n\nbody\n\nB\n===\n";
+    let document = Document::parse(source).unwrap();
+    let target = SectionPatchTarget::try_from(&section(&document, "A")).unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::DeleteSection { target }],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::PatchInvariant(message))
+            if message.contains("parser block")
+    ));
+    assert_eq!(document.source(), source);
+}
+
+#[test]
 fn renamed_section_receipt_carries_the_result_address() {
     let document = Document::parse("# A\n\nbody\n").unwrap();
     let target = HeadingPatchTarget::try_from(&section(&document, "A")).unwrap();

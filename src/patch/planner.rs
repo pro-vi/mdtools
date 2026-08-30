@@ -169,6 +169,9 @@ enum ResultExpectation {
         blocks: Vec<ParserBlockExpectation>,
         target_block_kinds: Option<Vec<BlockKind>>,
     },
+    ParserBlockClosure {
+        blocks: Vec<ParserBlockExpectation>,
+    },
     BlockFragment {
         location: ResultLocation,
         fragment: BlockFragmentShape,
@@ -985,6 +988,21 @@ fn plan_delete_section(
     } else {
         MutationDisposition::Deleted
     };
+    let surviving_blocks = document
+        .index()
+        .source_block_indices()
+        .into_iter()
+        .filter_map(|index| {
+            let block = &document.blocks()[index as usize];
+            let deleted = block.span.byte_start >= target.guard.span.byte_start
+                && block.span.byte_end <= target.guard.span.byte_end;
+            (!deleted).then(|| ParserBlockExpectation {
+                kind: block.kind,
+                markdown: document.slice_unchecked(&block.span).to_string(),
+                location: ResultLocation::Base(block.span),
+            })
+        })
+        .collect::<Vec<_>>();
     Ok(atomic_plan(
         operation,
         claims,
@@ -1003,7 +1021,9 @@ fn plan_delete_section(
                 ResultLocation::Base(target.guard.span),
             )
         } else {
-            ResultExpectation::None
+            ResultExpectation::ParserBlockClosure {
+                blocks: surviving_blocks,
+            }
         },
         ReceiptDraft::DeleteSection {
             before,
@@ -1540,6 +1560,13 @@ fn verify_result(
                 }
             }
             Ok(VerifiedResult::Target(snapshot))
+        }
+        ResultExpectation::ParserBlockClosure { blocks } => {
+            for block in blocks {
+                let (start, end) = resolve_location(mutation, edits, &block.location)?;
+                targets.verify_parser_block(start, end, block)?;
+            }
+            Ok(VerifiedResult::None)
         }
         ResultExpectation::BlockFragment { location, fragment } => {
             let (start, end) = resolve_location(mutation, edits, location)?;
@@ -2292,6 +2319,7 @@ mod tests {
             ResultExpectation::None => "none",
             ResultExpectation::Target { .. } => "target",
             ResultExpectation::TargetWithBlockClosure { .. } => "target_with_block_closure",
+            ResultExpectation::ParserBlockClosure { .. } => "parser_block_closure",
             ResultExpectation::BlockFragment { .. } => "block_fragment",
             ResultExpectation::Preamble { .. } => "preamble",
             ResultExpectation::Section(_) => "section",
