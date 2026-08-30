@@ -123,7 +123,7 @@ impl LineIndex {
         };
 
         if kind == BlockKind::ThematicBreak && sp.end.column == 0 && sp.end.line > 1 {
-            let content_line = sp.end.line - 1;
+            let content_line = sp.start.line;
             if let Some(byte_end) = self.line_content_end(source, content_line) {
                 span.line_end = content_line as u32;
                 span.byte_end = byte_end as u32;

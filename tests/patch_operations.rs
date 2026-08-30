@@ -786,6 +786,28 @@ fn deletion_closure_handles_trailing_thematic_break_blank_lines() {
 }
 
 #[test]
+fn thematic_break_replacement_preserves_all_boundary_line_endings() {
+    for (source, expected_end) in [("---\n\n\n", 3), ("---\r\n\r\n\r\n", 3)] {
+        let document = Document::parse(source).unwrap();
+        let snapshot = block_with(&document, "---");
+        let span = snapshot.selection_span.unwrap();
+        assert_eq!(span.line_start, 1);
+        assert_eq!(span.line_end, 1);
+        assert_eq!(span.byte_end, expected_end);
+        let outcome = Patch {
+            base_revision: document.revision().clone(),
+            operations: vec![PatchOp::ReplaceBlock {
+                target: ReplaceBlockTarget::try_from(&snapshot).unwrap(),
+                markdown: "***".into(),
+            }],
+        }
+        .apply(&document)
+        .unwrap();
+        assert_eq!(outcome.document.source(), source.replacen("---", "***", 1));
+    }
+}
+
+#[test]
 fn table_append_extends_containing_block_during_sibling_deletion_closure() {
     let source = "para\n\n| A |\n| --- |\n| x |\n";
     let document = Document::parse(source).unwrap();
