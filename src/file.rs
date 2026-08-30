@@ -405,11 +405,13 @@ fn copy_extended_attributes(source: &Path, destination: &Path) -> Result<(), Per
         return Err(std::io::Error::last_os_error().into());
     }
     let mut names = vec![0u8; size as usize];
-    if size > 0
-        && unsafe { libc::listxattr(source.as_ptr(), names.as_mut_ptr().cast(), names.len(), 0) }
-            < 0
-    {
-        return Err(std::io::Error::last_os_error().into());
+    if size > 0 {
+        let read =
+            unsafe { libc::listxattr(source.as_ptr(), names.as_mut_ptr().cast(), names.len(), 0) };
+        if read < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        truncate_to_read_length(&mut names, read);
     }
     for raw_name in names
         .split_inclusive(|byte| *byte == 0)
@@ -432,8 +434,8 @@ fn copy_extended_attributes(source: &Path, destination: &Path) -> Result<(), Per
             return Err(std::io::Error::last_os_error().into());
         }
         let mut value = vec![0u8; value_size as usize];
-        if value_size > 0
-            && unsafe {
+        if value_size > 0 {
+            let read = unsafe {
                 libc::getxattr(
                     source.as_ptr(),
                     name.as_ptr(),
@@ -442,9 +444,11 @@ fn copy_extended_attributes(source: &Path, destination: &Path) -> Result<(), Per
                     0,
                     0,
                 )
-            } < 0
-        {
-            return Err(std::io::Error::last_os_error().into());
+            };
+            if read < 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            truncate_to_read_length(&mut value, read);
         }
         if unsafe {
             libc::setxattr(
@@ -461,6 +465,11 @@ fn copy_extended_attributes(source: &Path, destination: &Path) -> Result<(), Per
         }
     }
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn truncate_to_read_length(buffer: &mut Vec<u8>, read: isize) {
+    buffer.truncate(read as usize);
 }
 
 #[cfg(test)]
@@ -506,5 +515,13 @@ mod tests {
         assert!(temporary.exists());
         cleanup_owned_temporary(&temporary, created);
         assert!(!temporary.exists());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn shorter_metadata_reads_do_not_keep_zero_padding() {
+        let mut buffer = vec![b'a', b'b', 0, 0];
+        truncate_to_read_length(&mut buffer, 2);
+        assert_eq!(buffer, b"ab");
     }
 }

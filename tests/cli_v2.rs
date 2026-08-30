@@ -12,6 +12,16 @@ fn md() -> Command {
     Command::new(env!("CARGO_BIN_EXE_md"))
 }
 
+#[cfg(unix)]
+fn disconnected_stdout() -> Stdio {
+    use std::os::fd::OwnedFd;
+    use std::os::unix::net::UnixStream;
+
+    let (reader, writer) = UnixStream::pair().unwrap();
+    drop(reader);
+    Stdio::from(std::fs::File::from(OwnedFd::from(writer)))
+}
+
 fn unique_directory(tag: &str) -> PathBuf {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -261,14 +271,14 @@ fn json_output_to_a_closed_pipe_does_not_panic() {
     let directory = unique_directory("closed-pipe");
     let path = directory.join("doc.md");
     std::fs::write(&path, "# H\n\nbody\n").unwrap();
-    let mut child = md()
+    let output = md()
         .args(["--json", "map", path.to_str().unwrap()])
-        .stdout(Stdio::piped())
+        .stdout(disconnected_stdout())
         .stderr(Stdio::piped())
         .spawn()
+        .unwrap()
+        .wait_with_output()
         .unwrap();
-    drop(child.stdout.take());
-    let output = child.wait_with_output().unwrap();
     assert_eq!(output.status.code(), Some(5));
 }
 
@@ -279,7 +289,7 @@ fn in_place_commit_remains_successful_when_receipt_pipe_closes() {
     let source = "before\n";
     std::fs::write(&path, source).unwrap();
     let patch = serde_json::to_string(&replacement_patch(source, "after")).unwrap();
-    let mut child = md()
+    let output = md()
         .args([
             "patch",
             path.to_str().unwrap(),
@@ -287,12 +297,12 @@ fn in_place_commit_remains_successful_when_receipt_pipe_closes() {
             &patch,
             "--in-place",
         ])
-        .stdout(Stdio::piped())
+        .stdout(disconnected_stdout())
         .stderr(Stdio::piped())
         .spawn()
+        .unwrap()
+        .wait_with_output()
         .unwrap();
-    drop(child.stdout.take());
-    let output = child.wait_with_output().unwrap();
     assert!(output.status.success());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "after\n");
     assert!(String::from_utf8_lossy(&output.stderr).contains("file commit succeeded"));

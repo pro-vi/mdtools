@@ -41,5 +41,6 @@ pub fn write_json<T: Serialize>(value: &T) -> Result<(), CommandError> {
     serde_json::to_writer(&mut handle, value)
         .map_err(|error| CommandError::io(error.to_string()))?;
     writeln!(handle).map_err(|error| CommandError::io(error.to_string()))?;
+    handle.flush().map_err(CommandError::from)?;
     Ok(())
 }
