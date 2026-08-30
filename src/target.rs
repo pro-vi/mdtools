@@ -193,10 +193,13 @@ pub enum TargetKind {
 }
 
 /// Fuzzy discovery criteria. Mutation APIs accept [`TargetAddress`], not this type.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum TargetQuery {
     All,
-    Kind(TargetKind),
+    Kind {
+        kind: TargetKind,
+    },
     Section {
         text: String,
         match_mode: HeadingMatchMode,
@@ -212,6 +215,46 @@ pub enum TargetQuery {
     FrontmatterField {
         path: Vec<String>,
     },
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+enum StrictTargetQuery {
+    All {},
+    Kind {
+        kind: TargetKind,
+    },
+    Section {
+        text: String,
+        match_mode: HeadingMatchMode,
+    },
+    Task {
+        status: Option<TaskStatus>,
+        contains: Option<String>,
+    },
+    Link {
+        text: Option<String>,
+        destination: Option<String>,
+    },
+    FrontmatterField {
+        path: Vec<String>,
+    },
+}
+
+impl<'de> Deserialize<'de> for TargetQuery {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(match StrictTargetQuery::deserialize(deserializer)? {
+            StrictTargetQuery::All {} => Self::All,
+            StrictTargetQuery::Kind { kind } => Self::Kind { kind },
+            StrictTargetQuery::Section { text, match_mode } => Self::Section { text, match_mode },
+            StrictTargetQuery::Task { status, contains } => Self::Task { status, contains },
+            StrictTargetQuery::Link { text, destination } => Self::Link { text, destination },
+            StrictTargetQuery::FrontmatterField { path } => Self::FrontmatterField { path },
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1000,7 +1043,7 @@ fn collect_fields<'a>(
 fn query_matches(query: &TargetQuery, snapshot: &TargetSnapshot) -> bool {
     match query {
         TargetQuery::All => true,
-        TargetQuery::Kind(kind) => snapshot.kind == *kind,
+        TargetQuery::Kind { kind } => snapshot.kind == *kind,
         TargetQuery::Section { text, match_mode } => match &snapshot.summary {
             TargetSummary::Section { heading, .. } => heading_matches(heading, text, *match_mode),
             _ => false,

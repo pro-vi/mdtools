@@ -34,7 +34,9 @@ fn bench_target_map_scale(c: &mut Criterion) {
 
 fn bench_target_query_progress(c: &mut Criterion) {
     let document = Document::parse(include_str!("../bench/inputs/t5_progress.md")).unwrap();
-    let query = TargetQuery::Kind(TargetKind::Task);
+    let query = TargetQuery::Kind {
+        kind: TargetKind::Task,
+    };
     c.bench_function("target_query_tasks/t5_progress", |b| {
         b.iter(|| black_box(&document).query(black_box(&query)).unwrap())
     });

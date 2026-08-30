@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::core_error::CoreError;
@@ -7,19 +8,19 @@ use crate::index::IndexNode;
 use crate::model::{BlockKind, ColumnAlignment, FrontmatterFormat, LinkKind, TaskStatus};
 use crate::target::{ResolvedLocator, ResolvedTarget, TargetKind, TargetSnapshot};
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct DocumentRead {
     pub snapshot: TargetSnapshot,
     pub source: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct PreambleRead {
     pub snapshot: TargetSnapshot,
     pub markdown: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct SectionRead {
     pub snapshot: TargetSnapshot,
     pub level: u8,
@@ -28,14 +29,14 @@ pub struct SectionRead {
     pub fragment: crate::fragment::SectionFragment,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct BlockRead {
     pub snapshot: TargetSnapshot,
     pub kind: BlockKind,
     pub markdown: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct TaskRead {
     pub snapshot: TargetSnapshot,
     pub status: TaskStatus,
@@ -44,7 +45,7 @@ pub struct TaskRead {
     pub markdown: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct TableRead {
     pub snapshot: TargetSnapshot,
     pub markdown: String,
@@ -53,7 +54,7 @@ pub struct TableRead {
     pub rows: Vec<Vec<String>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct TableRowRead {
     pub snapshot: TargetSnapshot,
     pub row: u32,
@@ -61,7 +62,7 @@ pub struct TableRowRead {
     pub markdown: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct FrontmatterRead {
     pub snapshot: TargetSnapshot,
     pub present: bool,
@@ -70,14 +71,14 @@ pub struct FrontmatterRead {
     pub data: serde_json::Value,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct FrontmatterFieldRead {
     pub snapshot: TargetSnapshot,
     pub path: Vec<String>,
     pub value: serde_json::Value,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct LinkRead {
     pub snapshot: TargetSnapshot,
     pub kind: LinkKind,
@@ -87,7 +88,7 @@ pub struct LinkRead {
     pub markdown: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TargetRead {
     Document(DocumentRead),
