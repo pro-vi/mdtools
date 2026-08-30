@@ -1,7 +1,7 @@
 # Semantic section fragments own normalization and placement boundaries
 
 **Date:** 2026-08-30
-**Status:** proposed 2026-08-30
+**Status:** accepted 2026-08-30
 **Deciders:** Provi, Codex
 
 ## Context
