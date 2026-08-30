@@ -106,9 +106,15 @@ pub(crate) fn plan_path_batch(
         ));
     }
     if let Some(raw) = state.raw {
-        if frontmatter_has_lossy_syntax(raw) {
+        let round_trip =
+            normalize_line_endings(&serialize(&data, format)?, document.line_ending_style());
+        let comparison_source = match format {
+            FrontmatterFormat::Yaml => canonicalize_yaml_mapping_keys(raw),
+            FrontmatterFormat::Toml => raw.to_string(),
+        };
+        if round_trip != comparison_source {
             return Err(CoreError::InvalidPatch(
-                "frontmatter contains comments, aliases, or formatting that cannot be preserved by a field mutation".into(),
+                "frontmatter formatting is not stable under field serialization".into(),
             ));
         }
     }
@@ -157,21 +163,42 @@ pub(crate) fn plan_path_batch(
     Ok(FrontmatterBatchPlan { edit, dispositions })
 }
 
-fn frontmatter_has_lossy_syntax(raw: &str) -> bool {
-    raw.lines().any(|line| {
-        let trimmed = line.trim();
-        !matches!(trimmed, "---" | "+++")
-            && (trimmed.starts_with('#')
-                || trimmed.contains(" #")
-                || trimmed.contains(": '")
-                || trimmed.contains(": \"")
-                || trimmed.ends_with(": |")
-                || trimmed.ends_with(": >")
-                || trimmed.contains('[')
-                || trimmed.contains('{')
-                || trimmed.contains("&")
-                || trimmed.contains("*"))
-    })
+fn canonicalize_yaml_mapping_keys(raw: &str) -> String {
+    raw.split_inclusive('\n')
+        .map(|line| {
+            let (content, ending) = line
+                .strip_suffix('\n')
+                .map_or((line, ""), |content| (content, "\n"));
+            let indent_end = content.len() - content.trim_start_matches([' ', '\t']).len();
+            let (indent, rest) = content.split_at(indent_end);
+            let Some(quote) = rest.as_bytes().first().copied() else {
+                return line.to_string();
+            };
+            if !matches!(quote, b'\'' | b'"') {
+                return line.to_string();
+            }
+            let Some(close) = rest[1..].find(char::from(quote)).map(|index| index + 1) else {
+                return line.to_string();
+            };
+            if rest.as_bytes().get(close + 1) != Some(&b':') {
+                return line.to_string();
+            }
+            let key = &rest[1..close];
+            if key.contains(['\\', '\'', '"']) {
+                return line.to_string();
+            }
+            let canonical = if key.is_empty() {
+                "''"
+            } else if key.chars().all(|character| {
+                character.is_alphanumeric() || matches!(character, '_' | '-' | '.')
+            }) {
+                key
+            } else {
+                return line.to_string();
+            };
+            format!("{indent}{canonical}{}{ending}", &rest[close + 1..])
+        })
+        .collect()
 }
 
 fn set_path(
