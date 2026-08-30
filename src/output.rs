@@ -78,7 +78,7 @@ pub(crate) fn write_file_atomic_verified(
     mdtools::file::commit_source(target, content, expected_revision).map_err(persistence_error)
 }
 
-fn persistence_error(error: mdtools::file::PersistenceError) -> CommandError {
+pub(crate) fn persistence_error(error: mdtools::file::PersistenceError) -> CommandError {
     match error {
         mdtools::file::PersistenceError::Io(error) => error.into(),
         mdtools::file::PersistenceError::Document(error) => error.into(),

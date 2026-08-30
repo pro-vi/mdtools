@@ -31,6 +31,10 @@ fn main() -> ExitCode {
 
 fn run(cli: &Cli) -> Result<(), CommandError> {
     match &cli.command {
+        Command::Map(args) => cli::structural::run_map(args),
+        Command::Read(args) => cli::structural::run_read(args),
+        Command::Query(args) => cli::structural::run_query(args),
+        Command::Patch(args) => cli::structural::run_patch(args, cli.json),
         Command::Outline(args) => commands::outline::run(args, cli.json),
         Command::Section(args) => commands::section::run_section(args, cli.json),
         Command::Blocks(args) => commands::blocks::run_blocks(args, cli.json),

@@ -24,7 +24,6 @@ pub enum LineEndingStyle {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum HeadingMatchMode {
     Exact,
     ExactIgnoreCase,
@@ -294,7 +293,6 @@ pub struct StatsResult {
 // --- Table types ---
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum ColumnAlignment {
     None,
     Left,

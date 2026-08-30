@@ -3,6 +3,9 @@ use std::path::PathBuf;
 
 use crate::model::{BlockKind, TaskStatus};
 
+pub(crate) mod structural;
+pub use structural::{ApplyPatchArgs, MapArgs, QueryTargetsArgs, ReadTargetArgs};
+
 const SECTION_EXPECT_ETAG_HELP: &str =
     "Fail-closed if the target section's current etag (from `md section --json`)\n\
      differs — guards against a stale selector after intervening edits.";
@@ -47,6 +50,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    #[command(about = mdtools::protocol::MAP_SUMMARY)]
+    Map(MapArgs),
+    #[command(about = mdtools::protocol::READ_SUMMARY)]
+    Read(ReadTargetArgs),
+    #[command(about = mdtools::protocol::QUERY_SUMMARY)]
+    Query(QueryTargetsArgs),
+    #[command(about = mdtools::protocol::PATCH_SUMMARY)]
+    Patch(ApplyPatchArgs),
     Outline(OutlineArgs),
     Section(SectionArgs),
     Blocks(BlocksArgs),
@@ -79,7 +90,11 @@ pub enum Command {
 }
 
 #[derive(Args)]
-pub struct SchemaArgs {}
+pub struct SchemaArgs {
+    /// Print the Rust-generated structural protocol instead of the retained CLI inventory.
+    #[arg(long)]
+    pub protocol: bool,
+}
 
 #[derive(Args)]
 pub struct OutlineArgs {

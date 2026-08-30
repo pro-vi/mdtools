@@ -1,6 +1,10 @@
 {
   "schema_version": 1,
   "commands": [
+    { "name": "map", "kind": "query" },
+    { "name": "read", "kind": "query" },
+    { "name": "query", "kind": "query" },
+    { "name": "patch", "kind": "mutation" },
     { "name": "outline", "kind": "query" },
     { "name": "section", "kind": "query" },
     { "name": "blocks", "kind": "query" },

@@ -35,9 +35,11 @@ pub const CAPABILITIES: &[&str] = &[
 /// a new clap subcommand has no entry here.
 fn kind_of(name: &str) -> Option<&'static str> {
     Some(match name {
-        "outline" | "section" | "blocks" | "block" | "search" | "links" | "frontmatter"
-        | "collect" | "stats" | "table" | "tasks" | "task" | "schema" => "query",
-        "replace-section" | "delete-section" | "replace-block" | "insert-block"
+        "map" | "read" | "query" | "outline" | "section" | "blocks" | "block" | "search"
+        | "links" | "frontmatter" | "collect" | "stats" | "table" | "tasks" | "task" | "schema" => {
+            "query"
+        }
+        "patch" | "replace-section" | "delete-section" | "replace-block" | "insert-block"
         | "delete-block" | "set" | "replace-table-row" | "delete-table-row"
         | "insert-table-row" | "set-task" | "move-block" | "move-section" => "mutation",
         _ => return None,
@@ -155,7 +157,10 @@ fn build_schema() -> SchemaResult {
     }
 }
 
-pub fn run(_args: &SchemaArgs, json: bool) -> Result<(), CommandError> {
+pub fn run(args: &SchemaArgs, json: bool) -> Result<(), CommandError> {
+    if args.protocol {
+        return output::write_json(&mdtools::protocol::protocol_schema());
+    }
     let schema = build_schema();
     if json {
         output::write_json(&schema)?;
