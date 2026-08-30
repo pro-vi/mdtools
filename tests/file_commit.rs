@@ -259,3 +259,40 @@ fn atomic_commit_preserves_extended_attributes() {
     };
     assert_eq!(size, 4);
 }
+
+#[cfg(unix)]
+#[test]
+fn atomic_commit_preserves_group_and_special_mode_bits() {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    let directory = unique_directory("owner-mode");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "before\n").unwrap();
+    let path_c = std::ffi::CString::new(path.to_string_lossy().as_bytes()).unwrap();
+    assert_eq!(unsafe { libc::chown(path_c.as_ptr(), u32::MAX, 80) }, 0);
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o2640)).unwrap();
+    let before = std::fs::metadata(&path).unwrap();
+
+    let loaded = file::load(&path).unwrap();
+    let patch = replacement_patch(loaded.document(), "after");
+    loaded.prepare_patch(&patch).unwrap().commit().unwrap();
+
+    let after = std::fs::metadata(&path).unwrap();
+    assert_eq!(after.uid(), before.uid());
+    assert_eq!(after.gid(), before.gid());
+    assert_eq!(after.mode() & 0o7777, 0o2640);
+}
+
+#[cfg(unix)]
+#[test]
+fn non_regular_targets_are_rejected_before_opening() {
+    let directory = unique_directory("fifo");
+    let path = directory.join("doc.md");
+    let path_c = std::ffi::CString::new(path.to_string_lossy().as_bytes()).unwrap();
+    assert_eq!(unsafe { libc::mkfifo(path_c.as_ptr(), 0o600) }, 0);
+    let error = match file::load(&path) {
+        Ok(_) => panic!("FIFO target unexpectedly loaded"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("regular file"));
+}

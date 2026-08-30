@@ -1,5 +1,8 @@
 //! Feature-gated filesystem adapter for verified atomic patch commits.
 
+#[cfg(not(unix))]
+compile_error!("the mdtools `file` feature currently requires Unix file locking and identity APIs");
+
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -65,8 +68,13 @@ impl LoadedFile {
     }
 
     pub fn prepare_patch(self, patch: &Patch) -> Result<PreparedFilePatch, PersistenceError> {
-        let base_revision = self.document.revision().clone();
-        let outcome = patch.apply(&self.document)?;
+        let document = if patch.mutates_frontmatter() {
+            Document::parse_for_frontmatter_mutation(self.document.source().to_string())?
+        } else {
+            self.document
+        };
+        let base_revision = document.revision().clone();
+        let outcome = patch.apply(&document)?;
         Ok(PreparedFilePatch {
             target: self.target,
             base_revision,
@@ -119,12 +127,24 @@ pub struct FileTarget {
 }
 
 pub fn load(path: &Path) -> Result<LoadedFile, PersistenceError> {
-    let (document, target) = read_document(path)?;
+    let (document, target) = read_document_with(path, Document::parse)?;
+    Ok(LoadedFile { document, target })
+}
+
+pub fn load_for_frontmatter_read(path: &Path) -> Result<LoadedFile, PersistenceError> {
+    let (document, target) = read_document_with(path, Document::parse_for_frontmatter)?;
     Ok(LoadedFile { document, target })
 }
 
 pub fn read_source(path: &Path) -> Result<(String, FileTarget), PersistenceError> {
     let target = std::fs::canonicalize(path)?;
+    if !std::fs::metadata(&target)?.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "document target must be a regular file",
+        )
+        .into());
+    }
     let mut file = std::fs::File::open(&target)?;
     let mut source = String::new();
     file.read_to_string(&mut source)?;
@@ -150,8 +170,15 @@ pub fn read_source(path: &Path) -> Result<(String, FileTarget), PersistenceError
 }
 
 pub fn read_document(path: &Path) -> Result<(Document, FileTarget), PersistenceError> {
+    read_document_with(path, Document::parse)
+}
+
+fn read_document_with(
+    path: &Path,
+    parse: impl FnOnce(String) -> Result<Document, CoreError>,
+) -> Result<(Document, FileTarget), PersistenceError> {
     let (source, target) = read_source(path)?;
-    Ok((Document::parse(source)?, target))
+    Ok((parse(source)?, target))
 }
 
 pub fn verify_unchanged(
@@ -278,7 +305,7 @@ fn atomic_replace(
     if let Some(guard) = guard {
         verify_target(guard)?;
     }
-    let original_permissions = std::fs::metadata(target)?.permissions();
+    let original_metadata = std::fs::metadata(target)?;
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -299,10 +326,11 @@ fn atomic_replace(
     let created = Some(());
 
     let staged = (|| -> Result<(), PersistenceError> {
-        temporary_file.set_permissions(original_permissions)?;
+        temporary_file.write_all(content.as_bytes())?;
+        #[cfg(unix)]
+        restore_unix_metadata(&temporary_file, &original_metadata)?;
         #[cfg(target_os = "macos")]
         copy_extended_attributes(target, temporary)?;
-        temporary_file.write_all(content.as_bytes())?;
         temporary_file.sync_all()?;
         #[cfg(unix)]
         {
@@ -331,6 +359,21 @@ fn atomic_replace(
         cleanup_owned_temporary(temporary, created);
     }
     result
+}
+
+#[cfg(unix)]
+fn restore_unix_metadata(
+    file: &std::fs::File,
+    metadata: &std::fs::Metadata,
+) -> Result<(), PersistenceError> {
+    use std::os::fd::AsRawFd;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    if unsafe { libc::fchown(file.as_raw_fd(), metadata.uid(), metadata.gid()) } != 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    file.set_permissions(std::fs::Permissions::from_mode(metadata.mode() & 0o7777))?;
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]

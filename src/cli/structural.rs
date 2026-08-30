@@ -68,7 +68,16 @@ pub fn run_read(arguments: &ReadTargetArgs) -> Result<(), CommandError> {
         arguments.from.as_deref(),
         "TargetAddress",
     )?;
-    let loaded = mdtools::file::load(&arguments.file).map_err(output::persistence_error)?;
+    let loaded = if matches!(
+        &address,
+        mdtools::target::TargetAddress::Frontmatter
+            | mdtools::target::TargetAddress::FrontmatterField { .. }
+    ) {
+        mdtools::file::load_for_frontmatter_read(&arguments.file)
+    } else {
+        mdtools::file::load(&arguments.file)
+    }
+    .map_err(output::persistence_error)?;
     let resolved = loaded.document().resolve(&address)?;
     output::write_json(&resolved.read(loaded.document())?)
 }
@@ -99,7 +108,10 @@ pub fn run_patch(arguments: &ApplyPatchArgs, json: bool) -> Result<(), CommandEr
         prepared.into_outcome()
     };
     if arguments.in_place {
-        output::write_json(&outcome.receipts)
+        if let Err(error) = output::write_json(&outcome.receipts) {
+            eprintln!("file commit succeeded, but receipt output failed: {error}");
+        }
+        Ok(())
     } else if json {
         output::write_json(&mdtools::protocol::PatchPreview {
             source: outcome.document.source().to_string(),

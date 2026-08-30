@@ -271,3 +271,91 @@ fn json_output_to_a_closed_pipe_does_not_panic() {
     let output = child.wait_with_output().unwrap();
     assert_ne!(output.status.code(), Some(101));
 }
+
+#[test]
+fn in_place_commit_remains_successful_when_receipt_pipe_closes() {
+    let directory = unique_directory("closed-receipt-pipe");
+    let path = directory.join("doc.md");
+    let source = "before\n";
+    std::fs::write(&path, source).unwrap();
+    let patch = serde_json::to_string(&replacement_patch(source, "after")).unwrap();
+    let mut child = md()
+        .args([
+            "patch",
+            path.to_str().unwrap(),
+            "--patch",
+            &patch,
+            "--in-place",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdout.take());
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "after\n");
+    assert!(String::from_utf8_lossy(&output.stderr).contains("file commit succeeded"));
+}
+
+#[test]
+fn json_errors_are_newline_terminated() {
+    let output = md()
+        .args(["--json", "map", "/definitely/missing/mdtools-document.md"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(output.stdout.ends_with(b"\n"));
+    let envelope: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(envelope["error"], "io");
+}
+
+#[test]
+fn malformed_frontmatter_uses_strict_read_and_mutation_policies() {
+    let directory = unique_directory("frontmatter-policy");
+    let path = directory.join("doc.md");
+    let source = "---\na: [\n---\n\nbody\n";
+    std::fs::write(&path, source).unwrap();
+
+    let address = serde_json::to_string(&TargetAddress::Frontmatter).unwrap();
+    let read = md()
+        .args(["read", path.to_str().unwrap(), "--address", &address])
+        .output()
+        .unwrap();
+    assert!(!read.status.success());
+
+    let lenient = Document::parse(source).unwrap();
+    let field = lenient
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["a".into()],
+        })
+        .unwrap();
+    let patch = Patch {
+        base_revision: lenient.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
+            target: mdtools::patch::FrontmatterPatchTarget::try_from(field.snapshot()).unwrap(),
+            value: serde_json::json!("new"),
+        }],
+    };
+    let patch = serde_json::to_string(&patch).unwrap();
+    let mutation = md()
+        .args([
+            "patch",
+            path.to_str().unwrap(),
+            "--patch",
+            &patch,
+            "--in-place",
+        ])
+        .output()
+        .unwrap();
+    assert!(!mutation.status.success());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+}
+
+#[test]
+fn help_is_an_option_not_a_sixth_subcommand() {
+    let output = md().arg("help").output().unwrap();
+    assert!(!output.status.success());
+    let help = String::from_utf8_lossy(&output.stderr);
+    assert!(help.contains("unrecognized subcommand 'help'"));
+}

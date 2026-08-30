@@ -22,6 +22,17 @@ pub struct Patch {
     pub operations: Vec<PatchOp>,
 }
 
+impl Patch {
+    pub(crate) fn mutates_frontmatter(&self) -> bool {
+        self.operations.iter().any(|operation| {
+            matches!(
+                operation,
+                PatchOp::SetFrontmatter { .. } | PatchOp::DeleteFrontmatter { .. }
+            )
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PatchOp {

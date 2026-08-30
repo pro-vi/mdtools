@@ -7,10 +7,11 @@ pub use structural::{ApplyPatchArgs, MapArgs, QueryTargetsArgs, ReadTargetArgs};
 #[command(
     name = "md",
     about = "Indexed Markdown reads and guarded patch transactions",
-    version
+    version,
+    disable_help_subcommand = true
 )]
 pub struct Cli {
-    /// Emit a structured patch preview instead of Markdown.
+    /// Emit machine-readable errors and patch previews as JSON.
     #[arg(long, global = true)]
     pub json: bool,
 

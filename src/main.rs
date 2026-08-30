@@ -15,7 +15,7 @@ fn main() -> ExitCode {
         Err(e) => {
             if cli.json {
                 if let Some(envelope) = errors::error_envelope_json(&e, None) {
-                    let _ = serde_json::to_writer(std::io::stdout().lock(), &envelope);
+                    let _ = output::write_json(&envelope);
                 }
             }
             eprintln!("{}", e);
