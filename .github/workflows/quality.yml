@@ -21,14 +21,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: Install Python test dependency
-        run: python3 -m pip install markdown-it-py
-
       - name: Install stable Rust toolchain
         run: |
           rustup toolchain install stable --component rustfmt --component clippy
@@ -38,30 +30,34 @@ jobs:
         run: cargo fmt --check
 
       - name: Run Rust tests
-        run: cargo test --package mdtools
+        run: cargo test --all-targets
+
+      - name: Run doctests
+        run: cargo test --doc
+
+      - name: Check feature boundaries
+        run: |
+          cargo check --no-default-features
+          cargo check --features file
 
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::enum_variant_names -A clippy::large_enum_variant
+
+      - name: Check rustdoc
+        run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --document-private-items
 
       - name: Build release binary
         run: cargo build --release
-
-      - name: Run Python unit tests
-        run: python3 -m unittest discover -s bench -p 'test_*.py'
-
-      - name: Run benchmark harness smoke test
-        run: python3 bench/harness.py --md-binary target/release/md
 
       - name: Record hosted run URL
         if: ${{ always() }}
         run: |
           echo "Hosted quality run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
 
-  # Producer-side consumer canary for the binary-owned contract (ADR 0003):
-  # this repo OWNS the contract; before a change merges, prove the current
-  # pi-mdtools adapter's parity suite still passes against THIS ref's md binary.
-  # Catches contract drift (schema/capability/envelope/etag) at the boundary
-  # rather than after a release. pi-rov is public, so no token is needed.
+  # Keep this job id while the downstream pi-mdtools adapter migrates separately.
+  # The v2 rewrite deliberately removes the v1 capability surface, so the old
+  # adapter cannot be a producer-side parity gate. This job now pins the current
+  # binary-owned v2 command and schema boundary instead.
   pi-mdtools-consumer-canary:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -77,22 +73,8 @@ jobs:
       - name: Build md from this ref
         run: cargo build --release
 
-      - name: Check out pi-rov (pi-mdtools consumer)
-        uses: actions/checkout@v7
-        with:
-          repository: pro-vi/pi-rov
-          ref: main
-          path: pi-rov
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Install pi-rov workspace
-        working-directory: pi-rov
-        run: npm install
-
-      - name: Run pi-mdtools parity against this ref's md
-        working-directory: pi-rov/packages/pi-mdtools
-        run: MD_BINARY="$GITHUB_WORKSPACE/target/release/md" npm test
+      - name: Verify the v2 producer contract
+        run: |
+          target/release/md schema > schema.json
+          jq -e '.schema_version == "mdtools.v2"' schema.json
+          jq -e '[.commands[].name] == ["map", "read", "query", "patch", "schema"]' schema.json

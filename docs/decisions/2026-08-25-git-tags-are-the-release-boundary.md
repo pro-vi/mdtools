@@ -36,7 +36,7 @@ mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "v0.1.0", default-f
   tag whose name matches `package.version` in `Cargo.toml` at that commit. `CHANGELOG.md`
   carries one section per tag.
 - **Semver applies to the library surface only** — the public items under
-  `src/lib.rs`. The `md` CLI's JSON protocol keeps its own `mdtools.v1` schema
+  `src/lib.rs`. The `md` CLI's JSON protocol keeps its own `mdtools.v2` schema
   version and is not what the crate version tracks. Pre-1.0, a breaking library
   change bumps the minor.
 - **The library is the default consumption mode.** A consumer takes
@@ -111,7 +111,7 @@ Negative:
   this decision.
 - **Discovery is manual.** Nobody finds `md` by searching a registry.
 - Two version-like identifiers now coexist: the crate version, and the
-  `mdtools.v1` JSON schema version. They move independently and the changelog
+  `mdtools.v2` JSON schema version. They move independently and the changelog
   has to say which one a change touched.
 
 ## Revisit Triggers

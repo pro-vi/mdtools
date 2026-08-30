@@ -1,21 +1,28 @@
 #![doc = include_str!("../README.crate.md")]
 
-pub mod block;
-pub mod block_edit;
 pub mod core_error;
 pub mod document;
-pub mod edit;
-pub mod errors;
+mod edit;
+#[cfg(feature = "file")]
+pub mod file;
 pub mod fingerprint;
-pub mod frontmatter;
-pub mod link;
-pub mod locate;
-pub mod model;
-pub mod parser;
+pub mod fragment;
+mod frontmatter;
+pub mod index;
+mod model;
+pub use model::{
+    BlockKind, ColumnAlignment, DocumentStats, FrontmatterFormat, HeadingMatchMode,
+    LineEndingStyle, LinkKind, MutationDisposition, SearchMatchMode, SourceSpan, TaskStatus,
+    SCHEMA_VERSION,
+};
+mod parser;
+pub mod patch;
+pub mod protocol;
+pub mod read;
 pub mod revision;
-pub mod search;
-pub mod section;
-pub mod section_edit;
-pub mod stats;
-pub mod table;
-pub mod task;
+mod search;
+mod section;
+mod section_edit;
+mod stats;
+mod table;
+pub mod target;

@@ -1,6 +1,6 @@
 [package]
 name = "mdtools"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/pro-vi/mdtools"
@@ -31,17 +31,19 @@ required-features = ["cli"]
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:walkdir"]
+file = []
+cli = ["file", "dep:clap"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
 comrak = { version = "=0.51.0", default-features = false }
+schemars = { version = "=1.2.2", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 serde_yaml = "0.9"
 sha2 = "0.10"
+libc = "0.2"
 toml = "0.8"
-walkdir = { version = "2", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"

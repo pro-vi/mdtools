@@ -1,6 +1,7 @@
 use crate::document::Document;
 use crate::fingerprint::TargetEtag;
-use crate::model::{BlockKind, SearchMatch, SearchMatchMode, SourceSpan};
+use crate::model::{BlockKind, SearchMatchMode, SourceSpan};
+use crate::target::EvidenceRange;
 
 pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
     BlockKind::Heading,
@@ -15,36 +16,24 @@ pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
     BlockKind::FootnoteDefinition,
 ];
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SearchQuery {
-    pub text: String,
-    pub match_mode: SearchMatchMode,
-    pub block_kinds: Vec<BlockKind>,
+#[derive(Clone, Debug)]
+struct RawEvidenceMatch {
+    block_index: u32,
+    match_span: SourceSpan,
+    etag: TargetEtag,
+    preview: String,
 }
 
-impl SearchQuery {
-    pub fn literal(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            match_mode: SearchMatchMode::Literal,
-            block_kinds: ALL_BLOCK_KINDS.to_vec(),
-        }
-    }
-
-    pub fn literal_ignore_case(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            match_mode: SearchMatchMode::LiteralIgnoreCase,
-            block_kinds: ALL_BLOCK_KINDS.to_vec(),
-        }
-    }
-}
-
-pub fn search(document: &Document, query: &SearchQuery) -> Vec<SearchMatch> {
-    let block_kinds = if query.block_kinds.is_empty() {
+fn raw_search(
+    document: &Document,
+    text: &str,
+    match_mode: SearchMatchMode,
+    requested_kinds: &[BlockKind],
+) -> Vec<RawEvidenceMatch> {
+    let block_kinds = if requested_kinds.is_empty() {
         ALL_BLOCK_KINDS
     } else {
-        &query.block_kinds
+        requested_kinds
     };
     document
         .blocks()
@@ -53,8 +42,8 @@ pub fn search(document: &Document, query: &SearchQuery) -> Vec<SearchMatch> {
         .flat_map(|block| {
             find_matches_in_content(
                 document.slice_unchecked(&block.span),
-                &query.text,
-                query.match_mode == SearchMatchMode::LiteralIgnoreCase,
+                text,
+                match_mode == SearchMatchMode::LiteralIgnoreCase,
                 block.index,
                 block.kind,
                 block.span.byte_start,
@@ -62,6 +51,31 @@ pub fn search(document: &Document, query: &SearchQuery) -> Vec<SearchMatch> {
             )
         })
         .collect()
+}
+
+pub(crate) fn evidence_ranges(
+    document: &Document,
+    text: &str,
+    match_mode: SearchMatchMode,
+    block_kinds: &[BlockKind],
+) -> Vec<EvidenceRange> {
+    let mut evidence = raw_search(document, text, match_mode, block_kinds)
+        .into_iter()
+        .filter_map(|matched| {
+            document
+                .index()
+                .address_for_parser_block(matched.block_index)
+                .cloned()
+                .map(|target| EvidenceRange {
+                    target,
+                    span: matched.match_span,
+                    etag: matched.etag,
+                    preview: matched.preview,
+                })
+        })
+        .collect::<Vec<_>>();
+    evidence.sort_by_key(|range| (range.span.byte_start, range.span.byte_end));
+    evidence
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -86,7 +100,7 @@ fn find_matches_in_content(
     block_kind: BlockKind,
     block_byte_start: u32,
     block_line_start: u32,
-) -> Vec<SearchMatch> {
+) -> Vec<RawEvidenceMatch> {
     let mut results = Vec::new();
     if query.is_empty() {
         return results;
@@ -142,14 +156,14 @@ fn find_matches_in_content(
 
 #[allow(clippy::too_many_arguments)]
 fn push_match(
-    results: &mut Vec<SearchMatch>,
+    results: &mut Vec<RawEvidenceMatch>,
     content: &str,
     match_start: usize,
     match_end: usize,
     block_byte_start: u32,
     block_line_start: u32,
     block_index: u32,
-    block_kind: BlockKind,
+    _block_kind: BlockKind,
 ) {
     let match_line_start = block_line_start + content[..match_start].matches('\n').count() as u32;
     let match_line_end =
@@ -163,9 +177,8 @@ fn push_match(
         .map(|position| match_end + position)
         .unwrap_or(content.len());
 
-    results.push(SearchMatch {
+    results.push(RawEvidenceMatch {
         block_index,
-        block_kind,
         match_span: SourceSpan {
             line_start: match_line_start,
             line_end: match_line_end,

@@ -1,4 +1,3 @@
-use crate::block_edit::GuardRole;
 use crate::model::SourceSpan;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -9,21 +8,41 @@ pub struct SectionMatch {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum EtagTarget {
-    Task(String),
-    Frontmatter,
-    Block(u32),
-    Section(String),
-    Table(u32),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CoreError {
     ParseFailed(String),
     FrontmatterParseFailed(String),
     InvalidTableRow(String),
     InvalidSelector(String),
     InvalidTargetEtag(String),
+    InvalidDocumentRevision(String),
+    InvalidTargetAddress {
+        reason: String,
+    },
+    InvalidPatch(String),
+    HeadingDepthOverflow {
+        parent_level: u8,
+        relative_level: u8,
+    },
+    TargetAuthorityMismatch {
+        target: String,
+        expected: String,
+        actual: String,
+    },
+    PatchInvariant(String),
+    TargetNotFound {
+        target: String,
+    },
+    AmbiguousTargetQuery {
+        count: usize,
+    },
+    AmbiguousTargetAddress {
+        target: String,
+        count: usize,
+    },
+    TargetKindMismatch {
+        expected: &'static str,
+        actual: &'static str,
+    },
     InvalidKeyPath {
         path: String,
         reason: &'static str,
@@ -84,43 +103,11 @@ pub enum CoreError {
     NotTaskList {
         block_index: u32,
     },
-    TargetEtagMismatch {
-        target: EtagTarget,
-        expected: String,
-        actual: String,
-    },
-    TargetEtagAmbiguous {
-        target_kind: &'static str,
-        expected: String,
-        count: usize,
-    },
-    BlockMoveEtagMismatch {
-        role: GuardRole,
-        index: u32,
-        expected: String,
-        actual: String,
-    },
-    BlockMoveEtagAmbiguous {
-        role: GuardRole,
-        index: u32,
-        expected: String,
-        count: usize,
-    },
-    SectionMoveEtagMismatch {
-        role: GuardRole,
-        selector: String,
-        expected: String,
-        actual: String,
-    },
-    SectionMoveEtagAmbiguous {
-        role: GuardRole,
-        expected: String,
-        count: usize,
-    },
     DocumentRevisionMismatch {
         expected: String,
         actual: String,
     },
+    DocumentIndexMismatch,
     InvalidSpan {
         span: SourceSpan,
         source_len: usize,
@@ -136,7 +123,42 @@ impl std::fmt::Display for CoreError {
             | Self::InvalidTableRow(message)
             | Self::InvalidSelector(message) => write!(f, "{message}"),
             Self::InvalidTargetEtag(value) => {
-                write!(f, "invalid target etag {value:?} (expected 16 hexadecimal characters)")
+                write!(f, "invalid target etag {value:?} (expected 64 hexadecimal characters)")
+            }
+            Self::InvalidDocumentRevision(value) => write!(
+                f,
+                "invalid document revision {value:?} (expected 64 hexadecimal characters)"
+            ),
+            Self::InvalidTargetAddress { reason } => {
+                write!(f, "invalid target address: {reason}")
+            }
+            Self::InvalidPatch(reason) => write!(f, "invalid patch: {reason}"),
+            Self::HeadingDepthOverflow {
+                parent_level,
+                relative_level,
+            } => write!(
+                f,
+                "heading depth overflow: parent level {parent_level} plus relative level {relative_level} exceeds level 6"
+            ),
+            Self::TargetAuthorityMismatch {
+                target,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "target authority mismatch for {target}: expected {expected}, found {actual}"
+            ),
+            Self::PatchInvariant(reason) => write!(f, "patch invariant failed: {reason}"),
+            Self::TargetNotFound { target } => write!(f, "target not found: {target}"),
+            Self::AmbiguousTargetQuery { count } => {
+                write!(f, "target query matched {count} targets; use an exact address")
+            }
+            Self::AmbiguousTargetAddress { target, count } => write!(
+                f,
+                "exact target address {target} resolved to {count} targets"
+            ),
+            Self::TargetKindMismatch { expected, actual } => {
+                write!(f, "target kind mismatch: expected {expected}, found {actual}")
             }
             Self::InvalidKeyPath { path, reason } => {
                 write!(f, "invalid key path {path:?}: {reason}")
@@ -208,61 +230,13 @@ impl std::fmt::Display for CoreError {
             Self::NotTaskList { block_index } => {
                 write!(f, "block {block_index} has no task items")
             }
-            Self::TargetEtagMismatch {
-                target,
-                expected,
-                actual,
-            } => write!(
-                f,
-                "{target:?} etag mismatch: expected {expected:?}, found {actual:?}"
-            ),
-            Self::TargetEtagAmbiguous {
-                target_kind,
-                expected,
-                count,
-            } => write!(
-                f,
-                "{target_kind} etag {expected:?} is ambiguous: {count} same-content {target_kind}s share this fingerprint"
-            ),
-            Self::BlockMoveEtagMismatch {
-                role,
-                index,
-                expected,
-                actual,
-            } => write!(
-                f,
-                "{role:?} block {index} etag mismatch: expected {expected:?}, found {actual:?}"
-            ),
-            Self::BlockMoveEtagAmbiguous {
-                role,
-                index,
-                expected,
-                count,
-            } => write!(
-                f,
-                "{role:?} block {index} etag {expected:?} is ambiguous across {count} blocks"
-            ),
-            Self::SectionMoveEtagMismatch {
-                role,
-                selector,
-                expected,
-                actual,
-            } => write!(
-                f,
-                "{role:?} section {selector} etag mismatch: expected {expected:?}, found {actual:?}"
-            ),
-            Self::SectionMoveEtagAmbiguous {
-                role,
-                expected,
-                count,
-            } => write!(
-                f,
-                "{role:?} section etag {expected:?} is ambiguous across {count} sections"
-            ),
             Self::DocumentRevisionMismatch { expected, actual } => write!(
                 f,
                 "document revision mismatch: expected {expected:?}, found {actual:?}"
             ),
+            Self::DocumentIndexMismatch => {
+                write!(f, "resolved target belongs to a different document index")
+            }
             Self::InvalidSpan {
                 span,
                 source_len,

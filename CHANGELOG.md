@@ -3,16 +3,31 @@
 Releases are git tags on this repository. There is no crates.io package — see
 `docs/decisions/2026-08-25-git-tags-are-the-release-boundary.md`.
 
-Consume a release by pinning its tag:
+Consume a release by pinning an existing tag from `git tag --list`:
 
 ```toml
-mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "v0.2.0", default-features = false }
+mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "<released-tag>", default-features = false }
 ```
 
 Versions follow semver over the **library** surface — the public items under
-`src/lib.rs`. The `md` CLI's JSON output carries its own `mdtools.v1` schema
-version, which moves independently of the crate version. Before 1.0, a breaking
-library change bumps the minor.
+`src/lib.rs`. The `md` CLI's generated JSON contract is `mdtools.v2`, and schema
+and error-envelope outputs identify that version explicitly. It moves
+independently of the crate version. Before 1.0, a breaking library change bumps
+the minor.
+
+## Unreleased — v0.3.0
+
+The `v0.3.0` tag does not exist until this release is cut.
+
+This is a complete breaking replacement of the v0.2 public API and CLI.
+
+- One immutable indexed `Document`, exact `TargetAddress`, typed reads, and
+  guarded `Patch` transactions replace the command-specific operation types.
+- Search returns `EvidenceRange` and cannot authorize mutation.
+- The feature-gated file adapter verifies revision and file identity before an
+  atomic commit.
+- The CLI is exactly `map`, `read`, `query`, `patch`, and `schema`.
+- The generated wire contract is `mdtools.v2`.
 
 ## v0.2.0 — 2026-08-26
 
