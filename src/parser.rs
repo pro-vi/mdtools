@@ -993,7 +993,7 @@ fn collect_multiline_heading_code_spans<'a>(
             let span = line_index.sourcepos_to_span(data.sourcepos);
             (span.line_start != span.line_end).then(|| HeadingCodeSpan {
                 span,
-                literal: code.literal.clone(),
+                literal: normalize_inline_code_literal(&code.literal),
             })
         })
         .collect()
@@ -1004,7 +1004,7 @@ fn collect_text_recursive<'a>(node: &'a AstNode<'a>, out: &mut String) {
         let data = child.data.borrow();
         match &data.value {
             NodeValue::Text(t) => out.push_str(t),
-            NodeValue::Code(c) => out.push_str(&c.literal),
+            NodeValue::Code(c) => out.push_str(&normalize_inline_code_literal(&c.literal)),
             NodeValue::SoftBreak | NodeValue::LineBreak => out.push(' '),
             NodeValue::HtmlInline(html) if is_html_line_break(html) => out.push(' '),
             _ => {
@@ -1013,6 +1013,10 @@ fn collect_text_recursive<'a>(node: &'a AstNode<'a>, out: &mut String) {
             }
         }
     }
+}
+
+fn normalize_inline_code_literal(literal: &str) -> String {
+    literal.replace('\r', "")
 }
 
 fn is_html_line_break(html: &str) -> bool {

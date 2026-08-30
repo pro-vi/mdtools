@@ -264,6 +264,39 @@ fn multiline_setext_code_span_preserves_normalized_code_whitespace() {
 }
 
 #[test]
+fn crlf_multiline_setext_code_span_preserves_identity_and_receipt() {
+    let document = Document::parse("`Foo \r\n bar`\r\n=====\r\n\r\nbody\r\n").unwrap();
+    let read = document
+        .resolve(&section(&document, "Foo  bar").address)
+        .unwrap()
+        .read_section(&document)
+        .unwrap();
+    assert_eq!(read.fragment, semantic("# `Foo  bar`\n\nbody"));
+
+    let parent = Document::parse("# Parent\r\n\r\nbody").unwrap();
+    let inserted = insert_section(&parent, "Parent", read.fragment).unwrap();
+    assert_eq!(
+        inserted.document.source(),
+        "# Parent\r\n\r\nbody\r\n\r\n## `Foo  bar`\r\n\r\nbody"
+    );
+    let inserted_snapshot = section(&inserted.document, "Foo  bar");
+    let PatchReceipt::InsertSection { outcome } = &inserted.receipts[0] else {
+        panic!("insert_section receipt")
+    };
+    let mdtools::patch::InsertSectionOutcome::Inserted { after, .. } = outcome;
+    assert_eq!(
+        inserted_snapshot.address,
+        TargetAddress::Section {
+            path: after.path.clone()
+        }
+    );
+    assert!(inserted
+        .document
+        .resolve(&inserted_snapshot.address)
+        .is_ok());
+}
+
+#[test]
 fn changed_setext_replacement_emits_declared_atx_source() {
     let document = Document::parse("Title\n=====\n\nbody\n").unwrap();
     let outcome = replace_section(&document, "Title", semantic("# Changed\n\nnew body")).unwrap();
