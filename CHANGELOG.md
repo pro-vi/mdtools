@@ -15,9 +15,7 @@ and error-envelope outputs identify that version explicitly. It moves
 independently of the crate version. Before 1.0, a breaking library change bumps
 the minor.
 
-## Unreleased — v0.3.0
-
-The `v0.3.0` tag does not exist until this release is cut.
+## v0.3.0 — 2026-08-30
 
 This is a complete breaking replacement of the v0.2 public API and CLI.
 
