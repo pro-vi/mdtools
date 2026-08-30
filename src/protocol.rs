@@ -64,6 +64,15 @@ pub struct PatchPreview {
     pub receipts: Vec<PatchReceipt>,
 }
 
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct ErrorEnvelope {
+    pub schema_version: String,
+    pub error: String,
+    pub exit_code: u8,
+    pub message: String,
+    pub hint: Option<String>,
+}
+
 pub fn patch_schema() -> serde_json::Value {
     serde_json::to_value(schema_for!(Patch)).expect("generated patch schema serializes")
 }
@@ -85,5 +94,6 @@ pub fn protocol_schema() -> serde_json::Value {
         "patch": patch_schema(),
         "patch_receipt": patch_receipt_schema(),
         "patch_preview": serde_json::to_value(schema_for!(PatchPreview)).expect("patch preview schema serializes"),
+        "error_envelope": serde_json::to_value(schema_for!(ErrorEnvelope)).expect("error envelope schema serializes"),
     })
 }

@@ -268,6 +268,26 @@ fn frontmatter_field_mutation_rejects_lossy_round_trip_and_preserves_crlf() {
         Err(mdtools::core_error::CoreError::InvalidPatch(_))
     ));
 
+    let quoted =
+        Document::parse_for_frontmatter_mutation("---\ntitle: 'hello'\nx: old\n---\n\nbody\n")
+            .unwrap();
+    let target = quoted
+        .resolve(&TargetAddress::FrontmatterField {
+            path: vec!["x".into()],
+        })
+        .unwrap();
+    let patch = Patch {
+        base_revision: quoted.revision().clone(),
+        operations: vec![PatchOp::SetFrontmatter {
+            target: FrontmatterPatchTarget::try_from(target.snapshot()).unwrap(),
+            value: serde_json::json!("new"),
+        }],
+    };
+    assert!(matches!(
+        patch.apply(&quoted),
+        Err(mdtools::core_error::CoreError::InvalidPatch(_))
+    ));
+
     let crlf =
         Document::parse_for_frontmatter_mutation("---\r\na: old\r\n---\r\n\r\nbody\r\n").unwrap();
     let target = crlf

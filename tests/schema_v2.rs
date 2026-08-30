@@ -14,6 +14,7 @@ fn protocol_schema_covers_every_authoritative_surface() {
         "target_read",
         "patch",
         "patch_receipt",
+        "error_envelope",
     ] {
         assert_eq!(
             schema[key]["$schema"],

@@ -36,12 +36,7 @@ pub fn document_stats(document: &Document) -> DocumentStats {
             BlockKind::BlockQuote => document
                 .slice_unchecked(&block.span)
                 .lines()
-                .map(|line| {
-                    line.trim_start()
-                        .trim_start_matches('>')
-                        .split_whitespace()
-                        .count() as u32
-                })
+                .map(|line| blockquote_content(line).split_whitespace().count() as u32)
                 .sum(),
             BlockKind::List => count_list_words(document.slice_unchecked(&block.span)),
             BlockKind::Table => count_table_words(document.slice_unchecked(&block.span)),
@@ -57,6 +52,14 @@ pub fn document_stats(document: &Document) -> DocumentStats {
         section_count,
         line_count: document.line_count(),
     }
+}
+
+fn blockquote_content(mut line: &str) -> &str {
+    line = line.trim_start();
+    while let Some(rest) = line.strip_prefix('>') {
+        line = rest.trim_start();
+    }
+    line
 }
 
 fn count_list_words(content: &str) -> u32 {
