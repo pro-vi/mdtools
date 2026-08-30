@@ -433,7 +433,7 @@ fn plan_operation(
                         end: target.guard.span.byte_end as usize,
                         replacement: String::new(),
                     }],
-                    ResultExpectation::None,
+                    parser_block_closure_excluding(document, target.guard.span),
                 ),
                 MutationDisposition::Inserted => unreachable!(),
             };
@@ -460,7 +460,7 @@ fn plan_operation(
                     end: target.guard.span.byte_end as usize,
                     replacement: String::new(),
                 }],
-                ResultExpectation::None,
+                parser_block_closure_excluding(document, target.guard.span),
                 ReceiptDraft::DeleteBlock {
                     before: BlockIdentity::try_from(current.snapshot())?,
                 },
@@ -988,21 +988,6 @@ fn plan_delete_section(
     } else {
         MutationDisposition::Deleted
     };
-    let surviving_blocks = document
-        .index()
-        .source_block_indices()
-        .into_iter()
-        .filter_map(|index| {
-            let block = &document.blocks()[index as usize];
-            let deleted = block.span.byte_start >= target.guard.span.byte_start
-                && block.span.byte_end <= target.guard.span.byte_end;
-            (!deleted).then(|| ParserBlockExpectation {
-                kind: block.kind,
-                markdown: document.slice_unchecked(&block.span).to_string(),
-                location: ResultLocation::Base(block.span),
-            })
-        })
-        .collect::<Vec<_>>();
     Ok(atomic_plan(
         operation,
         claims,
@@ -1021,15 +1006,35 @@ fn plan_delete_section(
                 ResultLocation::Base(target.guard.span),
             )
         } else {
-            ResultExpectation::ParserBlockClosure {
-                blocks: surviving_blocks,
-            }
+            parser_block_closure_excluding(document, target.guard.span)
         },
         ReceiptDraft::DeleteSection {
             before,
             disposition,
         },
     ))
+}
+
+fn parser_block_closure_excluding(
+    document: &Document,
+    deleted_span: SourceSpan,
+) -> ResultExpectation {
+    let blocks = document
+        .index()
+        .source_block_indices()
+        .into_iter()
+        .filter_map(|index| {
+            let block = &document.blocks()[index as usize];
+            let deleted = block.span.byte_start >= deleted_span.byte_start
+                && block.span.byte_end <= deleted_span.byte_end;
+            (!deleted).then(|| ParserBlockExpectation {
+                kind: block.kind,
+                markdown: document.slice_unchecked(&block.span).to_string(),
+                location: ResultLocation::Base(block.span),
+            })
+        })
+        .collect();
+    ResultExpectation::ParserBlockClosure { blocks }
 }
 
 fn plan_move_section(
@@ -1563,6 +1568,9 @@ fn verify_result(
         }
         ResultExpectation::ParserBlockClosure { blocks } => {
             for block in blocks {
+                if parser_block_changed_by_another_mutation(mutation, edits, block) {
+                    continue;
+                }
                 let (start, end) = resolve_location(mutation, edits, &block.location)?;
                 targets.verify_parser_block(start, end, block)?;
             }
@@ -1592,6 +1600,25 @@ fn verify_result(
             )?))
         }
     }
+}
+
+fn parser_block_changed_by_another_mutation(
+    mutation: usize,
+    edits: &[AppliedEdit<'_>],
+    block: &ParserBlockExpectation,
+) -> bool {
+    let ResultLocation::Base(span) = block.location else {
+        return false;
+    };
+    edits.iter().any(|edit| {
+        edit.mutation != mutation
+            && ranges_overlap(
+                edit.edit.start,
+                edit.edit.end,
+                span.byte_start as usize,
+                span.byte_end as usize,
+            )
+    })
 }
 
 fn resolve_location(
@@ -1734,12 +1761,12 @@ impl ResultTargetIndex {
     ) -> Result<(), CoreError> {
         let Some((kind, markdown)) = self.parser_blocks.get(&(start, end)) else {
             return Err(CoreError::PatchInvariant(format!(
-                "move closure lost parser block at bytes {start}..{end}"
+                "parser closure lost block at bytes {start}..{end}"
             )));
         };
         if *kind != expected.kind || markdown != &expected.markdown {
             return Err(CoreError::PatchInvariant(format!(
-                "move closure changed parser block at bytes {start}..{end}"
+                "parser closure changed block at bytes {start}..{end}"
             )));
         }
         Ok(())

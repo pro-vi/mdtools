@@ -682,7 +682,58 @@ fn section_deletion_preserves_every_surviving_parser_block() {
     assert!(matches!(
         patch.apply(&document),
         Err(mdtools::core_error::CoreError::PatchInvariant(message))
-            if message.contains("parser block")
+            if message.contains("parser closure")
+    ));
+    assert_eq!(document.source(), source);
+}
+
+#[test]
+fn deletion_closure_composes_with_other_guarded_operations() {
+    let source = "# A\n\none\n\n# B\n\ntwo\n\n# C\n\nthree\n";
+    let document = Document::parse(source).unwrap();
+    let a = SectionPatchTarget::try_from(&section(&document, "A")).unwrap();
+    let b = SectionPatchTarget::try_from(&section(&document, "B")).unwrap();
+    let three = ReplaceBlockTarget::try_from(&block_with(&document, "three")).unwrap();
+
+    let deleted = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::DeleteSection { target: a.clone() },
+            PatchOp::DeleteSection { target: b },
+        ],
+    }
+    .apply(&document)
+    .unwrap();
+    assert_eq!(deleted.document.source(), "# C\n\nthree\n");
+
+    let mixed = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![
+            PatchOp::DeleteSection { target: a },
+            PatchOp::ReplaceBlock {
+                target: three,
+                markdown: "changed".into(),
+            },
+        ],
+    }
+    .apply(&document)
+    .unwrap();
+    assert_eq!(mixed.document.source(), "# B\n\ntwo\n\n# C\n\nchanged\n");
+}
+
+#[test]
+fn block_deletion_refuses_to_merge_untouched_sibling_lists() {
+    let source = "para A\n\n- item 1\n\npara B\n\n- item 2\n";
+    let document = Document::parse(source).unwrap();
+    let target = ReplaceBlockTarget::try_from(&block_with(&document, "para B")).unwrap();
+    let patch = Patch {
+        base_revision: document.revision().clone(),
+        operations: vec![PatchOp::DeleteBlock { target }],
+    };
+    assert!(matches!(
+        patch.apply(&document),
+        Err(mdtools::core_error::CoreError::PatchInvariant(message))
+            if message.contains("parser closure")
     ));
     assert_eq!(document.source(), source);
 }

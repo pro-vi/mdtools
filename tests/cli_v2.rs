@@ -14,10 +14,12 @@ fn md() -> Command {
 
 #[cfg(unix)]
 fn disconnected_stdout() -> Stdio {
+    use std::net::Shutdown;
     use std::os::fd::OwnedFd;
     use std::os::unix::net::UnixStream;
 
     let (reader, writer) = UnixStream::pair().unwrap();
+    writer.shutdown(Shutdown::Write).unwrap();
     drop(reader);
     Stdio::from(std::fs::File::from(OwnedFd::from(writer)))
 }
