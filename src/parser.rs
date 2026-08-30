@@ -245,6 +245,19 @@ pub struct HeadingInfo {
     pub kind: HeadingSourceKind,
     /// Byte span covering the ATX `#` run or the setext underline marker.
     pub marker_span: SourceSpan,
+    pub(crate) line_breaks: Vec<HeadingLineBreak>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct HeadingLineBreak {
+    pub(crate) line: u32,
+    pub(crate) kind: HeadingLineBreakKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HeadingLineBreakKind {
+    Soft,
+    Hard,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -400,6 +413,7 @@ impl ParsedDocument {
                                 text,
                                 kind,
                                 marker_span,
+                                line_breaks: collect_heading_line_breaks(node),
                             })
                         })
                         .transpose()?;
@@ -477,6 +491,7 @@ impl ParsedDocument {
                         text,
                         kind,
                         marker_span,
+                        line_breaks: collect_heading_line_breaks(node),
                     })
                 })
                 .transpose()?;
@@ -915,6 +930,35 @@ fn collect_heading_text<'a>(node: &'a AstNode<'a>) -> String {
     let mut text = String::new();
     collect_text_recursive(node, &mut text);
     text
+}
+
+fn collect_heading_line_breaks<'a>(node: &'a AstNode<'a>) -> Vec<HeadingLineBreak> {
+    let mut breaks = Vec::new();
+    collect_heading_line_breaks_recursive(node, &mut breaks);
+    breaks
+}
+
+fn collect_heading_line_breaks_recursive<'a>(
+    node: &'a AstNode<'a>,
+    breaks: &mut Vec<HeadingLineBreak>,
+) {
+    for child in node.children() {
+        let data = child.data.borrow();
+        let kind = match data.value {
+            NodeValue::SoftBreak => Some(HeadingLineBreakKind::Soft),
+            NodeValue::LineBreak => Some(HeadingLineBreakKind::Hard),
+            _ => None,
+        };
+        if let Some(kind) = kind {
+            breaks.push(HeadingLineBreak {
+                line: data.sourcepos.start.line as u32,
+                kind,
+            });
+        } else {
+            drop(data);
+            collect_heading_line_breaks_recursive(child, breaks);
+        }
+    }
 }
 
 fn collect_text_recursive<'a>(node: &'a AstNode<'a>, out: &mut String) {

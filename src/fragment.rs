@@ -7,7 +7,7 @@ use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::normalize_line_endings;
 use crate::model::{LineEndingStyle, SourceSpan};
-use crate::parser::HeadingSourceKind;
+use crate::parser::{HeadingInfo, HeadingLineBreakKind, HeadingSourceKind};
 use crate::target::{TargetAddress, TargetKind};
 
 /// A headed-section payload with explicit semantic or literal behavior.
@@ -148,11 +148,7 @@ pub(crate) fn rebase_section_headings(
                 format!(
                     "{} {}",
                     "#".repeat(absolute_level as usize),
-                    setext_heading_content(
-                        source,
-                        span.byte_start as usize,
-                        heading.marker_span.byte_start as usize,
-                    )
+                    setext_heading_content(source, span, heading,)?
                 ),
             )),
         }
@@ -251,11 +247,7 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
                 "#".repeat(relative_level as usize),
             )),
             HeadingSourceKind::Setext => {
-                let content = setext_heading_content(
-                    source,
-                    span.byte_start as usize,
-                    heading.marker_span.byte_start as usize,
-                );
+                let content = setext_heading_content(source, span, heading)?;
                 edits.push((
                     start,
                     span.byte_end as usize - root_start,
@@ -271,12 +263,55 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
     Ok((canonical.replace("\r\n", "\n"), root_level))
 }
 
-fn setext_heading_content(source: &str, start: usize, marker_start: usize) -> String {
-    source[start..marker_start]
+fn setext_heading_content(
+    source: &str,
+    span: SourceSpan,
+    heading: &HeadingInfo,
+) -> Result<String, CoreError> {
+    let lines = source[span.byte_start as usize..heading.marker_span.byte_start as usize]
         .lines()
-        .map(|line| line.trim_matches([' ', '\t', '\r']))
-        .collect::<Vec<_>>()
-        .join(" ")
+        .collect::<Vec<_>>();
+    let mut content = String::new();
+    for (index, raw_line) in lines.iter().enumerate() {
+        let line = raw_line
+            .trim_start_matches([' ', '\t'])
+            .trim_end_matches('\r');
+        let is_last = index + 1 == lines.len();
+        if is_last {
+            content.push_str(line.trim_end_matches([' ', '\t']));
+            continue;
+        }
+        let source_line = span.line_start + index as u32;
+        let line_break = heading
+            .line_breaks
+            .iter()
+            .find(|line_break| line_break.line == source_line)
+            .map(|line_break| line_break.kind);
+        match line_break {
+            Some(HeadingLineBreakKind::Hard) => {
+                content.push_str(strip_hard_break_marker(line));
+                content.push_str("<br />");
+            }
+            Some(HeadingLineBreakKind::Soft) | None => {
+                content.push_str(line.trim_end_matches([' ', '\t']));
+                content.push(' ');
+            }
+        }
+    }
+    if content.is_empty() {
+        Err(invalid_fragment("setext heading has no canonical content"))
+    } else {
+        Ok(content)
+    }
+}
+
+fn strip_hard_break_marker(line: &str) -> &str {
+    let trailing_spaces = line.bytes().rev().take_while(|byte| *byte == b' ').count();
+    if trailing_spaces >= 2 {
+        line[..line.len() - trailing_spaces].trim_end_matches('\t')
+    } else {
+        line.strip_suffix('\\').unwrap_or(line)
+    }
 }
 
 fn last_content_line_end(source: &str, start: usize, end: usize) -> usize {
