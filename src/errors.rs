@@ -11,6 +11,7 @@ pub enum MdExitCode {
     Parse = 2,
     InvalidInput = 3,
     Conflict = 4,
+    Io = 5,
 }
 
 impl From<MdExitCode> for ExitCode {
@@ -30,7 +31,8 @@ pub struct CommandError {
 impl CommandError {
     pub fn new(code: DiagnosticCode, message: impl Into<String>) -> Self {
         let exit_code = match code {
-            DiagnosticCode::Io | DiagnosticCode::NotFound => MdExitCode::NotFound,
+            DiagnosticCode::Io => MdExitCode::Io,
+            DiagnosticCode::NotFound => MdExitCode::NotFound,
             DiagnosticCode::Parse => MdExitCode::Parse,
             DiagnosticCode::InvalidInput => MdExitCode::InvalidInput,
             DiagnosticCode::Conflict | DiagnosticCode::Invariant => MdExitCode::Conflict,

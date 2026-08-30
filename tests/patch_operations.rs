@@ -433,7 +433,7 @@ fn block_insertion_must_create_exactly_one_body_block() {
     };
     assert!(matches!(
         patch.apply(&document),
-        Err(mdtools::core_error::CoreError::PatchInvariant(_))
+        Err(mdtools::core_error::CoreError::InvalidPatch(_))
     ));
 }
 

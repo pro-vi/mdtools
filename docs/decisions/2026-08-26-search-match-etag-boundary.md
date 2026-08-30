@@ -21,8 +21,8 @@ fingerprints only the non-empty original-source bytes covered by `match_span`.
 It does not fingerprint the preview or enclosing block, and it does not identify
 one occurrence among byte-identical matches.
 
-`TargetEtag` serializes to a full lowercase 64-character SHA-256 digest and
-rejects invalid deserialization. `md search --json` serializes
+At this v0.2.0 boundary, `TargetEtag` serializes to the established lowercase
+16-character FNV-1a string and rejects invalid deserialization. `md search --json` serializes
 the same record returned by `search::search`, and `md schema --json` advertises
 the additive field through `search_match_etag`. The JSON protocol remains
 `mdtools.v1`; the required Rust field ships at the pre-1.0 `0.2.0` boundary.

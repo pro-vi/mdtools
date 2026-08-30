@@ -194,6 +194,7 @@ enum ResultLocation {
 }
 
 struct BlockFragmentShape {
+    operation: &'static str,
     kind: BlockKind,
     block_start: usize,
     block_end: usize,
@@ -622,7 +623,7 @@ fn parse_block_fragment(
 ) -> Result<BlockFragmentShape, CoreError> {
     let fragment = Document::parse_fragment(source.to_string())?;
     if fragment.index().source_block_indices().len() != 1 {
-        return Err(CoreError::PatchInvariant(format!(
+        return Err(CoreError::InvalidPatch(format!(
             "{operation} payload must parse as exactly one body block"
         )));
     }
@@ -632,7 +633,7 @@ fn parse_block_fragment(
         .filter(|snapshot| snapshot.kind == TargetKind::Block)
         .collect::<Vec<_>>();
     let [block] = blocks.as_slice() else {
-        return Err(CoreError::PatchInvariant(format!(
+        return Err(CoreError::InvalidPatch(format!(
             "{operation} payload must parse as exactly one body block"
         )));
     };
@@ -641,6 +642,7 @@ fn parse_block_fragment(
     };
     let span = block.selection_span.expect("body block has selection span");
     Ok(BlockFragmentShape {
+        operation,
         kind,
         block_start: span.byte_start as usize,
         block_end: span.byte_end as usize,
@@ -1757,7 +1759,8 @@ impl ResultTargetIndex {
             .collect::<Vec<_>>();
         let [snapshot] = matches.as_slice() else {
             return Err(CoreError::PatchInvariant(format!(
-                "insert_block must produce exactly one body block inside bytes {region_start}..{region_end}"
+                "{} must produce exactly one body block inside bytes {region_start}..{region_end}",
+                fragment.operation
             )));
         };
         let span = snapshot.selection_span.expect("body block selection span");
@@ -1768,9 +1771,10 @@ impl ResultTargetIndex {
             || span.byte_start - region_start != fragment.block_start as u32
             || span.byte_end - region_start != fragment.block_end as u32
         {
-            return Err(CoreError::PatchInvariant(
-                "insert_block result does not preserve its parsed fragment shape".into(),
-            ));
+            return Err(CoreError::PatchInvariant(format!(
+                "{} result does not preserve its parsed fragment shape",
+                fragment.operation
+            )));
         }
         Ok((*snapshot).clone())
     }

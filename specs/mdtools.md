@@ -56,7 +56,11 @@ or command inventories.
   do not replace the file.
 - A leading `---` or `+++` line is treated as frontmatter intent. Frontmatter
   mutation refuses when that intent does not form a valid mutable block; callers
-  must disambiguate a leading thematic break before adding frontmatter.
+  must disambiguate a leading thematic break before adding frontmatter. An empty
+  delimiter pair is not a mutable frontmatter block under the pinned parser.
+- `map` uses the lenient structural policy so malformed frontmatter remains
+  visible as Markdown. An exact frontmatter `read` uses the strict semantic
+  policy and may reject the same bytes as invalid frontmatter.
 
 ## CLI
 

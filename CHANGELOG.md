@@ -10,9 +10,10 @@ mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "<released-tag>", d
 ```
 
 Versions follow semver over the **library** surface — the public items under
-`src/lib.rs`. The `md` CLI's JSON output carries its own `mdtools.v2` schema
-version, which moves independently of the crate version. Before 1.0, a breaking
-library change bumps the minor.
+`src/lib.rs`. The `md` CLI's generated JSON contract is `mdtools.v2`, and schema
+and error-envelope outputs identify that version explicitly. It moves
+independently of the crate version. Before 1.0, a breaking library change bumps
+the minor.
 
 ## Unreleased — v0.3.0
 

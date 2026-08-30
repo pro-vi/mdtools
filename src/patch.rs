@@ -81,11 +81,15 @@ pub enum PatchOp {
     },
     ReplaceTableRow {
         target: TableRowPatchTarget,
+        #[schemars(length(min = 1))]
+        #[serde(deserialize_with = "deserialize_non_empty_string")]
         markdown: String,
     },
     InsertTableRow {
         target: TablePatchTarget,
         row: u32,
+        #[schemars(length(min = 1))]
+        #[serde(deserialize_with = "deserialize_non_empty_string")]
         markdown: String,
     },
     DeleteTableRow {

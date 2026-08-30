@@ -43,7 +43,7 @@ fn protocol_schema_covers_every_authoritative_surface() {
         ])
     );
     assert_eq!(envelope["properties"]["exit_code"]["minimum"], 1);
-    assert_eq!(envelope["properties"]["exit_code"]["maximum"], 4);
+    assert_eq!(envelope["properties"]["exit_code"]["maximum"], 5);
     assert_eq!(envelope["properties"]["hint"]["type"], "string");
     assert!(!envelope["required"]
         .as_array()

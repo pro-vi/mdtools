@@ -269,7 +269,7 @@ fn json_output_to_a_closed_pipe_does_not_panic() {
         .unwrap();
     drop(child.stdout.take());
     let output = child.wait_with_output().unwrap();
-    assert_ne!(output.status.code(), Some(101));
+    assert_eq!(output.status.code(), Some(5));
 }
 
 #[test]

@@ -404,7 +404,7 @@ fn invalid_candidate_never_escapes() {
     let patch = replace_patch(&document, "# heading\n\nsecond block");
     assert!(matches!(
         patch.apply(&document),
-        Err(CoreError::PatchInvariant(_))
+        Err(CoreError::InvalidPatch(_))
     ));
     assert_eq!(document.source(), "before\n");
 }
@@ -557,6 +557,16 @@ fn generated_schema_is_strict_and_covers_patch_and_receipt() {
         .find(|variant| variant["properties"]["kind"]["const"] == "heading")
         .unwrap();
     assert_eq!(heading["properties"]["path"]["minItems"], 1);
+
+    for operation in ["replace_table_row", "insert_table_row"] {
+        let variant = schema["patch"]["$defs"]["PatchOp"]["oneOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|variant| variant["properties"]["op"]["const"] == operation)
+            .unwrap();
+        assert_eq!(variant["properties"]["markdown"]["minLength"], 1);
+    }
 }
 
 #[test]

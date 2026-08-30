@@ -88,7 +88,7 @@ pub enum DiagnosticCode {
 pub struct ErrorEnvelope<'a> {
     pub schema_version: ProtocolSchemaVersion,
     pub error: DiagnosticCode,
-    #[schemars(range(min = 1, max = 4))]
+    #[schemars(range(min = 1, max = 5))]
     pub exit_code: u8,
     pub message: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]

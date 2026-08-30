@@ -301,6 +301,7 @@ fn atomic_replace(
         verify_target(guard)?;
     }
     let original_metadata = std::fs::metadata(target)?;
+    let parent_directory = target.parent().map(std::fs::File::open).transpose()?;
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -345,8 +346,11 @@ fn atomic_replace(
 
     let result = staged.and_then(|()| {
         std::fs::rename(temporary, target)?;
-        if let Some(parent) = target.parent() {
-            std::fs::File::open(parent)?.sync_all()?;
+        if let Some(parent) = parent_directory {
+            // The rename is the commit point. A directory-sync failure cannot
+            // roll the file back, so it must not turn a committed mutation into
+            // a reported failure.
+            let _ = parent.sync_all();
         }
         Ok(())
     });
