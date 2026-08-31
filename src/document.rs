@@ -52,7 +52,7 @@ impl Document {
             ParsedFacts::parse_without_frontmatter(&source)?
         };
         Ok(Self {
-            index: DocumentIndex::build(source, facts),
+            index: DocumentIndex::build(source, facts)?,
         })
     }
 

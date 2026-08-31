@@ -78,7 +78,8 @@ impl From<CoreError> for CommandError {
         let code = match error {
             CoreError::ParseFailed(_)
             | CoreError::FrontmatterParseFailed(_)
-            | CoreError::InvalidSourcePosition { .. } => DiagnosticCode::Parse,
+            | CoreError::InvalidSourcePosition { .. }
+            | CoreError::InvalidSourceCoverage { .. } => DiagnosticCode::Parse,
             CoreError::TargetNotFound { .. }
             | CoreError::HeadingNotFound { .. }
             | CoreError::BlockIndexOutOfRange { .. }
@@ -112,13 +113,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn invalid_dependency_positions_remain_parse_diagnostics() {
-        let command = CommandError::from(CoreError::InvalidSourcePosition {
-            line: 2,
-            column: 0,
-            reason: "outside source",
-        });
-        assert!(matches!(command.code, DiagnosticCode::Parse));
-        assert_eq!(command.exit_code, MdExitCode::Parse);
+    fn invalid_parse_substrate_remains_a_parse_diagnostic() {
+        for error in [
+            CoreError::InvalidSourcePosition {
+                line: 2,
+                column: 0,
+                reason: "outside source",
+            },
+            CoreError::InvalidSourceCoverage {
+                reason: "overlap".into(),
+            },
+        ] {
+            let command = CommandError::from(error);
+            assert!(matches!(command.code, DiagnosticCode::Parse));
+            assert_eq!(command.exit_code, MdExitCode::Parse);
+        }
     }
 }

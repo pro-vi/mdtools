@@ -118,6 +118,9 @@ pub enum CoreError {
         column: usize,
         reason: &'static str,
     },
+    InvalidSourceCoverage {
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for CoreError {
@@ -259,6 +262,9 @@ impl std::fmt::Display for CoreError {
                 f,
                 "invalid parser source position at line {line}, column {column}: {reason}"
             ),
+            Self::InvalidSourceCoverage { reason } => {
+                write!(f, "invalid source coverage: {reason}")
+            }
         }
     }
 }

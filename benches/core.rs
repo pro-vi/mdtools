@@ -25,6 +25,19 @@ fn bench_parse_frontmatter(c: &mut Criterion) {
     });
 }
 
+fn gap_heavy_fixture(count: usize) -> String {
+    (0..count)
+        .map(|index| format!("paragraph {index}\n\n[^unused-{index}]: omitted {index}\n\n"))
+        .collect()
+}
+
+fn bench_parse_gap_heavy(c: &mut Criterion) {
+    let source = gap_heavy_fixture(256);
+    c.bench_function("parse/gap_heavy_256", |b| {
+        b.iter(|| Document::parse(black_box(source.clone())).unwrap())
+    });
+}
+
 fn bench_target_map_scale(c: &mut Criterion) {
     let document = Document::parse(include_str!("../bench/inputs/t19_scale.md")).unwrap();
     c.bench_function("target_map/t19_scale", |b| {
@@ -131,6 +144,7 @@ criterion_group!(
     bench_parse_progress,
     bench_parse_scale,
     bench_parse_frontmatter,
+    bench_parse_gap_heavy,
     bench_target_map_scale,
     bench_target_query_progress,
     bench_target_resolve_read_scale,

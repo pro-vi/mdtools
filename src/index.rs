@@ -36,6 +36,34 @@ pub(crate) struct IndexNodeId(u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct IndexInstanceId(u64);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SourceRegionKind {
+    Structural,
+    Boundary,
+    ParserUnrepresented,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SourceOwner {
+    Preamble(IndexNodeId),
+    Node(IndexNodeId),
+}
+
+impl SourceOwner {
+    fn node(self) -> IndexNodeId {
+        match self {
+            Self::Preamble(node) | Self::Node(node) => node,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SourceRegion {
+    pub(crate) span: SourceSpan,
+    pub(crate) kind: SourceRegionKind,
+    pub(crate) owner: SourceOwner,
+}
+
 static NEXT_INDEX_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Debug)]
@@ -160,6 +188,9 @@ pub struct DocumentIndex {
     instance_id: IndexInstanceId,
     source: DocumentSource,
     legacy_facts: ParsedFacts,
+    // U2 establishes the retained ledger before U4 moves preservation consumers onto it.
+    #[allow(dead_code)]
+    source_regions: Vec<SourceRegion>,
     nodes: Vec<IndexEntry>,
     source_order: Vec<IndexNodeId>,
     children_by_parent: HashMap<IndexNodeId, Vec<IndexNodeId>>,
@@ -169,8 +200,12 @@ pub struct DocumentIndex {
 }
 
 impl DocumentIndex {
-    pub(crate) fn build(source: DocumentSource, legacy_facts: ParsedFacts) -> Self {
+    pub(crate) fn build(
+        source: DocumentSource,
+        legacy_facts: ParsedFacts,
+    ) -> Result<Self, crate::core_error::CoreError> {
         let mut builder = IndexBuilder::default();
+        let mut structural_regions = Vec::<(SourceSpan, IndexNodeId)>::new();
         let document_span = SourceSpan {
             line_start: 1,
             line_end: source.line_count(),
@@ -185,13 +220,14 @@ impl DocumentIndex {
         );
 
         if let Some(frontmatter) = &legacy_facts.frontmatter {
-            builder.push(
+            let frontmatter_node = builder.push(
                 Some(root),
                 IndexNode::Frontmatter {
                     span: frontmatter.span,
                     format: frontmatter.format,
                 },
             );
+            structural_regions.push((frontmatter.span, frontmatter_node));
         }
 
         let mut block_order = (0..legacy_facts.blocks.len()).collect::<Vec<_>>();
@@ -283,6 +319,7 @@ impl DocumentIndex {
                     text: section.text.clone(),
                 },
             );
+            structural_regions.push((section.heading_span, heading_node));
             builder.push(
                 Some(heading_node),
                 IndexNode::HeadingMarker {
@@ -315,6 +352,7 @@ impl DocumentIndex {
                     table: block.table.as_ref().map(indexed_table),
                 },
             );
+            structural_regions.push((block.span, body));
             *ordinal += 1;
 
             add_tasks(&mut builder, body, &block.task_items);
@@ -351,10 +389,12 @@ impl DocumentIndex {
             }
         }
 
+        let source_regions = build_source_regions(&source, preamble, structural_regions)?;
         let mut index = Self {
             instance_id: IndexInstanceId(NEXT_INDEX_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)),
             source,
             legacy_facts,
+            source_regions,
             nodes: builder.nodes,
             source_order,
             children_by_parent,
@@ -365,7 +405,7 @@ impl DocumentIndex {
         let (address_by_node, node_by_address) = crate::target::build_index_addresses(&index);
         index.address_by_node = address_by_node;
         index.node_by_address = node_by_address;
-        index
+        Ok(index)
     }
 
     /// Count nodes in one declared Markdown domain.
@@ -389,6 +429,30 @@ impl DocumentIndex {
 
     pub(crate) fn legacy_facts(&self) -> &ParsedFacts {
         &self.legacy_facts
+    }
+
+    #[cfg(test)]
+    fn source_regions(&self) -> &[SourceRegion] {
+        &self.source_regions
+    }
+
+    #[cfg(test)]
+    fn render_source_coverage(&self) -> String {
+        let mut rendered = String::new();
+        for region in &self.source_regions {
+            let _ = writeln!(
+                rendered,
+                "{} bytes={}..{} lines={}-{} owner={} content={:?}",
+                source_region_kind_name(region.kind),
+                region.span.byte_start,
+                region.span.byte_end,
+                region.span.line_start,
+                region.span.line_end,
+                self.source_owner_name(region.owner),
+                self.source.slice_unchecked(&region.span),
+            );
+        }
+        rendered
     }
 
     pub(crate) fn instance_id(&self) -> IndexInstanceId {
@@ -521,6 +585,169 @@ impl DocumentIndex {
             };
             id = parent;
         }
+    }
+
+    #[cfg(test)]
+    fn source_owner_name(&self, owner: SourceOwner) -> String {
+        match owner {
+            SourceOwner::Preamble(_) => "preamble".into(),
+            SourceOwner::Node(node) => match &self.entry(node).node {
+                IndexNode::Frontmatter { .. } => "frontmatter".into(),
+                IndexNode::Heading { parser_index, .. } => {
+                    format!("heading[{parser_index}]")
+                }
+                IndexNode::BodyBlock { parser_index, .. } => {
+                    format!("body-block[{parser_index}]")
+                }
+                other => format!("{:?}", other.kind()),
+            },
+        }
+    }
+}
+
+fn build_source_regions(
+    source: &DocumentSource,
+    preamble: IndexNodeId,
+    mut structural: Vec<(SourceSpan, IndexNodeId)>,
+) -> Result<Vec<SourceRegion>, crate::core_error::CoreError> {
+    structural.sort_by_key(|(span, node)| (span.byte_start, span.byte_end, node.0));
+    let mut regions = Vec::with_capacity(structural.len().saturating_mul(2) + 1);
+    let mut cursor = 0u32;
+    let mut preceding_owner = SourceOwner::Preamble(preamble);
+
+    for (span, node) in structural {
+        validate_structural_region(source, span, cursor)?;
+        if cursor < span.byte_start {
+            regions.push(classify_complement(
+                source,
+                cursor,
+                span.byte_start,
+                preceding_owner,
+            ));
+        }
+        regions.push(SourceRegion {
+            span: source.span_for_byte_range(span.byte_start, span.byte_end),
+            kind: SourceRegionKind::Structural,
+            owner: SourceOwner::Node(node),
+        });
+        cursor = span.byte_end;
+        preceding_owner = SourceOwner::Node(node);
+    }
+
+    if cursor < source.len() as u32 {
+        regions.push(classify_complement(
+            source,
+            cursor,
+            source.len() as u32,
+            preceding_owner,
+        ));
+    }
+
+    validate_complete_coverage(source, &regions)?;
+    Ok(regions)
+}
+
+fn validate_structural_region(
+    source: &DocumentSource,
+    span: SourceSpan,
+    cursor: u32,
+) -> Result<(), crate::core_error::CoreError> {
+    if span.byte_start >= span.byte_end {
+        return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+            reason: format!(
+                "structural region {}..{} is empty or reversed",
+                span.byte_start, span.byte_end
+            ),
+        });
+    }
+    if span.byte_end as usize > source.len() {
+        return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+            reason: format!(
+                "structural region {}..{} exceeds {} source bytes",
+                span.byte_start,
+                span.byte_end,
+                source.len()
+            ),
+        });
+    }
+    if span.byte_start < cursor {
+        return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+            reason: format!(
+                "structural region {}..{} overlaps coverage ending at {cursor}",
+                span.byte_start, span.byte_end
+            ),
+        });
+    }
+    if !source.is_char_boundary(span.byte_start as usize)
+        || !source.is_char_boundary(span.byte_end as usize)
+    {
+        return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+            reason: format!(
+                "structural region {}..{} is not UTF-8 aligned",
+                span.byte_start, span.byte_end
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn classify_complement(
+    source: &DocumentSource,
+    byte_start: u32,
+    byte_end: u32,
+    owner: SourceOwner,
+) -> SourceRegion {
+    let span = source.span_for_byte_range(byte_start, byte_end);
+    let text = source.slice_unchecked(&span);
+    let kind = if text.chars().all(char::is_whitespace) {
+        SourceRegionKind::Boundary
+    } else {
+        SourceRegionKind::ParserUnrepresented
+    };
+    SourceRegion { span, kind, owner }
+}
+
+fn validate_complete_coverage(
+    source: &DocumentSource,
+    regions: &[SourceRegion],
+) -> Result<(), crate::core_error::CoreError> {
+    if source.len() == 0 {
+        if regions.is_empty() {
+            return Ok(());
+        }
+        return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+            reason: "empty source has non-empty coverage".into(),
+        });
+    }
+
+    let mut cursor = 0u32;
+    for region in regions {
+        if region.span.byte_start != cursor || region.span.byte_end <= region.span.byte_start {
+            return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+                reason: format!(
+                    "region {}..{} does not continue coverage at {cursor}",
+                    region.span.byte_start, region.span.byte_end
+                ),
+            });
+        }
+        let _ = region.owner.node();
+        source.try_slice(&region.span)?;
+        cursor = region.span.byte_end;
+    }
+    if cursor as usize != source.len() {
+        return Err(crate::core_error::CoreError::InvalidSourceCoverage {
+            reason: format!("coverage ends at {cursor}, source ends at {}", source.len()),
+        });
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+fn source_region_kind_name(kind: SourceRegionKind) -> &'static str {
+    match kind {
+        SourceRegionKind::Structural => "structural",
+        SourceRegionKind::Boundary => "boundary",
+        SourceRegionKind::ParserUnrepresented => "parser-unrepresented",
     }
 }
 
@@ -750,5 +977,194 @@ fn heading_source_name(kind: HeadingSourceKind) -> &'static str {
     match kind {
         HeadingSourceKind::Atx => "atx",
         HeadingSourceKind::Setext => "setext",
+    }
+}
+
+#[cfg(test)]
+mod source_region_tests {
+    use super::*;
+    use crate::core_error::CoreError;
+    use crate::document::Document;
+    use crate::source::ParsePolicy;
+
+    fn assert_partition(source: &str) -> Document {
+        let document = Document::parse(source).unwrap();
+        let regions = document.index().source_regions();
+        let reconstructed = regions
+            .iter()
+            .map(|region| document.slice_unchecked(&region.span))
+            .collect::<String>();
+        assert_eq!(reconstructed, source);
+
+        let mut cursor = 0u32;
+        for region in regions {
+            assert_eq!(region.span.byte_start, cursor);
+            assert!(region.span.byte_end > region.span.byte_start);
+            assert!(source.is_char_boundary(region.span.byte_start as usize));
+            assert!(source.is_char_boundary(region.span.byte_end as usize));
+            cursor = region.span.byte_end;
+        }
+        assert_eq!(cursor as usize, source.len());
+
+        let mut expected_structural = document
+            .index()
+            .legacy_facts
+            .blocks
+            .iter()
+            .map(|block| (block.span.byte_start, block.span.byte_end))
+            .collect::<Vec<_>>();
+        if let Some(frontmatter) = &document.index().legacy_facts.frontmatter {
+            expected_structural.push((frontmatter.span.byte_start, frontmatter.span.byte_end));
+        }
+        expected_structural.sort_unstable();
+        let actual_structural = regions
+            .iter()
+            .filter(|region| region.kind == SourceRegionKind::Structural)
+            .map(|region| (region.span.byte_start, region.span.byte_end))
+            .collect::<Vec<_>>();
+        assert_eq!(actual_structural, expected_structural);
+        assert!(regions.len() <= expected_structural.len().saturating_mul(2) + 1);
+        document
+    }
+
+    #[test]
+    fn source_regions_partition_fixture_shapes_exactly() {
+        for source in [
+            "",
+            " \n\t",
+            "# Title\n\nbody",
+            "Title\r\n=====\r\n\r\n世界\r\n",
+            "---\nk: v\n---\n\n# Title\n\nbody\n",
+            "body [known]\n\n[known]: https://example.com\n",
+            "body[^kept]\n\n[^kept]: note\n",
+            "body\n\n[^lost]: note\n",
+            "    indented code\n\n<div>html</div>\n",
+            "one\r\ntwo\nthree\r\n",
+            "| Name | State |\r\n| --- | --- |\r\n| 世界 | open |\r\n",
+        ] {
+            assert_partition(source);
+        }
+    }
+
+    #[test]
+    fn source_regions_distinguish_boundaries_from_parser_omissions() {
+        let whitespace = assert_partition(" \n\t");
+        assert_eq!(
+            whitespace.index().source_regions()[0].kind,
+            SourceRegionKind::Boundary
+        );
+        assert!(matches!(
+            whitespace.index().source_regions()[0].owner,
+            SourceOwner::Preamble(_)
+        ));
+
+        let unreferenced = assert_partition("body\n\n[^lost]: note\n");
+        let omitted = unreferenced
+            .index()
+            .source_regions()
+            .iter()
+            .find(|region| region.kind == SourceRegionKind::ParserUnrepresented)
+            .unwrap();
+        assert!(unreferenced
+            .slice_unchecked(&omitted.span)
+            .contains("[^lost]: note"));
+        assert!(matches!(
+            omitted.owner,
+            SourceOwner::Node(node)
+                if matches!(unreferenced.index().entry(node).node, IndexNode::BodyBlock { .. })
+        ));
+
+        let reference = assert_partition("body [known]\n\n[known]: https://example.com\n\nnext\n");
+        let definition = reference
+            .index()
+            .source_regions()
+            .iter()
+            .find(|region| {
+                region.kind == SourceRegionKind::ParserUnrepresented
+                    && reference.slice_unchecked(&region.span).contains("[known]:")
+            })
+            .unwrap();
+        assert!(matches!(
+            definition.owner,
+            SourceOwner::Node(node)
+                if matches!(reference.index().entry(node).node, IndexNode::BodyBlock { .. })
+        ));
+
+        let referenced = assert_partition("body[^kept]\n\n[^kept]: note\n");
+        assert!(referenced.index().source_regions().iter().any(|region| {
+            region.kind == SourceRegionKind::Structural
+                && referenced
+                    .slice_unchecked(&region.span)
+                    .contains("[^kept]: note")
+        }));
+    }
+
+    #[test]
+    fn invalid_structural_regions_fail_index_construction() {
+        let ascii = DocumentSource::new("abc".into(), ParsePolicy::Lenient).unwrap();
+        let preamble = IndexNodeId(0);
+        let node = IndexNodeId(1);
+        for regions in [
+            vec![(span(2, 1), node)],
+            vec![(span(0, 2), node), (span(1, 3), IndexNodeId(2))],
+            vec![(span(0, 4), node)],
+        ] {
+            assert!(matches!(
+                build_source_regions(&ascii, preamble, regions),
+                Err(CoreError::InvalidSourceCoverage { .. })
+            ));
+        }
+
+        let utf8 = DocumentSource::new("éx".into(), ParsePolicy::Lenient).unwrap();
+        assert!(matches!(
+            build_source_regions(&utf8, preamble, vec![(span(1, 2), node)]),
+            Err(CoreError::InvalidSourceCoverage { .. })
+        ));
+    }
+
+    #[test]
+    fn source_region_count_stays_linear_in_top_level_facts() {
+        let source = (0..1_000)
+            .map(|index| format!("paragraph {index}\n\n[^unused-{index}]: note\n\n"))
+            .collect::<String>();
+        let document = assert_partition(&source);
+        let structural = document.index().legacy_facts.blocks.len()
+            + usize::from(document.index().legacy_facts.frontmatter.is_some());
+        assert!(document.index().source_regions().len() <= structural * 2 + 1);
+    }
+
+    #[test]
+    fn representative_source_coverage_is_reviewable() {
+        for (name, source) in [
+            ("basic", "# Root\n\nbody\n"),
+            (
+                "frontmatter-reference",
+                "---\ntitle: Notes\n---\n\n# Root\n\nbody [known]\n\n[known]: https://example.com\n\nnext\n",
+            ),
+            (
+                "mid-body-unreferenced-footnote",
+                "# Root\n\nbefore\n\n[^lost]: omitted\n\nafter\n",
+            ),
+            (
+                "referenced-footnote",
+                "body[^kept]\n\n[^kept]: note\n",
+            ),
+            (
+                "table-crlf-utf8",
+                "| A | B |\r\n| --- | --- |\r\n| 世界 | open |\r\n",
+            ),
+        ] {
+            let document = assert_partition(source);
+            println!("[{name}]\n{}", document.index().render_source_coverage());
+        }
+    }
+
+    fn span(byte_start: u32, byte_end: u32) -> SourceSpan {
+        SourceSpan {
+            line_start: 1,
+            line_end: 1,
+            byte_start,
+            byte_end,
+        }
     }
 }
