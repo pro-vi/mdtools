@@ -40,6 +40,9 @@ jobs:
           cargo check --no-default-features
           cargo check --features file
 
+      - name: Run transaction invariants without default features
+        run: cargo test --no-default-features --test transaction_invariants
+
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::enum_variant_names -A clippy::large_enum_variant
 
