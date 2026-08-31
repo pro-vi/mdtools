@@ -1,184 +1,224 @@
 // Parser boundary: all comrak interaction is contained here.
 // The rest of the codebase sees only model types, never comrak types.
 
+use crate::core_error::CoreError;
+use crate::model::*;
+use crate::source::{DocumentSource, LineIndex, ParsePolicy};
 use comrak::{
     nodes::{AstNode, NodeValue, Sourcepos},
     parse_document, Arena, Options,
 };
-use sha2::{Digest, Sha256};
 
-use crate::core_error::CoreError;
-use crate::model::*;
-use crate::revision::DocumentRevision;
-
-// --- Line-start index for byte offset derivation ---
-
-/// Byte offset of the start of each 1-based line.
-/// `line_starts[0]` = byte offset of line 1 (always 0).
-struct LineIndex {
-    starts: Vec<usize>,
-    source_len: usize,
+fn source_position_error(line: usize, column: usize, reason: &'static str) -> CoreError {
+    CoreError::InvalidSourcePosition {
+        line,
+        column,
+        reason,
+    }
 }
 
-impl LineIndex {
-    fn new(source: &str) -> Self {
-        let mut starts = vec![0usize];
-        for (i, b) in source.bytes().enumerate() {
-            if b == b'\n' {
-                starts.push(i + 1);
-            }
+fn sourcepos_to_span(
+    line_index: &LineIndex,
+    source: &str,
+    sourcepos: Sourcepos,
+) -> Result<SourceSpan, CoreError> {
+    let byte_start = line_index
+        .to_byte(sourcepos.start.line, sourcepos.start.column)
+        .ok_or_else(|| {
+            source_position_error(
+                sourcepos.start.line,
+                sourcepos.start.column,
+                "start is outside the source",
+            )
+        })?;
+    if sourcepos.end.column == 0 {
+        if sourcepos.end.line <= 1 {
+            return Err(source_position_error(
+                sourcepos.end.line,
+                sourcepos.end.column,
+                "zero-column end has no preceding content line",
+            ));
         }
-        Self {
-            starts,
-            source_len: source.len(),
-        }
-    }
-
-    /// Convert comrak's 1-based line + 1-based column to 0-based byte offset.
-    fn to_byte(&self, line: usize, col: usize) -> Option<usize> {
-        if line == 0 || col == 0 {
-            return None;
-        }
-        let idx = line - 1;
-        if idx >= self.starts.len() {
-            return None;
-        }
-        Some(self.starts[idx] + col - 1)
-    }
-
-    /// Convert comrak's inclusive end position to an exclusive byte offset.
-    fn to_byte_end(&self, line: usize, col: usize) -> Option<usize> {
-        if line == 0 || col == 0 {
-            return None;
-        }
-        let idx = line - 1;
-        if idx >= self.starts.len() {
-            return None;
-        }
-        Some((self.starts[idx] + col).min(self.source_len))
-    }
-
-    fn sourcepos_to_span(&self, sp: Sourcepos) -> SourceSpan {
-        let byte_start = self.to_byte(sp.start.line, sp.start.column).unwrap_or(0) as u32;
-        let byte_end = self
-            .to_byte_end(sp.end.line, sp.end.column)
-            .unwrap_or(self.source_len) as u32;
-        SourceSpan {
-            line_start: sp.start.line as u32,
-            line_end: sp.end.line as u32,
-            byte_start,
-            byte_end,
-        }
-    }
-
-    fn frontmatter_sourcepos_to_span(&self, sp: Sourcepos, source: &str) -> SourceSpan {
-        let mut span = self.sourcepos_to_span(sp);
-        let suffix = &source[span.byte_end as usize..];
-        if suffix.starts_with("\r\n") {
-            span.byte_end += 2;
-        } else if suffix.starts_with('\n') {
-            span.byte_end += 1;
-        }
-        span
-    }
-
-    /// Fix parser-reported spans where the exact source-owned block starts earlier
-    /// than comrak's position metadata indicates.
-    fn sourcepos_to_span_fixup(
-        &self,
-        sp: Sourcepos,
-        source: &str,
-        kind: BlockKind,
-        heading_line: Option<usize>,
-    ) -> SourceSpan {
-        let mut span = if kind == BlockKind::IndentedCode {
-            // For indented code blocks, comrak reports start.column=5 (after the
-            // 4-space indent) and end.column=0 (sentinel for blank-line termination).
-            let byte_start = self.to_byte(sp.start.line, 1).unwrap_or(0) as u32;
-            let byte_end = if sp.end.column == 0 && sp.end.line > 1 {
-                let prev_line = sp.end.line - 1;
-                let prev_idx = prev_line - 1;
-                if prev_idx + 1 < self.starts.len() {
-                    (self.starts[prev_idx + 1]).min(self.source_len) as u32
-                } else {
-                    self.source_len as u32
-                }
-            } else {
-                self.to_byte_end(sp.end.line, sp.end.column)
-                    .unwrap_or(self.source_len) as u32
-            };
-
-            SourceSpan {
-                line_start: sp.start.line as u32,
-                line_end: if sp.end.column == 0 && sp.end.line > 1 {
-                    (sp.end.line - 1) as u32
-                } else {
-                    sp.end.line as u32
-                },
-                byte_start,
-                byte_end,
-            }
-        } else {
-            self.sourcepos_to_span(sp)
+        let sentinel_line = u32::try_from(sourcepos.end.line).map_err(|_| {
+            source_position_error(
+                sourcepos.end.line,
+                sourcepos.end.column,
+                "line cannot be represented",
+            )
+        })?;
+        let byte_end = line_index.line_start_byte(sentinel_line).ok_or_else(|| {
+            source_position_error(
+                sourcepos.end.line,
+                sourcepos.end.column,
+                "sentinel end line is outside the source",
+            )
+        })?;
+        let adjusted = Sourcepos {
+            start: sourcepos.start,
+            end: comrak::nodes::LineColumn {
+                line: sourcepos.end.line - 1,
+                column: 1,
+            },
         };
+        return validate_parser_span(source, adjusted, byte_start, byte_end);
+    }
+    let byte_end = line_index
+        .to_byte_end(sourcepos.end.line, sourcepos.end.column)
+        .ok_or_else(|| {
+            source_position_error(
+                sourcepos.end.line,
+                sourcepos.end.column,
+                "end is outside the source",
+            )
+        })?;
+    validate_parser_span(source, sourcepos, byte_start, byte_end)
+}
 
-        if kind == BlockKind::ThematicBreak && sp.end.column == 0 && sp.end.line > 1 {
-            let content_line = sp.start.line;
-            if let Some(byte_end) = self.line_content_end(source, content_line) {
-                span.line_end = content_line as u32;
-                span.byte_end = byte_end as u32;
-            }
-        }
+fn validate_parser_span(
+    source: &str,
+    sourcepos: Sourcepos,
+    byte_start: usize,
+    byte_end: usize,
+) -> Result<SourceSpan, CoreError> {
+    if byte_start > byte_end {
+        return Err(source_position_error(
+            sourcepos.start.line,
+            sourcepos.start.column,
+            "start is after end",
+        ));
+    }
+    if !source.is_char_boundary(byte_start) || !source.is_char_boundary(byte_end) {
+        return Err(source_position_error(
+            sourcepos.start.line,
+            sourcepos.start.column,
+            "offset is not a UTF-8 character boundary",
+        ));
+    }
+    Ok(SourceSpan {
+        line_start: u32::try_from(sourcepos.start.line).map_err(|_| {
+            source_position_error(
+                sourcepos.start.line,
+                sourcepos.start.column,
+                "line cannot be represented",
+            )
+        })?,
+        line_end: u32::try_from(sourcepos.end.line).map_err(|_| {
+            source_position_error(
+                sourcepos.end.line,
+                sourcepos.end.column,
+                "line cannot be represented",
+            )
+        })?,
+        byte_start: byte_start as u32,
+        byte_end: byte_end as u32,
+    })
+}
 
-        if let Some(line) = heading_line {
-            if let Some(byte_start) = self.heading_line_start(source, line) {
-                span.byte_start = byte_start;
-            }
-        }
+fn frontmatter_sourcepos_to_span(
+    line_index: &LineIndex,
+    source: &str,
+    sourcepos: Sourcepos,
+) -> Result<SourceSpan, CoreError> {
+    let mut span = sourcepos_to_span(line_index, source, sourcepos)?;
+    let suffix = &source[span.byte_end as usize..];
+    if suffix.starts_with("\r\n") {
+        span.byte_end += 2;
+    } else if suffix.starts_with('\n') {
+        span.byte_end += 1;
+    }
+    Ok(span)
+}
 
-        span
+fn sourcepos_to_span_fixup(
+    line_index: &LineIndex,
+    source: &str,
+    sourcepos: Sourcepos,
+    kind: BlockKind,
+    heading_line: Option<usize>,
+) -> Result<SourceSpan, CoreError> {
+    let mut span = if kind == BlockKind::IndentedCode {
+        let byte_start = line_index.to_byte(sourcepos.start.line, 1).ok_or_else(|| {
+            source_position_error(sourcepos.start.line, 1, "start line is outside the source")
+        })?;
+        let (line_end, byte_end) = if sourcepos.end.column == 0 && sourcepos.end.line > 1 {
+            let content_line = sourcepos.end.line - 1;
+            let next_line = u32::try_from(content_line + 1).map_err(|_| {
+                source_position_error(content_line, 1, "line cannot be represented")
+            })?;
+            (
+                content_line,
+                line_index
+                    .line_start_byte(next_line)
+                    .unwrap_or(line_index.source_len()),
+            )
+        } else {
+            (
+                sourcepos.end.line,
+                line_index
+                    .to_byte_end(sourcepos.end.line, sourcepos.end.column)
+                    .ok_or_else(|| {
+                        source_position_error(
+                            sourcepos.end.line,
+                            sourcepos.end.column,
+                            "end is outside the source",
+                        )
+                    })?,
+            )
+        };
+        let adjusted = Sourcepos {
+            start: comrak::nodes::LineColumn {
+                line: sourcepos.start.line,
+                column: 1,
+            },
+            end: comrak::nodes::LineColumn {
+                line: line_end,
+                column: sourcepos.end.column.max(1),
+            },
+        };
+        validate_parser_span(source, adjusted, byte_start, byte_end)?
+    } else {
+        sourcepos_to_span(line_index, source, sourcepos)?
+    };
+
+    if kind == BlockKind::ThematicBreak && sourcepos.end.column == 0 && sourcepos.end.line > 1 {
+        let content_line = sourcepos.start.line;
+        span.line_end = content_line as u32;
+        span.byte_end = line_content_end(line_index, source, content_line)? as u32;
     }
 
-    fn line_content_end(&self, source: &str, line: usize) -> Option<usize> {
-        let start = self.to_byte(line, 1)?;
-        let mut end = source.as_bytes()[start..]
-            .iter()
-            .position(|byte| *byte == b'\n')
-            .map_or(source.len(), |offset| start + offset);
-        if end > start && source.as_bytes()[end - 1] == b'\r' {
-            end -= 1;
-        }
-        Some(end)
+    if let Some(line) = heading_line {
+        span.byte_start = heading_line_start(line_index, source, line)?;
     }
 
-    fn heading_line_start(&self, source: &str, line: usize) -> Option<u32> {
-        let line_start = self.to_byte(line, 1)?;
-        let bytes = source.as_bytes();
-        if line_start >= bytes.len() {
-            return None;
-        }
-        Some(line_start as u32)
-    }
+    Ok(span)
+}
 
-    fn line_count(&self) -> u32 {
-        self.starts.len() as u32
+fn line_content_end(line_index: &LineIndex, source: &str, line: usize) -> Result<usize, CoreError> {
+    let start = line_index
+        .to_byte(line, 1)
+        .ok_or_else(|| source_position_error(line, 1, "content line is outside the source"))?;
+    let mut end = source.as_bytes()[start..]
+        .iter()
+        .position(|byte| *byte == b'\n')
+        .map_or(source.len(), |offset| start + offset);
+    if end > start && source.as_bytes()[end - 1] == b'\r' {
+        end -= 1;
     }
+    Ok(end)
+}
 
-    /// Byte offset of the first byte of a 1-based line.
-    fn line_start_byte(&self, line: u32) -> Option<usize> {
-        if line == 0 {
-            return None;
-        }
-        self.starts.get((line - 1) as usize).copied()
+fn heading_line_start(line_index: &LineIndex, source: &str, line: usize) -> Result<u32, CoreError> {
+    let line_start = line_index
+        .to_byte(line, 1)
+        .ok_or_else(|| source_position_error(line, 1, "heading line is outside the source"))?;
+    if line_start >= source.len() {
+        return Err(source_position_error(
+            line,
+            1,
+            "heading line has no source bytes",
+        ));
     }
-
-    /// Find the 1-based line number for a byte offset using binary search.
-    fn byte_to_line(&self, byte_offset: usize) -> usize {
-        match self.starts.binary_search(&byte_offset) {
-            Ok(idx) => idx + 1,
-            Err(idx) => idx, // idx is the line whose start is > byte_offset, so we're on line idx
-        }
-    }
+    Ok(line_start as u32)
 }
 
 // --- Comrak options ---
@@ -223,32 +263,28 @@ pub(crate) fn detect_frontmatter_delimiter(source: &str) -> Option<&'static str>
     }
 }
 
-// --- Parsed document projection ---
+// --- Ephemeral parser facts ---
 
-/// Fully projected document — no comrak types escape this boundary.
-pub struct ParsedDocument {
-    pub source: String,
-    pub blocks: Vec<BlockInfo>,
-    pub frontmatter: Option<FrontmatterInfo>,
-    line_index: LineIndex,
-    revision: DocumentRevision,
-    policy: ParsePolicy,
+/// Source-free parser facts consumed during index construction.
+pub(crate) struct ParsedFacts {
+    pub(crate) blocks: Vec<BlockFact>,
+    pub(crate) frontmatter: Option<FrontmatterFact>,
 }
 
-/// A projected top-level block.
+/// One parser-retained top-level block.
 #[derive(Clone, Debug)]
-pub struct BlockInfo {
+pub(crate) struct BlockFact {
     pub index: u32,
     pub kind: BlockKind,
     pub span: SourceSpan,
-    pub heading: Option<HeadingInfo>,
-    pub links: Vec<LinkInfo>,
-    pub task_items: Vec<TaskItemInfo>,
-    pub table: Option<TableProjection>,
+    pub heading: Option<HeadingFact>,
+    pub links: Vec<LinkFact>,
+    pub task_items: Vec<TaskItemFact>,
+    pub table: Option<TableFact>,
 }
 
 #[derive(Clone, Debug)]
-pub struct TaskItemInfo {
+pub(crate) struct TaskItemFact {
     pub child_path: Vec<u32>,
     pub task_index: u32,
     pub status: TaskStatus,
@@ -259,7 +295,7 @@ pub struct TaskItemInfo {
 }
 
 #[derive(Clone, Debug)]
-pub struct HeadingInfo {
+pub(crate) struct HeadingFact {
     pub level: u8,
     pub text: String,
     pub kind: HeadingSourceKind,
@@ -294,7 +330,7 @@ pub enum HeadingSourceKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct LinkInfo {
+pub(crate) struct LinkFact {
     pub kind: LinkKind,
     pub text: String,
     pub destination: Option<String>,
@@ -303,50 +339,24 @@ pub struct LinkInfo {
 }
 
 #[derive(Clone, Debug)]
-pub struct FrontmatterInfo {
+pub(crate) struct FrontmatterFact {
     pub span: SourceSpan,
     pub format: FrontmatterFormat,
 }
 
-pub struct FrontmatterState<'a> {
-    pub span: Option<SourceSpan>,
-    pub raw: Option<&'a str>,
-    pub format: Option<FrontmatterFormat>,
-    pub etag: String,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ParsePolicy {
-    Lenient,
-    StrictRead,
-    Mutation,
-}
-
-impl ParsedDocument {
-    pub fn parse(source: String) -> Result<Self, CoreError> {
-        Self::parse_inner(source, ParsePolicy::Lenient)
+impl ParsedFacts {
+    pub(crate) fn parse(source: &DocumentSource) -> Result<Self, CoreError> {
+        Self::parse_inner(source)
     }
 
-    /// Parse for frontmatter reads. A closed frontmatter block must parse
-    /// semantically; an unmatched opening delimiter remains ordinary Markdown
-    /// and is reported as absent for CLI compatibility.
-    pub fn parse_for_frontmatter(source: String) -> Result<Self, CoreError> {
-        Self::parse_inner(source, ParsePolicy::StrictRead)
-    }
-
-    /// Parse for frontmatter mutation commands, which must fail closed on malformed
-    /// or unclosed leading frontmatter instead of treating it as absent.
-    pub fn parse_for_frontmatter_mutation(source: String) -> Result<Self, CoreError> {
-        Self::parse_inner(source, ParsePolicy::Mutation)
-    }
-
-    fn parse_inner(source: String, mode: ParsePolicy) -> Result<Self, CoreError> {
-        reject_oversized_source(source.len())?;
-        let delimiter = detect_frontmatter_delimiter(&source);
-        let line_index = LineIndex::new(&source);
+    fn parse_inner(document_source: &DocumentSource) -> Result<Self, CoreError> {
+        let source = document_source.text();
+        let mode = document_source.policy();
+        let delimiter = detect_frontmatter_delimiter(source);
+        let line_index = document_source.lines();
         let opts = comrak_opts(delimiter);
         let arena = Arena::new();
-        let root = parse_document(&arena, &source, &opts);
+        let root = parse_document(&arena, source, &opts);
         reject_excessive_ast_depth(root)?;
 
         // Check if frontmatter exists and is valid
@@ -383,7 +393,7 @@ impl ParsedDocument {
         {
             // Re-parse without frontmatter delimiter — treat malformed frontmatter as plain content.
             let _ = root;
-            return Self::parse_without_frontmatter(source);
+            return Self::parse_without_frontmatter(document_source);
         }
 
         let mut blocks = Vec::new();
@@ -395,8 +405,8 @@ impl ParsedDocument {
 
             match &data.value {
                 NodeValue::FrontMatter(_) => {
-                    let fm_span = line_index.frontmatter_sourcepos_to_span(sp, &source);
-                    frontmatter = Some(FrontmatterInfo {
+                    let fm_span = frontmatter_sourcepos_to_span(line_index, source, sp)?;
+                    frontmatter = Some(FrontmatterFact {
                         span: fm_span,
                         format: frontmatter_format,
                     });
@@ -410,7 +420,7 @@ impl ParsedDocument {
                     };
                     let kind = node_value_to_block_kind(&data.value)?;
                     let heading_line = heading_meta.map(|(_, _, line, _)| line);
-                    let span = line_index.sourcepos_to_span_fixup(sp, &source, kind, heading_line);
+                    let span = sourcepos_to_span_fixup(line_index, source, sp, kind, heading_line)?;
                     drop(data);
 
                     let heading = heading_meta
@@ -422,34 +432,33 @@ impl ParsedDocument {
                                 HeadingSourceKind::Atx
                             };
                             let marker_span = if setext {
-                                compute_setext_marker_span(&line_index, &source, end_line)
+                                compute_setext_marker_span(line_index, source, end_line)?
                             } else {
-                                compute_atx_marker_span(&line_index, &source, line)
+                                compute_atx_marker_span(line_index, source, line)?
                             }
                             .ok_or_else(|| {
                                 CoreError::ParseFailed(format!(
                                     "heading at line {line} has no recognized syntax marker"
                                 ))
                             })?;
-                            Ok::<_, CoreError>(HeadingInfo {
+                            Ok::<_, CoreError>(HeadingFact {
                                 level,
                                 text,
                                 kind,
                                 marker_span,
-                                line_breaks: collect_heading_line_breaks(node, &line_index),
+                                line_breaks: collect_heading_line_breaks(node, line_index, source)?,
                                 multiline_code_spans: collect_multiline_heading_code_spans(
-                                    node,
-                                    &line_index,
-                                ),
+                                    node, line_index, source,
+                                )?,
                             })
                         })
                         .transpose()?;
 
-                    let links = collect_links(node, &line_index, &source);
-                    let task_items = collect_all_task_items(node, &line_index, span);
-                    let table = project_table_node(node, &line_index, &source, None);
+                    let links = collect_links(node, line_index, source)?;
+                    let task_items = collect_all_task_items(node, line_index, source, span)?;
+                    let table = project_table_node(node, line_index, source, None)?;
 
-                    blocks.push(BlockInfo {
+                    blocks.push(BlockFact {
                         index: blocks.len() as u32,
                         kind,
                         span,
@@ -462,23 +471,20 @@ impl ParsedDocument {
             }
         }
 
-        let revision = DocumentRevision::for_source(&source);
-        Ok(ParsedDocument {
-            source,
+        Ok(ParsedFacts {
             blocks,
             frontmatter,
-            line_index,
-            revision,
-            policy: mode,
         })
     }
 
-    pub(crate) fn parse_without_frontmatter(source: String) -> Result<Self, CoreError> {
-        reject_oversized_source(source.len())?;
-        let line_index = LineIndex::new(&source);
+    pub(crate) fn parse_without_frontmatter(
+        document_source: &DocumentSource,
+    ) -> Result<Self, CoreError> {
+        let source = document_source.text();
+        let line_index = document_source.lines();
         let opts = comrak_opts(None); // No frontmatter delimiter
         let arena = Arena::new();
-        let root = parse_document(&arena, &source, &opts);
+        let root = parse_document(&arena, source, &opts);
         reject_excessive_ast_depth(root)?;
 
         let mut blocks = Vec::new();
@@ -493,7 +499,7 @@ impl ParsedDocument {
             };
             let kind = node_value_to_block_kind(&data.value)?;
             let heading_line = heading_meta.map(|(_, _, line, _)| line);
-            let span = line_index.sourcepos_to_span_fixup(sp, &source, kind, heading_line);
+            let span = sourcepos_to_span_fixup(line_index, source, sp, kind, heading_line)?;
             drop(data);
 
             let heading = heading_meta
@@ -505,34 +511,33 @@ impl ParsedDocument {
                         HeadingSourceKind::Atx
                     };
                     let marker_span = if setext {
-                        compute_setext_marker_span(&line_index, &source, end_line)
+                        compute_setext_marker_span(line_index, source, end_line)?
                     } else {
-                        compute_atx_marker_span(&line_index, &source, line)
+                        compute_atx_marker_span(line_index, source, line)?
                     }
                     .ok_or_else(|| {
                         CoreError::ParseFailed(format!(
                             "heading at line {line} has no recognized syntax marker"
                         ))
                     })?;
-                    Ok::<_, CoreError>(HeadingInfo {
+                    Ok::<_, CoreError>(HeadingFact {
                         level,
                         text,
                         kind,
                         marker_span,
-                        line_breaks: collect_heading_line_breaks(node, &line_index),
+                        line_breaks: collect_heading_line_breaks(node, line_index, source)?,
                         multiline_code_spans: collect_multiline_heading_code_spans(
-                            node,
-                            &line_index,
-                        ),
+                            node, line_index, source,
+                        )?,
                     })
                 })
                 .transpose()?;
 
-            let links = collect_links(node, &line_index, &source);
-            let task_items = collect_all_task_items(node, &line_index, span);
-            let table = project_table_node(node, &line_index, &source, None);
+            let links = collect_links(node, line_index, source)?;
+            let task_items = collect_all_task_items(node, line_index, source, span)?;
+            let table = project_table_node(node, line_index, source, None)?;
 
-            blocks.push(BlockInfo {
+            blocks.push(BlockFact {
                 index: block_index as u32,
                 kind,
                 span,
@@ -543,134 +548,10 @@ impl ParsedDocument {
             });
         }
 
-        let revision = DocumentRevision::for_source(&source);
-        Ok(ParsedDocument {
-            source,
+        Ok(ParsedFacts {
             blocks,
             frontmatter: None,
-            line_index,
-            revision,
-            policy: ParsePolicy::Lenient,
         })
-    }
-
-    pub fn line_count(&self) -> u32 {
-        self.line_index.line_count()
-    }
-
-    pub(crate) fn policy(&self) -> ParsePolicy {
-        self.policy
-    }
-
-    /// Find the line number for a given byte offset.
-    pub fn byte_to_line(&self, byte_offset: u32) -> u32 {
-        self.line_index.byte_to_line(byte_offset as usize) as u32
-    }
-
-    /// Byte offset of the first byte of a 1-based line, or `None` when the
-    /// line is 0 or beyond [`line_count`](Self::line_count).
-    pub fn line_to_byte(&self, line: u32) -> Option<u32> {
-        self.line_index
-            .line_start_byte(line)
-            .map(|byte| byte as u32)
-    }
-
-    pub fn span_for_byte_range(&self, byte_start: u32, byte_end: u32) -> SourceSpan {
-        let line_start = self.byte_to_line(byte_start);
-        let line_end = if byte_end > byte_start {
-            self.byte_to_line(byte_end - 1)
-        } else {
-            line_start
-        };
-        SourceSpan {
-            line_start,
-            line_end,
-            byte_start,
-            byte_end,
-        }
-    }
-
-    /// Extract the source text for a given span.
-    pub fn slice(&self, span: &SourceSpan) -> &str {
-        &self.source[span.byte_start as usize..span.byte_end as usize]
-    }
-
-    pub fn try_slice(&self, span: &SourceSpan) -> Result<&str, CoreError> {
-        let start = span.byte_start as usize;
-        let end = span.byte_end as usize;
-        let reason = if start > end {
-            Some("start is after end")
-        } else if end > self.source.len() {
-            Some("end is outside the source")
-        } else if !self.source.is_char_boundary(start) || !self.source.is_char_boundary(end) {
-            Some("offset is not a UTF-8 character boundary")
-        } else {
-            None
-        };
-
-        if let Some(reason) = reason {
-            return Err(CoreError::InvalidSpan {
-                span: *span,
-                source_len: self.source.len(),
-                reason,
-            });
-        }
-
-        Ok(&self.source[start..end])
-    }
-
-    pub fn revision(&self) -> &DocumentRevision {
-        &self.revision
-    }
-
-    pub fn frontmatter_state(&self) -> FrontmatterState<'_> {
-        match &self.frontmatter {
-            Some(frontmatter) => {
-                let raw = self.slice(&frontmatter.span);
-                FrontmatterState {
-                    span: Some(frontmatter.span),
-                    raw: Some(raw),
-                    format: Some(frontmatter.format),
-                    etag: frontmatter_state_etag(Some(raw)),
-                }
-            }
-            None => FrontmatterState {
-                span: None,
-                raw: None,
-                format: None,
-                etag: frontmatter_state_etag(None),
-            },
-        }
-    }
-
-    /// Detect the document's line ending style.
-    pub fn line_ending_style(&self) -> LineEndingStyle {
-        let has_crlf = self.source.contains("\r\n");
-        let has_bare_lf = self
-            .source
-            .bytes()
-            .enumerate()
-            .any(|(i, b)| b == b'\n' && (i == 0 || self.source.as_bytes()[i - 1] != b'\r'));
-        match (has_crlf, has_bare_lf) {
-            (true, false) => LineEndingStyle::Crlf,
-            (false, true) | (false, false) => LineEndingStyle::Lf,
-            (true, true) => LineEndingStyle::Mixed,
-        }
-    }
-}
-
-fn reject_oversized_source(source_len: usize) -> Result<(), CoreError> {
-    // LineIndex stores one initial line start plus at most one start per byte.
-    // Keeping the source one byte below u32::MAX makes both byte offsets and
-    // the worst-case line count representable by SourceSpan's u32 fields.
-    const MAX_SOURCE_BYTES: usize = u32::MAX as usize - 1;
-    if source_len > MAX_SOURCE_BYTES {
-        Err(CoreError::ParseFailed(format!(
-            "document is {source_len} bytes; maximum supported size is {} bytes",
-            MAX_SOURCE_BYTES
-        )))
-    } else {
-        Ok(())
     }
 }
 
@@ -703,26 +584,6 @@ fn frontmatter_content_is_semantically_valid(raw: &str, format: FrontmatterForma
     }
 }
 
-fn frontmatter_state_etag(raw: Option<&str>) -> String {
-    const ABSENT_DOMAIN: &[u8] = b"mdtools.frontmatter.absent";
-    const PRESENT_DOMAIN: &[u8] = b"mdtools.frontmatter.present\0";
-
-    let mut hash = Sha256::new();
-    let bytes = raw.map(str::as_bytes);
-    let domain = if bytes.is_some() {
-        PRESENT_DOMAIN
-    } else {
-        ABSENT_DOMAIN
-    };
-
-    hash.update(domain);
-    if let Some(bytes) = bytes {
-        hash.update(bytes);
-    }
-
-    format!("{:x}", hash.finalize())
-}
-
 /// Compute the byte span covering an ATX heading's `#` run.
 ///
 /// CommonMark allows 0-3 leading spaces before the `#`s. Returns None if the
@@ -732,11 +593,17 @@ fn compute_atx_marker_span(
     line_index: &LineIndex,
     source: &str,
     line: usize,
-) -> Option<SourceSpan> {
-    let line_start_byte = line_index.to_byte(line, 1)?;
+) -> Result<Option<SourceSpan>, CoreError> {
+    let line_start_byte = line_index.to_byte(line, 1).ok_or_else(|| {
+        source_position_error(line, 1, "heading marker line is outside the source")
+    })?;
     let bytes = source.as_bytes();
     if line_start_byte > bytes.len() {
-        return None;
+        return Err(source_position_error(
+            line,
+            1,
+            "heading marker starts outside the source",
+        ));
     }
     let mut p = line_start_byte;
     let indent_limit = (line_start_byte + 3).min(bytes.len());
@@ -744,18 +611,18 @@ fn compute_atx_marker_span(
         p += 1;
     }
     if p >= bytes.len() || bytes[p] != b'#' {
-        return None;
+        return Ok(None);
     }
     let marker_start = p;
     while p < bytes.len() && bytes[p] == b'#' {
         p += 1;
     }
-    Some(SourceSpan {
+    Ok(Some(SourceSpan {
         line_start: line as u32,
         line_end: line as u32,
         byte_start: marker_start as u32,
         byte_end: p as u32,
-    })
+    }))
 }
 
 /// Compute the byte span covering a setext heading's `=` or `-` underline.
@@ -763,8 +630,10 @@ fn compute_setext_marker_span(
     line_index: &LineIndex,
     source: &str,
     line: usize,
-) -> Option<SourceSpan> {
-    let line_start = line_index.to_byte(line, 1)?;
+) -> Result<Option<SourceSpan>, CoreError> {
+    let line_start = line_index.to_byte(line, 1).ok_or_else(|| {
+        source_position_error(line, 1, "setext marker line is outside the source")
+    })?;
     let line_end = source.as_bytes()[line_start..]
         .iter()
         .position(|byte| *byte == b'\n')
@@ -774,20 +643,22 @@ fn compute_setext_marker_span(
     while start < line_bytes.len() && start < 3 && line_bytes[start] == b' ' {
         start += 1;
     }
-    let marker = *line_bytes.get(start)?;
+    let Some(marker) = line_bytes.get(start).copied() else {
+        return Ok(None);
+    };
     if !matches!(marker, b'=' | b'-') {
-        return None;
+        return Ok(None);
     }
     let mut end = start;
     while line_bytes.get(end) == Some(&marker) {
         end += 1;
     }
-    Some(SourceSpan {
+    Ok(Some(SourceSpan {
         line_start: line as u32,
         line_end: line as u32,
         byte_start: (line_start + start) as u32,
         byte_end: (line_start + end) as u32,
-    })
+    }))
 }
 
 // --- Task item extraction ---
@@ -796,9 +667,10 @@ fn compute_setext_marker_span(
 fn collect_task_items<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
+    source: &str,
     prefix: &[u32],
     depth: u32,
-) -> Vec<TaskItemInfo> {
+) -> Result<Vec<TaskItemFact>, CoreError> {
     let mut items = Vec::new();
     let mut task_counter = 0u32;
 
@@ -807,13 +679,19 @@ fn collect_task_items<'a>(
         match &data.value {
             NodeValue::TaskItem(task) => {
                 let sp = data.sourcepos;
-                let span = line_index.sourcepos_to_span(sp);
+                let span = sourcepos_to_span(line_index, source, sp)?;
                 let symbol_byte_offset = line_index
                     .to_byte(
                         task.symbol_sourcepos.start.line,
                         task.symbol_sourcepos.start.column,
                     )
-                    .unwrap_or(0) as u32;
+                    .ok_or_else(|| {
+                        source_position_error(
+                            task.symbol_sourcepos.start.line,
+                            task.symbol_sourcepos.start.column,
+                            "task marker is outside the source",
+                        )
+                    })? as u32;
                 let status = if task.symbol.is_some() {
                     TaskStatus::Done
                 } else {
@@ -826,7 +704,7 @@ fn collect_task_items<'a>(
 
                 let summary_text = collect_task_item_text(child);
 
-                items.push(TaskItemInfo {
+                items.push(TaskItemFact {
                     child_path: path.clone(),
                     task_index: task_counter,
                     status,
@@ -839,9 +717,10 @@ fn collect_task_items<'a>(
                 items.extend(collect_nested_task_items(
                     child,
                     line_index,
+                    source,
                     &path,
                     depth + 1,
-                ));
+                )?);
 
                 task_counter += 1;
             }
@@ -854,9 +733,10 @@ fn collect_task_items<'a>(
                 items.extend(collect_nested_task_items(
                     child,
                     line_index,
+                    source,
                     &path,
                     depth + 1,
-                ));
+                )?);
             }
             _ => {
                 drop(data);
@@ -864,15 +744,16 @@ fn collect_task_items<'a>(
         }
     }
 
-    items
+    Ok(items)
 }
 
 fn collect_nested_task_items<'a>(
     item: &'a AstNode<'a>,
     line_index: &LineIndex,
+    source: &str,
     item_path: &[u32],
     depth: u32,
-) -> Vec<TaskItemInfo> {
+) -> Result<Vec<TaskItemFact>, CoreError> {
     let nested_lists = item
         .children()
         .filter(|child| matches!(child.data.borrow().value, NodeValue::List(_)))
@@ -887,9 +768,15 @@ fn collect_nested_task_items<'a>(
             // collide (for example, bullet item 0 and ordered item 0).
             prefix.push(list_ordinal as u32);
         }
-        items.extend(collect_task_items(nested_list, line_index, &prefix, depth));
+        items.extend(collect_task_items(
+            nested_list,
+            line_index,
+            source,
+            &prefix,
+            depth,
+        )?);
     }
-    items
+    Ok(items)
 }
 
 /// Find all task items under any block node by walking descendants for List nodes.
@@ -897,12 +784,16 @@ fn collect_nested_task_items<'a>(
 fn collect_all_task_items<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
+    source: &str,
     block_span: SourceSpan,
-) -> Vec<TaskItemInfo> {
+) -> Result<Vec<TaskItemFact>, CoreError> {
     let data = node.data.borrow();
     if matches!(data.value, NodeValue::List(_)) {
         drop(data);
-        return clamp_task_spans(collect_task_items(node, line_index, &[], 0), block_span);
+        return Ok(clamp_task_spans(
+            collect_task_items(node, line_index, source, &[], 0)?,
+            block_span,
+        ));
     }
     drop(data);
 
@@ -911,11 +802,11 @@ fn collect_all_task_items<'a>(
     // path prefixes (e.g. first list → prefix [0], second → prefix [1]).
     let mut items = Vec::new();
     let mut list_counter = 0u32;
-    find_list_descendants(node, line_index, &mut items, &mut list_counter);
-    clamp_task_spans(items, block_span)
+    find_list_descendants(node, line_index, source, &mut items, &mut list_counter)?;
+    Ok(clamp_task_spans(items, block_span))
 }
 
-fn clamp_task_spans(mut items: Vec<TaskItemInfo>, block_span: SourceSpan) -> Vec<TaskItemInfo> {
+fn clamp_task_spans(mut items: Vec<TaskItemFact>, block_span: SourceSpan) -> Vec<TaskItemFact> {
     for item in &mut items {
         item.span.byte_start = item.span.byte_start.max(block_span.byte_start);
         item.span.byte_end = item.span.byte_end.min(block_span.byte_end);
@@ -928,21 +819,23 @@ fn clamp_task_spans(mut items: Vec<TaskItemInfo>, block_span: SourceSpan) -> Vec
 fn find_list_descendants<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
-    out: &mut Vec<TaskItemInfo>,
+    source: &str,
+    out: &mut Vec<TaskItemFact>,
     list_counter: &mut u32,
-) {
+) -> Result<(), CoreError> {
     for child in node.children() {
         let data = child.data.borrow();
         if matches!(data.value, NodeValue::List(_)) {
             drop(data);
             let prefix = [*list_counter];
-            out.extend(collect_task_items(child, line_index, &prefix, 0));
+            out.extend(collect_task_items(child, line_index, source, &prefix, 0)?);
             *list_counter += 1;
         } else {
             drop(data);
-            find_list_descendants(child, line_index, out, list_counter);
+            find_list_descendants(child, line_index, source, out, list_counter)?;
         }
     }
+    Ok(())
 }
 
 /// Extract the first paragraph's inline text from a task item node.
@@ -999,17 +892,19 @@ fn collect_heading_text<'a>(node: &'a AstNode<'a>) -> String {
 fn collect_heading_line_breaks<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
-) -> Vec<HeadingLineBreak> {
+    source: &str,
+) -> Result<Vec<HeadingLineBreak>, CoreError> {
     let mut breaks = Vec::new();
-    collect_heading_line_breaks_recursive(node, line_index, &mut breaks);
-    breaks
+    collect_heading_line_breaks_recursive(node, line_index, source, &mut breaks)?;
+    Ok(breaks)
 }
 
 fn collect_heading_line_breaks_recursive<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
+    source: &str,
     breaks: &mut Vec<HeadingLineBreak>,
-) {
+) -> Result<(), CoreError> {
     for child in node.children() {
         let data = child.data.borrow();
         let kind = match data.value {
@@ -1019,33 +914,37 @@ fn collect_heading_line_breaks_recursive<'a>(
         };
         if let Some(kind) = kind {
             breaks.push(HeadingLineBreak {
-                span: line_index.sourcepos_to_span(data.sourcepos),
+                span: sourcepos_to_span(line_index, source, data.sourcepos)?,
                 kind,
             });
         } else {
             drop(data);
-            collect_heading_line_breaks_recursive(child, line_index, breaks);
+            collect_heading_line_breaks_recursive(child, line_index, source, breaks)?;
         }
     }
+    Ok(())
 }
 
 fn collect_multiline_heading_code_spans<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
-) -> Vec<HeadingCodeSpan> {
-    node.descendants()
-        .filter_map(|child| {
-            let data = child.data.borrow();
-            let NodeValue::Code(code) = &data.value else {
-                return None;
-            };
-            let span = line_index.sourcepos_to_span(data.sourcepos);
-            (span.line_start != span.line_end).then(|| HeadingCodeSpan {
+    source: &str,
+) -> Result<Vec<HeadingCodeSpan>, CoreError> {
+    let mut spans = Vec::new();
+    for child in node.descendants() {
+        let data = child.data.borrow();
+        let NodeValue::Code(code) = &data.value else {
+            continue;
+        };
+        let span = sourcepos_to_span(line_index, source, data.sourcepos)?;
+        if span.line_start != span.line_end {
+            spans.push(HeadingCodeSpan {
                 span,
                 literal: normalize_inline_code_literal(&code.literal),
-            })
-        })
-        .collect()
+            });
+        }
+    }
+    Ok(spans)
 }
 
 fn collect_text_recursive<'a>(node: &'a AstNode<'a>, out: &mut String) {
@@ -1076,23 +975,27 @@ fn is_html_line_break(html: &str) -> bool {
 }
 
 /// Collect links from a block node by walking all descendants.
-fn collect_links<'a>(node: &'a AstNode<'a>, line_index: &LineIndex, source: &str) -> Vec<LinkInfo> {
+fn collect_links<'a>(
+    node: &'a AstNode<'a>,
+    line_index: &LineIndex,
+    source: &str,
+) -> Result<Vec<LinkFact>, CoreError> {
     let mut links = Vec::new();
-    collect_links_recursive(node, line_index, source, &mut links);
-    links
+    collect_links_recursive(node, line_index, source, &mut links)?;
+    Ok(links)
 }
 
 fn collect_links_recursive<'a>(
     node: &'a AstNode<'a>,
     line_index: &LineIndex,
     source: &str,
-    out: &mut Vec<LinkInfo>,
-) {
+    out: &mut Vec<LinkFact>,
+) -> Result<(), CoreError> {
     for child in node.descendants() {
         let data = child.data.borrow();
         if let NodeValue::Link(link) = &data.value {
             let sp = data.sourcepos;
-            let span = line_index.sourcepos_to_span(sp);
+            let span = sourcepos_to_span(line_index, source, sp)?;
             let url = link.url.clone();
             let title = link.title.clone();
             drop(data);
@@ -1102,7 +1005,7 @@ fn collect_links_recursive<'a>(
 
             let kind = classify_link_kind(source, &span, &url);
 
-            out.push(LinkInfo {
+            out.push(LinkFact {
                 kind,
                 text,
                 destination: if url.is_empty() { None } else { Some(url) },
@@ -1111,6 +1014,7 @@ fn collect_links_recursive<'a>(
             });
         }
     }
+    Ok(())
 }
 
 /// Heuristic to distinguish inline, reference, and autolink kinds.
@@ -1174,16 +1078,16 @@ fn find_link_text_close(src: &str) -> Option<usize> {
 // --- Table extraction ---
 
 #[derive(Clone, Debug)]
-pub struct ProjectedTableRow {
+pub(crate) struct TableRowFact {
     pub cells: Vec<String>,
     pub span: SourceSpan,
 }
 
 #[derive(Clone, Debug)]
-pub struct TableProjection {
+pub(crate) struct TableFact {
     pub headers: Vec<String>,
     pub alignments: Vec<ColumnAlignment>,
-    pub rows: Vec<ProjectedTableRow>,
+    pub rows: Vec<TableRowFact>,
 }
 
 fn project_table_node<'a>(
@@ -1191,12 +1095,12 @@ fn project_table_node<'a>(
     line_index: &LineIndex,
     source: &str,
     block_span: Option<SourceSpan>,
-) -> Option<TableProjection> {
+) -> Result<Option<TableFact>, CoreError> {
     use comrak::nodes::TableAlignment;
 
     let data = node.data.borrow();
     let NodeValue::Table(table_meta) = &data.value else {
-        return None;
+        return Ok(None);
     };
     let alignments = table_meta
         .alignments
@@ -1217,7 +1121,7 @@ fn project_table_node<'a>(
         let NodeValue::TableRow(is_header) = row_data.value else {
             continue;
         };
-        let local_span = physical_table_row_span(line_index, source, row_data.sourcepos);
+        let local_span = physical_table_row_span(line_index, source, row_data.sourcepos)?;
         let row_span = block_span.map_or(local_span, |span| offset_span(local_span, span));
         drop(row_data);
 
@@ -1232,18 +1136,18 @@ fn project_table_node<'a>(
         if is_header {
             headers = cells;
         } else {
-            rows.push(ProjectedTableRow {
+            rows.push(TableRowFact {
                 cells,
                 span: row_span,
             });
         }
     }
 
-    Some(TableProjection {
+    Ok(Some(TableFact {
         headers,
         alignments,
         rows,
-    })
+    }))
 }
 
 /// Span of one physical table-row line, including its legal 0-3 spaces of
@@ -1252,9 +1156,15 @@ fn physical_table_row_span(
     line_index: &LineIndex,
     source: &str,
     sourcepos: Sourcepos,
-) -> SourceSpan {
+) -> Result<SourceSpan, CoreError> {
     let line = sourcepos.start.line as u32;
-    let byte_start = line_index.line_start_byte(line).unwrap_or(0);
+    let byte_start = line_index.line_start_byte(line).ok_or_else(|| {
+        source_position_error(
+            sourcepos.start.line,
+            sourcepos.start.column,
+            "table row line is outside the source",
+        )
+    })?;
     let mut byte_end = line_index.line_start_byte(line + 1).unwrap_or(source.len());
     if source.as_bytes().get(byte_end.wrapping_sub(1)) == Some(&b'\n') {
         byte_end -= 1;
@@ -1262,12 +1172,12 @@ fn physical_table_row_span(
             byte_end -= 1;
         }
     }
-    SourceSpan {
+    Ok(SourceSpan {
         line_start: line,
         line_end: line,
         byte_start: byte_start as u32,
         byte_end: byte_end as u32,
-    }
+    })
 }
 
 fn count_table_row_columns(payload: &str) -> (usize, bool) {
@@ -1308,16 +1218,16 @@ fn offset_span(span: SourceSpan, block_span: SourceSpan) -> SourceSpan {
 pub fn extract_table_projection(
     table_source: &str,
     block_span: SourceSpan,
-) -> Result<TableProjection, CoreError> {
-    reject_oversized_source(table_source.len())?;
-    let line_index = LineIndex::new(table_source);
+) -> Result<TableFact, CoreError> {
+    let temporary_source = DocumentSource::new(table_source.into(), ParsePolicy::Lenient)?;
+    let line_index = temporary_source.lines();
     let arena = Arena::new();
     let opts = comrak_opts(None);
     let root = parse_document(&arena, table_source, &opts);
     reject_excessive_ast_depth(root)?;
 
     for node in root.children() {
-        if let Some(table) = project_table_node(node, &line_index, table_source, Some(block_span)) {
+        if let Some(table) = project_table_node(node, line_index, table_source, Some(block_span))? {
             return Ok(table);
         }
     }
@@ -1390,6 +1300,24 @@ pub fn validate_table_row_payload(payload: &str, expected_columns: usize) -> Res
 mod projection_policy_tests {
     use super::*;
 
+    fn sourcepos(
+        start_line: usize,
+        start_column: usize,
+        end_line: usize,
+        end_column: usize,
+    ) -> Sourcepos {
+        Sourcepos {
+            start: comrak::nodes::LineColumn {
+                line: start_line,
+                column: start_column,
+            },
+            end: comrak::nodes::LineColumn {
+                line: end_line,
+                column: end_column,
+            },
+        }
+    }
+
     #[test]
     fn unclassified_parser_nodes_fail_instead_of_becoming_paragraphs() {
         let error = node_value_to_block_kind(&NodeValue::Text("inline".into())).unwrap_err();
@@ -1401,9 +1329,11 @@ mod projection_policy_tests {
 
     #[test]
     fn flat_sources_larger_than_one_mib_are_accepted() {
-        let source = "x".repeat(1024 * 1024 + 1);
-        let parsed = ParsedDocument::parse(source).unwrap();
-        assert_eq!(parsed.source.len(), 1024 * 1024 + 1);
+        let source =
+            DocumentSource::new("x".repeat(1024 * 1024 + 1), ParsePolicy::Lenient).unwrap();
+        let facts = ParsedFacts::parse(&source).unwrap();
+        assert_eq!(source.len(), 1024 * 1024 + 1);
+        assert_eq!(facts.blocks.len(), 1);
     }
 
     #[test]
@@ -1416,13 +1346,44 @@ mod projection_policy_tests {
         ));
     }
 
-    #[cfg(target_pointer_width = "64")]
     #[test]
-    fn oversized_sources_fail_before_offsets_can_wrap() {
-        assert!(reject_oversized_source(u32::MAX as usize - 1).is_ok());
+    fn parser_positions_fail_closed_instead_of_widening_spans() {
+        let source = DocumentSource::new("one\n世界".into(), ParsePolicy::Lenient).unwrap();
+        for invalid in [
+            sourcepos(0, 1, 1, 1),
+            sourcepos(1, 0, 1, 1),
+            sourcepos(3, 1, 3, 1),
+            sourcepos(2, 7, 2, 7),
+            sourcepos(2, 1, 1, 1),
+        ] {
+            assert!(matches!(
+                sourcepos_to_span(source.lines(), source.text(), invalid),
+                Err(CoreError::InvalidSourcePosition { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn parser_positions_reject_non_utf8_boundaries() {
+        let source = DocumentSource::new("é".into(), ParsePolicy::Lenient).unwrap();
         assert!(matches!(
-            reject_oversized_source(u32::MAX as usize),
-            Err(CoreError::ParseFailed(message)) if message.contains("maximum supported size")
+            sourcepos_to_span(source.lines(), source.text(), sourcepos(1, 2, 1, 2)),
+            Err(CoreError::InvalidSourcePosition { reason, .. })
+                if reason.contains("UTF-8")
         ));
+    }
+
+    #[test]
+    fn zero_column_end_uses_the_start_of_its_sentinel_line() {
+        let source = DocumentSource::new("one\n\n".into(), ParsePolicy::Lenient).unwrap();
+        assert_eq!(
+            sourcepos_to_span(source.lines(), source.text(), sourcepos(1, 1, 2, 0)).unwrap(),
+            SourceSpan {
+                line_start: 1,
+                line_end: 1,
+                byte_start: 0,
+                byte_end: 4,
+            }
+        );
     }
 }

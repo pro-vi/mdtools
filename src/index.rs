@@ -11,7 +11,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::model::{
     BlockKind, ColumnAlignment, FrontmatterFormat, LinkKind, SourceSpan, TaskStatus,
 };
-use crate::parser::{HeadingSourceKind, ParsedDocument, TableProjection};
+use crate::parser::{HeadingSourceKind, ParsedFacts, TableFact};
+use crate::source::DocumentSource;
 use crate::target::TargetAddress;
 
 /// Public structural kinds without exposing the index's internal node identity.
@@ -154,10 +155,11 @@ struct SectionSpec {
     byte_end: u32,
 }
 
-/// One immutable index built with the parser projection and owned by [`Document`](crate::document::Document).
+/// One immutable index owning exact source state and consumed parser facts.
 pub struct DocumentIndex {
     instance_id: IndexInstanceId,
-    projection: ParsedDocument,
+    source: DocumentSource,
+    legacy_facts: ParsedFacts,
     nodes: Vec<IndexEntry>,
     source_order: Vec<IndexNodeId>,
     children_by_parent: HashMap<IndexNodeId, Vec<IndexNodeId>>,
@@ -167,13 +169,13 @@ pub struct DocumentIndex {
 }
 
 impl DocumentIndex {
-    pub(crate) fn build(projection: ParsedDocument) -> Self {
+    pub(crate) fn build(source: DocumentSource, legacy_facts: ParsedFacts) -> Self {
         let mut builder = IndexBuilder::default();
         let document_span = SourceSpan {
             line_start: 1,
-            line_end: projection.line_count(),
+            line_end: source.line_count(),
             byte_start: 0,
-            byte_end: projection.source.len() as u32,
+            byte_end: source.len() as u32,
         };
         let root = builder.push(
             None,
@@ -182,7 +184,7 @@ impl DocumentIndex {
             },
         );
 
-        if let Some(frontmatter) = &projection.frontmatter {
+        if let Some(frontmatter) = &legacy_facts.frontmatter {
             builder.push(
                 Some(root),
                 IndexNode::Frontmatter {
@@ -192,19 +194,19 @@ impl DocumentIndex {
             );
         }
 
-        let mut block_order = (0..projection.blocks.len()).collect::<Vec<_>>();
+        let mut block_order = (0..legacy_facts.blocks.len()).collect::<Vec<_>>();
         block_order.sort_by_key(|position| {
-            let block = &projection.blocks[*position];
+            let block = &legacy_facts.blocks[*position];
             (block.span.byte_start, block.span.byte_end, block.index)
         });
 
         let mut sections = Vec::<SectionSpec>::new();
         let mut section_stack = Vec::<usize>::new();
-        let mut owner_by_block = vec![None; projection.blocks.len()];
+        let mut owner_by_block = vec![None; legacy_facts.blocks.len()];
         let mut section_by_heading_block = HashMap::<u32, usize>::new();
 
         for position in &block_order {
-            let block = &projection.blocks[*position];
+            let block = &legacy_facts.blocks[*position];
             let Some(heading) = &block.heading else {
                 owner_by_block[*position] = section_stack.last().copied();
                 continue;
@@ -225,7 +227,7 @@ impl DocumentIndex {
                 heading_span: block.span,
                 marker_span: heading.marker_span,
                 source_kind: heading.kind,
-                byte_end: projection.source.len() as u32,
+                byte_end: source.len() as u32,
             });
             section_by_heading_block.insert(block.index, section_index);
             section_stack.push(section_index);
@@ -244,13 +246,13 @@ impl DocumentIndex {
         let first_heading_start = sections
             .first()
             .map(|section| section.heading_span.byte_start)
-            .unwrap_or(projection.source.len() as u32);
-        let preamble_start = projection
+            .unwrap_or(source.len() as u32);
+        let preamble_start = legacy_facts
             .frontmatter
             .as_ref()
             .map(|frontmatter| frontmatter.span.byte_end)
             .unwrap_or(0);
-        let preamble_span = projection.span_for_byte_range(preamble_start, first_heading_start);
+        let preamble_span = source.span_for_byte_range(preamble_start, first_heading_start);
         let preamble = builder.push(
             Some(root),
             IndexNode::Preamble {
@@ -262,7 +264,7 @@ impl DocumentIndex {
         let mut heading_nodes = Vec::with_capacity(sections.len());
         for section in &sections {
             let parent = section.parent.map_or(root, |parent| section_nodes[parent]);
-            let span = section_span(&projection, section.heading_span, section.byte_end);
+            let span = section_span(&source, section.heading_span, section.byte_end);
             let section_node = builder.push(
                 Some(parent),
                 IndexNode::Section {
@@ -295,7 +297,7 @@ impl DocumentIndex {
 
         let mut body_ordinals = HashMap::<IndexNodeId, u32>::new();
         for position in block_order {
-            let block = &projection.blocks[position];
+            let block = &legacy_facts.blocks[position];
             if let Some(section_index) = section_by_heading_block.get(&block.index).copied() {
                 add_links(&mut builder, heading_nodes[section_index], &block.links);
                 continue;
@@ -351,7 +353,8 @@ impl DocumentIndex {
 
         let mut index = Self {
             instance_id: IndexInstanceId(NEXT_INDEX_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)),
-            projection,
+            source,
+            legacy_facts,
             nodes: builder.nodes,
             source_order,
             children_by_parent,
@@ -380,8 +383,12 @@ impl DocumentIndex {
         rendered
     }
 
-    pub(crate) fn projection(&self) -> &ParsedDocument {
-        &self.projection
+    pub(crate) fn source(&self) -> &DocumentSource {
+        &self.source
+    }
+
+    pub(crate) fn legacy_facts(&self) -> &ParsedFacts {
+        &self.legacy_facts
     }
 
     pub(crate) fn instance_id(&self) -> IndexInstanceId {
@@ -517,16 +524,12 @@ impl DocumentIndex {
     }
 }
 
-fn section_span(
-    projection: &ParsedDocument,
-    heading_span: SourceSpan,
-    byte_end: u32,
-) -> SourceSpan {
-    let line_end = if byte_end as usize >= projection.source.len() {
-        projection.line_count()
+fn section_span(source: &DocumentSource, heading_span: SourceSpan, byte_end: u32) -> SourceSpan {
+    let line_end = if byte_end as usize >= source.len() {
+        source.line_count()
     } else {
-        let line_at_end = projection.byte_to_line(byte_end);
-        if byte_end > 0 && projection.source.as_bytes().get(byte_end as usize - 1) == Some(&b'\n') {
+        let line_at_end = source.byte_to_line(byte_end);
+        if byte_end > 0 && source.text().as_bytes().get(byte_end as usize - 1) == Some(&b'\n') {
             line_at_end - 1
         } else {
             line_at_end
@@ -553,14 +556,14 @@ impl IndexBuilder {
     }
 }
 
-fn indexed_table(table: &TableProjection) -> IndexedTable {
+fn indexed_table(table: &TableFact) -> IndexedTable {
     IndexedTable {
         headers: table.headers.clone(),
         alignments: table.alignments.clone(),
     }
 }
 
-fn add_tasks(builder: &mut IndexBuilder, body: IndexNodeId, tasks: &[crate::parser::TaskItemInfo]) {
+fn add_tasks(builder: &mut IndexBuilder, body: IndexNodeId, tasks: &[crate::parser::TaskItemFact]) {
     let mut order = (0..tasks.len()).collect::<Vec<_>>();
     order.sort_by_key(|position| {
         let task = &tasks[*position];
@@ -589,7 +592,7 @@ fn add_tasks(builder: &mut IndexBuilder, body: IndexNodeId, tasks: &[crate::pars
     }
 }
 
-fn add_links(builder: &mut IndexBuilder, parent: IndexNodeId, links: &[crate::parser::LinkInfo]) {
+fn add_links(builder: &mut IndexBuilder, parent: IndexNodeId, links: &[crate::parser::LinkFact]) {
     let mut links = links.iter().collect::<Vec<_>>();
     links.sort_by_key(|link| (link.span.byte_start, link.span.byte_end));
     for (occurrence, link) in links.into_iter().enumerate() {

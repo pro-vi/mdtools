@@ -2,7 +2,7 @@ use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::SourceEdit;
 use crate::model::{BlockKind, InsertMode, LineEndingStyle, SectionEntry, SourceSpan};
-use crate::parser::{HeadingSourceKind, ParsedDocument};
+use crate::parser::{HeadingSourceKind, ParsedFacts};
 use crate::section::SectionPlanTarget;
 
 pub(crate) struct PlannedSectionMove {
@@ -22,7 +22,7 @@ pub(crate) fn plan_section_move(
     destination.ensure_document(document)?;
     let source = source.into_entry();
     let destination = destination.into_entry();
-    let parsed = document.index().projection();
+    let parsed = document.index().legacy_facts();
     let source_span = source.span;
     let destination_span = destination.span;
     let insert_byte = match destination_mode {
@@ -96,7 +96,14 @@ pub(crate) fn plan_section_move(
         moved.push_str(separator);
     }
     if content_follows
-        && following_setext_heading(parsed, insert_byte, source_start, source_end).is_some()
+        && following_setext_heading(
+            parsed,
+            document.source(),
+            insert_byte,
+            source_start,
+            source_end,
+        )
+        .is_some()
     {
         let trailing = count_trailing_line_breaks(moved.as_bytes(), moved.len(), 0).0;
         let last_kind = source
@@ -184,7 +191,7 @@ fn setext_boundary_breaks(kind: BlockKind) -> usize {
 }
 
 fn validate_relevel(
-    parsed: &ParsedDocument,
+    parsed: &ParsedFacts,
     source: &SectionEntry,
     delta: i32,
 ) -> Result<(), CoreError> {
@@ -209,7 +216,8 @@ fn validate_relevel(
 }
 
 fn following_setext_heading(
-    parsed: &ParsedDocument,
+    parsed: &ParsedFacts,
+    source: &str,
     insert: u32,
     source_start: u32,
     source_end: u32,
@@ -219,14 +227,13 @@ fn following_setext_heading(
     } else {
         insert
     };
-    if following as usize >= parsed.source.len() {
+    if following as usize >= source.len() {
         return None;
     }
     parsed.blocks.iter().find_map(|block| {
         let heading = block.heading.as_ref()?;
         (heading.kind == HeadingSourceKind::Setext
-            && line_start(parsed.source.as_bytes(), block.span.byte_start as usize)
-                == following as usize)
+            && line_start(source.as_bytes(), block.span.byte_start as usize) == following as usize)
             .then(|| (heading.text.clone(), heading.level))
     })
 }

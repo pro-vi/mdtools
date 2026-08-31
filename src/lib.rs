@@ -23,6 +23,7 @@ pub mod revision;
 mod search;
 mod section;
 mod section_edit;
+mod source;
 mod stats;
 mod table;
 pub mod target;

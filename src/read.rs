@@ -193,7 +193,7 @@ fn read_index_node(
             ..
         } => {
             if *kind == BlockKind::Table {
-                let table = document.index().projection().blocks[*parser_index as usize]
+                let table = document.index().legacy_facts().blocks[*parser_index as usize]
                     .table
                     .as_ref()
                     .ok_or_else(|| {

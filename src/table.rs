@@ -2,7 +2,7 @@ use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::{strip_one_trailing_newline, SourceEdit};
 use crate::model::{BlockKind, MutationDisposition, SourceSpan};
-use crate::parser::{validate_table_row_payload, TableProjection};
+use crate::parser::{validate_table_row_payload, TableFact};
 
 pub(crate) enum TableResultLocation {
     None,
@@ -109,7 +109,7 @@ fn prepare(
     block_index: u32,
     row_index: u32,
     insertion: bool,
-) -> Result<(SourceSpan, TableProjection), CoreError> {
+) -> Result<(SourceSpan, TableFact), CoreError> {
     let block =
         document
             .blocks()
@@ -152,7 +152,7 @@ enum SeparatorPlacement {
 fn resolve_insertion<'a>(
     document: &'a Document,
     block_span: SourceSpan,
-    table: &TableProjection,
+    table: &TableFact,
     row_index: u32,
 ) -> Result<Insertion<'a>, CoreError> {
     let source = document.source();

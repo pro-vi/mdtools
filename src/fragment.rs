@@ -7,7 +7,7 @@ use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::normalize_line_endings;
 use crate::model::{LineEndingStyle, SourceSpan};
-use crate::parser::{HeadingInfo, HeadingLineBreakKind, HeadingSourceKind};
+use crate::parser::{HeadingFact, HeadingLineBreakKind, HeadingSourceKind};
 use crate::target::{TargetAddress, TargetKind};
 
 /// A headed-section payload with explicit semantic or literal behavior.
@@ -266,7 +266,7 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
 fn setext_heading_content(
     source: &str,
     span: SourceSpan,
-    heading: &HeadingInfo,
+    heading: &HeadingFact,
 ) -> Result<String, CoreError> {
     let source_start = span.byte_start as usize;
     let source_end = heading.marker_span.byte_start as usize;

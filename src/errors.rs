@@ -76,9 +76,9 @@ impl From<std::io::Error> for CommandError {
 impl From<CoreError> for CommandError {
     fn from(error: CoreError) -> Self {
         let code = match error {
-            CoreError::ParseFailed(_) | CoreError::FrontmatterParseFailed(_) => {
-                DiagnosticCode::Parse
-            }
+            CoreError::ParseFailed(_)
+            | CoreError::FrontmatterParseFailed(_)
+            | CoreError::InvalidSourcePosition { .. } => DiagnosticCode::Parse,
             CoreError::TargetNotFound { .. }
             | CoreError::HeadingNotFound { .. }
             | CoreError::BlockIndexOutOfRange { .. }
@@ -105,4 +105,20 @@ pub fn error_envelope_json(error: &CommandError, _file: Option<&str>) -> Option<
         hint: error.hint.as_deref(),
     })
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_dependency_positions_remain_parse_diagnostics() {
+        let command = CommandError::from(CoreError::InvalidSourcePosition {
+            line: 2,
+            column: 0,
+            reason: "outside source",
+        });
+        assert!(matches!(command.code, DiagnosticCode::Parse));
+        assert_eq!(command.exit_code, MdExitCode::Parse);
+    }
 }

@@ -113,6 +113,11 @@ pub enum CoreError {
         source_len: usize,
         reason: &'static str,
     },
+    InvalidSourcePosition {
+        line: usize,
+        column: usize,
+        reason: &'static str,
+    },
 }
 
 impl std::fmt::Display for CoreError {
@@ -245,6 +250,14 @@ impl std::fmt::Display for CoreError {
                 f,
                 "invalid source span {}..{} for {} bytes: {}",
                 span.byte_start, span.byte_end, source_len, reason
+            ),
+            Self::InvalidSourcePosition {
+                line,
+                column,
+                reason,
+            } => write!(
+                f,
+                "invalid parser source position at line {line}, column {column}: {reason}"
             ),
         }
     }
