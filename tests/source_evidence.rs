@@ -136,6 +136,39 @@ fn newline_ending_match_uses_the_document_span_convention() {
 }
 
 #[test]
+fn multiline_match_preview_includes_every_matched_line() {
+    let semantic = Document::parse("aaa needle\nline end\n").unwrap();
+    let semantic_results = semantic
+        .query(&TargetQuery::Search {
+            text: "needle\nline".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: vec![BlockKind::Paragraph],
+            include_source_gaps: false,
+            max_results: 10,
+        })
+        .unwrap();
+    let [QueryResult::Evidence { evidence }] = semantic_results.as_slice() else {
+        panic!("multiline semantic match should be target-backed: {semantic_results:?}")
+    };
+    assert_eq!(evidence.preview, "aaa needle line end");
+
+    let gap = Document::parse("body\n\n[^lost]: note\n").unwrap();
+    let gap_results = gap
+        .query(&TargetQuery::Search {
+            text: "\n\n".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+            max_results: 10,
+        })
+        .unwrap();
+    let [QueryResult::SourceEvidence { evidence }] = gap_results.as_slice() else {
+        panic!("multiline gap match should be targetless: {gap_results:?}")
+    };
+    assert_eq!(evidence.preview, "  [^lost]: note");
+}
+
+#[test]
 fn referenced_footnotes_remain_target_backed_evidence() {
     let document = Document::parse("body[^kept]\n\n[^kept]: retained needle\n").unwrap();
     let results = document

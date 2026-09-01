@@ -233,27 +233,31 @@ fn push_match(
             byte_end: block_byte_start + match_end as u32,
         },
         etag: TargetEtag::for_bytes(&content.as_bytes()[match_start..match_end]),
-        preview: preview(&content[preview_start..]),
+        preview: preview(content, preview_start, match_end),
     });
 }
 
-fn preview(content: &str) -> String {
+fn preview(content: &str, preview_start: usize, match_end: usize) -> String {
     let mut escaped = String::new();
-    let mut characters = content.chars();
+    let mut characters = content[preview_start..].char_indices();
     for _ in 0..80 {
-        let Some(character) = characters.next() else {
+        let Some((offset, character)) = characters.next() else {
             return escaped;
         };
-        if character == '\n' {
+        let absolute = preview_start + offset;
+        if character == '\n' && absolute >= match_end {
             return escaped;
         }
         escaped.push(match character {
-            '\t' | '\r' => ' ',
+            '\t' | '\n' | '\r' => ' ',
             other => other,
         });
     }
-    if characters.next().is_some_and(|character| character != '\n') {
-        escaped.push_str("...");
+    if let Some((offset, character)) = characters.next() {
+        let absolute = preview_start + offset;
+        if character != '\n' || absolute < match_end {
+            escaped.push_str("...");
+        }
     }
     escaped
 }
