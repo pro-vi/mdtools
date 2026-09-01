@@ -32,6 +32,8 @@ This is a breaking library and wire release.
   `QueryResult` gains the exhaustive `SourceEvidence` variant.
 - **Breaking Rust:** public `CoreError` gains `InvalidSourcePosition`,
   `InvalidSourceCoverage`, and `SearchResultLimitExceeded` variants.
+- **Breaking Rust:** `ProtocolSchemaVersion::V2` is replaced by `V3`, and the
+  exhaustive `DiagnosticCode` enum gains `ResultLimit`.
 - **Breaking wire:** the generated contract is `mdtools.v3`, error envelopes
   gain `result_limit`, and no v2 compatibility shim is included.
 
