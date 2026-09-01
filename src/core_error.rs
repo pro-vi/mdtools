@@ -121,6 +121,9 @@ pub enum CoreError {
     InvalidSourceCoverage {
         reason: String,
     },
+    SearchResultLimitExceeded {
+        limit: u32,
+    },
 }
 
 impl std::fmt::Display for CoreError {
@@ -265,6 +268,10 @@ impl std::fmt::Display for CoreError {
             Self::InvalidSourceCoverage { reason } => {
                 write!(f, "invalid source coverage: {reason}")
             }
+            Self::SearchResultLimitExceeded { limit } => write!(
+                f,
+                "search matched more than max_results ({limit}); increase the explicit query budget"
+            ),
         }
     }
 }

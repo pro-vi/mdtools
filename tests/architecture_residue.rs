@@ -1,3 +1,4 @@
+#[cfg(feature = "cli")]
 use std::process::Command;
 
 #[test]
@@ -98,6 +99,7 @@ fn source_evidence_has_no_patch_refinement_path() {
 }
 
 #[test]
+#[cfg(feature = "cli")]
 fn binary_and_schema_expose_exactly_five_commands() {
     let help = Command::new(env!("CARGO_BIN_EXE_md"))
         .arg("--help")

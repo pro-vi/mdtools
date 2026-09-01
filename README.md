@@ -35,7 +35,7 @@ md map README.md | jq '.[] | {kind, address}'
 md read README.md --address '{"kind":"preamble"}'
 
 md query README.md --query \
-  '{"type":"search","text":"guard","match_mode":"literal","block_kinds":[],"include_source_gaps":true}'
+  '{"type":"search","text":"guard","match_mode":"literal","block_kinds":[],"include_source_gaps":true,"max_results":100}'
 
 md schema | jq '.patch'
 
@@ -48,7 +48,8 @@ Search returns target-backed `evidence` for indexed Markdown and targetless
 true. Source evidence carries revision, span, etag, and preview, but no address
 or guard and cannot authorize a patch. Inclusion is region-granular: separator
 whitespace inside a parser-unrepresented region is searched with that region;
-standalone boundary regions are not searched.
+standalone boundary regions are not searched. Every search supplies
+`max_results`; exceeding that budget returns an error and no partial result.
 
 Every mutation carries a document revision and target guard. The file adapter
 accepts regular files only, rechecks the canonical referent, source revision,

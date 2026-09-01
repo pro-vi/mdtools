@@ -29,47 +29,52 @@ fn raw_search(
     text: &str,
     match_mode: SearchMatchMode,
     requested_kinds: &[BlockKind],
+    max_matches: usize,
 ) -> Vec<EvidenceRange> {
     let block_kinds = if requested_kinds.is_empty() {
         ALL_BLOCK_KINDS
     } else {
         requested_kinds
     };
-    document
-        .index()
-        .source_blocks()
-        .filter_map(|entry| {
-            let (kind, span) = match entry.node {
-                crate::index::IndexNode::Heading { span, .. } => (BlockKind::Heading, span),
-                crate::index::IndexNode::BodyBlock { span, kind, .. } => (kind, span),
-                _ => return None,
-            };
-            block_kinds.contains(&kind).then_some((entry, span))
-        })
-        .flat_map(|(entry, span)| {
-            let target = document
-                .index()
-                .address_for_source_block(entry.id)
-                .expect("source blocks have canonical addresses")
-                .clone();
-            let revision = document.revision().clone();
+    let mut evidence = Vec::with_capacity(max_matches.min(256));
+    for entry in document.index().source_blocks() {
+        if evidence.len() >= max_matches {
+            break;
+        }
+        let (kind, span) = match entry.node {
+            crate::index::IndexNode::Heading { span, .. } => (BlockKind::Heading, span),
+            crate::index::IndexNode::BodyBlock { span, kind, .. } => (kind, span),
+            _ => continue,
+        };
+        if !block_kinds.contains(&kind) {
+            continue;
+        }
+        let target = document
+            .index()
+            .address_for_source_block(entry.id)
+            .expect("source blocks have canonical addresses")
+            .clone();
+        let remaining = max_matches - evidence.len();
+        evidence.extend(
             find_matches_in_content(
                 document.slice_unchecked(&span),
                 text,
                 match_mode == SearchMatchMode::LiteralIgnoreCase,
                 span.byte_start,
                 span.line_start,
+                remaining,
             )
             .into_iter()
-            .map(move |matched| EvidenceRange {
+            .map(|matched| EvidenceRange {
                 target: target.clone(),
-                revision: revision.clone(),
+                revision: document.revision().clone(),
                 span: matched.match_span,
                 etag: matched.etag,
                 preview: matched.preview,
-            })
-        })
-        .collect()
+            }),
+        );
+    }
+    evidence
 }
 
 pub(crate) fn evidence_ranges(
@@ -77,8 +82,9 @@ pub(crate) fn evidence_ranges(
     text: &str,
     match_mode: SearchMatchMode,
     block_kinds: &[BlockKind],
+    max_matches: usize,
 ) -> Vec<EvidenceRange> {
-    let mut evidence = raw_search(document, text, match_mode, block_kinds);
+    let mut evidence = raw_search(document, text, match_mode, block_kinds, max_matches);
     evidence.sort_by_key(|range| (range.span.byte_start, range.span.byte_end));
     evidence
 }
@@ -87,28 +93,37 @@ pub(crate) fn source_evidence_ranges(
     document: &Document,
     text: &str,
     match_mode: SearchMatchMode,
+    max_matches: usize,
 ) -> Vec<SourceEvidenceRange> {
-    let mut evidence = document
+    let mut evidence = Vec::with_capacity(max_matches.min(256));
+    for region in document
         .index()
         .source_regions()
         .iter()
         .filter(|region| region.kind == SourceRegionKind::ParserUnrepresented)
-        .flat_map(|region| {
+    {
+        if evidence.len() >= max_matches {
+            break;
+        }
+        let remaining = max_matches - evidence.len();
+        evidence.extend(
             find_matches_in_content(
                 document.slice_unchecked(&region.span),
                 text,
                 match_mode == SearchMatchMode::LiteralIgnoreCase,
                 region.span.byte_start,
                 region.span.line_start,
+                remaining,
             )
-        })
-        .map(|matched| SourceEvidenceRange {
-            revision: document.revision().clone(),
-            span: matched.match_span,
-            etag: matched.etag,
-            preview: matched.preview,
-        })
-        .collect::<Vec<_>>();
+            .into_iter()
+            .map(|matched| SourceEvidenceRange {
+                revision: document.revision().clone(),
+                span: matched.match_span,
+                etag: matched.etag,
+                preview: matched.preview,
+            }),
+        );
+    }
     evidence.sort_by_key(|range| (range.span.byte_start, range.span.byte_end));
     evidence
 }
@@ -133,9 +148,10 @@ fn find_matches_in_content(
     ignore_case: bool,
     block_byte_start: u32,
     block_line_start: u32,
+    max_matches: usize,
 ) -> Vec<RawMatch> {
     let mut results = Vec::new();
-    if query.is_empty() {
+    if query.is_empty() || max_matches == 0 {
         return results;
     }
 
@@ -159,6 +175,9 @@ fn find_matches_in_content(
                 block_byte_start,
                 block_line_start,
             );
+            if results.len() >= max_matches {
+                break;
+            }
             search_start = next_char_boundary(&haystack, match_start + 1);
         }
     } else {
@@ -177,6 +196,9 @@ fn find_matches_in_content(
                 block_byte_start,
                 block_line_start,
             );
+            if results.len() >= max_matches {
+                break;
+            }
             search_start = next_char_boundary(content, match_start + 1);
         }
     }
@@ -202,10 +224,6 @@ fn push_match(
         .rfind('\n')
         .map(|position| position + 1)
         .unwrap_or(0);
-    let preview_end = content[match_end..]
-        .find('\n')
-        .map(|position| match_end + position)
-        .unwrap_or(content.len());
 
     results.push(RawMatch {
         match_span: SourceSpan {
@@ -215,23 +233,29 @@ fn push_match(
             byte_end: block_byte_start + match_end as u32,
         },
         etag: TargetEtag::for_bytes(&content.as_bytes()[match_start..match_end]),
-        preview: preview(&content[preview_start..preview_end]),
+        preview: preview(&content[preview_start..]),
     });
 }
 
 fn preview(content: &str) -> String {
-    let escaped = content
-        .chars()
-        .map(|character| match character {
-            '\t' | '\n' | '\r' => ' ',
+    let mut escaped = String::new();
+    let mut characters = content.chars();
+    for _ in 0..80 {
+        let Some(character) = characters.next() else {
+            return escaped;
+        };
+        if character == '\n' {
+            return escaped;
+        }
+        escaped.push(match character {
+            '\t' | '\r' => ' ',
             other => other,
-        })
-        .collect::<String>();
-    if escaped.chars().count() <= 80 {
-        escaped
-    } else {
-        format!("{}...", escaped.chars().take(80).collect::<String>())
+        });
     }
+    if characters.next().is_some_and(|character| character != '\n') {
+        escaped.push_str("...");
+    }
+    escaped
 }
 
 fn next_char_boundary(value: &str, position: usize) -> usize {

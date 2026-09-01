@@ -18,6 +18,7 @@ fn source_gap_search_returns_exact_targetless_evidence() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: vec![BlockKind::Heading],
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     let [QueryResult::SourceEvidence { evidence }] = results.as_slice() else {
@@ -69,6 +70,7 @@ fn source_gap_inclusion_is_explicit_and_independent_of_block_filters() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: vec![BlockKind::Paragraph],
             include_source_gaps: false,
+            max_results: 100,
         })
         .unwrap();
     assert_eq!(without_gaps.len(), 1);
@@ -80,6 +82,7 @@ fn source_gap_inclusion_is_explicit_and_independent_of_block_filters() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: vec![BlockKind::Heading],
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     assert_eq!(with_gaps.len(), 1);
@@ -95,6 +98,7 @@ fn search_never_crosses_source_region_boundaries() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     assert!(results.is_empty());
@@ -106,6 +110,7 @@ fn search_never_crosses_source_region_boundaries() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     assert!(results.is_empty());
@@ -120,6 +125,7 @@ fn newline_ending_match_uses_the_document_span_convention() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     let [QueryResult::SourceEvidence { evidence }] = results.as_slice() else {
@@ -138,6 +144,7 @@ fn referenced_footnotes_remain_target_backed_evidence() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     let [QueryResult::Evidence { evidence }] = results.as_slice() else {
@@ -157,6 +164,7 @@ fn link_reference_definitions_return_targetless_source_evidence() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     let [QueryResult::SourceEvidence { evidence }] = results.as_slice() else {
@@ -177,6 +185,7 @@ fn mixed_evidence_families_remain_in_strict_source_order() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: true,
+            max_results: 100,
         })
         .unwrap();
     let starts = results
@@ -194,4 +203,50 @@ fn mixed_evidence_families_remain_in_strict_source_order() {
     assert!(matches!(results[0], QueryResult::Evidence { .. }));
     assert!(matches!(results[1], QueryResult::SourceEvidence { .. }));
     assert!(matches!(results[2], QueryResult::Evidence { .. }));
+}
+
+#[test]
+fn search_result_budget_fails_without_partial_output() {
+    let document =
+        Document::parse("first needle\n\n[^lost]: hidden needle needle\n\nlast needle\n").unwrap();
+    let error = document
+        .query(&TargetQuery::Search {
+            text: "needle".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+            max_results: 2,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        mdtools::core_error::CoreError::SearchResultLimitExceeded { limit: 2 }
+    ));
+
+    let exact = document
+        .query(&TargetQuery::Search {
+            text: "needle".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+            max_results: 4,
+        })
+        .unwrap();
+    assert_eq!(exact.len(), 4);
+}
+
+#[test]
+fn repetitive_source_gap_stops_at_the_explicit_result_budget() {
+    let source = format!("[^lost]: {}\n", "a".repeat(100_000));
+    let document = Document::parse(source).unwrap();
+    assert!(matches!(
+        document.query(&TargetQuery::Search {
+            text: "aa".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+            max_results: 2,
+        }),
+        Err(mdtools::core_error::CoreError::SearchResultLimitExceeded { limit: 2 })
+    ));
 }

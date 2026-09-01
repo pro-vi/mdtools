@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use mdtools::document::Document;
 use mdtools::patch::{Patch, PatchOp, TaskPatchTarget};
 use mdtools::target::{TargetKind, TargetQuery};
-use mdtools::TaskStatus;
+use mdtools::{SearchMatchMode, TaskStatus};
 
 fn bench_parse_progress(c: &mut Criterion) {
     let source = include_str!("../bench/inputs/t5_progress.md");
@@ -139,6 +139,32 @@ fn bench_patch_task_batches(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_search_result_budgets(c: &mut Criterion) {
+    let mut group = c.benchmark_group("search_budget");
+    let repetitive = "a".repeat(100_000);
+    for (name, source, include_source_gaps) in [
+        ("target_backed_100k", format!("{repetitive}\n"), false),
+        (
+            "source_gap_100k",
+            format!("[^unused]: {repetitive}\n"),
+            true,
+        ),
+    ] {
+        let document = Document::parse(source).unwrap();
+        let query = TargetQuery::Search {
+            text: "aa".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps,
+            max_results: 100,
+        };
+        group.bench_function(name, |b| {
+            b.iter(|| black_box(&document).query(black_box(&query)).unwrap_err())
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_parse_progress,
@@ -150,6 +176,7 @@ criterion_group!(
     bench_target_resolve_read_scale,
     bench_target_map_flat_headings,
     bench_target_resolve_flat_headings,
-    bench_patch_task_batches
+    bench_patch_task_batches,
+    bench_search_result_budgets
 );
 criterion_main!(benches);

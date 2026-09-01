@@ -10,11 +10,26 @@ mdtools = { git = "https://github.com/pro-vi/mdtools", tag = "<released-tag>", d
 ```
 
 Versions follow semver over the **library** surface — the public items under
-`src/lib.rs`. The `md` CLI's generated JSON contract is `mdtools.v2`, and schema
+`src/lib.rs`. The `md` CLI's generated JSON contract is `mdtools.v3`, and schema
 and error-envelope outputs identify that version explicitly. It moves
 independently of the crate version. Before 1.0, a breaking library change bumps
 the minor.
 
+## v0.4.0 — Unreleased
+
+This is a breaking library and wire release.
+
+- `DocumentIndex` is the sole long-lived source and structural representation;
+  parser facts are consumed during construction and never retained.
+- A disjoint source-region ledger preserves every byte, including parser-
+  unrepresented reference definitions and unreferenced footnotes.
+- Search can return targetless `SourceEvidenceRange` values without creating
+  mutation authority.
+- Search queries require `include_source_gaps` and an explicit `max_results`
+  budget; exceeding the budget returns an error without partial results.
+- Target-backed search evidence now carries the document revision.
+- The generated wire contract is `mdtools.v3`; no v2 compatibility shim is
+  included.
 ## v0.3.0 — 2026-08-30
 
 This is a complete breaking replacement of the v0.2 public API and CLI.

@@ -139,7 +139,8 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         "text": "",
         "match_mode": "literal",
         "block_kinds": [],
-        "include_source_gaps": false
+        "include_source_gaps": false,
+        "max_results": 100
     }))
     .is_err());
     assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
@@ -147,6 +148,23 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         "text": "needle",
         "match_mode": "literal",
         "block_kinds": []
+    }))
+    .is_err());
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "search",
+        "text": "needle",
+        "match_mode": "literal",
+        "block_kinds": [],
+        "include_source_gaps": false
+    }))
+    .is_err());
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "search",
+        "text": "needle",
+        "match_mode": "literal",
+        "block_kinds": [],
+        "include_source_gaps": false,
+        "max_results": 0
     }))
     .is_err());
     assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
@@ -179,6 +197,12 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         .unwrap()
         .iter()
         .any(|field| field == "include_source_gaps"));
+    assert!(search["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field == "max_results"));
+    assert_eq!(search["properties"]["max_results"]["minimum"], 1);
     let section = variants
         .iter()
         .find(|variant| variant["properties"]["type"]["const"] == "section")
@@ -231,6 +255,7 @@ fn query_result_schema_is_closed_and_evidence_round_trips() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: vec![BlockKind::Paragraph],
             include_source_gaps: false,
+            max_results: 100,
         })
         .unwrap()
         .remove(0);

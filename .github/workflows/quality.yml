@@ -58,9 +58,9 @@ jobs:
           echo "Hosted quality run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
 
   # Keep this job id while the downstream pi-mdtools adapter migrates separately.
-  # The v2 rewrite deliberately removes the v1 capability surface, so the old
+  # The v3 rewrite deliberately removes the v2 evidence surface, so the old
   # adapter cannot be a producer-side parity gate. This job now pins the current
-  # binary-owned v2 command and schema boundary instead.
+  # binary-owned v3 command and schema boundary instead.
   pi-mdtools-consumer-canary:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -76,8 +76,8 @@ jobs:
       - name: Build md from this ref
         run: cargo build --release
 
-      - name: Verify the v2 producer contract
+      - name: Verify the v3 producer contract
         run: |
           target/release/md schema > schema.json
-          jq -e '.schema_version == "mdtools.v2"' schema.json
+          jq -e '.schema_version == "mdtools.v3"' schema.json
           jq -e '[.commands[].name] == ["map", "read", "query", "patch", "schema"]' schema.json

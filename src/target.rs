@@ -245,6 +245,8 @@ pub enum TargetQuery {
         match_mode: SearchMatchMode,
         block_kinds: Vec<BlockKind>,
         include_source_gaps: bool,
+        #[schemars(range(min = 1))]
+        max_results: u32,
     },
 }
 
@@ -281,6 +283,7 @@ enum StrictTargetQuery {
         match_mode: SearchMatchMode,
         block_kinds: Vec<BlockKind>,
         include_source_gaps: bool,
+        max_results: u32,
     },
 }
 
@@ -301,11 +304,13 @@ impl<'de> Deserialize<'de> for TargetQuery {
                 match_mode,
                 block_kinds,
                 include_source_gaps,
+                max_results,
             } => Self::Search {
                 text,
                 match_mode,
                 block_kinds,
                 include_source_gaps,
+                max_results,
             },
         };
         validate_query(&query).map_err(serde::de::Error::custom)?;
@@ -623,15 +628,40 @@ pub fn query(document: &Document, query: &TargetQuery) -> Result<Vec<QueryResult
         match_mode,
         block_kinds,
         include_source_gaps,
+        max_results,
     } = query
     {
-        let mut results = crate::search::evidence_ranges(document, text, *match_mode, block_kinds)
-            .into_iter()
-            .map(|evidence| QueryResult::Evidence { evidence })
-            .collect::<Vec<_>>();
+        let limit = *max_results as usize;
+        let mut results = crate::search::evidence_ranges(
+            document,
+            text,
+            *match_mode,
+            block_kinds,
+            limit.saturating_add(1),
+        )
+        .into_iter()
+        .map(|evidence| QueryResult::Evidence { evidence })
+        .collect::<Vec<_>>();
+        if results.len() > limit {
+            return Err(CoreError::SearchResultLimitExceeded {
+                limit: *max_results,
+            });
+        }
         if *include_source_gaps {
+            let remaining = limit - results.len();
+            let source = crate::search::source_evidence_ranges(
+                document,
+                text,
+                *match_mode,
+                remaining.saturating_add(1),
+            );
+            if source.len() > remaining {
+                return Err(CoreError::SearchResultLimitExceeded {
+                    limit: *max_results,
+                });
+            }
             results.extend(
-                crate::search::source_evidence_ranges(document, text, *match_mode)
+                source
                     .into_iter()
                     .map(|evidence| QueryResult::SourceEvidence { evidence }),
             );
@@ -1237,6 +1267,10 @@ fn validate_query(query: &TargetQuery) -> Result<(), CoreError> {
     } else if matches!(query, TargetQuery::Search { text, .. } if text.is_empty()) {
         Err(CoreError::InvalidSelector(
             "search query text cannot be empty".into(),
+        ))
+    } else if matches!(query, TargetQuery::Search { max_results: 0, .. }) {
+        Err(CoreError::InvalidSelector(
+            "search max_results must be at least one".into(),
         ))
     } else if matches!(query, TargetQuery::Section { text, match_mode }
         if text.is_empty() && NON_EMPTY_SECTION_MATCH_MODES.contains(match_mode))

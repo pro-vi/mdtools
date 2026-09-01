@@ -396,6 +396,7 @@ fn search_query_returns_evidence_that_cannot_resolve_as_mutation_authority() {
         match_mode: SearchMatchMode::Literal,
         block_kinds: vec![BlockKind::Paragraph],
         include_source_gaps: false,
+        max_results: 100,
     };
     let results = document.query(&query).unwrap();
     let [result] = results.as_slice() else {
@@ -422,6 +423,7 @@ fn search_evidence_is_returned_in_source_order_with_footnotes() {
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
             include_source_gaps: false,
+            max_results: 100,
         })
         .unwrap();
     let starts = results

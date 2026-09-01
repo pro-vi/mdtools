@@ -145,6 +145,7 @@ fn query_search_returns_non_mutable_evidence_ranges() {
         match_mode: mdtools::SearchMatchMode::Literal,
         block_kinds: Vec::new(),
         include_source_gaps: false,
+        max_results: 100,
     })
     .unwrap();
     let output = md()
@@ -169,7 +170,8 @@ fn query_search_can_return_targetless_source_evidence() {
         "text": "needle",
         "match_mode": "literal",
         "block_kinds": [],
-        "include_source_gaps": true
+        "include_source_gaps": true,
+        "max_results": 100
     })
     .to_string();
     let output = md()
@@ -186,6 +188,29 @@ fn query_search_can_return_targetless_source_evidence() {
         result[0]["evidence"]["revision"].as_str().unwrap().len(),
         64
     );
+}
+
+#[test]
+fn query_search_budget_failure_emits_no_partial_results() {
+    let directory = unique_directory("search-budget");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "needle needle\n").unwrap();
+    let query = serde_json::json!({
+        "type": "search",
+        "text": "needle",
+        "match_mode": "literal",
+        "block_kinds": [],
+        "include_source_gaps": false,
+        "max_results": 1
+    })
+    .to_string();
+    let output = md()
+        .args(["query", path.to_str().unwrap(), "--query", &query])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("max_results (1)"));
 }
 
 #[test]
