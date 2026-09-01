@@ -1,6 +1,10 @@
 use mdtools::document::Document;
 use mdtools::fingerprint::TargetEtag;
-use mdtools::patch::ReplaceBlockTarget;
+use mdtools::patch::{
+    BlockInsertionTarget, FrontmatterPatchTarget, HeadingPatchTarget, Patch, PreamblePatchTarget,
+    ReplaceBlockTarget, SectionInsertionTarget, SectionPatchTarget, TablePatchTarget,
+    TableRowPatchTarget, TaskPatchTarget,
+};
 use mdtools::target::{QueryResult, TargetQuery};
 use mdtools::{BlockKind, SearchMatchMode};
 
@@ -31,10 +35,28 @@ fn source_gap_search_returns_exact_targetless_evidence() {
         serde_json::from_value::<QueryResult>(wire.clone()).unwrap(),
         results[0]
     );
-    assert!(serde_json::from_value::<ReplaceBlockTarget>(wire["evidence"].clone()).is_err());
+    assert_rejects_all_patch_authorities(&wire["evidence"]);
     let mut forbidden_target = wire;
     forbidden_target["evidence"]["target"] = serde_json::json!({"kind": "document"});
     assert!(serde_json::from_value::<QueryResult>(forbidden_target).is_err());
+}
+
+fn assert_rejects_all_patch_authorities(value: &serde_json::Value) {
+    fn rejects<T: serde::de::DeserializeOwned>(value: &serde_json::Value) {
+        assert!(serde_json::from_value::<T>(value.clone()).is_err());
+    }
+
+    rejects::<ReplaceBlockTarget>(value);
+    rejects::<BlockInsertionTarget>(value);
+    rejects::<SectionPatchTarget>(value);
+    rejects::<HeadingPatchTarget>(value);
+    rejects::<SectionInsertionTarget>(value);
+    rejects::<PreamblePatchTarget>(value);
+    rejects::<TaskPatchTarget>(value);
+    rejects::<TableRowPatchTarget>(value);
+    rejects::<TablePatchTarget>(value);
+    rejects::<FrontmatterPatchTarget>(value);
+    rejects::<Patch>(value);
 }
 
 #[test]

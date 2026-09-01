@@ -79,6 +79,18 @@ fn transaction_consumers_do_not_reconstruct_parser_projection_state() {
 }
 
 #[test]
+fn source_evidence_has_no_patch_refinement_path() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    for relative in ["src/patch.rs", "src/patch/planner.rs"] {
+        let source = std::fs::read_to_string(root.join(relative)).unwrap();
+        assert!(
+            !source.contains("SourceEvidence"),
+            "{relative} gives source evidence mutation authority"
+        );
+    }
+}
+
+#[test]
 fn binary_and_schema_expose_exactly_five_commands() {
     let help = Command::new(env!("CARGO_BIN_EXE_md"))
         .arg("--help")
