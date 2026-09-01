@@ -79,6 +79,7 @@ pub enum DiagnosticCode {
     Io,
     Parse,
     InvalidInput,
+    ResultLimit,
     NotFound,
     Conflict,
     Invariant,

@@ -41,6 +41,7 @@ fn protocol_schema_covers_every_authoritative_surface() {
             "io",
             "parse",
             "invalid_input",
+            "result_limit",
             "not_found",
             "conflict",
             "invariant"

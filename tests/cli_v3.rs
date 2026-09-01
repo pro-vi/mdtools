@@ -211,6 +211,16 @@ fn query_search_budget_failure_emits_no_partial_results() {
     assert_eq!(output.status.code(), Some(3));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).contains("max_results (1)"));
+
+    let json = md()
+        .args(["--json", "query", path.to_str().unwrap(), "--query", &query])
+        .output()
+        .unwrap();
+    assert_eq!(json.status.code(), Some(3));
+    let envelope: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    assert_eq!(envelope["schema_version"], "mdtools.v3");
+    assert_eq!(envelope["error"], "result_limit");
+    assert_eq!(envelope["exit_code"], 3);
 }
 
 #[test]

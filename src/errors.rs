@@ -34,7 +34,7 @@ impl CommandError {
             DiagnosticCode::Io => MdExitCode::Io,
             DiagnosticCode::NotFound => MdExitCode::NotFound,
             DiagnosticCode::Parse => MdExitCode::Parse,
-            DiagnosticCode::InvalidInput => MdExitCode::InvalidInput,
+            DiagnosticCode::InvalidInput | DiagnosticCode::ResultLimit => MdExitCode::InvalidInput,
             DiagnosticCode::Conflict | DiagnosticCode::Invariant => MdExitCode::Conflict,
         };
         Self {
@@ -91,6 +91,7 @@ impl From<CoreError> for CommandError {
             | CoreError::AmbiguousTargetAddress { .. }
             | CoreError::AmbiguousTargetQuery { .. } => DiagnosticCode::Conflict,
             CoreError::PatchInvariant(_) => DiagnosticCode::Invariant,
+            CoreError::SearchResultLimitExceeded { .. } => DiagnosticCode::ResultLimit,
             _ => DiagnosticCode::InvalidInput,
         };
         Self::new(code, error.to_string())
@@ -128,5 +129,12 @@ mod tests {
             assert!(matches!(command.code, DiagnosticCode::Parse));
             assert_eq!(command.exit_code, MdExitCode::Parse);
         }
+    }
+
+    #[test]
+    fn search_result_budget_has_a_distinct_retryable_diagnostic() {
+        let command = CommandError::from(CoreError::SearchResultLimitExceeded { limit: 5 });
+        assert!(matches!(command.code, DiagnosticCode::ResultLimit));
+        assert_eq!(command.exit_code, MdExitCode::InvalidInput);
     }
 }
