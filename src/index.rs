@@ -139,6 +139,20 @@ pub(crate) struct IndexedTable {
     pub(crate) alignments: Vec<ColumnAlignment>,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct IndexedTableRow {
+    pub(crate) span: SourceSpan,
+    pub(crate) cells: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IndexedTableData {
+    pub(crate) span: SourceSpan,
+    pub(crate) headers: Vec<String>,
+    pub(crate) alignments: Vec<ColumnAlignment>,
+    pub(crate) rows: Vec<IndexedTableRow>,
+}
+
 impl IndexNode {
     fn kind(&self) -> IndexNodeKind {
         match self {
@@ -197,6 +211,7 @@ pub struct DocumentIndex {
     address_by_node: HashMap<IndexNodeId, TargetAddress>,
     node_by_address: HashMap<TargetAddress, IndexNodeId>,
     root: IndexNodeId,
+    frontmatter: Option<IndexNodeId>,
 }
 
 impl DocumentIndex {
@@ -219,7 +234,7 @@ impl DocumentIndex {
             },
         );
 
-        if let Some(frontmatter) = &legacy_facts.frontmatter {
+        let frontmatter = if let Some(frontmatter) = &legacy_facts.frontmatter {
             let frontmatter_node = builder.push(
                 Some(root),
                 IndexNode::Frontmatter {
@@ -228,7 +243,10 @@ impl DocumentIndex {
                 },
             );
             structural_regions.push((frontmatter.span, frontmatter_node));
-        }
+            Some(frontmatter_node)
+        } else {
+            None
+        };
 
         let mut block_order = (0..legacy_facts.blocks.len()).collect::<Vec<_>>();
         block_order.sort_by_key(|position| {
@@ -401,6 +419,7 @@ impl DocumentIndex {
             address_by_node: HashMap::new(),
             node_by_address: HashMap::new(),
             root,
+            frontmatter,
         };
         let (address_by_node, node_by_address) = crate::target::build_index_addresses(&index);
         index.address_by_node = address_by_node;
@@ -485,54 +504,92 @@ impl DocumentIndex {
         self.node_by_address.get(address).copied()
     }
 
-    pub(crate) fn address_for_parser_block(&self, parser_index: u32) -> Option<&TargetAddress> {
-        self.nodes.iter().find_map(|entry| match entry.node {
-            IndexNode::Heading {
-                parser_index: index,
-                ..
-            } if index == parser_index => entry
+    pub(crate) fn source_blocks(&self) -> impl Iterator<Item = &IndexEntry> {
+        self.entries_in_source_order().filter(|entry| {
+            matches!(
+                entry.node,
+                IndexNode::Heading { .. } | IndexNode::BodyBlock { .. }
+            )
+        })
+    }
+
+    pub(crate) fn address_for_source_block(&self, node: IndexNodeId) -> Option<&TargetAddress> {
+        let entry = self.entry(node);
+        match entry.node {
+            IndexNode::Heading { .. } => entry
                 .parent
                 .and_then(|section| self.address_for_node(section)),
-            IndexNode::BodyBlock {
-                parser_index: index,
-                ..
-            } if index == parser_index => self.address_for_node(entry.id),
+            IndexNode::BodyBlock { .. } => self.address_for_node(node),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn section_source_blocks(&self, owner: IndexNodeId) -> Vec<IndexNodeId> {
+        self.source_blocks()
+            .filter(|entry| self.is_descendant_of(entry.id, owner))
+            .map(|entry| entry.id)
+            .collect()
+    }
+
+    pub(crate) fn source_block_kind(&self, node: IndexNodeId) -> Option<BlockKind> {
+        match self.entry(node).node {
+            IndexNode::Heading { .. } => Some(BlockKind::Heading),
+            IndexNode::BodyBlock { kind, .. } => Some(kind),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn source_block_number(&self, node: IndexNodeId) -> Option<u32> {
+        self.source_blocks()
+            .position(|entry| entry.id == node)
+            .map(|position| position as u32)
+    }
+
+    pub(crate) fn heading_source_kind(&self, node: IndexNodeId) -> Option<HeadingSourceKind> {
+        matches!(self.entry(node).node, IndexNode::Heading { .. }).then_some(())?;
+        self.children(node).find_map(|entry| match entry.node {
+            IndexNode::HeadingMarker { source_kind, .. } => Some(source_kind),
             _ => None,
         })
     }
 
-    pub(crate) fn section_block_indices(&self, heading_block_index: Option<u32>) -> Vec<u32> {
-        let owner = match heading_block_index {
-            Some(block_index) => self.nodes.iter().find_map(|entry| {
-                matches!(
-                    entry.node,
-                    IndexNode::Heading { parser_index, .. } if parser_index == block_index
-                )
-                .then_some(entry.parent)
-                .flatten()
-            }),
-            None => self
-                .nodes
-                .iter()
-                .find(|entry| entry.node.kind() == IndexNodeKind::Preamble)
-                .map(|entry| entry.id),
-        };
-        let Some(owner) = owner else {
-            return Vec::new();
-        };
-
-        self.source_order
-            .iter()
-            .filter_map(|id| {
-                self.is_descendant_of(*id, owner)
-                    .then(|| match self.nodes[id.0 as usize].node {
-                        IndexNode::Heading { parser_index, .. }
-                        | IndexNode::BodyBlock { parser_index, .. } => Some(parser_index),
-                        _ => None,
-                    })
-                    .flatten()
+    pub(crate) fn frontmatter_metadata(&self) -> Option<(SourceSpan, FrontmatterFormat)> {
+        self.frontmatter
+            .and_then(|node| match self.entry(node).node {
+                IndexNode::Frontmatter { span, format } => Some((span, format)),
+                _ => None,
             })
-            .collect()
+    }
+
+    pub(crate) fn frontmatter_node(&self) -> Option<IndexNodeId> {
+        self.frontmatter
+    }
+
+    pub(crate) fn table_data(&self, node: IndexNodeId) -> Option<IndexedTableData> {
+        let IndexNode::BodyBlock {
+            span,
+            table: Some(table),
+            ..
+        } = &self.entry(node).node
+        else {
+            return None;
+        };
+        let rows = self
+            .children(node)
+            .filter_map(|entry| match &entry.node {
+                IndexNode::TableRow { span, cells, .. } => Some(IndexedTableRow {
+                    span: *span,
+                    cells: cells.clone(),
+                }),
+                _ => None,
+            })
+            .collect();
+        Some(IndexedTableData {
+            span: *span,
+            headers: table.headers.clone(),
+            alignments: table.alignments.clone(),
+            rows,
+        })
     }
 
     pub(crate) fn source_block_indices(&self) -> Vec<u32> {
@@ -977,6 +1034,166 @@ fn heading_source_name(kind: HeadingSourceKind) -> &'static str {
     match kind {
         HeadingSourceKind::Atx => "atx",
         HeadingSourceKind::Setext => "setext",
+    }
+}
+
+#[cfg(test)]
+mod consumer_parity_tests {
+    use super::*;
+    use crate::document::Document;
+
+    #[test]
+    fn index_native_consumer_facts_match_the_migration_bridge() {
+        for source in [
+            "preamble [link](https://example.com)\n\n# Root\n\nbody\n",
+            "Root\n====\n\n- [ ] parent\n  - [x] child\n",
+            "---\nk: v\n---\n\n| A | B |\n| :- | -: |\n| one | two |\n",
+            "body[^kept]\n\n[^kept]: note\n",
+        ] {
+            assert_fact_parity(&Document::parse(source).unwrap());
+        }
+    }
+
+    fn assert_fact_parity(document: &Document) {
+        let index = document.index();
+        assert_eq!(
+            index.frontmatter_metadata(),
+            index
+                .legacy_facts
+                .frontmatter
+                .as_ref()
+                .map(|fact| (fact.span, fact.format))
+        );
+
+        let mut facts = index.legacy_facts.blocks.iter().collect::<Vec<_>>();
+        facts.sort_by_key(|fact| (fact.span.byte_start, fact.span.byte_end, fact.index));
+        let nodes = index.source_blocks().collect::<Vec<_>>();
+        assert_eq!(nodes.len(), facts.len());
+
+        for (entry, fact) in nodes.into_iter().zip(facts) {
+            assert_eq!(entry.node.span(), fact.span);
+            assert_eq!(index.source_block_kind(entry.id), Some(fact.kind));
+            match (&entry.node, &fact.heading) {
+                (IndexNode::Heading { level, text, .. }, Some(heading)) => {
+                    assert_eq!(
+                        (*level, text.as_str()),
+                        (heading.level, heading.text.as_str())
+                    );
+                    assert_eq!(index.heading_source_kind(entry.id), Some(heading.kind));
+                    let marker = index
+                        .children(entry.id)
+                        .find_map(|child| match child.node {
+                            IndexNode::HeadingMarker { span, .. } => Some(span),
+                            _ => None,
+                        })
+                        .unwrap();
+                    assert_eq!(marker, heading.marker_span);
+                }
+                (IndexNode::BodyBlock { .. }, None) => {}
+                _ => panic!("heading/body fact kind diverged"),
+            }
+
+            let indexed_tasks = index
+                .entries_in_source_order()
+                .filter(|candidate| index.is_descendant_of(candidate.id, entry.id))
+                .filter_map(|candidate| match &candidate.node {
+                    IndexNode::TaskItem {
+                        span,
+                        child_path,
+                        task_index,
+                        status,
+                        depth,
+                        symbol_byte_offset,
+                        summary_text,
+                    } => Some((
+                        *span,
+                        child_path.clone(),
+                        *task_index,
+                        *status,
+                        *depth,
+                        *symbol_byte_offset,
+                        summary_text.clone(),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let mut fact_tasks = fact
+                .task_items
+                .iter()
+                .map(|task| {
+                    (
+                        task.span,
+                        task.child_path.clone(),
+                        task.task_index,
+                        task.status,
+                        task.depth,
+                        task.symbol_byte_offset,
+                        task.summary_text.clone(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            fact_tasks.sort_by_key(|task| (task.0.byte_start, task.4, task.1.clone()));
+            assert_eq!(indexed_tasks, fact_tasks);
+
+            let indexed_links = index
+                .entries_in_source_order()
+                .filter(|candidate| index.is_descendant_of(candidate.id, entry.id))
+                .filter_map(|candidate| match &candidate.node {
+                    IndexNode::Link {
+                        span,
+                        kind,
+                        text,
+                        destination,
+                        title,
+                        ..
+                    } => Some((
+                        *span,
+                        *kind,
+                        text.clone(),
+                        destination.clone(),
+                        title.clone(),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let mut fact_links = fact
+                .links
+                .iter()
+                .map(|link| {
+                    (
+                        link.span,
+                        link.kind,
+                        link.text.clone(),
+                        link.destination.clone(),
+                        link.title.clone(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            fact_links.sort_by_key(|link| (link.0.byte_start, link.0.byte_end));
+            assert_eq!(indexed_links, fact_links);
+
+            match (&fact.table, index.table_data(entry.id)) {
+                (Some(fact_table), Some(indexed)) => {
+                    assert_eq!(indexed.span, fact.span);
+                    assert_eq!(indexed.headers, fact_table.headers);
+                    assert_eq!(indexed.alignments, fact_table.alignments);
+                    assert_eq!(
+                        indexed
+                            .rows
+                            .iter()
+                            .map(|row| (row.span, row.cells.clone()))
+                            .collect::<Vec<_>>(),
+                        fact_table
+                            .rows
+                            .iter()
+                            .map(|row| (row.span, row.cells.clone()))
+                            .collect::<Vec<_>>()
+                    );
+                }
+                (None, None) => {}
+                _ => panic!("table fact diverged"),
+            }
+        }
     }
 }
 

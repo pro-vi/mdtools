@@ -128,15 +128,3 @@ pub struct DocumentStats {
     pub section_count: u32,
     pub line_count: u32,
 }
-
-#[derive(Clone, Debug)]
-pub(crate) struct HeadingRef {
-    pub level: u8,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct SectionEntry {
-    pub heading: Option<HeadingRef>,
-    pub block_indices: Vec<u32>,
-    pub span: SourceSpan,
-}

@@ -1,8 +1,9 @@
 use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::{strip_one_trailing_newline, SourceEdit};
-use crate::model::{BlockKind, MutationDisposition, SourceSpan};
-use crate::parser::{validate_table_row_payload, TableFact};
+use crate::index::{IndexNode, IndexNodeId, IndexedTableData};
+use crate::model::{MutationDisposition, SourceSpan};
+use crate::parser::validate_table_row_payload;
 
 pub(crate) enum TableResultLocation {
     None,
@@ -18,12 +19,11 @@ pub(crate) struct TableMutationPlan {
 
 pub(crate) fn plan_replace_row(
     document: &Document,
-    table_block_index: u32,
+    table: IndexNodeId,
     row_index: u32,
     payload: impl Into<String>,
 ) -> Result<TableMutationPlan, CoreError> {
-    let (block_span, table) = prepare(document, table_block_index, row_index, false)?;
-    let _ = block_span;
+    let table = prepare(document, table, row_index, false)?;
     let payload = strip_one_trailing_newline(payload.into());
     validate_table_row_payload(&payload, table.headers.len())?;
     let row = &table.rows[row_index as usize];
@@ -49,11 +49,12 @@ pub(crate) fn plan_replace_row(
 
 pub(crate) fn plan_insert_row(
     document: &Document,
-    table_block_index: u32,
+    table: IndexNodeId,
     row_index: u32,
     payload: impl Into<String>,
 ) -> Result<TableMutationPlan, CoreError> {
-    let (block_span, table) = prepare(document, table_block_index, row_index, true)?;
+    let table = prepare(document, table, row_index, true)?;
+    let block_span = table.span;
     let payload = strip_one_trailing_newline(payload.into());
     validate_table_row_payload(&payload, table.headers.len())?;
     let insertion = resolve_insertion(document, block_span, &table, row_index)?;
@@ -87,10 +88,10 @@ pub(crate) fn plan_insert_row(
 
 pub(crate) fn plan_delete_row(
     document: &Document,
-    table_block_index: u32,
+    table: IndexNodeId,
     row_index: u32,
 ) -> Result<TableMutationPlan, CoreError> {
-    let (_, table) = prepare(document, table_block_index, row_index, false)?;
+    let table = prepare(document, table, row_index, false)?;
     let row = &table.rows[row_index as usize];
     let deletion = deletion_span(document, row.span);
     Ok(TableMutationPlan {
@@ -106,26 +107,24 @@ pub(crate) fn plan_delete_row(
 
 fn prepare(
     document: &Document,
-    block_index: u32,
+    node: IndexNodeId,
     row_index: u32,
     insertion: bool,
-) -> Result<(SourceSpan, TableFact), CoreError> {
-    let block =
-        document
-            .blocks()
-            .get(block_index as usize)
-            .ok_or(CoreError::BlockIndexOutOfRange {
-                index: block_index,
-                block_count: document.blocks().len() as u32,
-            })?;
-    if block.kind != BlockKind::Table {
+) -> Result<IndexedTableData, CoreError> {
+    let block_index = document.index().source_block_number(node).unwrap_or(0);
+    if !matches!(
+        document.index().entry(node).node,
+        IndexNode::BodyBlock {
+            kind: crate::model::BlockKind::Table,
+            ..
+        }
+    ) {
         return Err(CoreError::NotTable { block_index });
     }
-    let table = block.table.clone().ok_or_else(|| {
-        CoreError::ParseFailed(format!(
-            "table block {block_index} is missing its cached projection"
-        ))
-    })?;
+    let table = document
+        .index()
+        .table_data(node)
+        .ok_or_else(|| CoreError::ParseFailed("indexed table is missing table data".into()))?;
     let row_count = table.rows.len() as u32;
     if (insertion && row_index > row_count) || (!insertion && row_index >= row_count) {
         return Err(CoreError::TableRowOutOfRange {
@@ -135,7 +134,7 @@ fn prepare(
             insertion,
         });
     }
-    Ok((block.span, table))
+    Ok(table)
 }
 
 struct Insertion<'a> {
@@ -152,7 +151,7 @@ enum SeparatorPlacement {
 fn resolve_insertion<'a>(
     document: &'a Document,
     block_span: SourceSpan,
-    table: &TableFact,
+    table: &IndexedTableData,
     row_index: u32,
 ) -> Result<Insertion<'a>, CoreError> {
     let source = document.source();

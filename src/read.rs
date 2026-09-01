@@ -132,7 +132,10 @@ pub fn read(document: &Document, target: &ResolvedTarget) -> Result<TargetRead, 
                 stats: crate::stats::document_stats(document),
             }))
         }
-        (TargetKind::Frontmatter, ResolvedLocator::Node(_)) => {
+        (TargetKind::Frontmatter, ResolvedLocator::Frontmatter(node)) => {
+            if *node != document.index().frontmatter_node() {
+                return Err(CoreError::DocumentIndexMismatch);
+            }
             let record = frontmatter::read(document)?;
             Ok(TargetRead::Frontmatter(FrontmatterRead {
                 snapshot,
@@ -186,27 +189,17 @@ fn read_index_node(
                 fragment,
             }))
         }
-        IndexNode::BodyBlock {
-            span,
-            parser_index,
-            kind,
-            ..
-        } => {
+        IndexNode::BodyBlock { span, kind, .. } => {
             if *kind == BlockKind::Table {
-                let table = document.index().legacy_facts().blocks[*parser_index as usize]
-                    .table
-                    .as_ref()
-                    .ok_or_else(|| {
-                        CoreError::ParseFailed(format!(
-                            "table block {parser_index} is missing its cached projection"
-                        ))
-                    })?;
+                let table = document.index().table_data(node).ok_or_else(|| {
+                    CoreError::ParseFailed("indexed table is missing table data".into())
+                })?;
                 Ok(TargetRead::Table(TableRead {
                     snapshot,
                     markdown: document.slice(span)?.to_string(),
-                    headers: table.headers.clone(),
-                    alignments: table.alignments.clone(),
-                    rows: table.rows.iter().map(|row| row.cells.clone()).collect(),
+                    headers: table.headers,
+                    alignments: table.alignments,
+                    rows: table.rows.into_iter().map(|row| row.cells).collect(),
                 }))
             } else {
                 Ok(TargetRead::Block(BlockRead {

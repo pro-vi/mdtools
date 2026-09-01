@@ -436,6 +436,7 @@ pub struct ResolvedTarget {
 #[derive(Clone, Debug)]
 pub(crate) enum ResolvedLocator {
     Node(IndexNodeId),
+    Frontmatter(Option<IndexNodeId>),
     FrontmatterField(Vec<String>),
 }
 
@@ -646,20 +647,12 @@ pub fn query_one(document: &Document, query: &TargetQuery) -> Result<ResolvedTar
 pub fn resolve(document: &Document, address: &TargetAddress) -> Result<ResolvedTarget, CoreError> {
     validate_address(address)?;
     match address {
-        TargetAddress::Frontmatter => {
-            let document_node = document
-                .index()
-                .entries_in_source_order()
-                .find(|entry| matches!(entry.node, IndexNode::Document { .. }))
-                .expect("document index root")
-                .id;
-            frontmatter_targets(document, document_node)?
-                .into_iter()
-                .find(|target| target.address() == address)
-                .ok_or_else(|| CoreError::TargetNotFound {
-                    target: address.to_string(),
-                })
-        }
+        TargetAddress::Frontmatter => frontmatter_targets(document)?
+            .into_iter()
+            .find(|target| target.address() == address)
+            .ok_or_else(|| CoreError::TargetNotFound {
+                target: address.to_string(),
+            }),
         TargetAddress::FrontmatterField { path } => {
             resolve_frontmatter_field(document, path.clone())
         }
@@ -718,7 +711,7 @@ fn collect_resolved(document: &Document) -> Result<Vec<ResolvedTarget>, CoreErro
                     },
                     ResolvedLocator::Node(entry.id),
                 ));
-                targets.extend(frontmatter_targets(document, entry.id)?);
+                targets.extend(frontmatter_targets(document)?);
             }
             IndexNode::Frontmatter { .. }
             | IndexNode::Heading { .. }
@@ -1066,10 +1059,7 @@ fn resolved(
     }
 }
 
-fn frontmatter_targets(
-    document: &Document,
-    document_node: IndexNodeId,
-) -> Result<Vec<ResolvedTarget>, CoreError> {
+fn frontmatter_targets(document: &Document) -> Result<Vec<ResolvedTarget>, CoreError> {
     let record = frontmatter::read(document)?;
     let guard = GuardAuthority::Frontmatter {
         span: record.span,
@@ -1088,7 +1078,7 @@ fn frontmatter_targets(
             present: record.present,
             format: record.format,
         },
-        ResolvedLocator::Node(document_node),
+        ResolvedLocator::Frontmatter(document.index().frontmatter_node()),
     )];
     let mut fields = Vec::new();
     collect_fields(&record.data, &[], &mut fields);
@@ -1424,4 +1414,27 @@ fn write_heading_path(
         );
     }
     write!(formatter, "{label}(path={rendered})")
+}
+
+#[cfg(test)]
+mod locator_tests {
+    use super::*;
+
+    #[test]
+    fn frontmatter_locator_distinguishes_present_from_absent_state() {
+        let absent = Document::parse("body").unwrap();
+        let present = Document::parse("---\nk: v\n---\n\nbody").unwrap();
+
+        assert!(matches!(
+            absent.resolve(&TargetAddress::Frontmatter).unwrap().locator,
+            ResolvedLocator::Frontmatter(None)
+        ));
+        assert!(matches!(
+            present
+                .resolve(&TargetAddress::Frontmatter)
+                .unwrap()
+                .locator,
+            ResolvedLocator::Frontmatter(Some(_))
+        ));
+    }
 }

@@ -1111,9 +1111,9 @@ fn plan_move_section(
     };
     let resolved_source = crate::section::resolve_address(document, &source_address)?;
     let source_block_kinds = resolved_source
-        .block_indices
+        .block_nodes
         .iter()
-        .map(|index| document.blocks()[*index as usize].kind)
+        .filter_map(|node| document.index().source_block_kind(*node))
         .collect::<Vec<_>>();
     let planned = crate::section_edit::plan_section_move(
         document,
@@ -1229,7 +1229,7 @@ fn plan_replace_table_row(
     let before = TableRowIdentity::try_from(current.snapshot())?;
     let plan = crate::table::plan_replace_row(
         document,
-        super::block_index(document, &target.table)?,
+        super::block_node(document, &target.table)?,
         target.row,
         markdown.to_string(),
     )?;
@@ -1259,7 +1259,7 @@ fn plan_insert_table_row(
     })?;
     let plan = crate::table::plan_insert_row(
         document,
-        super::block_index(document, &target.table)?,
+        super::block_node(document, &target.table)?,
         row,
         markdown.to_string(),
     )?;
@@ -1290,7 +1290,7 @@ fn plan_delete_table_row(
     )];
     let plan = crate::table::plan_delete_row(
         document,
-        super::block_index(document, &target.table)?,
+        super::block_node(document, &target.table)?,
         target.row,
     )?;
     Ok(atomic_plan(

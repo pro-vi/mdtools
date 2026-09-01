@@ -1,9 +1,10 @@
 use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::SourceEdit;
-use crate::model::{BlockKind, InsertMode, LineEndingStyle, SectionEntry, SourceSpan};
-use crate::parser::{HeadingSourceKind, ParsedFacts};
-use crate::section::SectionPlanTarget;
+use crate::index::{DocumentIndex, IndexNode};
+use crate::model::{BlockKind, InsertMode, LineEndingStyle, SourceSpan};
+use crate::parser::HeadingSourceKind;
+use crate::section::{SectionPlanEntry, SectionPlanTarget};
 
 pub(crate) struct PlannedSectionMove {
     pub(crate) edits: Vec<SourceEdit>,
@@ -22,29 +23,18 @@ pub(crate) fn plan_section_move(
     destination.ensure_document(document)?;
     let source = source.into_entry();
     let destination = destination.into_entry();
-    let parsed = document.index().legacy_facts();
     let source_span = source.span;
     let destination_span = destination.span;
     let insert_byte = match destination_mode {
         InsertMode::AfterSibling | InsertMode::IntoAsChild => destination_span.byte_end,
         InsertMode::BeforeSibling => destination_span.byte_start,
     };
-    let destination_level = destination
-        .heading
-        .as_ref()
-        .map(|heading| heading.level)
-        .ok_or_else(|| {
-            CoreError::InvalidSelector(
-                "destination must be a heading section, not the preamble".into(),
-            )
-        })?;
-    let source_level = source
-        .heading
-        .as_ref()
-        .map(|heading| heading.level)
-        .ok_or_else(|| {
-            CoreError::InvalidSelector("source must be a heading section, not the preamble".into())
-        })?;
+    let destination_level = destination.heading_level.ok_or_else(|| {
+        CoreError::InvalidSelector("destination must be a heading section, not the preamble".into())
+    })?;
+    let source_level = source.heading_level.ok_or_else(|| {
+        CoreError::InvalidSelector("source must be a heading section, not the preamble".into())
+    })?;
     let destination_inside_source = destination_span.byte_start >= source_span.byte_start
         && destination_span.byte_end <= source_span.byte_end;
     let source_inside_destination = source_span.byte_start >= destination_span.byte_start
@@ -74,7 +64,7 @@ pub(crate) fn plan_section_move(
         new_level as i32 - source_level as i32
     };
     if delta != 0 {
-        validate_relevel(parsed, &source, delta)?;
+        validate_relevel(document.index(), &source, delta)?;
     }
     let mut moved = document.slice_unchecked(&source_span).to_string();
     if delta != 0 {
@@ -97,7 +87,7 @@ pub(crate) fn plan_section_move(
     }
     if content_follows
         && following_setext_heading(
-            parsed,
+            document.index(),
             document.source(),
             insert_byte,
             source_start,
@@ -107,19 +97,17 @@ pub(crate) fn plan_section_move(
     {
         let trailing = count_trailing_line_breaks(moved.as_bytes(), moved.len(), 0).0;
         let last_kind = source
-            .block_indices
+            .block_nodes
             .last()
-            .map(|index| document.blocks()[*index as usize].kind)
+            .and_then(|node| document.index().source_block_kind(*node))
             .unwrap_or(BlockKind::Paragraph);
         moved.push_str(
             &separator.repeat(setext_boundary_breaks(last_kind).saturating_sub(trailing)),
         );
     }
-    let starts_setext = parsed
-        .blocks
-        .get(source.block_indices[0] as usize)
-        .and_then(|block| block.heading.as_ref())
-        .is_some_and(|heading| heading.kind == HeadingSourceKind::Setext);
+    let starts_setext = source.block_nodes.first().is_some_and(|node| {
+        document.index().heading_source_kind(*node) == Some(HeadingSourceKind::Setext)
+    });
     let (walk_start, lower_bound) = if insert_byte <= source_start {
         (insert_byte as usize, 0)
     } else if insert_byte == source_end {
@@ -171,16 +159,22 @@ fn preceding_block_kind(
 ) -> Option<BlockKind> {
     document
         .index()
-        .source_block_indices()
-        .into_iter()
-        .filter_map(|index| {
-            let block = &document.blocks()[index as usize];
-            let inside_source = block.span.byte_start >= source.byte_start
-                && block.span.byte_end <= source.byte_end;
-            (!inside_source && block.span.byte_start < insert_byte).then_some(block)
+        .source_blocks()
+        .filter_map(|entry| {
+            let span = entry.node.span();
+            let inside_source =
+                span.byte_start >= source.byte_start && span.byte_end <= source.byte_end;
+            (!inside_source && span.byte_start < insert_byte)
+                .then(|| {
+                    document
+                        .index()
+                        .source_block_kind(entry.id)
+                        .map(|kind| (span, kind))
+                })
+                .flatten()
         })
-        .max_by_key(|block| block.span.byte_start)
-        .map(|block| block.kind)
+        .max_by_key(|(span, _)| span.byte_start)
+        .map(|(_, kind)| kind)
 }
 
 fn setext_boundary_breaks(kind: BlockKind) -> usize {
@@ -191,23 +185,26 @@ fn setext_boundary_breaks(kind: BlockKind) -> usize {
 }
 
 fn validate_relevel(
-    parsed: &ParsedFacts,
-    source: &SectionEntry,
+    index: &DocumentIndex,
+    source: &SectionPlanEntry,
     delta: i32,
 ) -> Result<(), CoreError> {
-    for index in &source.block_indices {
-        if let Some(heading) = &parsed.blocks[*index as usize].heading {
-            if heading.kind == HeadingSourceKind::Setext {
+    for node in &source.block_nodes {
+        if let IndexNode::Heading {
+            span, level, text, ..
+        } = &index.entry(*node).node
+        {
+            if index.heading_source_kind(*node) == Some(HeadingSourceKind::Setext) {
                 return Err(CoreError::InvalidSelector(format!(
                     "setext heading {:?} (line {}) cannot be re-leveled; convert to ATX (## {}) first or use --keep-level",
-                    heading.text, parsed.blocks[*index as usize].span.line_start, heading.text
+                    text, span.line_start, text
                 )));
             }
-            let level = heading.level as i32 + delta;
-            if !(1..=6).contains(&level) {
+            let new_level = *level as i32 + delta;
+            if !(1..=6).contains(&new_level) {
                 return Err(CoreError::InvalidSelector(format!(
                     "cannot move section: descendant {:?} would land at heading level {} (max is 6)",
-                    heading.text, level
+                    text, new_level
                 )));
             }
         }
@@ -216,7 +213,7 @@ fn validate_relevel(
 }
 
 fn following_setext_heading(
-    parsed: &ParsedFacts,
+    index: &DocumentIndex,
     source: &str,
     insert: u32,
     source_start: u32,
@@ -230,11 +227,16 @@ fn following_setext_heading(
     if following as usize >= source.len() {
         return None;
     }
-    parsed.blocks.iter().find_map(|block| {
-        let heading = block.heading.as_ref()?;
-        (heading.kind == HeadingSourceKind::Setext
-            && line_start(source.as_bytes(), block.span.byte_start as usize) == following as usize)
-            .then(|| (heading.text.clone(), heading.level))
+    index.source_blocks().find_map(|entry| {
+        let IndexNode::Heading {
+            span, text, level, ..
+        } = &entry.node
+        else {
+            return None;
+        };
+        (index.heading_source_kind(entry.id) == Some(HeadingSourceKind::Setext)
+            && line_start(source.as_bytes(), span.byte_start as usize) == following as usize)
+            .then(|| (text.clone(), *level))
     })
 }
 

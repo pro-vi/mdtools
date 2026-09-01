@@ -5,7 +5,7 @@
 use crate::core_error::CoreError;
 use crate::index::DocumentIndex;
 use crate::model::{FrontmatterFormat, LineEndingStyle, SourceSpan};
-use crate::parser::{BlockFact, FrontmatterFact, ParsedFacts};
+use crate::parser::{BlockFact, ParsedFacts};
 use crate::read::TargetRead;
 use crate::revision::DocumentRevision;
 use crate::source::{DocumentSource, ParsePolicy};
@@ -64,12 +64,8 @@ impl Document {
         &self.index.legacy_facts().blocks
     }
 
-    pub(crate) fn frontmatter(&self) -> Option<&FrontmatterFact> {
-        self.index.legacy_facts().frontmatter.as_ref()
-    }
-
     pub fn has_frontmatter(&self) -> bool {
-        self.frontmatter().is_some()
+        self.index.frontmatter_metadata().is_some()
     }
 
     pub fn line_count(&self) -> u32 {
@@ -109,13 +105,13 @@ impl Document {
     }
 
     pub(crate) fn frontmatter_state(&self) -> FrontmatterState<'_> {
-        match self.frontmatter() {
-            Some(frontmatter) => {
-                let raw = self.slice_unchecked(&frontmatter.span);
+        match self.index.frontmatter_metadata() {
+            Some((span, format)) => {
+                let raw = self.slice_unchecked(&span);
                 FrontmatterState {
-                    span: Some(frontmatter.span),
+                    span: Some(span),
                     raw: Some(raw),
-                    format: Some(frontmatter.format),
+                    format: Some(format),
                     etag: frontmatter_state_etag(Some(raw)),
                 }
             }

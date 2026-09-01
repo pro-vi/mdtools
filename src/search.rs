@@ -1,7 +1,7 @@
 use crate::document::Document;
 use crate::fingerprint::TargetEtag;
 use crate::model::{BlockKind, SearchMatchMode, SourceSpan};
-use crate::target::EvidenceRange;
+use crate::target::{EvidenceRange, TargetAddress};
 
 pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
     BlockKind::Heading,
@@ -18,7 +18,7 @@ pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
 
 #[derive(Clone, Debug)]
 struct RawEvidenceMatch {
-    block_index: u32,
+    target: TargetAddress,
     match_span: SourceSpan,
     etag: TargetEtag,
     preview: String,
@@ -36,18 +36,30 @@ fn raw_search(
         requested_kinds
     };
     document
-        .blocks()
-        .iter()
-        .filter(|block| block_kinds.contains(&block.kind))
-        .flat_map(|block| {
+        .index()
+        .source_blocks()
+        .filter_map(|entry| {
+            let (kind, span) = match entry.node {
+                crate::index::IndexNode::Heading { span, .. } => (BlockKind::Heading, span),
+                crate::index::IndexNode::BodyBlock { span, kind, .. } => (kind, span),
+                _ => return None,
+            };
+            block_kinds.contains(&kind).then_some((entry, kind, span))
+        })
+        .flat_map(|(entry, kind, span)| {
+            let target = document
+                .index()
+                .address_for_source_block(entry.id)
+                .expect("source blocks have canonical addresses")
+                .clone();
             find_matches_in_content(
-                document.slice_unchecked(&block.span),
+                document.slice_unchecked(&span),
                 text,
                 match_mode == SearchMatchMode::LiteralIgnoreCase,
-                block.index,
-                block.kind,
-                block.span.byte_start,
-                block.span.line_start,
+                &target,
+                kind,
+                span.byte_start,
+                span.line_start,
             )
         })
         .collect()
@@ -61,17 +73,11 @@ pub(crate) fn evidence_ranges(
 ) -> Vec<EvidenceRange> {
     let mut evidence = raw_search(document, text, match_mode, block_kinds)
         .into_iter()
-        .filter_map(|matched| {
-            document
-                .index()
-                .address_for_parser_block(matched.block_index)
-                .cloned()
-                .map(|target| EvidenceRange {
-                    target,
-                    span: matched.match_span,
-                    etag: matched.etag,
-                    preview: matched.preview,
-                })
+        .map(|matched| EvidenceRange {
+            target: matched.target,
+            span: matched.match_span,
+            etag: matched.etag,
+            preview: matched.preview,
         })
         .collect::<Vec<_>>();
     evidence.sort_by_key(|range| (range.span.byte_start, range.span.byte_end));
@@ -96,7 +102,7 @@ fn find_matches_in_content(
     content: &str,
     query: &str,
     ignore_case: bool,
-    block_index: u32,
+    target: &TargetAddress,
     block_kind: BlockKind,
     block_byte_start: u32,
     block_line_start: u32,
@@ -125,7 +131,7 @@ fn find_matches_in_content(
                 original_end,
                 block_byte_start,
                 block_line_start,
-                block_index,
+                target,
                 block_kind,
             );
             search_start = next_char_boundary(&haystack, match_start + 1);
@@ -145,7 +151,7 @@ fn find_matches_in_content(
                 match_end,
                 block_byte_start,
                 block_line_start,
-                block_index,
+                target,
                 block_kind,
             );
             search_start = next_char_boundary(content, match_start + 1);
@@ -162,7 +168,7 @@ fn push_match(
     match_end: usize,
     block_byte_start: u32,
     block_line_start: u32,
-    block_index: u32,
+    target: &TargetAddress,
     _block_kind: BlockKind,
 ) {
     let match_line_start = block_line_start + content[..match_start].matches('\n').count() as u32;
@@ -178,7 +184,7 @@ fn push_match(
         .unwrap_or(content.len());
 
     results.push(RawEvidenceMatch {
-        block_index,
+        target: target.clone(),
         match_span: SourceSpan {
             line_start: match_line_start,
             line_end: match_line_end,

@@ -1,14 +1,21 @@
 use crate::core_error::CoreError;
 use crate::document::Document;
-use crate::index::IndexNode;
-use crate::model::{HeadingRef, SectionEntry};
+use crate::index::{IndexNode, IndexNodeId};
+use crate::model::SourceSpan;
 use crate::revision::DocumentRevision;
 use crate::target::{SectionAddress, TargetAddress};
 
 #[derive(Clone, Debug)]
 pub(crate) struct SectionPlanTarget {
-    entry: SectionEntry,
+    entry: SectionPlanEntry,
     revision: DocumentRevision,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct SectionPlanEntry {
+    pub(crate) heading_level: Option<u8>,
+    pub(crate) block_nodes: Vec<IndexNodeId>,
+    pub(crate) span: SourceSpan,
 }
 
 impl SectionPlanTarget {
@@ -23,13 +30,13 @@ impl SectionPlanTarget {
         }
     }
 
-    pub(crate) fn into_entry(self) -> SectionEntry {
+    pub(crate) fn into_entry(self) -> SectionPlanEntry {
         self.entry
     }
 }
 
 impl std::ops::Deref for SectionPlanTarget {
-    type Target = SectionEntry;
+    type Target = SectionPlanEntry;
 
     fn deref(&self) -> &Self::Target {
         &self.entry
@@ -51,28 +58,16 @@ pub(crate) fn resolve_address(
             target: target_address.to_string(),
         })?;
     let entry = match &document.index().entry(node).node {
-        IndexNode::Preamble { span } => SectionEntry {
-            heading: None,
-            block_indices: document.index().section_block_indices(None),
+        IndexNode::Preamble { span } => SectionPlanEntry {
+            heading_level: None,
+            block_nodes: document.index().section_source_blocks(node),
             span: *span,
         },
-        IndexNode::Section { span, level, .. } => {
-            let parser_index = document
-                .index()
-                .children(node)
-                .find_map(|child| match child.node {
-                    IndexNode::Heading { parser_index, .. } => Some(parser_index),
-                    _ => None,
-                })
-                .ok_or_else(|| {
-                    CoreError::PatchInvariant("section has no indexed heading block".into())
-                })?;
-            SectionEntry {
-                heading: Some(HeadingRef { level: *level }),
-                block_indices: document.index().section_block_indices(Some(parser_index)),
-                span: *span,
-            }
-        }
+        IndexNode::Section { span, level, .. } => SectionPlanEntry {
+            heading_level: Some(*level),
+            block_nodes: document.index().section_source_blocks(node),
+            span: *span,
+        },
         _ => {
             return Err(CoreError::PatchInvariant(
                 "section address resolved to a non-section index node".into(),

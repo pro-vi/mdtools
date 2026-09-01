@@ -1,42 +1,47 @@
 use crate::document::Document;
+use crate::index::{IndexNode, IndexNodeKind};
 use crate::model::{BlockKind, DocumentStats};
 
 pub fn document_stats(document: &Document) -> DocumentStats {
-    let heading_count = document
-        .blocks()
-        .iter()
-        .filter(|block| block.heading.is_some())
-        .count() as u32;
-    let block_count = document.blocks().len() as u32;
-    let link_count = document
-        .blocks()
-        .iter()
-        .map(|block| block.links.len() as u32)
-        .sum();
-    let has_preamble = !document.index().section_block_indices(None).is_empty();
+    let index = document.index();
+    let heading_count = index.node_count(IndexNodeKind::Heading) as u32;
+    let block_count = index.source_blocks().count() as u32;
+    let link_count = index.node_count(IndexNodeKind::Link) as u32;
+    let has_preamble = index.source_blocks().any(|entry| {
+        matches!(entry.node, IndexNode::BodyBlock { .. })
+            && entry.parent.is_some_and(|parent| {
+                matches!(index.entry(parent).node, IndexNode::Preamble { .. })
+            })
+    });
     let section_count = heading_count + u32::from(has_preamble);
-    let word_count = document
-        .blocks()
-        .iter()
-        .map(|block| match block.kind {
-            BlockKind::Heading => block
-                .heading
-                .as_ref()
-                .map(|heading| heading.text.as_str())
-                .unwrap_or_else(|| document.slice_unchecked(&block.span))
-                .split_whitespace()
-                .count() as u32,
-            BlockKind::Paragraph => document
-                .slice_unchecked(&block.span)
-                .split_whitespace()
-                .count() as u32,
-            BlockKind::BlockQuote => document
-                .slice_unchecked(&block.span)
+    let word_count = index
+        .source_blocks()
+        .map(|entry| match &entry.node {
+            IndexNode::Heading { text, .. } => text.split_whitespace().count() as u32,
+            IndexNode::BodyBlock {
+                kind: BlockKind::Paragraph,
+                span,
+                ..
+            } => document.slice_unchecked(span).split_whitespace().count() as u32,
+            IndexNode::BodyBlock {
+                kind: BlockKind::BlockQuote,
+                span,
+                ..
+            } => document
+                .slice_unchecked(span)
                 .lines()
                 .map(|line| count_content_words(blockquote_content(line)))
                 .sum(),
-            BlockKind::List => count_list_words(document.slice_unchecked(&block.span)),
-            BlockKind::Table => count_table_words(document.slice_unchecked(&block.span)),
+            IndexNode::BodyBlock {
+                kind: BlockKind::List,
+                span,
+                ..
+            } => count_list_words(document.slice_unchecked(span)),
+            IndexNode::BodyBlock {
+                kind: BlockKind::Table,
+                span,
+                ..
+            } => count_table_words(document.slice_unchecked(span)),
             _ => 0,
         })
         .sum();

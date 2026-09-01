@@ -1291,8 +1291,9 @@ fn document_start_anchor(document: &Document) -> usize {
         .map(|span| span.byte_start as usize)
         .or_else(|| {
             document
-                .frontmatter()
-                .map(|frontmatter| frontmatter.span.byte_end as usize)
+                .index()
+                .frontmatter_metadata()
+                .map(|(span, _)| span.byte_end as usize)
         })
         .unwrap_or(0)
 }
@@ -1512,6 +1513,19 @@ fn verify_selection_guard(
 }
 
 fn block_index(document: &Document, address: &BlockAddress) -> Result<u32, CoreError> {
+    let node = block_node(document, address)?;
+    match document.index().entry(node).node {
+        IndexNode::BodyBlock { parser_index, .. } => Ok(parser_index),
+        _ => Err(CoreError::InvalidPatch(
+            "block address resolved to non-block node".into(),
+        )),
+    }
+}
+
+fn block_node(
+    document: &Document,
+    address: &BlockAddress,
+) -> Result<crate::index::IndexNodeId, CoreError> {
     let resolved = document.resolve(&TargetAddress::Block {
         block: address.clone(),
     })?;
@@ -1520,11 +1534,15 @@ fn block_index(document: &Document, address: &BlockAddress) -> Result<u32, CoreE
             "block address resolved without index node".into(),
         ));
     };
-    match document.index().entry(*node).node {
-        IndexNode::BodyBlock { parser_index, .. } => Ok(parser_index),
-        _ => Err(CoreError::InvalidPatch(
+    if matches!(
+        document.index().entry(*node).node,
+        IndexNode::BodyBlock { .. }
+    ) {
+        Ok(*node)
+    } else {
+        Err(CoreError::InvalidPatch(
             "block address resolved to non-block node".into(),
-        )),
+        ))
     }
 }
 
