@@ -112,6 +112,24 @@ fn search_never_crosses_source_region_boundaries() {
 }
 
 #[test]
+fn newline_ending_match_uses_the_document_span_convention() {
+    let document = Document::parse("body\n\n[^lost]: note\n").unwrap();
+    let results = document
+        .query(&TargetQuery::Search {
+            text: "\n\n".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+        })
+        .unwrap();
+    let [QueryResult::SourceEvidence { evidence }] = results.as_slice() else {
+        panic!("gap whitespace should produce one source-evidence match: {results:?}")
+    };
+    let expected = document.span_for_byte_range(evidence.span.byte_start, evidence.span.byte_end);
+    assert_eq!(evidence.span, expected);
+}
+
+#[test]
 fn referenced_footnotes_remain_target_backed_evidence() {
     let document = Document::parse("body[^kept]\n\n[^kept]: retained needle\n").unwrap();
     let results = document

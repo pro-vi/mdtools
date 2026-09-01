@@ -192,8 +192,12 @@ fn push_match(
     block_line_start: u32,
 ) {
     let match_line_start = block_line_start + content[..match_start].matches('\n').count() as u32;
-    let match_line_end =
-        match_line_start + content[match_start..match_end].matches('\n').count() as u32;
+    let matched = &content.as_bytes()[match_start..match_end];
+    let match_line_end = match_line_start
+        + matched[..matched.len() - 1]
+            .iter()
+            .filter(|byte| **byte == b'\n')
+            .count() as u32;
     let preview_start = content[..match_start]
         .rfind('\n')
         .map(|position| position + 1)
