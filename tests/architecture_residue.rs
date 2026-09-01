@@ -27,6 +27,13 @@ fn public_source_has_no_previous_authority_names() {
         "EditOutcome",
         "pub mod parser",
         "pub fn projection",
+        "ParsedDocument",
+        "BlockInfo",
+        "legacy_facts",
+        "parser_index",
+        "source_block_indices",
+        "fn blocks(&self)",
+        "mdtools.v2",
     ] {
         assert!(
             !source.contains(removed),
