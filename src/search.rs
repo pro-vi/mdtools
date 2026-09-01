@@ -2,7 +2,7 @@ use crate::document::Document;
 use crate::fingerprint::TargetEtag;
 use crate::index::SourceRegionKind;
 use crate::model::{BlockKind, SearchMatchMode, SourceSpan};
-use crate::target::{EvidenceRange, SourceEvidenceRange, TargetAddress};
+use crate::target::{EvidenceRange, SourceEvidenceRange};
 
 pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
     BlockKind::Heading,
@@ -18,8 +18,7 @@ pub const ALL_BLOCK_KINDS: &[BlockKind] = &[
 ];
 
 #[derive(Clone, Debug)]
-struct RawEvidenceMatch {
-    target: Option<TargetAddress>,
+struct RawMatch {
     match_span: SourceSpan,
     etag: TargetEtag,
     preview: String,
@@ -30,7 +29,7 @@ fn raw_search(
     text: &str,
     match_mode: SearchMatchMode,
     requested_kinds: &[BlockKind],
-) -> Vec<RawEvidenceMatch> {
+) -> Vec<EvidenceRange> {
     let block_kinds = if requested_kinds.is_empty() {
         ALL_BLOCK_KINDS
     } else {
@@ -53,14 +52,22 @@ fn raw_search(
                 .address_for_source_block(entry.id)
                 .expect("source blocks have canonical addresses")
                 .clone();
+            let revision = document.revision().clone();
             find_matches_in_content(
                 document.slice_unchecked(&span),
                 text,
                 match_mode == SearchMatchMode::LiteralIgnoreCase,
-                Some(&target),
                 span.byte_start,
                 span.line_start,
             )
+            .into_iter()
+            .map(move |matched| EvidenceRange {
+                target: target.clone(),
+                revision: revision.clone(),
+                span: matched.match_span,
+                etag: matched.etag,
+                preview: matched.preview,
+            })
         })
         .collect()
 }
@@ -71,16 +78,7 @@ pub(crate) fn evidence_ranges(
     match_mode: SearchMatchMode,
     block_kinds: &[BlockKind],
 ) -> Vec<EvidenceRange> {
-    let mut evidence = raw_search(document, text, match_mode, block_kinds)
-        .into_iter()
-        .map(|matched| EvidenceRange {
-            target: matched.target.expect("semantic search has a target"),
-            revision: document.revision().clone(),
-            span: matched.match_span,
-            etag: matched.etag,
-            preview: matched.preview,
-        })
-        .collect::<Vec<_>>();
+    let mut evidence = raw_search(document, text, match_mode, block_kinds);
     evidence.sort_by_key(|range| (range.span.byte_start, range.span.byte_end));
     evidence
 }
@@ -100,7 +98,6 @@ pub(crate) fn source_evidence_ranges(
                 document.slice_unchecked(&region.span),
                 text,
                 match_mode == SearchMatchMode::LiteralIgnoreCase,
-                None,
                 region.span.byte_start,
                 region.span.line_start,
             )
@@ -134,10 +131,9 @@ fn find_matches_in_content(
     content: &str,
     query: &str,
     ignore_case: bool,
-    target: Option<&TargetAddress>,
     block_byte_start: u32,
     block_line_start: u32,
-) -> Vec<RawEvidenceMatch> {
+) -> Vec<RawMatch> {
     let mut results = Vec::new();
     if query.is_empty() {
         return results;
@@ -162,7 +158,6 @@ fn find_matches_in_content(
                 original_end,
                 block_byte_start,
                 block_line_start,
-                target,
             );
             search_start = next_char_boundary(&haystack, match_start + 1);
         }
@@ -181,7 +176,6 @@ fn find_matches_in_content(
                 match_end,
                 block_byte_start,
                 block_line_start,
-                target,
             );
             search_start = next_char_boundary(content, match_start + 1);
         }
@@ -190,13 +184,12 @@ fn find_matches_in_content(
 }
 
 fn push_match(
-    results: &mut Vec<RawEvidenceMatch>,
+    results: &mut Vec<RawMatch>,
     content: &str,
     match_start: usize,
     match_end: usize,
     block_byte_start: u32,
     block_line_start: u32,
-    target: Option<&TargetAddress>,
 ) {
     let match_line_start = block_line_start + content[..match_start].matches('\n').count() as u32;
     let match_line_end =
@@ -210,8 +203,7 @@ fn push_match(
         .map(|position| match_end + position)
         .unwrap_or(content.len());
 
-    results.push(RawEvidenceMatch {
-        target: target.cloned(),
+    results.push(RawMatch {
         match_span: SourceSpan {
             line_start: match_line_start,
             line_end: match_line_end,
