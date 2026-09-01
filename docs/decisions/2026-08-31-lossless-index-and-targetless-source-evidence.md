@@ -56,7 +56,8 @@ Positive:
 - Reads, search, statistics, fragments, and patch transactions use index nodes
   rather than parser vectors.
 - Parser omissions become searchable without expanding mutation authority.
-- Search allocation is bounded by a caller-selected result budget.
+- Search result-vector allocation is bounded by a caller-selected result
+  budget.
 
 Negative:
 
@@ -66,6 +67,9 @@ Negative:
   unrepresented region; standalone boundary regions remain unsearched.
 - Search returns an error rather than partial results when `max_results` is
   exceeded.
+- Case-insensitive search still allocates a folded copy proportional to each
+  scanned block or source region; `max_results` bounds retained evidence, not
+  scan working memory.
 
 ## Revisit Triggers
 
