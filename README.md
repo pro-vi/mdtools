@@ -46,7 +46,9 @@ md patch README.md --from patch.json --in-place
 Search returns target-backed `evidence` for indexed Markdown and targetless
 `source_evidence` for parser-unrepresented ranges when `include_source_gaps` is
 true. Source evidence carries revision, span, etag, and preview, but no address
-or guard and cannot authorize a patch.
+or guard and cannot authorize a patch. Inclusion is region-granular: separator
+whitespace inside a parser-unrepresented region is searched with that region;
+standalone boundary regions are not searched.
 
 Every mutation carries a document revision and target guard. The file adapter
 accepts regular files only, rechecks the canonical referent, source revision,
