@@ -108,6 +108,26 @@ fn referenced_footnotes_remain_target_backed_evidence() {
 }
 
 #[test]
+fn link_reference_definitions_return_targetless_source_evidence() {
+    let document =
+        Document::parse("body [known]\n\n[known]: https://example.com \"needle\"\n").unwrap();
+    let results = document
+        .query(&TargetQuery::Search {
+            text: "needle".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+        })
+        .unwrap();
+    let [QueryResult::SourceEvidence { evidence }] = results.as_slice() else {
+        panic!("link definition should be targetless source evidence: {results:?}")
+    };
+    assert_eq!(document.slice(&evidence.span).unwrap(), "needle");
+    assert_eq!(evidence.preview, "[known]: https://example.com \"needle\"");
+    assert_eq!(&evidence.revision, document.revision());
+}
+
+#[test]
 fn mixed_evidence_families_remain_in_strict_source_order() {
     let document =
         Document::parse("first needle\n\n[^lost]: hidden needle\n\nlast needle\n").unwrap();
