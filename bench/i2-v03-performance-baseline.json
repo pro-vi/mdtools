@@ -18,36 +18,40 @@
     "map_query_resolve_patch_review": 10.0
   },
   "measurements": [
-    {"benchmark": "parse/t5_progress", "unit": "us", "baseline_median": 153.53, "final_median": 155.98, "criterion_change_percent": 2.4848, "threshold_percent": 15.0, "status": "pass"},
-    {"benchmark": "parse/t19_scale", "unit": "us", "baseline_median": 251.92, "final_median": 266.42, "criterion_change_percent": 5.8776, "threshold_percent": 15.0, "status": "pass"},
-    {"benchmark": "parse_for_frontmatter/t21_frontmatter", "unit": "us", "baseline_median": 2.5930, "final_median": 2.7258, "criterion_change_percent": 5.1081, "threshold_percent": 15.0, "status": "pass"},
-    {"benchmark": "target_map/t19_scale", "unit": "us", "baseline_median": 124.40, "final_median": 123.37, "criterion_change_percent": -0.5433, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "target_query_tasks/t5_progress", "unit": "us", "baseline_median": 85.557, "final_median": 84.885, "criterion_change_percent": -0.9058, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "target_resolve_read/t19_scale", "unit": "us", "baseline_median": 411.52, "final_median": 413.17, "criterion_change_percent": 1.0650, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "target_map_flat_headings/1000", "unit": "us", "baseline_median": 505.98, "final_median": 499.60, "criterion_change_percent": -1.3025, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "target_map_flat_headings/2000", "unit": "us", "baseline_median": 1026.7, "final_median": 1024.6, "criterion_change_percent": -1.0368, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "target_map_flat_headings/4000", "unit": "us", "baseline_median": 2076.3, "final_median": 2103.2, "criterion_change_percent": 1.2926, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "target_resolve/flat_4000", "unit": "ns", "baseline_median": 240.95, "final_median": 239.67, "criterion_change_percent": -0.4291, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "patch_task_batch/10", "unit": "us", "baseline_median": 23.068, "final_median": 23.332, "criterion_change_percent": 1.2998, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "patch_task_batch/100", "unit": "us", "baseline_median": 218.68, "final_median": 222.57, "criterion_change_percent": 1.7029, "threshold_percent": 10.0, "status": "pass"},
-    {"benchmark": "patch_task_batch/500", "unit": "us", "baseline_median": 1578.5, "final_median": 1614.2, "criterion_change_percent": 3.0498, "threshold_percent": 10.0, "status": "pass"}
+    {"benchmark": "parse/t5_progress", "unit": "us", "baseline_slope": 153.53, "final_slope": 155.98, "criterion_slope_change_percent": 2.4848, "threshold_percent": 15.0, "status": "pass"},
+    {"benchmark": "parse/t19_scale", "unit": "us", "baseline_slope": 251.92, "final_slope": 266.42, "criterion_slope_change_percent": 5.8776, "threshold_percent": 15.0, "status": "pass"},
+    {"benchmark": "parse_for_frontmatter/t21_frontmatter", "unit": "us", "baseline_slope": 2.5930, "final_slope": 2.7258, "criterion_slope_change_percent": 5.1081, "threshold_percent": 15.0, "status": "pass"},
+    {"benchmark": "target_map/t19_scale", "unit": "us", "baseline_slope": 124.40, "final_slope": 123.37, "criterion_slope_change_percent": -0.5433, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "target_query_tasks/t5_progress", "unit": "us", "baseline_slope": 85.557, "final_slope": 84.885, "criterion_slope_change_percent": -0.9058, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "target_resolve_read/t19_scale", "unit": "us", "baseline_slope": 411.52, "final_slope": 413.17, "criterion_slope_change_percent": 1.0650, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "target_map_flat_headings/1000", "unit": "us", "baseline_slope": 505.98, "final_slope": 499.60, "criterion_slope_change_percent": -1.3025, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "target_map_flat_headings/2000", "unit": "us", "baseline_slope": 1026.7, "final_slope": 1024.6, "criterion_slope_change_percent": -1.0368, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "target_map_flat_headings/4000", "unit": "us", "baseline_slope": 2076.3, "final_slope": 2103.2, "criterion_slope_change_percent": 1.2926, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "target_resolve/flat_4000", "unit": "ns", "baseline_slope": 240.95, "final_slope": 239.67, "criterion_slope_change_percent": -0.4291, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "patch_task_batch/10", "unit": "us", "baseline_slope": 23.068, "final_slope": 23.332, "criterion_slope_change_percent": 1.2998, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "patch_task_batch/100", "unit": "us", "baseline_slope": 218.68, "final_slope": 222.57, "criterion_slope_change_percent": 1.7029, "threshold_percent": 10.0, "status": "pass"},
+    {"benchmark": "patch_task_batch/500", "unit": "us", "baseline_slope": 1578.5, "final_slope": 1614.2, "criterion_slope_change_percent": 3.0498, "threshold_percent": 10.0, "status": "pass"}
   ],
   "new_benchmarks": [
-    {"benchmark": "parse/gap_heavy_256", "unit": "us", "median": 219.31},
-    {"benchmark": "search_budget/target_backed_100k", "unit": "us", "median": 37.075},
-    {"benchmark": "search_budget/source_gap_100k", "unit": "us", "median": 36.274}
+    {"benchmark": "parse/gap_heavy_256", "unit": "us", "slope": 219.31},
+    {"benchmark": "search_budget/target_backed_100k", "unit": "us", "slope": 37.075},
+    {"benchmark": "search_budget/source_gap_100k", "unit": "us", "slope": 36.274}
   ],
   "independent_cross_check": [
-    {"benchmark": "target_map_flat_headings/1000", "baseline_us": 544.67, "final_us": 529.13, "change_percent": -2.9},
-    {"benchmark": "patch_task_batch/100", "baseline_us": 242.40, "final_us": 230.24, "change_percent": -5.0}
+    {"benchmark": "target_map_flat_headings/1000", "baseline_estimate_us": 544.67, "final_estimate_us": 529.13, "change_percent": -2.9},
+    {"benchmark": "patch_task_batch/100", "baseline_estimate_us": 242.40, "final_estimate_us": 230.24, "change_percent": -5.0}
   ],
   "commands": [
-    "cargo bench --bench core -- --save-baseline i2-v03-4179032",
-    "cargo bench --bench core -- '<exact benchmark filter>' --baseline i2-v03-4179032"
+    "BASELINE_WT=$(mktemp -d /tmp/mdtools-i2-baseline.XXXXXX); BENCH_TARGET=$(mktemp -d /tmp/mdtools-i2-target.XXXXXX)",
+    "git worktree add --detach \"$BASELINE_WT\" 41790321f81983d37e686a011e34c7e35ce649fa",
+    "(cd \"$BASELINE_WT\" && CARGO_TARGET_DIR=\"$BENCH_TARGET\" cargo bench --bench core -- '^(parse/t5_progress|parse/t19_scale|parse_for_frontmatter/t21_frontmatter|target_map/t19_scale|target_query_tasks/t5_progress|target_resolve_read/t19_scale|target_map_flat_headings/(1000|2000|4000)|target_resolve/flat_4000|patch_task_batch/(10|100|500))$' --save-baseline i2-v03-4179032)",
+    "CARGO_TARGET_DIR=\"$BENCH_TARGET\" cargo bench --bench core -- '^(parse/t5_progress|parse/t19_scale|parse_for_frontmatter/t21_frontmatter|target_map/t19_scale|target_query_tasks/t5_progress|target_resolve_read/t19_scale|target_map_flat_headings/(1000|2000|4000)|target_resolve/flat_4000|patch_task_batch/(10|100|500))$' --baseline i2-v03-4179032",
+    "git worktree remove \"$BASELINE_WT\""
   ],
   "notes": [
     "Criterion raw samples live under target/criterion and are intentionally not committed.",
     "The two named Git commits make the code inputs reproducible; timing distributions vary with machine load.",
-    "criterion_change_percent records Criterion's reported comparison estimate, not a percentage recomputed from the displayed rounded medians."
+    "The central time values are Criterion slope estimates; they are not medians.",
+    "criterion_slope_change_percent records Criterion's reported slope comparison, not a percentage recomputed from the displayed rounded slopes."
   ]
 }
