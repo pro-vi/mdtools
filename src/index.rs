@@ -1101,26 +1101,28 @@ mod source_region_tests {
 
     #[test]
     fn semantic_block_inventory_survives_parser_upgrades() {
-        let source = concat!(
-            "# Heading\n\n",
-            "paragraph\n\n",
-            "- list item\n\n",
-            "> quote\n\n",
-            "```rust\ncode\n```\n\n",
-            "    indented code\n\n",
-            "***\n\n",
-            "<div>html</div>\n\n",
-            "| A | B |\n| --- | --- |\n| one | two |\n\n",
-            "footnote reference[^kept]\n\n",
-            "[^kept]: retained definition\n",
-        );
-        let document = Document::parse(source).unwrap();
-        let kinds = document
-            .index()
-            .source_blocks()
-            .filter_map(|entry| document.index().source_block_kind(entry.id))
-            .collect::<Vec<_>>();
-        for expected in [
+        fn fixture(kind: BlockKind) -> (&'static str, Vec<BlockKind>) {
+            match kind {
+                BlockKind::Heading => ("# Heading\n", vec![BlockKind::Heading]),
+                BlockKind::Paragraph => ("paragraph\n", vec![BlockKind::Paragraph]),
+                BlockKind::List => ("- list item\n", vec![BlockKind::List]),
+                BlockKind::BlockQuote => ("> quote\n", vec![BlockKind::BlockQuote]),
+                BlockKind::CodeFence => ("```rust\ncode\n```\n", vec![BlockKind::CodeFence]),
+                BlockKind::IndentedCode => ("    indented code\n", vec![BlockKind::IndentedCode]),
+                BlockKind::ThematicBreak => ("***\n", vec![BlockKind::ThematicBreak]),
+                BlockKind::Table => (
+                    "| A | B |\n| --- | --- |\n| one | two |\n",
+                    vec![BlockKind::Table],
+                ),
+                BlockKind::HtmlBlock => ("<div>\nhtml\n</div>\n", vec![BlockKind::HtmlBlock]),
+                BlockKind::FootnoteDefinition => (
+                    "reference[^kept]\n\n[^kept]: retained definition\n",
+                    vec![BlockKind::Paragraph, BlockKind::FootnoteDefinition],
+                ),
+            }
+        }
+
+        for kind in [
             BlockKind::Heading,
             BlockKind::Paragraph,
             BlockKind::List,
@@ -1132,7 +1134,14 @@ mod source_region_tests {
             BlockKind::HtmlBlock,
             BlockKind::FootnoteDefinition,
         ] {
-            assert!(kinds.contains(&expected), "missing {expected:?}: {kinds:?}");
+            let (source, expected) = fixture(kind);
+            let document = Document::parse(source).unwrap();
+            let actual = document
+                .index()
+                .source_blocks()
+                .filter_map(|entry| document.index().source_block_kind(entry.id))
+                .collect::<Vec<_>>();
+            assert_eq!(actual, expected, "fixture for {kind:?}: {source:?}");
         }
     }
 
