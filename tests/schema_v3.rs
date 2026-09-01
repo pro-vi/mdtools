@@ -217,6 +217,11 @@ fn query_result_schema_is_closed_and_evidence_round_trips() {
         .unwrap()
         .iter()
         .any(|field| field == "revision"));
+    assert!(source_evidence["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field == "revision"));
     assert!(source_evidence["properties"].get("target").is_none());
 
     let document = Document::parse("needle").unwrap();
