@@ -1100,6 +1100,43 @@ mod source_region_tests {
     }
 
     #[test]
+    fn semantic_block_inventory_survives_parser_upgrades() {
+        let source = concat!(
+            "# Heading\n\n",
+            "paragraph\n\n",
+            "- list item\n\n",
+            "> quote\n\n",
+            "```rust\ncode\n```\n\n",
+            "    indented code\n\n",
+            "***\n\n",
+            "<div>html</div>\n\n",
+            "| A | B |\n| --- | --- |\n| one | two |\n\n",
+            "footnote reference[^kept]\n\n",
+            "[^kept]: retained definition\n",
+        );
+        let document = Document::parse(source).unwrap();
+        let kinds = document
+            .index()
+            .source_blocks()
+            .filter_map(|entry| document.index().source_block_kind(entry.id))
+            .collect::<Vec<_>>();
+        for expected in [
+            BlockKind::Heading,
+            BlockKind::Paragraph,
+            BlockKind::List,
+            BlockKind::BlockQuote,
+            BlockKind::CodeFence,
+            BlockKind::IndentedCode,
+            BlockKind::ThematicBreak,
+            BlockKind::Table,
+            BlockKind::HtmlBlock,
+            BlockKind::FootnoteDefinition,
+        ] {
+            assert!(kinds.contains(&expected), "missing {expected:?}: {kinds:?}");
+        }
+    }
+
+    #[test]
     fn source_regions_distinguish_boundaries_from_parser_omissions() {
         let whitespace = assert_partition(" \n\t");
         assert_eq!(
