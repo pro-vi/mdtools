@@ -25,17 +25,24 @@ This is a breaking library and wire release.
   unrepresented reference definitions and unreferenced footnotes.
 - Search can return targetless `SourceEvidenceRange` values without creating
   mutation authority.
-- Search queries require `include_source_gaps` and an explicit `max_results`
-  budget; exceeding the budget returns an error without partial results.
-- Target-backed search evidence now carries the document revision.
-- The generated wire contract is `mdtools.v3`; no v2 compatibility shim is
-  included.
+- **Breaking Rust:** `TargetQuery::Search` requires `include_source_gaps` and
+  `max_results`; exceeding the budget returns `SearchResultLimitExceeded`
+  without partial results.
+- **Breaking Rust:** `EvidenceRange` gains required `revision`, and
+  `QueryResult` gains the exhaustive `SourceEvidence` variant.
+- **Breaking Rust:** public `CoreError` gains `InvalidSourcePosition`,
+  `InvalidSourceCoverage`, and `SearchResultLimitExceeded` variants.
+- **Breaking wire:** the generated contract is `mdtools.v3`, error envelopes
+  gain `result_limit`, and no v2 compatibility shim is included.
+
 ## v0.3.0 — 2026-08-30
 
 This is a complete breaking replacement of the v0.2 public API and CLI.
 
 - One immutable indexed `Document`, exact `TargetAddress`, typed reads, and
   guarded `Patch` transactions replace the command-specific operation types.
+- The former public `parser` module and `ParsedDocument` API were removed; use
+  `Document` and its indexed target/read surface.
 - Search returns `EvidenceRange` and cannot authorize mutation.
 - The feature-gated file adapter verifies revision and file identity before an
   atomic commit.
