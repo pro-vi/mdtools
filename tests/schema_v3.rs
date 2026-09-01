@@ -1,6 +1,7 @@
+use mdtools::document::Document;
 use mdtools::protocol::{protocol_schema, CLI_COMMANDS};
-use mdtools::target::TargetQuery;
-use mdtools::HeadingMatchMode;
+use mdtools::target::{QueryResult, TargetQuery};
+use mdtools::{BlockKind, HeadingMatchMode, SearchMatchMode};
 
 #[test]
 fn protocol_schema_covers_every_authoritative_surface() {
@@ -191,4 +192,44 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         .find(|variant| variant["properties"]["type"]["const"] == "frontmatter_field")
         .unwrap();
     assert_eq!(frontmatter["properties"]["path"]["minItems"], 1);
+}
+
+#[test]
+fn query_result_schema_is_closed_and_evidence_round_trips() {
+    let schema = protocol_schema();
+    let result_schema = &schema["query_result"];
+    let variants = result_schema["oneOf"].as_array().unwrap();
+    let tags = variants
+        .iter()
+        .map(|variant| variant["properties"]["type"]["const"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(tags, vec!["target", "evidence", "source_evidence"]);
+    assert!(variants
+        .iter()
+        .all(|variant| variant["additionalProperties"] == false));
+
+    let evidence = &result_schema["$defs"]["EvidenceRange"];
+    let source_evidence = &result_schema["$defs"]["SourceEvidenceRange"];
+    assert_eq!(evidence["additionalProperties"], false);
+    assert_eq!(source_evidence["additionalProperties"], false);
+    assert!(evidence["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field == "revision"));
+    assert!(source_evidence["properties"].get("target").is_none());
+
+    let document = Document::parse("needle").unwrap();
+    let result = document
+        .query(&TargetQuery::Search {
+            text: "needle".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: vec![BlockKind::Paragraph],
+            include_source_gaps: false,
+        })
+        .unwrap()
+        .remove(0);
+    assert!(matches!(result, QueryResult::Evidence { .. }));
+    let wire = serde_json::to_value(&result).unwrap();
+    assert_eq!(serde_json::from_value::<QueryResult>(wire).unwrap(), result);
 }
