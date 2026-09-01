@@ -53,6 +53,32 @@ fn removed_command_modules_and_manual_inventory_are_absent() {
 }
 
 #[test]
+fn transaction_consumers_do_not_reconstruct_parser_projection_state() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    for relative in [
+        "src/fragment.rs",
+        "src/section_edit.rs",
+        "src/table.rs",
+        "src/patch.rs",
+        "src/patch/planner.rs",
+    ] {
+        let source = std::fs::read_to_string(root.join(relative)).unwrap();
+        for forbidden in [
+            "legacy_facts",
+            "source_block_indices",
+            "document.blocks()",
+            "parser_index",
+            "parser_blocks",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "{relative} retains parser projection residue: {forbidden}"
+            );
+        }
+    }
+}
+
+#[test]
 fn binary_and_schema_expose_exactly_five_commands() {
     let help = Command::new(env!("CARGO_BIN_EXE_md"))
         .arg("--help")

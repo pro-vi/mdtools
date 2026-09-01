@@ -168,11 +168,11 @@ enum ResultExpectation {
     TargetWithBlockClosure {
         kind: ExpectedKind,
         location: ResultLocation,
-        blocks: Vec<ParserBlockExpectation>,
+        blocks: Vec<SourceBlockExpectation>,
         target_block_kinds: Option<Vec<BlockKind>>,
     },
-    ParserBlockClosure {
-        blocks: Vec<ParserBlockExpectation>,
+    SourceBlockClosure {
+        blocks: Vec<SourceBlockExpectation>,
     },
     BlockFragment {
         location: ResultLocation,
@@ -211,7 +211,7 @@ struct SectionResultExpectation {
     canonical: String,
 }
 
-struct ParserBlockExpectation {
+struct SourceBlockExpectation {
     kind: BlockKind,
     source_span: SourceSpan,
     location: ResultLocation,
@@ -435,7 +435,7 @@ fn plan_operation(
                         end: target.guard.span.byte_end as usize,
                         replacement: String::new(),
                     }],
-                    parser_block_closure_excluding(document, target.guard.span),
+                    source_block_closure_excluding(document, target.guard.span),
                 ),
                 MutationDisposition::Inserted => unreachable!(),
             };
@@ -462,7 +462,7 @@ fn plan_operation(
                     end: target.guard.span.byte_end as usize,
                     replacement: String::new(),
                 }],
-                parser_block_closure_excluding(document, target.guard.span),
+                source_block_closure_excluding(document, target.guard.span),
                 ReceiptDraft::DeleteBlock {
                     before: BlockIdentity::try_from(current.snapshot())?,
                 },
@@ -615,7 +615,7 @@ fn parse_block_fragment(
     source: &str,
 ) -> Result<BlockFragmentShape, CoreError> {
     let fragment = Document::parse_fragment(source.to_string())?;
-    if fragment.index().source_block_indices().len() != 1 {
+    if fragment.index().source_blocks().count() != 1 {
         return Err(CoreError::InvalidPatch(format!(
             "{operation} payload must parse as exactly one body block"
         )));
@@ -656,23 +656,23 @@ fn plan_move_block(
     let destination_snapshot = document.resolve(&TargetAddress::Block {
         block: destination.address.clone(),
     })?;
-    let source_index = super::block_index(document, &source.address)?;
-    let destination_index = super::block_index(document, &destination.address)?;
-    if source_index == destination_index {
+    let source_node = super::block_node(document, &source.address)?;
+    let destination_node = super::block_node(document, &destination.address)?;
+    if source_node == destination_node {
         return Err(CoreError::InvalidPatch(
             "source and destination block addresses must differ".into(),
         ));
     }
-    let source_order = document.index().source_block_indices();
+    let source_order = document.index().source_block_nodes();
     let source_position = source_order
         .iter()
-        .position(|index| *index == source_index)
+        .position(|node| *node == source_node)
         .expect("resolved source is source ordered");
     let mut order = source_order.clone();
     let moved = order.remove(source_position);
     let destination_position = order
         .iter()
-        .position(|index| *index == destination_index)
+        .position(|node| *node == destination_node)
         .expect("resolved destination remains after source removal");
     let insertion = match position {
         RelativePosition::Before => destination_position,
@@ -681,59 +681,56 @@ fn plan_move_block(
     order.insert(insertion, moved);
     let moved_position = order
         .iter()
-        .position(|index| *index == source_index)
+        .position(|node| *node == source_node)
         .expect("moved block remains in order");
     let low = source_position.min(moved_position);
     let high = source_position.max(moved_position);
-    let interval_start = document.blocks()[source_order[low] as usize]
-        .span
+    let interval_start = document
+        .index()
+        .entry(source_order[low])
+        .node
+        .span()
         .byte_start as usize;
     let interval_end = source_order
         .get(high + 1)
-        .map(|index| document.blocks()[*index as usize].span.byte_start as usize)
+        .map(|node| document.index().entry(*node).node.span().byte_start as usize)
         .unwrap_or(document.source().len());
     let mut replacement = String::with_capacity(interval_end - interval_start);
     let mut moved_range = 0..0;
     let mut block_expectations = Vec::with_capacity(high - low + 1);
-    for (slot, parser_index) in order.iter().copied().enumerate().take(high + 1).skip(low) {
-        let block = &document.blocks()[parser_index as usize];
+    for (slot, node) in order.iter().copied().enumerate().take(high + 1).skip(low) {
+        let span = document.index().entry(node).node.span();
+        let kind = document
+            .index()
+            .source_block_kind(node)
+            .expect("source ordered node has a block kind");
         let block_start = replacement.len();
-        replacement.push_str(document.slice_unchecked(&block.span));
+        replacement.push_str(document.slice_unchecked(&span));
         let block_end = replacement.len();
-        if parser_index == source_index {
+        if node == source_node {
             moved_range = block_start..block_end;
         }
-        block_expectations.push(ParserBlockExpectation {
-            kind: block.kind,
-            source_span: block.span,
+        block_expectations.push(SourceBlockExpectation {
+            kind,
+            source_span: span,
             location: ResultLocation::Edit {
                 edit: 1,
                 range: block_start..block_end,
             },
         });
-        let gap_owner = parser_index;
-        let gap_start = document.blocks()[gap_owner as usize].span.byte_end as usize;
-        let original_position = source_order
-            .iter()
-            .position(|index| *index == gap_owner)
-            .expect("moved block belongs to source order");
-        let gap_end = source_order
-            .get(original_position + 1)
-            .map(|index| document.blocks()[*index as usize].span.byte_start as usize)
-            .unwrap_or(document.source().len());
-        let gap = &document.source()[gap_start..gap_end];
+        let gap = document
+            .index()
+            .owned_complement(node)
+            .map(|span| document.slice_unchecked(&span))
+            .unwrap_or("");
         if slot < high && gap.trim().is_empty() && trailing_line_breaks(gap) < 2 {
             replacement.push_str(newline(document.line_ending_style()));
             replacement.push_str(newline(document.line_ending_style()));
         } else if slot == high && gap.trim().is_empty() {
             let terminal_owner = source_order[high];
-            let terminal_gap_start =
-                document.blocks()[terminal_owner as usize].span.byte_end as usize;
-            let terminal_gap_end = source_order
-                .get(high + 1)
-                .map(|index| document.blocks()[*index as usize].span.byte_start as usize)
-                .unwrap_or(document.source().len());
-            replacement.push_str(&document.source()[terminal_gap_start..terminal_gap_end]);
+            if let Some(span) = document.index().owned_complement(terminal_owner) {
+                replacement.push_str(document.slice_unchecked(&span));
+            }
         } else {
             replacement.push_str(gap);
         }
@@ -1027,7 +1024,7 @@ fn plan_delete_section(
                 ResultLocation::Base(target.guard.span),
             )
         } else {
-            parser_block_closure_excluding(document, target.guard.span)
+            source_block_closure_excluding(document, target.guard.span)
         },
         ReceiptDraft::DeleteSection {
             before,
@@ -1036,26 +1033,26 @@ fn plan_delete_section(
     ))
 }
 
-fn parser_block_closure_excluding(
+fn source_block_closure_excluding(
     document: &Document,
     deleted_span: SourceSpan,
 ) -> ResultExpectation {
     let blocks = document
         .index()
-        .source_block_indices()
-        .into_iter()
-        .filter_map(|index| {
-            let block = &document.blocks()[index as usize];
-            let deleted = block.span.byte_start >= deleted_span.byte_start
-                && block.span.byte_end <= deleted_span.byte_end;
-            (!deleted).then_some(ParserBlockExpectation {
-                kind: block.kind,
-                source_span: block.span,
-                location: ResultLocation::Base(block.span),
+        .source_blocks()
+        .filter_map(|entry| {
+            let span = entry.node.span();
+            let kind = document.index().source_block_kind(entry.id)?;
+            let deleted = span.byte_start >= deleted_span.byte_start
+                && span.byte_end <= deleted_span.byte_end;
+            (!deleted).then_some(SourceBlockExpectation {
+                kind,
+                source_span: span,
+                location: ResultLocation::Base(span),
             })
         })
         .collect();
-    ResultExpectation::ParserBlockClosure { blocks }
+    ResultExpectation::SourceBlockClosure { blocks }
 }
 
 fn plan_move_section(
@@ -1089,18 +1086,17 @@ fn plan_move_section(
         .max(destination.guard.span.byte_end);
     let block_expectations = document
         .index()
-        .source_block_indices()
-        .into_iter()
-        .filter_map(|index| {
-            let block = &document.blocks()[index as usize];
-            let in_interval =
-                block.span.byte_start >= interval_start && block.span.byte_end <= interval_end;
-            let in_source = block.span.byte_start >= source.guard.span.byte_start
-                && block.span.byte_end <= source.guard.span.byte_end;
-            (in_interval && !in_source).then_some(ParserBlockExpectation {
-                kind: block.kind,
-                source_span: block.span,
-                location: ResultLocation::Base(block.span),
+        .source_blocks()
+        .filter_map(|entry| {
+            let span = entry.node.span();
+            let kind = document.index().source_block_kind(entry.id)?;
+            let in_interval = span.byte_start >= interval_start && span.byte_end <= interval_end;
+            let in_source = span.byte_start >= source.guard.span.byte_start
+                && span.byte_end <= source.guard.span.byte_end;
+            (in_interval && !in_source).then_some(SourceBlockExpectation {
+                kind,
+                source_span: span,
+                location: ResultLocation::Base(span),
             })
         })
         .collect::<Vec<_>>();
@@ -1567,7 +1563,7 @@ fn verify_result(
         } => {
             for block in blocks {
                 let (start, end) = resolve_location(mutation, edits, &block.location)?;
-                targets.verify_parser_block(
+                targets.verify_source_block(
                     start,
                     end,
                     block,
@@ -1585,7 +1581,7 @@ fn verify_result(
                 let span = snapshot.selection_span.ok_or_else(|| {
                     CoreError::PatchInvariant("move closure target has no selection span".into())
                 })?;
-                let actual_kinds = targets.parser_block_kinds_within(span);
+                let actual_kinds = targets.source_block_kinds_within(span);
                 if &actual_kinds != expected_kinds {
                     return Err(CoreError::PatchInvariant(format!(
                         "move closure changed target block sequence from {expected_kinds:?} to {actual_kinds:?}"
@@ -1594,16 +1590,16 @@ fn verify_result(
             }
             Ok(VerifiedResult::Target(snapshot))
         }
-        ResultExpectation::ParserBlockClosure { blocks } => {
+        ResultExpectation::SourceBlockClosure { blocks } => {
             for block in blocks {
-                let Some(markdown) = parser_block_markdown_after_sibling_edits(
+                let Some(markdown) = source_block_markdown_after_sibling_edits(
                     base, mutation, edits, operations, block,
                 ) else {
                     continue;
                 };
                 let (start, _) = resolve_location(mutation, edits, &block.location)?;
                 let end = start + markdown.len() as u32;
-                targets.verify_parser_block(start, end, block, &markdown)?;
+                targets.verify_source_block(start, end, block, &markdown)?;
             }
             Ok(VerifiedResult::None)
         }
@@ -1633,12 +1629,12 @@ fn verify_result(
     }
 }
 
-fn parser_block_markdown_after_sibling_edits(
+fn source_block_markdown_after_sibling_edits(
     base: &Document,
     mutation: usize,
     edits: &[AppliedEdit<'_>],
     operations: &[PatchOp],
-    block: &ParserBlockExpectation,
+    block: &SourceBlockExpectation,
 ) -> Option<String> {
     let ResultLocation::Base(span) = block.location else {
         return Some(base.slice_unchecked(&block.source_span).to_string());
@@ -1775,7 +1771,7 @@ struct ResultTargetIndex {
     blocks: Vec<TargetSnapshot>,
     preamble: Option<TargetSnapshot>,
     sections: Vec<TargetSnapshot>,
-    parser_blocks: HashMap<(u32, u32), (BlockKind, String)>,
+    source_blocks: HashMap<(u32, u32), (BlockKind, String)>,
 }
 
 impl ResultTargetIndex {
@@ -1784,19 +1780,16 @@ impl ResultTargetIndex {
         let mut blocks = Vec::new();
         let mut preamble = None;
         let mut sections = Vec::new();
-        let parser_blocks = document
+        let source_blocks = document
             .index()
-            .source_block_indices()
-            .into_iter()
-            .map(|index| {
-                let block = &document.blocks()[index as usize];
-                (
-                    (block.span.byte_start, block.span.byte_end),
-                    (
-                        block.kind,
-                        document.slice_unchecked(&block.span).to_string(),
-                    ),
-                )
+            .source_blocks()
+            .filter_map(|entry| {
+                let span = entry.node.span();
+                let kind = document.index().source_block_kind(entry.id)?;
+                Some((
+                    (span.byte_start, span.byte_end),
+                    (kind, document.slice_unchecked(&span).to_string()),
+                ))
             })
             .collect();
         for entry in document.index().entries_in_source_order() {
@@ -1829,7 +1822,7 @@ impl ResultTargetIndex {
             blocks,
             preamble,
             sections,
-            parser_blocks,
+            source_blocks,
         })
     }
 
@@ -1837,29 +1830,29 @@ impl ResultTargetIndex {
         self.snapshots.get(&(kind, start, end))
     }
 
-    fn verify_parser_block(
+    fn verify_source_block(
         &self,
         start: u32,
         end: u32,
-        expected: &ParserBlockExpectation,
+        expected: &SourceBlockExpectation,
         expected_markdown: &str,
     ) -> Result<(), CoreError> {
-        let Some((kind, markdown)) = self.parser_blocks.get(&(start, end)) else {
+        let Some((kind, markdown)) = self.source_blocks.get(&(start, end)) else {
             return Err(CoreError::PatchInvariant(format!(
-                "parser closure lost block at bytes {start}..{end}"
+                "source-block closure lost block at bytes {start}..{end}"
             )));
         };
         if *kind != expected.kind || markdown != expected_markdown {
             return Err(CoreError::PatchInvariant(format!(
-                "parser closure changed block at bytes {start}..{end}"
+                "source-block closure changed block at bytes {start}..{end}"
             )));
         }
         Ok(())
     }
 
-    fn parser_block_kinds_within(&self, span: SourceSpan) -> Vec<BlockKind> {
+    fn source_block_kinds_within(&self, span: SourceSpan) -> Vec<BlockKind> {
         let mut blocks = self
-            .parser_blocks
+            .source_blocks
             .iter()
             .filter_map(|((start, end), (kind, _))| {
                 (*start >= span.byte_start && *end <= span.byte_end).then_some((*start, *kind))
@@ -2431,7 +2424,7 @@ mod tests {
             ResultExpectation::None => "none",
             ResultExpectation::Target { .. } => "target",
             ResultExpectation::TargetWithBlockClosure { .. } => "target_with_block_closure",
-            ResultExpectation::ParserBlockClosure { .. } => "parser_block_closure",
+            ResultExpectation::SourceBlockClosure { .. } => "source_block_closure",
             ResultExpectation::BlockFragment { .. } => "block_fragment",
             ResultExpectation::Preamble { .. } => "preamble",
             ResultExpectation::Section(_) => "section",

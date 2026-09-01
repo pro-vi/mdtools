@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::model::{
     BlockKind, ColumnAlignment, FrontmatterFormat, LinkKind, SourceSpan, TaskStatus,
 };
-use crate::parser::{HeadingSourceKind, ParsedFacts, TableFact};
+use crate::parser::{HeadingCodeSpan, HeadingLineBreak, HeadingSourceKind, ParsedFacts, TableFact};
 use crate::source::DocumentSource;
 use crate::target::TargetAddress;
 
@@ -96,6 +96,7 @@ pub(crate) enum IndexNode {
         parser_index: u32,
         level: u8,
         text: String,
+        syntax: HeadingSyntax,
     },
     HeadingMarker {
         span: SourceSpan,
@@ -137,6 +138,14 @@ pub(crate) enum IndexNode {
 pub(crate) struct IndexedTable {
     pub(crate) headers: Vec<String>,
     pub(crate) alignments: Vec<ColumnAlignment>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HeadingSyntax {
+    pub(crate) source_kind: HeadingSourceKind,
+    pub(crate) marker_span: SourceSpan,
+    pub(crate) line_breaks: Vec<HeadingLineBreak>,
+    pub(crate) multiline_code_spans: Vec<HeadingCodeSpan>,
 }
 
 #[derive(Clone, Debug)]
@@ -194,6 +203,8 @@ struct SectionSpec {
     heading_span: SourceSpan,
     marker_span: SourceSpan,
     source_kind: HeadingSourceKind,
+    line_breaks: Vec<HeadingLineBreak>,
+    multiline_code_spans: Vec<HeadingCodeSpan>,
     byte_end: u32,
 }
 
@@ -201,9 +212,9 @@ struct SectionSpec {
 pub struct DocumentIndex {
     instance_id: IndexInstanceId,
     source: DocumentSource,
-    legacy_facts: ParsedFacts,
-    // U2 establishes the retained ledger before U4 moves preservation consumers onto it.
+    // Removed in U6 after the temporary field-for-field parity tests have served.
     #[allow(dead_code)]
+    legacy_facts: ParsedFacts,
     source_regions: Vec<SourceRegion>,
     nodes: Vec<IndexEntry>,
     source_order: Vec<IndexNodeId>,
@@ -281,6 +292,8 @@ impl DocumentIndex {
                 heading_span: block.span,
                 marker_span: heading.marker_span,
                 source_kind: heading.kind,
+                line_breaks: heading.line_breaks.clone(),
+                multiline_code_spans: heading.multiline_code_spans.clone(),
                 byte_end: source.len() as u32,
             });
             section_by_heading_block.insert(block.index, section_index);
@@ -335,6 +348,12 @@ impl DocumentIndex {
                     parser_index: section.parser_index,
                     level: section.level,
                     text: section.text.clone(),
+                    syntax: HeadingSyntax {
+                        source_kind: section.source_kind,
+                        marker_span: section.marker_span,
+                        line_breaks: section.line_breaks.clone(),
+                        multiline_code_spans: section.multiline_code_spans.clone(),
+                    },
                 },
             );
             structural_regions.push((section.heading_span, heading_node));
@@ -446,12 +465,8 @@ impl DocumentIndex {
         &self.source
     }
 
-    pub(crate) fn legacy_facts(&self) -> &ParsedFacts {
-        &self.legacy_facts
-    }
-
     #[cfg(test)]
-    fn source_regions(&self) -> &[SourceRegion] {
+    pub(crate) fn source_regions(&self) -> &[SourceRegion] {
         &self.source_regions
     }
 
@@ -510,6 +525,18 @@ impl DocumentIndex {
                 entry.node,
                 IndexNode::Heading { .. } | IndexNode::BodyBlock { .. }
             )
+        })
+    }
+
+    pub(crate) fn source_block_nodes(&self) -> Vec<IndexNodeId> {
+        self.source_blocks().map(|entry| entry.id).collect()
+    }
+
+    pub(crate) fn owned_complement(&self, owner: IndexNodeId) -> Option<SourceSpan> {
+        self.source_regions.iter().find_map(|region| {
+            (region.kind != SourceRegionKind::Structural
+                && region.owner == SourceOwner::Node(owner))
+            .then_some(region.span)
         })
     }
 
@@ -590,17 +617,6 @@ impl DocumentIndex {
             alignments: table.alignments.clone(),
             rows,
         })
-    }
-
-    pub(crate) fn source_block_indices(&self) -> Vec<u32> {
-        self.source_order
-            .iter()
-            .filter_map(|id| match self.nodes[id.0 as usize].node {
-                IndexNode::Heading { parser_index, .. }
-                | IndexNode::BodyBlock { parser_index, .. } => Some(parser_index),
-                _ => None,
-            })
-            .collect()
     }
 
     pub(crate) fn first_source_block_span(&self) -> Option<SourceSpan> {
@@ -1074,12 +1090,22 @@ mod consumer_parity_tests {
             assert_eq!(entry.node.span(), fact.span);
             assert_eq!(index.source_block_kind(entry.id), Some(fact.kind));
             match (&entry.node, &fact.heading) {
-                (IndexNode::Heading { level, text, .. }, Some(heading)) => {
+                (
+                    IndexNode::Heading {
+                        level,
+                        text,
+                        syntax,
+                        ..
+                    },
+                    Some(heading),
+                ) => {
                     assert_eq!(
                         (*level, text.as_str()),
                         (heading.level, heading.text.as_str())
                     );
                     assert_eq!(index.heading_source_kind(entry.id), Some(heading.kind));
+                    assert_eq!(syntax.line_breaks, heading.line_breaks);
+                    assert_eq!(syntax.multiline_code_spans, heading.multiline_code_spans);
                     let marker = index
                         .children(entry.id)
                         .find_map(|child| match child.node {

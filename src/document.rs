@@ -5,7 +5,7 @@
 use crate::core_error::CoreError;
 use crate::index::DocumentIndex;
 use crate::model::{FrontmatterFormat, LineEndingStyle, SourceSpan};
-use crate::parser::{BlockFact, ParsedFacts};
+use crate::parser::ParsedFacts;
 use crate::read::TargetRead;
 use crate::revision::DocumentRevision;
 use crate::source::{DocumentSource, ParsePolicy};
@@ -58,10 +58,6 @@ impl Document {
 
     pub fn source(&self) -> &str {
         self.index.source().text()
-    }
-
-    pub(crate) fn blocks(&self) -> &[BlockFact] {
-        &self.index.legacy_facts().blocks
     }
 
     pub fn has_frontmatter(&self) -> bool {

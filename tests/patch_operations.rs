@@ -806,7 +806,7 @@ fn section_deletion_preserves_every_surviving_parser_block() {
     assert!(matches!(
         patch.apply(&document),
         Err(mdtools::core_error::CoreError::PatchInvariant(message))
-            if message.contains("parser closure")
+            if message.contains("source-block closure")
     ));
     assert_eq!(document.source(), source);
 }
@@ -857,7 +857,7 @@ fn block_deletion_refuses_to_merge_untouched_sibling_lists() {
     assert!(matches!(
         patch.apply(&document),
         Err(mdtools::core_error::CoreError::PatchInvariant(message))
-            if message.contains("parser closure")
+            if message.contains("source-block closure")
     ));
     assert_eq!(document.source(), source);
 }
@@ -885,7 +885,7 @@ fn task_edits_do_not_suppress_containing_block_closure() {
     assert!(matches!(
         patch.apply(&document),
         Err(mdtools::core_error::CoreError::PatchInvariant(message))
-            if message.contains("parser closure")
+            if message.contains("source-block closure")
     ));
     assert_eq!(document.source(), source);
 }

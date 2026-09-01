@@ -1512,16 +1512,6 @@ fn verify_selection_guard(
     }
 }
 
-fn block_index(document: &Document, address: &BlockAddress) -> Result<u32, CoreError> {
-    let node = block_node(document, address)?;
-    match document.index().entry(node).node {
-        IndexNode::BodyBlock { parser_index, .. } => Ok(parser_index),
-        _ => Err(CoreError::InvalidPatch(
-            "block address resolved to non-block node".into(),
-        )),
-    }
-}
-
 fn block_node(
     document: &Document,
     address: &BlockAddress,

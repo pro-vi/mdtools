@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::core_error::CoreError;
 use crate::document::Document;
 use crate::edit::normalize_line_endings;
+use crate::index::{HeadingSyntax, IndexNode};
 use crate::model::{LineEndingStyle, SourceSpan};
-use crate::parser::{HeadingFact, HeadingLineBreakKind, HeadingSourceKind};
+use crate::parser::{HeadingLineBreakKind, HeadingSourceKind};
 use crate::target::{TargetAddress, TargetKind};
 
 /// A headed-section payload with explicit semantic or literal behavior.
@@ -112,23 +113,26 @@ pub(crate) fn rebase_section_headings(
     let document = Document::parse_fragment(source.to_string())?;
     let mut headings = document
         .index()
-        .source_block_indices()
-        .into_iter()
-        .filter_map(|index| {
-            let block = &document.blocks()[index as usize];
-            block.heading.as_ref().map(|heading| (block.span, heading))
+        .source_blocks()
+        .filter_map(|entry| match &entry.node {
+            IndexNode::Heading {
+                span,
+                level,
+                syntax,
+                ..
+            } => Some((*span, *level, syntax)),
+            _ => None,
         })
         .collect::<Vec<_>>();
-    headings.sort_by_key(|(span, _)| span.byte_start);
-    let Some((_, root)) = headings.first() else {
+    headings.sort_by_key(|(span, _, _)| span.byte_start);
+    let Some((_, old_root_level, _)) = headings.first() else {
         return Err(invalid_fragment("section fragment has no root heading"));
     };
-    let old_root_level = root.level;
+    let old_root_level = *old_root_level;
     let mut rendered = source.to_string();
     let mut edits = Vec::with_capacity(headings.len());
-    for (span, heading) in headings {
-        let relative_level = heading
-            .level
+    for (span, level, syntax) in headings {
+        let relative_level = level
             .checked_sub(old_root_level)
             .and_then(|level| level.checked_add(1))
             .ok_or_else(|| invalid_fragment("fragment heading escapes its root section"))?;
@@ -136,10 +140,10 @@ pub(crate) fn rebase_section_headings(
             .checked_sub(1)
             .ok_or_else(|| invalid_fragment("section root level must be at least one"))?;
         let absolute_level = checked_absolute_level(parent_level, relative_level)?;
-        match heading.kind {
+        match syntax.source_kind {
             HeadingSourceKind::Atx => edits.push((
-                heading.marker_span.byte_start as usize,
-                heading.marker_span.byte_end as usize,
+                syntax.marker_span.byte_start as usize,
+                syntax.marker_span.byte_end as usize,
                 "#".repeat(absolute_level as usize),
             )),
             HeadingSourceKind::Setext => edits.push((
@@ -148,7 +152,7 @@ pub(crate) fn rebase_section_headings(
                 format!(
                     "{} {}",
                     "#".repeat(absolute_level as usize),
-                    setext_heading_content(source, span, heading,)?
+                    setext_heading_content(source, span, syntax)?
                 ),
             )),
         }
@@ -211,43 +215,41 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
     );
     let mut headings = document
         .index()
-        .source_block_indices()
-        .into_iter()
-        .filter_map(|index| {
-            let block = &document.blocks()[index as usize];
-            block
-                .heading
-                .as_ref()
-                .filter(|_| {
-                    block.span.byte_start >= root_span.byte_start
-                        && block.span.byte_end <= root_span.byte_end
-                })
-                .map(|heading| (block.span, heading))
+        .source_blocks()
+        .filter_map(|entry| match &entry.node {
+            IndexNode::Heading {
+                span,
+                level,
+                syntax,
+                ..
+            } if span.byte_start >= root_span.byte_start && span.byte_end <= root_span.byte_end => {
+                Some((*span, *level, syntax))
+            }
+            _ => None,
         })
         .collect::<Vec<_>>();
-    headings.sort_by_key(|(span, _)| span.byte_start);
-    let Some((_, root_heading)) = headings.first() else {
+    headings.sort_by_key(|(span, _, _)| span.byte_start);
+    let Some((_, root_level, _)) = headings.first() else {
         return Err(invalid_fragment("section fragment has no root heading"));
     };
-    let root_level = root_heading.level;
+    let root_level = *root_level;
     let root_start = root_span.byte_start as usize;
     let mut canonical = source[root_start..semantic_end].to_string();
     let mut edits = Vec::with_capacity(headings.len());
-    for (span, heading) in headings {
-        let relative_level = heading
-            .level
+    for (span, level, syntax) in headings {
+        let relative_level = level
             .checked_sub(root_level)
             .and_then(|level| level.checked_add(1))
             .ok_or_else(|| invalid_fragment("fragment heading escapes its root section"))?;
         let start = span.byte_start as usize - root_start;
-        match heading.kind {
+        match syntax.source_kind {
             HeadingSourceKind::Atx => edits.push((
                 start,
-                heading.marker_span.byte_end as usize - root_start,
+                syntax.marker_span.byte_end as usize - root_start,
                 "#".repeat(relative_level as usize),
             )),
             HeadingSourceKind::Setext => {
-                let content = setext_heading_content(source, span, heading)?;
+                let content = setext_heading_content(source, span, syntax)?;
                 edits.push((
                     start,
                     span.byte_end as usize - root_start,
@@ -266,7 +268,7 @@ fn canonicalize(source: &str) -> Result<(String, u8), CoreError> {
 fn setext_heading_content(
     source: &str,
     span: SourceSpan,
-    heading: &HeadingFact,
+    heading: &HeadingSyntax,
 ) -> Result<String, CoreError> {
     let source_start = span.byte_start as usize;
     let source_end = heading.marker_span.byte_start as usize;
