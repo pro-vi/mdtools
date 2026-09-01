@@ -42,14 +42,15 @@
     {"benchmark": "patch_task_batch/100", "baseline_estimate_us": 242.40, "final_estimate_us": 230.24, "change_percent": -5.0}
   ],
   "commands": [
-    "BASELINE_WT=$(mktemp -d /tmp/mdtools-i2-baseline.XXXXXX); BENCH_TARGET=$(mktemp -d /tmp/mdtools-i2-target.XXXXXX)",
+    "BASELINE_WT=$(mktemp -d /tmp/mdtools-i2-baseline.XXXXXX); COMPARISON_WT=$(mktemp -d /tmp/mdtools-i2-comparison.XXXXXX); BENCH_TARGET=$(mktemp -d /tmp/mdtools-i2-target.XXXXXX)",
     "git worktree add --detach \"$BASELINE_WT\" 41790321f81983d37e686a011e34c7e35ce649fa",
+    "git worktree add --detach \"$COMPARISON_WT\" a98b6bc02890dfc622c9ab494b0e700b77c286f5",
     "(cd \"$BASELINE_WT\" && CARGO_TARGET_DIR=\"$BENCH_TARGET\" cargo bench --bench core -- '^(parse/t5_progress|parse/t19_scale|parse_for_frontmatter/t21_frontmatter|target_map/t19_scale|target_query_tasks/t5_progress|target_resolve_read/t19_scale|target_map_flat_headings/(1000|2000|4000)|target_resolve/flat_4000|patch_task_batch/(10|100|500))$' --save-baseline i2-v03-4179032)",
-    "CARGO_TARGET_DIR=\"$BENCH_TARGET\" cargo bench --bench core -- '^(parse/t5_progress|parse/t19_scale|parse_for_frontmatter/t21_frontmatter|target_map/t19_scale|target_query_tasks/t5_progress|target_resolve_read/t19_scale|target_map_flat_headings/(1000|2000|4000)|target_resolve/flat_4000|patch_task_batch/(10|100|500))$' --baseline i2-v03-4179032",
-    "git worktree remove \"$BASELINE_WT\""
+    "(cd \"$COMPARISON_WT\" && CARGO_TARGET_DIR=\"$BENCH_TARGET\" cargo bench --bench core -- '^(parse/t5_progress|parse/t19_scale|parse_for_frontmatter/t21_frontmatter|target_map/t19_scale|target_query_tasks/t5_progress|target_resolve_read/t19_scale|target_map_flat_headings/(1000|2000|4000)|target_resolve/flat_4000|patch_task_batch/(10|100|500))$' --baseline i2-v03-4179032)",
+    "git worktree remove \"$BASELINE_WT\"; git worktree remove \"$COMPARISON_WT\""
   ],
   "notes": [
-    "Criterion raw samples live under target/criterion and are intentionally not committed.",
+    "The reproduction commands place Criterion raw samples under $BENCH_TARGET/criterion; they are intentionally not committed.",
     "The two named Git commits make the code inputs reproducible; timing distributions vary with machine load.",
     "The central time values are Criterion slope estimates; they are not medians.",
     "criterion_slope_change_percent records Criterion's reported slope comparison, not a percentage recomputed from the displayed rounded slopes."
