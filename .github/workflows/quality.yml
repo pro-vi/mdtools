@@ -81,3 +81,5 @@ jobs:
           target/release/md schema > schema.json
           jq -e '.schema_version == "mdtools.v3"' schema.json
           jq -e '[.commands[].name] == ["map", "read", "query", "patch", "schema"]' schema.json
+          jq -e '(.target_query.oneOf | map(select(.properties.type.const == "search")) | length) == 1' schema.json
+          jq -e '.target_query.oneOf[] | select(.properties.type.const == "search") | (.required | index("max_results")) != null and .properties.max_results.minimum == 1' schema.json
