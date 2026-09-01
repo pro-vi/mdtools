@@ -106,3 +106,32 @@ fn referenced_footnotes_remain_target_backed_evidence() {
     assert_eq!(&evidence.revision, document.revision());
     assert_eq!(document.slice(&evidence.span).unwrap(), "needle");
 }
+
+#[test]
+fn mixed_evidence_families_remain_in_strict_source_order() {
+    let document =
+        Document::parse("first needle\n\n[^lost]: hidden needle\n\nlast needle\n").unwrap();
+    let results = document
+        .query(&TargetQuery::Search {
+            text: "needle".into(),
+            match_mode: SearchMatchMode::Literal,
+            block_kinds: Vec::new(),
+            include_source_gaps: true,
+        })
+        .unwrap();
+    let starts = results
+        .iter()
+        .map(|result| match result {
+            QueryResult::Evidence { evidence } => evidence.span.byte_start,
+            QueryResult::SourceEvidence { evidence } => evidence.span.byte_start,
+            QueryResult::Target { .. } => panic!("search returned a mutable target"),
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        starts.windows(2).all(|pair| pair[0] < pair[1]),
+        "{starts:?}"
+    );
+    assert!(matches!(results[0], QueryResult::Evidence { .. }));
+    assert!(matches!(results[1], QueryResult::SourceEvidence { .. }));
+    assert!(matches!(results[2], QueryResult::Evidence { .. }));
+}
