@@ -15,7 +15,7 @@ and error-envelope outputs identify that version explicitly. It moves
 independently of the crate version. Before 1.0, a breaking library change bumps
 the minor.
 
-## v0.4.0 — Unreleased
+## v0.4.0 — 2026-09-01
 
 This is a breaking library and wire release.
 
