@@ -5,7 +5,7 @@ use mdtools::HeadingMatchMode;
 #[test]
 fn protocol_schema_covers_every_authoritative_surface() {
     let schema = protocol_schema();
-    assert_eq!(schema["schema_version"], "mdtools.v2");
+    assert_eq!(schema["schema_version"], "mdtools.v3");
     for key in [
         "target_address",
         "target_query",
@@ -25,11 +25,14 @@ fn protocol_schema_covers_every_authoritative_surface() {
     assert!(schema["target_snapshot"]["$defs"]["GuardAuthority"].is_object());
     assert!(schema["target_query"].to_string().contains("search"));
     assert!(schema["query_result"].to_string().contains("EvidenceRange"));
+    assert!(schema["query_result"]
+        .to_string()
+        .contains("SourceEvidenceRange"));
 
     let envelope = &schema["error_envelope"];
     assert_eq!(
         envelope["$defs"]["ProtocolSchemaVersion"]["enum"],
-        serde_json::json!(["mdtools.v2"])
+        serde_json::json!(["mdtools.v3"])
     );
     assert_eq!(
         envelope["$defs"]["DiagnosticCode"]["enum"],
@@ -134,6 +137,14 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         "type": "search",
         "text": "",
         "match_mode": "literal",
+        "block_kinds": [],
+        "include_source_gaps": false
+    }))
+    .is_err());
+    assert!(serde_json::from_value::<TargetQuery>(serde_json::json!({
+        "type": "search",
+        "text": "needle",
+        "match_mode": "literal",
         "block_kinds": []
     }))
     .is_err());
@@ -162,6 +173,11 @@ fn target_query_wire_round_trips_and_rejects_unknown_fields() {
         .find(|variant| variant["properties"]["type"]["const"] == "search")
         .unwrap();
     assert_eq!(search["properties"]["text"]["minLength"], 1);
+    assert!(search["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field == "include_source_gaps"));
     let section = variants
         .iter()
         .find(|variant| variant["properties"]["type"]["const"] == "section")

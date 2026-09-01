@@ -32,7 +32,7 @@ fn unique_directory(tag: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     let directory = std::env::temp_dir().join(format!(
-        "mdtools-cli-v2-{tag}-{}-{nanos}-{}",
+        "mdtools-cli-v3-{tag}-{}-{nanos}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -144,6 +144,7 @@ fn query_search_returns_non_mutable_evidence_ranges() {
         text: "needle".into(),
         match_mode: mdtools::SearchMatchMode::Literal,
         block_kinds: Vec::new(),
+        include_source_gaps: false,
     })
     .unwrap();
     let output = md()
@@ -156,6 +157,35 @@ fn query_search_returns_non_mutable_evidence_ranges() {
     assert_eq!(result[0]["type"], "evidence");
     assert_eq!(result[0]["evidence"]["preview"], "find needle here");
     assert_eq!(result[0]["evidence"]["target"]["kind"], "block");
+}
+
+#[test]
+fn query_search_can_return_targetless_source_evidence() {
+    let directory = unique_directory("source-evidence");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "body\n\n[^lost]: hidden needle\n").unwrap();
+    let query = serde_json::json!({
+        "type": "search",
+        "text": "needle",
+        "match_mode": "literal",
+        "block_kinds": [],
+        "include_source_gaps": true
+    })
+    .to_string();
+    let output = md()
+        .args(["query", path.to_str().unwrap(), "--query", &query])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let result: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["type"], "source_evidence");
+    assert_eq!(result[0]["evidence"]["preview"], "[^lost]: hidden needle");
+    assert!(result[0]["evidence"].get("target").is_none());
+    assert_eq!(
+        result[0]["evidence"]["revision"].as_str().unwrap().len(),
+        64
+    );
 }
 
 #[test]

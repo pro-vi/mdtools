@@ -395,6 +395,7 @@ fn search_query_returns_evidence_that_cannot_resolve_as_mutation_authority() {
         text: "needle".into(),
         match_mode: SearchMatchMode::Literal,
         block_kinds: vec![BlockKind::Paragraph],
+        include_source_gaps: false,
     };
     let results = document.query(&query).unwrap();
     let [result] = results.as_slice() else {
@@ -420,6 +421,7 @@ fn search_evidence_is_returned_in_source_order_with_footnotes() {
             text: "needle".into(),
             match_mode: SearchMatchMode::Literal,
             block_kinds: Vec::new(),
+            include_source_gaps: false,
         })
         .unwrap();
     let starts = results

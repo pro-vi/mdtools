@@ -465,7 +465,6 @@ impl DocumentIndex {
         &self.source
     }
 
-    #[cfg(test)]
     pub(crate) fn source_regions(&self) -> &[SourceRegion] {
         &self.source_regions
     }

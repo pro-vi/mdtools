@@ -69,8 +69,8 @@ pub struct PatchPreview {
 
 #[derive(Clone, Copy, Debug, Serialize, JsonSchema)]
 pub enum ProtocolSchemaVersion {
-    #[serde(rename = "mdtools.v2")]
-    V2,
+    #[serde(rename = "mdtools.v3")]
+    V3,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, JsonSchema)]

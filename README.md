@@ -35,13 +35,18 @@ md map README.md | jq '.[] | {kind, address}'
 md read README.md --address '{"kind":"preamble"}'
 
 md query README.md --query \
-  '{"type":"search","text":"guard","match_mode":"literal","block_kinds":[]}'
+  '{"type":"search","text":"guard","match_mode":"literal","block_kinds":[],"include_source_gaps":true}'
 
 md schema | jq '.patch'
 
 md patch README.md --from patch.json          # candidate to stdout
 md patch README.md --from patch.json --in-place
 ```
+
+Search returns target-backed `evidence` for indexed Markdown and targetless
+`source_evidence` for parser-unrepresented ranges when `include_source_gaps` is
+true. Source evidence carries revision, span, etag, and preview, but no address
+or guard and cannot authorize a patch.
 
 Every mutation carries a document revision and target guard. The file adapter
 accepts regular files only, rechecks the canonical referent, source revision,
@@ -58,7 +63,6 @@ provided `TryFrom<&TargetSnapshot>` conversions.
 On macOS, extended attributes such as Finder tags are copied to the replacement
 file. POSIX ACL cloning and hard-link topology are not yet preserved; see
 [`docs/follow-ups/file-metadata.md`](docs/follow-ups/file-metadata.md).
-
 ## Rust library
 
 ```toml

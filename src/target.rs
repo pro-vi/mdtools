@@ -244,6 +244,7 @@ pub enum TargetQuery {
         text: String,
         match_mode: SearchMatchMode,
         block_kinds: Vec<BlockKind>,
+        include_source_gaps: bool,
     },
 }
 
@@ -279,6 +280,7 @@ enum StrictTargetQuery {
         text: String,
         match_mode: SearchMatchMode,
         block_kinds: Vec<BlockKind>,
+        include_source_gaps: bool,
     },
 }
 
@@ -298,10 +300,12 @@ impl<'de> Deserialize<'de> for TargetQuery {
                 text,
                 match_mode,
                 block_kinds,
+                include_source_gaps,
             } => Self::Search {
                 text,
                 match_mode,
                 block_kinds,
+                include_source_gaps,
             },
         };
         validate_query(&query).map_err(serde::de::Error::custom)?;
@@ -313,30 +317,48 @@ impl<'de> Deserialize<'de> for TargetQuery {
 #[serde(deny_unknown_fields)]
 pub struct EvidenceRange {
     pub target: TargetAddress,
+    pub revision: DocumentRevision,
     pub span: SourceSpan,
     pub etag: TargetEtag,
     pub preview: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceEvidenceRange {
+    pub revision: DocumentRevision,
+    pub span: SourceSpan,
+    pub etag: TargetEtag,
+    pub preview: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum QueryResult {
     Target { target: TargetSnapshot },
     Evidence { evidence: EvidenceRange },
+    SourceEvidence { evidence: SourceEvidenceRange },
 }
 
 impl QueryResult {
     pub fn target(&self) -> Option<&TargetSnapshot> {
         match self {
             Self::Target { target } => Some(target),
-            Self::Evidence { .. } => None,
+            Self::Evidence { .. } | Self::SourceEvidence { .. } => None,
         }
     }
 
     pub fn evidence(&self) -> Option<&EvidenceRange> {
         match self {
             Self::Evidence { evidence } => Some(evidence),
-            Self::Target { .. } => None,
+            Self::Target { .. } | Self::SourceEvidence { .. } => None,
+        }
+    }
+
+    pub fn source_evidence(&self) -> Option<&SourceEvidenceRange> {
+        match self {
+            Self::SourceEvidence { evidence } => Some(evidence),
+            Self::Target { .. } | Self::Evidence { .. } => None,
         }
     }
 }
@@ -600,14 +622,22 @@ pub fn query(document: &Document, query: &TargetQuery) -> Result<Vec<QueryResult
         text,
         match_mode,
         block_kinds,
+        include_source_gaps,
     } = query
     {
-        return Ok(
-            crate::search::evidence_ranges(document, text, *match_mode, block_kinds)
-                .into_iter()
-                .map(|evidence| QueryResult::Evidence { evidence })
-                .collect(),
-        );
+        let mut results = crate::search::evidence_ranges(document, text, *match_mode, block_kinds)
+            .into_iter()
+            .map(|evidence| QueryResult::Evidence { evidence })
+            .collect::<Vec<_>>();
+        if *include_source_gaps {
+            results.extend(
+                crate::search::source_evidence_ranges(document, text, *match_mode)
+                    .into_iter()
+                    .map(|evidence| QueryResult::SourceEvidence { evidence }),
+            );
+        }
+        results.sort_by_key(query_result_span);
+        return Ok(results);
     }
     Ok(query_resolved(document, query)?
         .into_iter()
@@ -615,6 +645,19 @@ pub fn query(document: &Document, query: &TargetQuery) -> Result<Vec<QueryResult
             target: resolved.snapshot,
         })
         .collect())
+}
+
+fn query_result_span(result: &QueryResult) -> (u32, u32) {
+    match result {
+        QueryResult::Target { target } => target
+            .selection_span
+            .map(|span| (span.byte_start, span.byte_end))
+            .unwrap_or((u32::MAX, u32::MAX)),
+        QueryResult::Evidence { evidence } => (evidence.span.byte_start, evidence.span.byte_end),
+        QueryResult::SourceEvidence { evidence } => {
+            (evidence.span.byte_start, evidence.span.byte_end)
+        }
+    }
 }
 
 fn query_resolved(

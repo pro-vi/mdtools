@@ -99,7 +99,7 @@ impl From<CoreError> for CommandError {
 
 pub fn error_envelope_json(error: &CommandError, _file: Option<&str>) -> Option<serde_json::Value> {
     serde_json::to_value(ErrorEnvelope {
-        schema_version: ProtocolSchemaVersion::V2,
+        schema_version: ProtocolSchemaVersion::V3,
         error: error.code,
         exit_code: error.exit_code as u8,
         message: &error.message,

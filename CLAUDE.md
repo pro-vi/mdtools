@@ -8,7 +8,8 @@
 - `TargetSnapshot` separates selection from `GuardAuthority`.
 - `ResolvedTarget` is bound to one document-index instance.
 - Reads stay typed by Markdown domain.
-- Search returns `EvidenceRange`, never mutation authority.
+- Search returns target-backed `EvidenceRange` or targetless
+  `SourceEvidenceRange`; neither is mutation authority.
 - `Patch` is one-base, fully preflighted, non-overlapping, applied once, and
   reparsed once before receipts are finalized.
 - Core code performs no filesystem I/O. The `file` feature owns verified atomic
