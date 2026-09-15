@@ -361,6 +361,56 @@ fn default_section_discovery_returns_only_addresses_and_summaries() {
 }
 
 #[test]
+fn last_task_span_and_guard_exclude_following_paragraphs() {
+    let directory = unique_directory("last-task-boundary");
+    let path = directory.join("doc.md");
+    for newline in ["\n", "\r\n"] {
+        let mut previous_guard = None;
+        for tail in ["paragraph", "changed paragraph with more text"] {
+            let source = ["- [ ] a", "- [ ] b", "", tail, ""].join(newline);
+            std::fs::write(&path, &source).unwrap();
+            let output = md()
+                .args([
+                    "query",
+                    path.to_str().unwrap(),
+                    "--query",
+                    r#"{"type":"kind","kind":"task"}"#,
+                    "--json",
+                ])
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            assert!(output.stderr.is_empty());
+            let results: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(results.len(), 2);
+            let task = &results[1]["target"];
+            let span = &task["selection_span"];
+            let start = span["byte_start"].as_u64().unwrap() as usize;
+            let end = span["byte_end"].as_u64().unwrap() as usize;
+            assert_eq!(&source[start..end], "- [ ] b");
+            assert_eq!(span["line_start"], 2);
+            assert_eq!(span["line_end"], 2);
+            assert!(end < source.len());
+            let etag = task["guard"]["etag"].as_str().unwrap().to_string();
+            if let Some(previous) = &previous_guard {
+                assert_eq!(
+                    &etag, previous,
+                    "unrelated trailing prose changed task guard"
+                );
+            }
+            previous_guard = Some(etag);
+            let address = serde_json::to_string(&task["address"]).unwrap();
+            let read = md()
+                .args(["read", path.to_str().unwrap(), "--address", &address])
+                .output()
+                .unwrap();
+            assert!(read.status.success());
+            assert_eq!(read.stdout, b"- [ ] b");
+        }
+    }
+}
+
+#[test]
 fn default_section_read_preserves_original_markdown_bytes_once() {
     let directory = unique_directory("content-read");
     let path = directory.join("doc.md");
