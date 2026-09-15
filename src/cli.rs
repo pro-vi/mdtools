@@ -11,7 +11,7 @@ pub use structural::{ApplyPatchArgs, MapArgs, QueryTargetsArgs, ReadTargetArgs};
     disable_help_subcommand = true
 )]
 pub struct Cli {
-    /// Emit machine-readable errors and patch previews as JSON.
+    /// Emit full protocol JSON, including read snapshots, errors, and patch previews.
     #[arg(long, global = true)]
     pub json: bool,
 

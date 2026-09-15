@@ -9,7 +9,265 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn md() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_md"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_md"));
+    command.env_remove("MD_USAGE_LOG");
+    command
+}
+
+#[test]
+fn opted_in_usage_counts_actual_streams_without_recording_payload_or_paths() {
+    let directory = unique_directory("usage");
+    let path = directory.join("private-fixture.md");
+    let log = directory.join("usage.jsonl");
+    let source = "hello\n文字 👋\n<|endoftext|>\n";
+    std::fs::write(&path, source).unwrap();
+    let output = md()
+        .env("MD_USAGE_LOG", &log)
+        .env("MD_USAGE_CALLER", "codex")
+        .env("MD_USAGE_SESSION", "00000000-0000-4000-8000-000000000001")
+        .args([
+            "read",
+            path.to_str().unwrap(),
+            "--address",
+            r#"{"kind":"document"}"#,
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stdout, source.as_bytes());
+    assert!(output.stderr.is_empty());
+    let logged = std::fs::read_to_string(&log).unwrap();
+    let record: serde_json::Value = serde_json::from_str(&logged).unwrap();
+    assert_eq!(record["stdout"]["bytes"], source.len());
+    let tokenizer = tiktoken_rs::o200k_base().unwrap();
+    assert_eq!(
+        record["stdout"]["tokens"],
+        tokenizer
+            .count(source, &std::collections::HashSet::new())
+            .unwrap()
+    );
+    assert_eq!(record["stderr"]["bytes"], 0);
+    assert_eq!(record["stderr"]["tokens"], 0);
+    assert_eq!(record["surface"], "cli_streams");
+    assert_eq!(record["caller"], "codex");
+    assert_eq!(record["provenance"], "explicit_environment_claims_only");
+    assert!(!logged.contains("private-fixture"));
+    assert!(!logged.contains("hello"));
+    assert!(!logged.contains("文字"));
+    assert!(!logged.contains(directory.to_str().unwrap()));
+}
+
+#[test]
+fn usage_failure_preserves_command_result_and_early_exits_are_not_logged() {
+    let directory = unique_directory("usage-failure");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "body\n").unwrap();
+    let args = [
+        "read",
+        path.to_str().unwrap(),
+        "--address",
+        r#"{"kind":"document"}"#,
+    ];
+    let baseline = md().args(args).output().unwrap();
+    let output = md()
+        .env("MD_USAGE_LOG", &directory)
+        .args(args)
+        .output()
+        .unwrap();
+    assert_eq!(output.status, baseline.status);
+    assert_eq!(output.stdout, baseline.stdout);
+    assert_eq!(output.stderr, baseline.stderr);
+    let log = directory.join("usage.jsonl");
+    let help = md()
+        .env("MD_USAGE_LOG", &log)
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    assert!(!log.exists());
+}
+
+#[test]
+fn usage_observes_error_json_and_stderr_without_changing_exit_status() {
+    let directory = unique_directory("usage-error");
+    let log = directory.join("usage.jsonl");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "body\n").unwrap();
+    let output = md()
+        .env("MD_USAGE_LOG", &log)
+        .args(["query", path.to_str().unwrap(), "--query", "{}", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let record: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(log).unwrap()).unwrap();
+    assert_eq!(record["stdout"]["bytes"], output.stdout.len());
+    assert_eq!(record["stderr"]["bytes"], output.stderr.len());
+    assert_eq!(record["diagnostic"], "invalid_input");
+    assert_eq!(record["format"], "error_json");
+    assert!(record["query_kind"].is_null());
+}
+
+#[cfg(unix)]
+fn private_file(path: &std::path::Path, contents: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::write(path, contents).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+}
+
+#[test]
+#[cfg(unix)]
+fn usage_declines_document_protocol_and_stdio_aliases() {
+    use std::os::unix::fs::symlink;
+    let directory = unique_directory("usage-alias");
+    let path = directory.join("doc.md");
+    let source = "body\n";
+    private_file(&path, source);
+    let link = directory.join("link.md");
+    symlink(&path, &link).unwrap();
+    for document in [&path, &link] {
+        let output = md()
+            .env("MD_USAGE_LOG", &path)
+            .args([
+                "read",
+                document.to_str().unwrap(),
+                "--address",
+                r#"{"kind":"document"}"#,
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, source.as_bytes());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+    }
+    let input = directory.join("address.json");
+    let address = r#"{"kind":"document"}"#;
+    private_file(&input, address);
+    let output = md()
+        .env("MD_USAGE_LOG", &input)
+        .args([
+            "read",
+            path.to_str().unwrap(),
+            "--from",
+            input.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(std::fs::read_to_string(&input).unwrap(), address);
+    let output = md()
+        .env("MD_USAGE_LOG", &input)
+        .stdin(std::fs::File::open(&input).unwrap())
+        .args(["read", path.to_str().unwrap(), "--from", "-"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(std::fs::read_to_string(&input).unwrap(), address);
+
+    let redirected = directory.join("stdout.txt");
+    private_file(&redirected, "");
+    let output = md()
+        .env("MD_USAGE_LOG", &redirected)
+        .stdout(std::fs::File::create(&redirected).unwrap())
+        .args(["read", path.to_str().unwrap(), "--address", address])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(std::fs::read_to_string(&redirected).unwrap(), source);
+
+    let error_args = ["query", path.to_str().unwrap(), "--query", "{}"];
+    let baseline = md().args(error_args).output().unwrap();
+    let error_file = directory.join("stderr.txt");
+    private_file(&error_file, "");
+    let output = md()
+        .env("MD_USAGE_LOG", &error_file)
+        .stderr(std::fs::File::create(&error_file).unwrap())
+        .args(error_args)
+        .output()
+        .unwrap();
+    assert_eq!(output.status, baseline.status);
+    assert_eq!(std::fs::read(&error_file).unwrap(), baseline.stderr);
+}
+
+#[test]
+#[cfg(unix)]
+fn usage_declines_old_and_new_document_identities_across_atomic_patch() {
+    for hard_link in [false, true] {
+        let directory = unique_directory("usage-patch-alias");
+        let path = directory.join("doc.md");
+        private_file(&path, "before\n");
+        let log = if hard_link {
+            let link = directory.join("old-document.md");
+            std::fs::hard_link(&path, &link).unwrap();
+            link
+        } else {
+            path.clone()
+        };
+        let patch = serde_json::to_string(&replacement_patch("before\n", "after\n")).unwrap();
+        let output = md()
+            .env("MD_USAGE_LOG", &log)
+            .args([
+                "patch",
+                path.to_str().unwrap(),
+                "--patch",
+                &patch,
+                "--in-place",
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "after\n");
+        if hard_link {
+            assert_eq!(std::fs::read_to_string(log).unwrap(), "before\n");
+        }
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn usage_does_not_create_missing_input_or_touch_input_on_clap_early_exit() {
+    let directory = unique_directory("usage-missing-alias");
+    let path = directory.join("missing.md");
+    let output = md()
+        .env("MD_USAGE_LOG", &path)
+        .args([
+            "read",
+            path.to_str().unwrap(),
+            "--address",
+            r#"{"kind":"document"}"#,
+        ])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(!path.exists());
+    let alias = directory.join("alias.md");
+    std::os::unix::fs::symlink("missing.md", &alias).unwrap();
+    let output = md()
+        .env("MD_USAGE_LOG", &path)
+        .args([
+            "read",
+            alias.to_str().unwrap(),
+            "--address",
+            r#"{"kind":"document"}"#,
+        ])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(!path.exists());
+    assert!(std::fs::symlink_metadata(&alias)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    assert!(!alias.exists());
+    private_file(&path, "body\n");
+    for flag in ["--help", "--not-an-option"] {
+        let _output = md()
+            .env("MD_USAGE_LOG", &path)
+            .args(["read", path.to_str().unwrap(), flag])
+            .output()
+            .unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "body\n");
+    }
 }
 
 #[cfg(unix)]
@@ -67,12 +325,203 @@ fn replacement_patch(source: &str, markdown: &str) -> Patch {
 }
 
 #[test]
-fn map_read_and_query_emit_clean_json() {
+fn default_section_discovery_returns_only_addresses_and_summaries() {
+    let directory = unique_directory("compact-discovery");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "# Work\n\n## Same\n\nfirst\n\n## Same\n\nsecond\n").unwrap();
+    let query = r#"{"type":"kind","kind":"section"}"#;
+    let output = md()
+        .args(["query", path.to_str().unwrap(), "--query", query])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let results: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(results.len(), 3);
+    for (index, result) in results.iter().enumerate() {
+        assert_eq!(result["type"], "target");
+        let target = result["target"].as_object().unwrap();
+        assert_eq!(
+            target.len(),
+            2,
+            "discovery must not include editing evidence"
+        );
+        assert!(target.contains_key("address"));
+        assert!(target.contains_key("summary"));
+        let address = serde_json::to_string(&target["address"]).unwrap();
+        let read = md()
+            .args(["read", path.to_str().unwrap(), "--address", &address])
+            .output()
+            .unwrap();
+        assert!(read.status.success());
+        if index == 2 {
+            assert_eq!(read.stdout, b"## Same\n\nsecond\n");
+        }
+    }
+}
+
+#[test]
+fn default_section_read_preserves_original_markdown_bytes_once() {
+    let directory = unique_directory("content-read");
+    let path = directory.join("doc.md");
+    let section = "Section\r\n-------\r\n\r\n文字 with `code`\r\n\r\n### Child\r\n\r\nbody";
+    std::fs::write(&path, format!("# Root\r\n\r\n{section}")).unwrap();
+    let address = r#"{"kind":"section","path":[{"text":"Root","occurrence":1},{"text":"Section","occurrence":1}]}"#;
+    let read = md()
+        .args(["read", path.to_str().unwrap(), "--address", address])
+        .output()
+        .unwrap();
+    assert!(read.status.success());
+    assert!(read.stderr.is_empty());
+    assert_eq!(read.stdout, section.as_bytes());
+}
+
+#[test]
+fn query_read_selects_one_target_and_rejects_zero_multiple_and_search_matches() {
+    let directory = unique_directory("query-read");
+    let path = directory.join("doc.md");
+    std::fs::write(
+        &path,
+        "# Work\n\n## Unique\n\n文字\r\n\n## Same\n\none\n\n## Same\n\ntwo\n",
+    )
+    .unwrap();
+    for (text, exit) in [("Unique", 0), ("Absent", 1), ("Same", 4)] {
+        let query =
+            serde_json::json!({"type":"section","text":text,"match_mode":"exact"}).to_string();
+        let output = md()
+            .args(["read", path.to_str().unwrap(), "--query", &query])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(exit));
+        if exit == 0 {
+            assert_eq!(output.stdout, "## Unique\n\n文字\r\n\n".as_bytes());
+        } else {
+            assert!(output.stdout.is_empty());
+        }
+        if exit == 4 {
+            assert!(String::from_utf8_lossy(&output.stderr).contains("md read --address"));
+        }
+    }
+    let query = r#"{"type":"search","text":"Unique","match_mode":"literal","block_kinds":[],"include_source_gaps":false,"max_results":10}"#;
+    let output = md()
+        .args(["read", path.to_str().unwrap(), "--query", query])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(output.stdout.is_empty());
+    let query = r#"{"type":"section","text":"Unique","match_mode":"exact"}"#;
+    let output = md()
+        .args(["read", path.to_str().unwrap(), "--query", query, "--json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["type"], "section");
+    assert!(value["snapshot"]["guard"].is_object());
+    let conflict = md()
+        .args([
+            "read",
+            path.to_str().unwrap(),
+            "--query",
+            query,
+            "--address",
+            r#"{"kind":"document"}"#,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(conflict.status.code(), Some(2));
+}
+
+#[test]
+fn query_read_preserves_frontmatter_selection_and_parse_policy() {
+    let directory = unique_directory("query-frontmatter");
+    let path = directory.join("doc.md");
+    let field = r#"{"type":"frontmatter_field","path":["value"]}"#;
+    let whole = r#"{"type":"kind","kind":"frontmatter"}"#;
+    for (source, query, exit, expected) in [
+        (
+            "---\nvalue: null\n---\n",
+            field,
+            0,
+            "{\"present\":true,\"value\":null}\n",
+        ),
+        ("---\nother: yes\n---\n", field, 1, ""),
+        ("# H\n\nbody\n", whole, 0, ""),
+        ("---\na: [\n---\n\n# H\n\nbody\n", whole, 2, ""),
+        ("+++\na = [\n+++\n\n# H\n\nbody\n", whole, 2, ""),
+        (
+            "---\na: [\n---\n\n# H\n\nbody\n",
+            r#"{"type":"section","text":"H","match_mode":"exact"}"#,
+            0,
+            "# H\n\nbody\n",
+        ),
+        ("---\na: 1\n", whole, 0, ""),
+    ] {
+        std::fs::write(&path, source).unwrap();
+        let output = md()
+            .args(["read", path.to_str().unwrap(), "--query", query])
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(exit),
+            "{source:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, expected.as_bytes());
+    }
+}
+
+#[test]
+fn invalid_input_guidance_uses_typed_examples_and_stays_bounded() {
+    let path = "/missing/file-is-not-loaded-for-invalid-input.md";
+    let query = r#"{"type":"section","text":"Discussion"}"#;
+    let output = md()
+        .args(["query", path, "--query", query, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let error: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(error["message"].as_str().unwrap().contains("missing field"));
+    let hint = error["hint"].as_str().unwrap();
+    let example = hint
+        .split_once(": ")
+        .unwrap()
+        .1
+        .split_once("; schema:")
+        .unwrap()
+        .0;
+    let example: TargetQuery = serde_json::from_str(example).unwrap();
+    assert!(matches!(example, TargetQuery::Section { .. }));
+    assert!(!hint.contains("Discussion"));
+    let query = serde_json::json!({"type":"文".repeat(4000)}).to_string();
+    let output = md()
+        .args(["query", path, "--query", &query, "--json"])
+        .output()
+        .unwrap();
+    let error: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        error["message"].as_str().unwrap().len() + error["hint"].as_str().unwrap().len() < 1024
+    );
+    let duplicate = r#"{"type":"section","text":"A","text":"B","match_mode":"exact"}"#;
+    let output = md()
+        .args(["query", path, "--query", duplicate])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("duplicate field"));
+}
+
+#[test]
+fn explicit_json_keeps_full_map_read_and_query_protocol() {
     let directory = unique_directory("reads");
     let path = directory.join("doc.md");
     std::fs::write(&path, "lead\n\n# Work\n\n- [ ] task\n").unwrap();
 
-    let mapped = md().args(["map", path.to_str().unwrap()]).output().unwrap();
+    let mapped = md()
+        .args(["--json", "map", path.to_str().unwrap()])
+        .output()
+        .unwrap();
     assert!(mapped.status.success());
     assert!(mapped.stderr.is_empty());
     let mapped: Vec<serde_json::Value> = serde_json::from_slice(&mapped.stdout).unwrap();
@@ -80,7 +529,13 @@ fn map_read_and_query_emit_clean_json() {
 
     let address = serde_json::to_string(&TargetAddress::Preamble).unwrap();
     let read = md()
-        .args(["read", path.to_str().unwrap(), "--address", &address])
+        .args([
+            "--json",
+            "read",
+            path.to_str().unwrap(),
+            "--address",
+            &address,
+        ])
         .output()
         .unwrap();
     assert!(read.status.success());
@@ -94,7 +549,7 @@ fn map_read_and_query_emit_clean_json() {
     })
     .unwrap();
     let queried = md()
-        .args(["query", path.to_str().unwrap(), "--query", &query])
+        .args(["--json", "query", path.to_str().unwrap(), "--query", &query])
         .output()
         .unwrap();
     assert!(queried.status.success());
@@ -103,6 +558,8 @@ fn map_read_and_query_emit_clean_json() {
     assert_eq!(queried.len(), 1);
     assert_eq!(queried[0]["type"], "target");
     assert_eq!(queried[0]["target"]["kind"], "task");
+    assert!(queried[0]["target"]["guard"].is_object());
+    assert!(read["snapshot"]["guard"].is_object());
 }
 
 #[test]
@@ -115,7 +572,7 @@ fn query_accepts_json_from_stdin_without_prompting() {
     })
     .unwrap();
     let mut child = md()
-        .args(["query", path.to_str().unwrap(), "--from", "-"])
+        .args(["--json", "query", path.to_str().unwrap(), "--from", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -149,7 +606,7 @@ fn query_search_returns_non_mutable_evidence_ranges() {
     })
     .unwrap();
     let output = md()
-        .args(["query", path.to_str().unwrap(), "--query", &query])
+        .args(["--json", "query", path.to_str().unwrap(), "--query", &query])
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -175,7 +632,7 @@ fn query_search_can_return_targetless_source_evidence() {
     })
     .to_string();
     let output = md()
-        .args(["query", path.to_str().unwrap(), "--query", &query])
+        .args(["--json", "query", path.to_str().unwrap(), "--query", &query])
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -188,6 +645,108 @@ fn query_search_can_return_targetless_source_evidence() {
         result[0]["evidence"]["revision"].as_str().unwrap().len(),
         64
     );
+}
+
+#[test]
+fn default_reads_return_exact_source_for_every_source_backed_target_kind() {
+    let directory = unique_directory("source-content");
+    let path = directory.join("doc.md");
+    let source = "---\ntitle: Demo\n---\n\nlead\n\n# Work\n\nRead [guide](guide.md).\n\n- [x] finished\n\n| Name | State |\n| --- | --- |\n| A | open |\n";
+    std::fs::write(&path, source).unwrap();
+    let document = Document::parse_for_frontmatter(source).unwrap();
+    for snapshot in document.map().unwrap() {
+        let Some(span) = snapshot.selection_span else {
+            continue;
+        };
+        let address = serde_json::to_string(&snapshot.address).unwrap();
+        let output = md()
+            .args(["read", path.to_str().unwrap(), "--address", &address])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{address}");
+        assert!(output.stderr.is_empty(), "{address}");
+        assert_eq!(
+            output.stdout,
+            source.as_bytes()[span.byte_start as usize..span.byte_end as usize],
+            "{address}"
+        );
+    }
+}
+
+#[test]
+fn default_frontmatter_field_read_distinguishes_missing_from_null() {
+    let directory = unique_directory("field-content");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "---\nvalue: null\nname: Demo\n---\n").unwrap();
+    for (field, expected) in [
+        ("value", serde_json::json!({"present": true, "value": null})),
+        (
+            "missing",
+            serde_json::json!({"present": false, "value": null}),
+        ),
+        (
+            "name",
+            serde_json::json!({"present": true, "value": "Demo"}),
+        ),
+    ] {
+        let address = serde_json::json!({"kind": "frontmatter_field", "path": [field]}).to_string();
+        let output = md()
+            .args(["read", path.to_str().unwrap(), "--address", &address])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert!(output.stderr.is_empty());
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value, expected);
+    }
+}
+
+#[test]
+fn compact_map_retains_each_exact_address_and_summary_without_guards() {
+    let directory = unique_directory("compact-map");
+    let path = directory.join("doc.md");
+    let source = "# Work\n\n- [ ] first\n- [x] second\n";
+    std::fs::write(&path, source).unwrap();
+    let output = md().args(["map", path.to_str().unwrap()]).output().unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let results: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let targets = Document::parse(source).unwrap().map().unwrap();
+    assert_eq!(results.len(), targets.len());
+    for (result, target) in results.iter().zip(targets) {
+        assert_eq!(
+            result,
+            &serde_json::json!({"address": target.address, "summary": target.summary})
+        );
+    }
+}
+
+#[test]
+fn compact_search_keeps_previews_spans_and_targetless_evidence_distinct() {
+    let directory = unique_directory("compact-search");
+    let path = directory.join("doc.md");
+    std::fs::write(&path, "find needle here\n\n[^lost]: hidden needle\n").unwrap();
+    let query = r#"{"type":"search","text":"needle","match_mode":"literal","block_kinds":[],"include_source_gaps":true,"max_results":100}"#;
+    let output = md()
+        .args(["query", path.to_str().unwrap(), "--query", query])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let results: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0]["type"], "evidence");
+    assert_eq!(results[0]["target"]["kind"], "block");
+    assert_eq!(results[0]["preview"], "find needle here");
+    assert_eq!(results[1]["type"], "source_evidence");
+    assert_eq!(results[1]["preview"], "[^lost]: hidden needle");
+    assert!(results[1].get("target").is_none());
+    for result in results {
+        assert!(result["span"].is_object());
+        assert!(result.get("revision").is_none());
+        assert!(result.get("etag").is_none());
+        assert!(result.get("guard").is_none());
+    }
 }
 
 #[test]

@@ -22,7 +22,7 @@ The public binary has exactly five commands:
 
 ```text
 md map <FILE>
-md read <FILE> --address <JSON> | --from <PATH|->
+md read <FILE> --address <JSON> | --from <PATH|-> | --query <JSON>
 md query <FILE> --query <JSON> | --from <PATH|->
 md patch <FILE> --patch <JSON> | --from <PATH|-> [--in-place]
 md schema
@@ -30,6 +30,15 @@ md schema
 
 CLI code may decode inputs, call library operations, and render outputs. It may
 not contain Markdown traversal or mutation semantics.
+
+Default `map` and `query` output is compact discovery JSON. Default `read`
+output is original content (or `{present, value}` for frontmatter fields).
+`--json` selects full protocol results, including snapshots and guards, for
+patch preparation and programmatic consumers. Keep both output shapes in the
+generated protocol schema; do not make agents read patch evidence for discovery.
+Query reads use `Document::query_one` and the selected document's existing parse
+policy. Measurement stays in the binary, is opt-in, records no payloads, and
+must preserve output and exit behavior when counting or logging fails.
 
 ## Parser boundary
 
