@@ -289,14 +289,15 @@ CLAUDE_FLAGS = (
 
 
 @dataclass(frozen=True)
-class LocalClaudeRunner:
-    """Pinned CLI with a caller-owned loopback scripted endpoint, never a model.
+class ClaudeRunner:
+    """One pinned CLI configuration, not launch authority.
 
-This is offline integration configuration, not a paid-run grant. Real provider
-launches remain held; the synthetic key and empty config cannot reuse user auth.
+An explicit loopback endpoint is synthetic. Explicit None selects the real
+Anthropic backend; harness admission then requires a matching bounded grant.
+Constructing/verifying this configuration neither reads auth nor calls a model.
 """
     executable: str
-    endpoint: str
+    endpoint: str | None
     model: str
     effort: str | None
     thinking_policy: str
@@ -305,11 +306,12 @@ launches remain held; the synthetic key and empty config cannot reuse user auth.
 
     def __post_init__(self) -> None:
         import math
-        endpoint = urlsplit(self.endpoint)
-        if (endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or
-            endpoint.port is None or endpoint.username is not None or endpoint.password is not None or
-            endpoint.path not in ("", "/") or endpoint.query or endpoint.fragment):
-            raise ValueError("scripted endpoint must be explicit IPv4 loopback HTTP")
+        if self.endpoint is not None:
+            endpoint = urlsplit(self.endpoint)
+            if (endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or
+                endpoint.port is None or endpoint.username is not None or endpoint.password is not None or
+                endpoint.path not in ("", "/") or endpoint.query or endpoint.fragment):
+                raise ValueError("scripted endpoint must be explicit IPv4 loopback HTTP")
         choices = {"claude-sonnet-5": ("high", "adaptive"),
                    "claude-haiku-4-5-20251001": (None, "disabled")}
         if choices.get(self.model) != (self.effort, self.thinking_policy):
@@ -319,16 +321,41 @@ launches remain held; the synthetic key and empty config cannot reuse user auth.
         if type(self.attempt_usd) not in (int, float) or not math.isfinite(self.attempt_usd) or self.attempt_usd <= 0:
             raise ValueError("positive finite attempt cap required")
 
+    @property
+    def backend(self) -> str:
+        return "claude_cli" if self.endpoint is None else "synthetic"
+
     def verify(self) -> None:
         if platform.system() != "Darwin":
             raise ValueError("native runner requires macOS")
         build_runner_command([self.executable], runner="synthetic")
         if sha256_file(self.executable) != CLAUDE_SHA256:
             raise ValueError("preserved Claude binary changed; no fallback")
+        self.provenance_locators()
         version = subprocess.run([self.executable, "--version"], env={"PATH": "/usr/bin:/bin", "DISABLE_AUTOUPDATER": "1"},
             capture_output=True, check=True, timeout=10).stdout.decode().strip()
         if version != CLAUDE_VERSION + " (Claude Code)":
             raise ValueError("preserved Claude version mismatch")
+
+    def provenance_locators(self) -> dict[str, str]:
+        """Retain source/copy provenance without requiring the old install.
+
+Only the independent copy is executable authority. The updater-owned source
+can disappear; its saved path is provenance, not a fallback or a read target.
+"""
+        receipt = Path(self.executable).with_name("pin.json")
+        if any(part.is_symlink() for part in (receipt, *receipt.parents)):
+            raise ValueError("unsafe runner pin receipt")
+        raw = json.loads(receipt.read_bytes())
+        if (type(raw) is not dict or raw.get("sha256") != CLAUDE_SHA256 or
+            raw.get("version_output") != CLAUDE_VERSION + " (Claude Code)"):
+            raise ValueError("runner source/copy provenance mismatch")
+        source, copied = raw.get("source_path"), raw.get("executable_path")
+        if (type(source) is not str or type(copied) is not str or not Path(source).is_absolute() or
+            not Path(copied).is_absolute() or source == copied or source == self.executable):
+            raise ValueError("runner requires distinct source/copy locators")
+        return {"runner_source": source, "runner_preserved_at": copied,
+                "runner_pin_receipt": str(receipt), "runner": self.executable}
 
     def command(self) -> list[str]:
         argv = [self.executable, *CLAUDE_FLAGS, "--model", self.model,
@@ -389,14 +416,30 @@ class NativeBoundary:
         if not os.access(self.launcher, os.X_OK) or not self.registry.is_dir():
             raise ValueError("native launcher/registry unavailable")
 
-    def parent_environment(self, runner: LocalClaudeRunner) -> dict[str, str]:
+    def parent_environment(self, runner: ClaudeRunner) -> dict[str, str]:
+        """After grant admission only, preserve app-owned normal authentication.
+
+Auth values are never recorded, hashed, or passed through to the Bash child.
+Tests replace the process environment with invented values. Synthetic mode
+never inspects the inherited environment, even if live auth exists there.
+"""
+        env: dict[str, str] = {}
+        if runner.backend == "claude_cli":
+            for name in ("HOME", "XDG_CONFIG_HOME", "CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY",
+                         "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"):
+                if name in os.environ:
+                    env[name] = os.environ[name]
         # The CLI writes its own PATH into the generated shell snapshot. Parent
         # and child must agree or sourcing that snapshot silently removes md.
-        env = {"PATH": str(self.workspace / "bin"), "SHELL": "/bin/bash", "LC_ALL": "C",
+        env.update({"PATH": str(self.workspace / "bin"), "SHELL": "/bin/bash", "LC_ALL": "C",
             "TMPDIR": str(self.workspace / "scratch"), "CLAUDE_CODE_TMPDIR": str(self.workspace / "scratch"),
-            "CLAUDE_CONFIG_DIR": str(self.workspace / "control/config"), "CLAUDE_CODE_SHELL": str(self.launcher),
-            "ANTHROPIC_BASE_URL": runner.endpoint, "ANTHROPIC_API_KEY": "synthetic-local-only",
-            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+            "CLAUDE_CODE_SHELL": str(self.launcher),
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"})
+        if runner.backend == "synthetic":
+            env.update({"CLAUDE_CONFIG_DIR": str(self.workspace / "control/config"),
+                        "ANTHROPIC_BASE_URL": runner.endpoint, "ANTHROPIC_API_KEY": "synthetic-local-only"})
+        else:
+            env["ANTHROPIC_BASE_URL"] = "https://api.anthropic.com"
         if runner.thinking_policy == "disabled":
             env["MAX_THINKING_TOKENS"] = "0"
         return env

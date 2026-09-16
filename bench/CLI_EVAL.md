@@ -217,18 +217,127 @@ Missing counts remain null/unavailable. Error outputs are separate. These counts
 are not provider/billed usage or agent savings. No holdout/mutation replay or
 counterfactual reconstructed from untrustworthy agent inputs is performed.
 
-U6 supplies campaign-owned identity/schedules, resume, reporting and CI. A single
-synthetic attempt's specification is not a live grant or a finished campaign.
+U6 implements campaign-owned identity/schedules, resume, reporting and offline CI.
+A single attempt's specification is not a live grant or a finished campaign.
 Canaries and the first study prefix have zero retries. U7/U8 need separate paid
 grants; real-provider compatibility and holdout contracts remain unverified.
 
+
+### Campaign recovery and reports
+
+`freeze_campaign` validates each task/condition through `prepare_agent` before
+creating a `CampaignSpec`. The campaign owns the aggregate identity and immutable
+schedule; `ExperimentSpec` still owns each task's content. Input/support/expected,
+full prompt, answer policy, executable/toolkit, runner/configuration, harness,
+grader, limits, retry and statistics changes require a new campaign. Locators
+remain distinct. One model/configuration and common statistical settings are
+required; models cannot be pooled.
+
+`run_campaign` holds one whole-campaign lock, scans every stored start/result and
+flushed denial event, then admits only the next scheduled pending key. It never
+re-executes an unfinished start. An explicit transient infrastructure retry gets
+a new ordinal and preserves all costs. The six-entry T14/T23 first-repetition
+prefix occurs once at the front of the 360-key core schedule and has zero retries.
+Any unavailable grade, contract diagnosis, denial, integrity/configuration fault
+or incomplete prefix execution holds before the next spawn. Supported wrong
+answers remain ordinary failures. Synthetic tasks with these IDs do not validate
+the sealed real contracts.
+
+Per-attempt reservations persist before spawn. When a USD grant is present,
+unknown cost holds further launches and retains its reservation as unresolved
+exposure; measured zero releases that reservation. Every attempt contributes its
+known measurements and coverage. Estimated USD, token/cache categories, elapsed
+seconds and observed tool bytes stay separate. A missing category withholds its
+aggregate claim; no proxy-unit fallback is used.
+
+`report.py`, the campaign's `report.json`, `--report-bundle` and single-attempt
+reports all consume the same validated disposition/coverage path. Cross-bundle
+duplicates and foreign records reject. Missing keys, unfinished attempts and
+configuration faults produce diagnostic reports with no comparisons. Supported-contract
+wrong answers can finish an evaluation with exit 0; incomplete evidence
+or admission holds return exit 1; invalid report/configuration inputs return exit 2.
+Core completeness requires all 360 scheduled selected outcomes and live evidence;
+losing an artifact family cannot complete the 24-task study.
+
+The bootstrap preserves H's task-first/trial-second sampling and exact percentile
+indices, seed 1729 and 10000 replicates. Reports retain per-task failures, paired
+workflow-success contrasts and costs on paired successful trial intersections.
+Total usage coverage still includes failed attempts and retries.
+
+```sh
+python -I bench/harness.py --offline-campaign --pin-root /absolute/verified/u3-pins \
+  --results-dir /absolute/private/synthetic-campaign --stop-after 3
+python -I bench/harness.py --offline-campaign --pin-root /absolute/verified/u3-pins \
+  --results-dir /absolute/private/synthetic-campaign
+python -I bench/report.py /absolute/private/synthetic-campaign
+python -I bench/harness.py --report-bundle /absolute/private/synthetic-campaign
+```
+
+This command constructs disposable synthetic fixtures and never reads the task
+registry. Resume reconstructs identical bytes; it does not reset prior records.
+The Linux `cli-evaluation-offline` job selects root Python tests explicitly,
+installs hash-locked dependencies and builds the exact producer pins. It runs no
+model, receives no model credentials, reads no holdout contents and uploads no
+raw traces. macOS native containment and actual local CLI fixture checks remain
+separate evidence duties.
+
+#### Held real-provider API
+
+`ClaudeRunner(executable, endpoint, model, effort, thinking_policy, max_turns,
+attempt_usd)` requires an explicit endpoint: an IPv4 loopback string is synthetic;
+`None` selects the real Anthropic backend. Configuration verification reads only
+pinned executable/version data, never user authentication. There is no paid CLI
+command, default grant or automatic model choice.
+
+Real `freeze_campaign` accepts one explicit `claude` configuration. Actual
+`run_campaign` and `run_agent` require a matching `LiveRunGrant`, the whole-campaign
+lock, canonical schedule membership and a durable per-attempt reservation before
+auth environment construction or spawn. A real single task cannot bypass the
+campaign. Do not construct a grant unless the user has explicitly approved every
+scope and cap it carries. No such grant exists in this implementation session.
+
+Every `LiveRunGrant` field is required: campaign identity, exact model/effort/
+thinking policy, phase, task IDs, conditions, repetitions, timeout, turn cap,
+per-attempt estimated USD cap, campaign estimated USD cap, maximum attempts,
+explicit core-contract-risk acknowledgment and prerequisite experiment identity.
+The closed phases are `canary` (one explicitly named synthetic task, all three
+conditions, repetition 0, exactly three attempts, zero retries), `public_pilot`
+(T1/T2/T10, all three conditions, repetition 0, nine trials), and `core_study`
+(all 24 tasks, three conditions, five repetitions, 360 trials). Core consent must
+explicitly acknowledge unvalidated T14/T23 contracts and the possible loss of the
+complete comparison. Retry attempts count toward the explicit attempt cap.
+
+A public pilot requires a separately granted canary bundle with three matching
+native successes, complete traces and known estimated cost. A core study requires
+the separately granted nine-trial public pilot with complete matching native
+receipts and known costs; pilot semantic failures remain valid evidence. Synthetic
+receipts cannot supply either prerequisite. Model/configuration/condition/source
+changes invalidate the prerequisite. A failed live canary stops further launches.
+Phase budgets remain separate; reports show prerequisite cost coverage without
+pooling its grant with the current campaign.
+
+Before the first real spawn the controller writes private immutable
+`authorization-evidence.json`, including the complete admitted grant, its content
+digest and prerequisite locator. Resume requires an explicitly supplied matching
+grant and rejects changed audit evidence. This file is evidence, never a source
+of consent. A changed phase, attempt count, risk acknowledgment or prerequisite
+requires an explicit new run; no frozen study silently gains permission. Reports
+validate the same artifact and independently reload prerequisite evidence.
+
+Normal parent authentication is preserved only after grant admission; the Bash
+child retains its cleared environment and native filesystem boundary. Provider
+receipts are estimates, not invoices. CLI budget flags and the serial controller
+cannot promise an invoice cap. Real authentication, transport, provider usage,
+sealed contracts and paid canaries/pilot/study remain U7/U8 holds. Portable tests
+use invented configuration, grant validation and auth/spawn spies; they never
+invoke real authentication or a real provider.
 ## Native offline integration
 
-`LocalClaudeRunner` admits only the preserved Claude 2.1.272 binary and an explicit
-IPv4 loopback scripted endpoint. It sends a synthetic API key from a cleared
-environment and uses a private empty CLI config. It never copies user credentials
-or repurposes HOME. The default command still runs only the synthetic exercise.
-There is no paid-provider entry point or inherited run grant.
+`ClaudeRunner` verifies the preserved Claude 2.1.272 binary and source/copy
+provenance. With an explicit IPv4 loopback endpoint it sends a synthetic API key
+from a cleared environment and uses a private empty CLI config. That mode never
+inspects inherited credentials. The default command remains synthetic; the
+real-provider API requires the separate grant described above.
 
 The actual CLI selects `bash-eval-launcher`; each invocation records its identity
 before executing fixed Bash with startup files suppressed. One default-deny macOS
@@ -241,6 +350,10 @@ check, not the security boundary.
 Parent and child use the same staged PATH because the CLI writes its parent PATH
 into a sourced shell snapshot. Native tests exercise both md producers through
 that real snapshot path; PATH agreement itself is not the isolation mechanism.
+With normal parent authentication, an attempted snapshot write outside the
+private shell paths is refused. A scripted-provider control with an empty,
+protected parent config proves the CLI still uses the launcher and completes
+allowed work without creating that snapshot. This is not a real-login test.
 
 The ordinary toolkit adds `env` in every condition because pinned CLI initialization
 calls it. This is a recorded capability addition, not historical score parity.
@@ -249,6 +362,8 @@ Apple's `dyld-support.sb` supplies process bootstrap rules. The exact
 system-profile, launcher, rendered profile/config, toolkit bytes and modes are
 recorded and checked. The experiment's profile digest names the stable template;
 each attempt separately retains the rendered profile and its exact digest.
+Saved source/copy locators come from the preserved runner's sibling `pin.json`;
+the updater-owned source is not reopened and may be absent.
 
 Closing shell registration precedes cleanup. Only the owned Claude session and
 registered Bash sessions are stopped. Unproven cleanup raises and leaves the

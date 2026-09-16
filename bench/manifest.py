@@ -8,13 +8,15 @@ specification does not supply a live run grant or prove native containment.
 from __future__ import annotations
 
 from dataclasses import dataclass, fields, field
+from functools import cached_property
 import hashlib
 import json
+import random
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
 
-from bench.trial_records import (BACKENDS, SCHEMA, RecordIntegrityError,
+from bench.trial_records import (BACKENDS, CONDITIONS, SCHEMA, AttemptKey, RecordIntegrityError,
     record_dict, require_digest, require_artifact_path, require_quantity, require_text)
 
 
@@ -149,3 +151,235 @@ class ExperimentSpec:
     def assert_same_identity(self, other: ExperimentSpec) -> None:
         if not isinstance(other, ExperimentSpec) or self.identity != other.identity:
             raise RecordIntegrityError("changed experiment content; new experiment required")
+
+
+@dataclass(frozen=True)
+class CampaignSpec:
+    """Checked aggregate of one model's task/condition specifications.
+
+    Schedule entries name trials, never attempts. Relocation is neutral only
+    where the constituent ExperimentSpec already declares a locator.
+    """
+
+    members: Mapping[str, ExperimentSpec]
+    schedule: tuple[tuple[str, str, int], ...]
+    prefix_length: int = 0
+    grant_usd: float | None = None
+    reservation_usd: float | None = None
+    core_study: bool = False
+    schema: str = SCHEMA
+    record: str = "campaign_spec"
+
+    def __post_init__(self) -> None:
+        if self.schema != SCHEMA or self.record != "campaign_spec" or type(self.core_study) is not bool:
+            raise RecordIntegrityError("unknown campaign schema")
+        if not isinstance(self.members, Mapping) or not self.members:
+            raise RecordIntegrityError("campaign requires checked members")
+        members = dict(self.members)
+        models = set()
+        statistics = set()
+        for name, spec in members.items():
+            require_artifact_path(name)
+            if not isinstance(spec, ExperimentSpec):
+                raise RecordIntegrityError("campaign member requires ExperimentSpec")
+            models.add((spec.backend, spec.requested_model, spec.effort, spec.thinking_policy))
+            statistics.add(canonical_json(record_dict(spec.statistical_settings)))
+        if len(models) != 1:
+            raise RecordIntegrityError("campaign cannot pool models/configurations")
+        if len(statistics) != 1:
+            raise RecordIntegrityError("campaign requires common statistical settings")
+        if type(self.schedule) is not tuple or not self.schedule or any(type(entry) is not tuple for entry in self.schedule):
+            raise RecordIntegrityError("empty or malformed campaign schedule")
+        used = set()
+        for entry in self.schedule:
+            if type(entry) is not tuple or len(entry) != 3:
+                raise RecordIntegrityError("malformed scheduled trial")
+            task, condition, repetition = entry
+            AttemptKey("0" * 64, task, condition, repetition, 0)
+            used.add(self.member_name(task, condition))
+        if len(set(self.schedule)) != len(self.schedule):
+            raise RecordIntegrityError("duplicate campaign schedule")
+        if used != set(members):
+            raise RecordIntegrityError("schedule/member mismatch")
+        tasks = {entry[0] for entry in self.schedule}
+        repetitions = {entry[2] for entry in self.schedule}
+        if sorted(repetitions) != list(range(len(repetitions))) or set(self.schedule) != {
+                (task, condition, repetition) for task in tasks for condition in CONDITIONS for repetition in repetitions}:
+            raise RecordIntegrityError("campaign requires complete task/condition/repetition schedule")
+        if any(len({(entry[0], entry[2]) for entry in self.schedule[index:index + 3]}) != 1
+               for index in range(0, len(self.schedule), 3)):
+            raise RecordIntegrityError("condition order must stay inside serial trial blocks")
+        if type(self.prefix_length) is not int or not 0 <= self.prefix_length <= len(self.schedule):
+            raise RecordIntegrityError("invalid prefix length")
+        for name in ("grant_usd", "reservation_usd"):
+            require_quantity(getattr(self, name), name)
+        if (self.grant_usd is None) != (self.reservation_usd is None):
+            raise RecordIntegrityError("budget requires grant and per-attempt reservation")
+        if self.core_study:
+            expected = {(f"T{n}", condition, repetition) for n in range(1, 25)
+                        for condition in CONDITIONS for repetition in range(5)}
+            prefix = {(task, condition, 0) for task in ("T14", "T23") for condition in CONDITIONS}
+            if set(self.schedule) != expected or self.prefix_length != 6 or set(self.schedule[:6]) != prefix:
+                raise RecordIntegrityError("core study requires all 360 trials and six-entry prefix")
+        object.__setattr__(self, "members", MappingProxyType(members))
+
+    @staticmethod
+    def member_name(task_id: str, condition: str) -> str:
+        require_artifact_path(task_id)
+        return task_id + "/" + condition
+
+    @cached_property
+    def identity(self) -> str:
+        return sha256_text(canonical_json({"schema": self.schema, "record": self.record,
+            "members": {name: spec.identity for name, spec in self.members.items()},
+            "schedule": self.schedule, "prefix_length": self.prefix_length,
+            "grant_usd": self.grant_usd, "reservation_usd": self.reservation_usd,
+            "core_study": self.core_study}))
+
+    def retry_allowance(self, trial: tuple[str, str, str, int]) -> int:
+        self.assert_trial(trial)
+        entry = trial[1:]
+        return 0 if entry in self.schedule[:self.prefix_length] else self.members[self.member_name(*entry[:2])].retry_allowance
+
+    def assert_trial(self, trial: tuple[str, str, str, int]) -> None:
+        if type(trial) is not tuple or len(trial) != 4 or trial[0] != self.identity or trial[1:] not in self.schedule:
+            raise RecordIntegrityError("foreign/unscheduled campaign trial")
+
+    def assert_member(self, key: AttemptKey, spec: ExperimentSpec) -> None:
+        self.assert_trial(key.trial)
+        self.members[self.member_name(key.task_id, key.condition)].assert_same_identity(spec)
+
+    @classmethod
+    def from_dict(cls, raw: object) -> CampaignSpec:
+        if type(raw) is not dict or set(raw) != {f.name for f in fields(cls)} or type(raw.get("members")) is not dict or type(raw.get("schedule")) is not list:
+            raise RecordIntegrityError("missing/unknown campaign fields")
+        payload = dict(raw)
+        payload["members"] = {name: ExperimentSpec.from_dict(spec) for name, spec in payload["members"].items()}
+        if any(type(entry) is not list for entry in payload["schedule"]):
+            raise RecordIntegrityError("malformed campaign schedule")
+        payload["schedule"] = tuple(tuple(entry) for entry in payload["schedule"])
+        return cls(**payload)
+
+
+def serial_schedule(task_ids: tuple[str, ...], *, repetitions: int = 5,
+                    seed: int = 1729, core_study: bool = False) -> tuple[tuple[str, str, int], ...]:
+    """Freeze randomized condition order within task/repetition blocks."""
+    if type(task_ids) is not tuple or not task_ids or any(type(task) is not str for task in task_ids) or len(set(task_ids)) != len(task_ids):
+        raise RecordIntegrityError("unique task IDs required")
+    if type(repetitions) is not int or repetitions <= 0 or type(seed) is not int or seed < 0:
+        raise RecordIntegrityError("invalid schedule settings")
+    for task_id in task_ids:
+        require_artifact_path(task_id)
+    blocks = [(task, repetition) for repetition in range(repetitions) for task in task_ids]
+    if core_study:
+        if set(task_ids) != {f"T{n}" for n in range(1, 25)} or repetitions != 5:
+            raise RecordIntegrityError("core study needs 24 tasks and five repetitions")
+        prefix = [("T14", 0), ("T23", 0)]
+        blocks = prefix + [block for block in blocks if block not in prefix]
+    rng = random.Random(seed)
+    schedule = []
+    for task, repetition in blocks:
+        order = list(CONDITIONS)
+        rng.shuffle(order)
+        schedule.extend((task, condition, repetition) for condition in order)
+    return tuple(schedule)
+
+
+@dataclass(frozen=True)
+class LiveRunGrant:
+    """Explicit operator-owned authority; an experiment spec is not consent.
+
+    Every field is required. This record must only be constructed from an
+    explicit scoped user grant, never inferred from saved results or defaults.
+    """
+
+    experiment_id: str
+    model: str
+    effort: str | None
+    thinking_policy: str
+    phase: str
+    task_ids: tuple[str, ...]
+    conditions: tuple[str, ...]
+    repetitions: tuple[int, ...]
+    timeout_seconds: float
+    max_turns: int
+    attempt_usd: float
+    campaign_usd: float
+    max_attempts: int
+    core_contract_risk_acknowledged: bool
+    prerequisite_experiment_id: str | None
+
+    def __post_init__(self) -> None:
+        require_digest(self.experiment_id, "granted experiment")
+        require_text(self.model, "granted model")
+        require_text(self.thinking_policy, "granted thinking policy")
+        if self.effort is not None:
+            require_text(self.effort, "granted effort")
+        if self.phase not in ("canary", "public_pilot", "core_study"):
+            raise RecordIntegrityError("unknown live phase")
+        if type(self.task_ids) is not tuple or not self.task_ids or any(type(task) is not str for task in self.task_ids) or len(set(self.task_ids)) != len(self.task_ids):
+            raise RecordIntegrityError("explicit granted task IDs required")
+        for task in self.task_ids:
+            require_artifact_path(task)
+        if type(self.conditions) is not tuple or len(self.conditions) != 3 or any(type(condition) is not str for condition in self.conditions) or set(self.conditions) != set(CONDITIONS):
+            raise RecordIntegrityError("grant requires exactly three conditions")
+        if type(self.repetitions) is not tuple or not self.repetitions:
+            raise RecordIntegrityError("explicit granted repetitions required")
+        for repetition in self.repetitions:
+            if type(repetition) is not int or repetition < 0:
+                raise RecordIntegrityError("invalid granted repetition")
+        if len(set(self.repetitions)) != len(self.repetitions):
+            raise RecordIntegrityError("duplicate granted repetition")
+        for name in ("timeout_seconds", "max_turns", "attempt_usd", "campaign_usd", "max_attempts"):
+            quantity = getattr(self, name)
+            require_quantity(quantity, name, integral=name in ("max_turns", "max_attempts"))
+            if quantity is None or quantity <= 0:
+                raise RecordIntegrityError("positive explicit grant limits required")
+        if self.attempt_usd > self.campaign_usd or type(self.core_contract_risk_acknowledged) is not bool:
+            raise RecordIntegrityError("invalid live grant limits/acknowledgment")
+        if self.prerequisite_experiment_id is not None:
+            require_digest(self.prerequisite_experiment_id, "prerequisite experiment")
+        if (self.phase == "canary") != (self.prerequisite_experiment_id is None):
+            raise RecordIntegrityError("live phase requires its separate prerequisite experiment")
+
+    def assert_scope(self, spec: CampaignSpec) -> None:
+        if not isinstance(spec, CampaignSpec) or self.experiment_id != spec.identity:
+            raise RecordIntegrityError("live grant does not match campaign identity")
+        if any(member.backend != "claude_cli" or (member.requested_model, member.effort, member.thinking_policy) !=
+               (self.model, self.effort, self.thinking_policy) or dict(member.limits) !=
+               {"timeout_seconds": self.timeout_seconds, "max_turns": self.max_turns}
+               for member in spec.members.values()):
+            raise RecordIntegrityError("live grant model/configuration/limits mismatch")
+        if spec.grant_usd != self.campaign_usd or spec.reservation_usd != self.attempt_usd:
+            raise RecordIntegrityError("live grant budget/reservation mismatch")
+        schedule = {(task, condition, repetition) for task in self.task_ids
+                    for condition in self.conditions for repetition in self.repetitions}
+        if set(spec.schedule) != schedule:
+            raise RecordIntegrityError("live grant trial scope mismatch")
+        core_ids = {f"T{n}" for n in range(1, 25)}
+        if self.phase == "canary":
+            if len(self.task_ids) != 1 or set(self.task_ids) & core_ids or self.repetitions != (0,) or self.max_attempts != 3 or spec.core_study or any(member.retry_allowance != 0 for member in spec.members.values()):
+                raise RecordIntegrityError("canary grant requires three synthetic trials and zero retries")
+        elif self.phase == "public_pilot":
+            if set(self.task_ids) != {"T1", "T2", "T10"} or self.repetitions != (0,) or spec.core_study:
+                raise RecordIntegrityError("public pilot grant requires exactly nine T1/T2/T10 trials")
+        elif not spec.core_study or set(self.task_ids) != core_ids or self.repetitions != tuple(range(5)) or not self.core_contract_risk_acknowledged:
+            raise RecordIntegrityError("core grant requires 360 trials and explicit T14/T23 contract-risk acknowledgment")
+        maximum = len(spec.schedule) + sum(spec.retry_allowance((spec.identity, *entry)) for entry in spec.schedule)
+        if self.max_attempts > maximum:
+            raise RecordIntegrityError("grant attempts exceed frozen retry policy")
+
+    @property
+    def identity(self) -> str:
+        return sha256_text(canonical_json(record_dict(self)))
+
+    @classmethod
+    def from_dict(cls, raw: object) -> LiveRunGrant:
+        if type(raw) is not dict or set(raw) != {f.name for f in fields(cls)}:
+            raise RecordIntegrityError("missing/unknown live grant evidence fields")
+        payload = dict(raw)
+        for name in ("task_ids", "conditions", "repetitions"):
+            if type(payload[name]) is not list:
+                raise RecordIntegrityError("malformed live grant scope evidence")
+            payload[name] = tuple(payload[name])
+        return cls(**payload)

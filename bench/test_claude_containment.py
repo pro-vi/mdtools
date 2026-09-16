@@ -21,10 +21,10 @@ from typing import Iterator
 
 import pytest
 
-from bench import harness
+from bench import harness, command_policy
 from bench.claude_shell import ContainmentError, OwnedShells, process_state
-from bench.command_policy import (CliCondition, LocalClaudeRunner, NativeBoundary,
-    prepare_native_boundary, resolve_toolkit, CLAUDE_FLAGS)
+from bench.command_policy import (CliCondition, ClaudeRunner, NativeBoundary,
+    prepare_native_boundary, resolve_toolkit, CLAUDE_FLAGS, CLAUDE_SHA256, CLAUDE_VERSION)
 from bench.test_command_policy import cli_pins
 from bench.test_harness_run_artifacts import synthetic_task
 from bench.trial_records import record_dict
@@ -186,15 +186,52 @@ def test_changed_or_missing_boundary_fails_before_shell(tmp_path: Path, asset: s
 @pytest.mark.parametrize("endpoint", ["https://api.anthropic.com", "http://localhost:1234", "http://127.0.0.1", "http://user@127.0.0.1:1234", "http://127.0.0.1:1234/path"])
 def test_scripted_endpoint_cannot_be_remote(endpoint: str) -> None:
     with pytest.raises(ValueError):
-        LocalClaudeRunner("/not/launched", endpoint, "claude-sonnet-5", "high", "adaptive")
+        ClaudeRunner("/not/launched", endpoint, "claude-sonnet-5", "high", "adaptive")
 
 
 def test_model_configuration_has_no_haiku_effort_or_auth_bypass() -> None:
-    runner = LocalClaudeRunner("/not/launched", "http://127.0.0.1:1234", "claude-haiku-4-5-20251001", None, "disabled")
+    runner = ClaudeRunner("/not/launched", "http://127.0.0.1:1234", "claude-haiku-4-5-20251001", None, "disabled")
     assert "--effort" not in runner.command()
     assert "--bare" not in CLAUDE_FLAGS and "--dangerously-skip-permissions" not in CLAUDE_FLAGS
     with pytest.raises(ValueError):
         replace(runner, effort="high")
+
+
+def test_runner_provenance_does_not_require_pruned_source(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    source = str(root / "updater-pruned/claude")
+    executable = str(root / "preserved-claude")
+    runner = ClaudeRunner(executable, "http://127.0.0.1:1234", "claude-sonnet-5", "high", "adaptive")
+    receipt = {"source_path": source, "executable_path": executable, "sha256": CLAUDE_SHA256,
+               "version_output": CLAUDE_VERSION + " (Claude Code)"}
+    (root / "pin.json").write_text(json.dumps(receipt))
+    assert runner.provenance_locators()["runner_source"] == source
+    assert not Path(source).exists()
+    receipt["source_path"] = executable
+    (root / "pin.json").write_text(json.dumps(receipt))
+    with pytest.raises(ValueError, match="distinct"):
+        runner.provenance_locators()
+
+
+@NATIVE
+def test_live_parent_preserves_invented_normal_auth_but_child_cannot_read_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    boundary = boundary_at(tmp_path.resolve() / "attempt")
+    # No process is launched with this invented HOME. This tests unchanged
+    # inheritance, not redirecting a real application's home or credentials.
+    invented = {"HOME": "/synthetic-normal-home", "CLAUDE_CONFIG_DIR": "/synthetic-normal-config",
+        "ANTHROPIC_API_KEY": "synthetic-test-key", "CLAUDE_CODE_OAUTH_TOKEN": "synthetic-test-token",
+        "UNRELATED_PRIVATE": "synthetic-must-not-inherit", "CLAUDE_CODE_SHELL_PREFIX": "synthetic-prefix"}
+    monkeypatch.setattr(command_policy.os, "environ", invented)
+    runner = ClaudeRunner("/not/launched", None, "claude-sonnet-5", "high", "adaptive")
+    parent = boundary.parent_environment(runner)
+    assert runner.backend == "claude_cli"
+    assert parent["HOME"] == invented["HOME"] and parent["CLAUDE_CONFIG_DIR"] == invented["CLAUDE_CONFIG_DIR"]
+    assert parent["ANTHROPIC_API_KEY"] == "synthetic-test-key"
+    assert "UNRELATED_PRIVATE" not in parent and "CLAUDE_CODE_SHELL_PREFIX" not in parent
+    child = json.loads((boundary.workspace / "control/shell.json").read_bytes())["environment"]
+    assert not set(child) & {"HOME", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"}
+    local = boundary.parent_environment(replace(runner, endpoint="http://127.0.0.1:1234"))
+    assert local["ANTHROPIC_API_KEY"] == "synthetic-local-only" and "HOME" not in local
 
 
 @contextmanager
@@ -261,9 +298,9 @@ def local_test_actual_cli_model_configuration_and_native_path(tmp_path: Path, mo
     root = tmp_path.resolve()
     task, inputs, expected = synthetic_task(root)
     with scripted_provider("printf 'after\\n' > input.md") as (endpoint, observations):
-        runner = LocalClaudeRunner(executable, endpoint, model, effort, thinking)
+        runner = ClaudeRunner(executable, endpoint, model, effort, thinking)
         result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[],
-            local_claude=runner, results_dir=root / "result", timeout_seconds=20)
+            claude=runner, results_dir=root / "result", timeout_seconds=20)
     assert result.execution.kind == "completed", record_dict(result)
     assert result.grade.kind == "pass" and not result.live_study_evidence
     assert observations and all(row["tools"] == ["Bash"] and row["model"] == model for row in observations)
@@ -275,24 +312,48 @@ def local_test_actual_cli_model_configuration_and_native_path(tmp_path: Path, mo
     assert harness.AttemptStore(root / "result").load()[1] == result
 
 
+def local_test_private_parent_config_outside_shell_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = os.environ.get("MDTOOLS_U5_RUNNER")
+    assert executable, "explicit preserved runner required; no PATH fallback"
+    root = tmp_path.resolve()
+    task, inputs, expected = synthetic_task(root)
+    config = root / "synthetic-parent-config"
+    config.mkdir(mode=0o700)
+    original = NativeBoundary.parent_environment
+    def parent_environment(boundary: NativeBoundary, runner: ClaudeRunner) -> dict[str, str]:
+        env = original(boundary, runner)
+        # Still synthetic auth + an empty private config; no user's config or
+        # credentials are read. Only the snapshot-write location differs.
+        env["CLAUDE_CONFIG_DIR"] = str(config)
+        return env
+    monkeypatch.setattr(NativeBoundary, "parent_environment", parent_environment)
+    with scripted_provider("printf 'after\\n' | grep after > input.md") as (endpoint, observations):
+        runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
+        result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[],
+            claude=runner, results_dir=root / "result", timeout_seconds=20)
+    assert result.execution.kind == "completed" and result.grade.kind == "pass", record_dict(result)
+    assert observations[-1]["tool_errors"] == [False]
+    assert not list(config.glob("shell-snapshots/*.sh"))
+
+
 def local_test_actual_cli_permission_denial_never_grades(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     executable = os.environ.get("MDTOOLS_U5_RUNNER")
     assert executable, "explicit preserved runner required; no PATH fallback"
     root = tmp_path.resolve()
     task, inputs, expected = synthetic_task(root)
-    original_command = LocalClaudeRunner.command
-    def denied_command(runner: LocalClaudeRunner) -> list[str]:
+    original_command = ClaudeRunner.command
+    def denied_command(runner: ClaudeRunner) -> list[str]:
         argv = original_command(runner)
         index = argv.index("--allowedTools")
         del argv[index:index + 2]
         return argv
-    monkeypatch.setattr(LocalClaudeRunner, "command", denied_command)
+    monkeypatch.setattr(ClaudeRunner, "command", denied_command)
     grader_calls = []
     monkeypatch.setattr(harness, "grade_submission", lambda *args, **kwargs: grader_calls.append(kwargs))
     with scripted_provider("printf 'after\\n' > input.md") as (endpoint, observations):
-        runner = LocalClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
+        runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
         result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[],
-            local_claude=runner, results_dir=root / "result", timeout_seconds=20)
+            claude=runner, results_dir=root / "result", timeout_seconds=20)
     assert result.execution.reason == "permission_denied" and result.permission_fault == "permission_denied"
     assert result.grade.kind == "not_run" and grader_calls == []
     assert (root / "result/artifacts/final/input.md").read_bytes() == b"before\n"
@@ -313,9 +374,9 @@ def local_test_actual_cli_timeout_cleans_background_and_preserves_sentinel(tmp_p
     sentinel = subprocess.Popen(["/bin/sleep", "30"], start_new_session=True)
     try:
         with scripted_provider(command) as (endpoint, observations):
-            runner = LocalClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
+            runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
             result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[],
-                local_claude=runner, results_dir=root / "result", timeout_seconds=10)
+                claude=runner, results_dir=root / "result", timeout_seconds=10)
         assert result.execution.kind == "timed_out" and result.grade.kind == "not_run"
         assert not result.evidence_complete and observations
         child_pid = int((root / "result/workspace/fixtures/background.pid").read_bytes())
@@ -333,9 +394,9 @@ def local_test_actual_cli_turn_limit_is_operational_not_semantic(tmp_path: Path)
     root = tmp_path.resolve()
     task, inputs, expected = synthetic_task(root)
     with scripted_provider("printf 'after\\n' > input.md") as (endpoint, observations):
-        runner = LocalClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive", max_turns=1)
+        runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive", max_turns=1)
         result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[],
-            local_claude=runner, results_dir=root / "result", timeout_seconds=20)
+            claude=runner, results_dir=root / "result", timeout_seconds=20)
     assert result.execution.kind == "budget_exhausted" and result.execution.reason == "turn_limit", record_dict(result)
     assert result.grade.kind == "not_run" and observations
 
@@ -352,9 +413,9 @@ def local_test_actual_cli_selected_md_and_forbidden_access(tmp_path: Path, cli_p
                f"if '{other.executable}' --version; then exit 91; fi; "
                "md --version | grep '^md ' && printf 'after\\n' > input.md")
     with scripted_provider(command) as (endpoint, observations):
-        runner = LocalClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
+        runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
         result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[], condition=cli_pins[condition],
-            local_claude=runner, results_dir=root / "result", timeout_seconds=20)
+            claude=runner, results_dir=root / "result", timeout_seconds=20)
     assert result.execution.kind == "completed" and result.grade.kind == "pass", record_dict(result)
     assert observations[-1]["tool_errors"] == [False]
     assert forbidden.read_bytes() == b"after\n"
