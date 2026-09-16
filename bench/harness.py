@@ -8,12 +8,14 @@ resume/report policy and eager configuration imports are deliberately removed.
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack, nullcontext
 from dataclasses import asdict, dataclass, replace
 import fcntl
 import hashlib
 import json
 import math
 import os
+import platform
 from pathlib import Path, PurePosixPath
 import signal
 import selectors
@@ -27,7 +29,10 @@ from typing import BinaryIO, Callable, Sequence, TypedDict
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bench.command_policy import CliCondition, ConditionPin, build_runner_command, resolve_toolkit, stage_condition, tool_reference, verify_condition
+from bench.command_policy import (CliCondition, ConditionPin, LocalClaudeRunner, CLAUDE_SHA256,
+    CLAUDE_VERSION, DYLD_PROFILE, build_runner_command, native_profile, prepare_native_boundary,
+    resolve_toolkit, stage_condition, tool_reference, verify_condition)
+from bench.claude_shell import ContainmentError, OwnedShells, process_state
 from bench.manifest import ExperimentSpec, canonical_json, sha256_file, sha256_text
 from bench.neutral_scorer import StructuralDiffPolicy, answer_instructions, grade_submission, validate_expected, validate_policy
 from bench.trial_records import (SCHEMA, AttemptKey, AttemptStart, AttemptResult,
@@ -909,13 +914,16 @@ def capture_process(process: subprocess.Popen[bytes], *, prompt: bytes,
             except (RecordIntegrityError, OSError):
                 close_for_fault(decoder.permission_fault or decoder.integrity_fault or "trace_integrity")
         if execution.kind == "completed":
-            if process.returncode != 0:
-                execution = ExecutionOutcome("infrastructure_error", "synthetic_process_exit")
-            elif decoder is not None:
+            if decoder is not None:
                 if decoder.permission_fault or decoder.integrity_fault:
                     execution = ExecutionOutcome("infrastructure_error", decoder.permission_fault or decoder.integrity_fault)
                 elif decoder.receipt is not None:
                     execution = decoder.receipt.execution
+            # CLI limit/auth/error receipts normally accompany nonzero exit.
+            # Preserve their validated operational class; a success receipt
+            # cannot turn a contradictory nonzero exit into normal completion.
+            if execution.kind == "completed" and process.returncode != 0:
+                execution = ExecutionOutcome("infrastructure_error", "synthetic_process_exit")
     except KeyboardInterrupt:
         interrupted = True
         if execution.kind != "timed_out":
@@ -968,6 +976,7 @@ def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
               timeout_seconds: float = 10, condition: ConditionPin | None = None,
               event_format: str = "text", attempt_key: AttemptKey | None = None,
               retry_allowance: int = 1,
+              local_claude: LocalClaudeRunner | None = None,
               prior_attempts: Sequence[tuple[AttemptStart, AttemptResult]] = ()) -> AttemptResult:
     """Run trusted synthetic argv and capture only the declared final artifacts.
 
@@ -976,7 +985,13 @@ file result for file kinds. Entire synthetic stdout is the explicit final text
 for output kinds; no intermediate-answer recovery exists. Other input/support
 files retain their full relative paths. Expected roots must be separate.
     """
-    argv = build_runner_command(command, runner=runner)
+    if local_claude is not None:
+        if not isinstance(local_claude, LocalClaudeRunner) or command or runner != "synthetic":
+            raise ValueError("local CLI requires synthetic backend and no competing argv")
+        local_claude.verify()
+        argv, event_format = local_claude.command(), "claude_stream"
+    else:
+        argv = build_runner_command(command, runner=runner)
     if event_format not in ("text", "claude_stream"):
         raise RecordIntegrityError("unsupported synthetic event format")
     _validate_task(task)
@@ -1002,7 +1017,7 @@ files retain their full relative paths. Expected roots must be separate.
     if any((fixture_root / reference).stat().st_ino == expected_stat.st_ino and
            (fixture_root / reference).stat().st_dev == expected_stat.st_dev for reference in references):
         raise ValueError("expected source aliases a worker input")
-    toolkit = resolve_toolkit() if condition is not None else {}
+    toolkit = resolve_toolkit() if condition is not None or local_claude is not None else {}
     prompt = build_prompt(task, condition=condition)
     spec = ExperimentSpec("synthetic", sha256_text(canonical_json(asdict(task))),
         sha256_text(prompt), {name: hashlib.sha256(sources[name]).hexdigest() for name in task.input_files},
@@ -1014,8 +1029,19 @@ files retain their full relative paths. Expected roots must be separate.
         support_sha256={name: hashlib.sha256(sources[name]).hexdigest() for name in task.support_files or []},
         expected_stdout_sha256=hashlib.sha256(expected_stdout).hexdigest() if expected_stdout is not None else None,
         answer_policy_sha256=sha256_text(canonical_json({"artifact": task.expected_artifact, "scorer": asdict(task.scorer)})),
-        runner_configuration_sha256=sha256_text(canonical_json({"event_format": event_format, "environment": "synthetic-cleared/1"})),
-        limits={"timeout_seconds": timeout_seconds, "max_turns": 30}, retry_allowance=retry_allowance,
+        requested_model=local_claude.model if local_claude else None,
+        effort=local_claude.effort if local_claude else None,
+        thinking_policy=local_claude.thinking_policy if local_claude else None,
+        runner_version=CLAUDE_VERSION if local_claude else "synthetic-argv/1",
+        runner_source_sha256=CLAUDE_SHA256 if local_claude else None,
+        runner_pin_sha256=CLAUDE_SHA256 if local_claude else None,
+        launcher_sha256=sha256_file(Path(__file__).with_name("claude_shell.py")) if local_claude else None,
+        profile_sha256=sha256_text(native_profile(Path("/@attempt"), toolkit)) if local_claude else None,
+        runner_configuration_sha256=sha256_text(canonical_json({"event_format": event_format,
+            "environment": "local-scripted-cleared/1" if local_claude else "synthetic-cleared/1",
+            "dyld_sha256": sha256_file(DYLD_PROFILE) if local_claude else None})),
+        limits={"timeout_seconds": timeout_seconds, "max_turns": local_claude.max_turns if local_claude else 30}, retry_allowance=retry_allowance,
+        platform_identity=platform.platform() if local_claude else "synthetic-portable",
         interpreter="python/" + ".".join(str(n) for n in sys.version_info[:3]),
         locators={"fixture_root": str(fixture_root), "expected_root": str(expected_root),
                   "runner": argv[0], **{f"toolkit/{name}": path for name, path in toolkit.items()}})
@@ -1028,16 +1054,21 @@ files retain their full relative paths. Expected roots must be separate.
     if admission.kind not in ("pending", "retry_pending") or admission.next_ordinal != key.ordinal:
         raise RecordIntegrityError("trial disposition forbids this attempt launch")
     store = AttemptStore(results_dir)
-    store.start(AttemptStart(key, "synthetic"))
+    store.start(AttemptStart(key, "synthetic", requested_model=local_claude.model if local_claude else None))
     _write_private(results_dir / "experiment.json", (canonical_json(record_dict(spec)) + "\n").encode())
     artifacts: dict[str, str] = {}
     execution, exit_code = ExecutionOutcome("completed"), None
     grade = Grade("not_run", "not_started")
     evidence_complete = True
-    decoder = ClaudeStreamDecoder(on_raw=store.append_event) if event_format == "claude_stream" else None
+    decoder = ClaudeStreamDecoder(on_raw=store.append_event, requested_model=spec.requested_model) if event_format == "claude_stream" else None
     usage = Usage()
-    with tempfile.TemporaryDirectory(prefix="mdtools_offline_") as temporary:
+    # Native workspaces stay private with the attempt, including on cleanup
+    # failure. Never remove a directory that may still have an owned writer.
+    workspace_context = nullcontext(str(results_dir / "workspace")) if local_claude else tempfile.TemporaryDirectory(prefix="mdtools_offline_")
+    with workspace_context as temporary:
         workspace = Path(temporary).resolve()
+        if local_claude:
+            workspace.mkdir(mode=0o700)
         worker = workspace / "fixtures"
         worker.mkdir(mode=0o700)
         scratch = workspace / "scratch"
@@ -1046,7 +1077,14 @@ files retain their full relative paths. Expected roots must be separate.
             _write_private(worker / reference, content)
         child_env = {"PATH": "/usr/bin:/bin", "TMPDIR": str(scratch),
                      "LANG": "C.UTF-8", "LC_ALL": "C", "PYTHONNOUSERSITE": "1"}
-        if condition is not None:
+        boundary = prepare_native_boundary(workspace, condition, toolkit=toolkit) if local_claude else None
+        if boundary is not None:
+            boundary.verify()
+            child_env = boundary.parent_environment(local_claude)
+            for name in ("boundary.json", "profile.sb", "shell.json", "bash-eval-launcher"):
+                reference = "workspace/control/" + name
+                artifacts[reference] = sha256_file(results_dir / reference)
+        elif condition is not None:
             stage_condition(condition, workspace / "bin", toolkit=toolkit)
             child_env["PATH"] = str(workspace / "bin")
         try:
@@ -1057,8 +1095,19 @@ files retain their full relative paths. Expected roots must be separate.
             execution = ExecutionOutcome("infrastructure_error", "synthetic_spawn_failed")
             evidence_complete = False
         else:
-            with process:
-                captured = capture_process(process, prompt=prompt.encode(), timeout_seconds=timeout_seconds, decoder=decoder)
+            with ExitStack() as pipes:
+                for pipe in (process.stdin, process.stdout, process.stderr):
+                    pipes.enter_context(pipe)
+                owned = None
+                if boundary is not None:
+                    state = process_state(process.pid)
+                    if state is None:
+                        _stop_owned_group(process)
+                        process.wait(timeout=5)
+                        raise ContainmentError("Claude exited before ownership registration")
+                    owned = OwnedShells(boundary.registry, state.identity)
+                captured = capture_process(process, prompt=prompt.encode(), timeout_seconds=timeout_seconds,
+                    decoder=decoder, stop_owned=owned.stop if owned else None)
                 execution, stdout, stderr, exit_code = captured.execution, captured.stdout, captured.stderr, captured.exit_code
                 usage = decoder.parsed.usage if decoder is not None and decoder.parsed.usage.source != "unavailable" else Usage(
                     elapsed_seconds=captured.elapsed_seconds, source="controller", completeness="partial")
@@ -1067,6 +1116,23 @@ files retain their full relative paths. Expected roots must be separate.
                     source="controller" if usage.source == "unavailable" else usage.source)
                 if execution.kind in ("timed_out", "interrupted") or (decoder is not None and (decoder.receipt is None or decoder.integrity_fault)):
                     evidence_complete = False
+                if boundary is not None:
+                    registrations = owned.registrations()
+                    tool_calls = [event for event in decoder.parsed.events if isinstance(event, ToolCall)]
+                    raw_events = [decode_record_json(line) for line in (results_dir / "events.jsonl").read_bytes().splitlines()]
+                    initial = [event for event in raw_events if event.get("type") == "system" and event.get("subtype") == "init"]
+                    conforming = (len(initial) == 1 and initial[0].get("tools") == ["Bash"] and
+                        initial[0].get("permissionMode") == "dontAsk" and
+                        all(event.tool_name == "Bash" for event in tool_calls) and
+                        all(raw["profile_sha256"] == boundary.hashes[str(workspace / "control/profile.sb")] for raw in registrations) and
+                        sum(any("&& eval " in arg for arg in raw["argv"]) for raw in registrations) == len(tool_calls) and
+                        any(raw["argv"] == ["-c", "env"] for raw in registrations))
+                    if execution.kind == "completed" and (not conforming or decoder.receipt.observed_model != local_claude.model):
+                        execution = ExecutionOutcome("infrastructure_error", "configuration_error")
+                    for path in boundary.registry.iterdir():
+                        if path.is_file():
+                            reference = str(path.relative_to(results_dir))
+                            artifacts[reference] = sha256_file(path)
         for name, content in (("stdout.bin", stdout), ("stderr.bin", stderr)):
             _write_private(results_dir / "artifacts" / name, content)
             artifacts[f"artifacts/{name}"] = hashlib.sha256(content).hexdigest()

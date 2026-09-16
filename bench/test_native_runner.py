@@ -16,6 +16,7 @@ import pytest
 from bench import harness
 from bench.command_policy import build_runner_command
 from bench.test_harness_run_artifacts import python_command, synthetic_task
+from bench.test_trial_records import synthetic_cli_events
 
 
 @pytest.mark.parametrize("runner", ["claude_cli", "claude-cli", "pi-json", "oai-loop", "unknown"])
@@ -122,3 +123,20 @@ def test_symlink_executable_rejects_before_spawn(tmp_path: Path) -> None:
     executable.symlink_to(Path(sys.executable).resolve())
     with pytest.raises(ValueError, match="symlink"):
         build_runner_command([str(executable)], runner="synthetic")
+
+
+@pytest.mark.parametrize("subtype,terminal,kind,reason", [
+    ("error_max_turns", "max_turns", "budget_exhausted", "turn_limit"),
+    ("error_max_budget_usd", "max_budget_usd", "budget_exhausted", "cost_limit"),
+    ("success", "completed", "infrastructure_error", "synthetic_process_exit"),
+])
+def test_nonzero_exit_preserves_valid_operational_receipt(subtype: str, terminal: str, kind: str, reason: str) -> None:
+    events = synthetic_cli_events()
+    events[-1].update(subtype=subtype, terminal_reason=terminal, is_error=subtype != "success")
+    payload = "\n".join(json.dumps(event) for event in events) + "\n"
+    command = python_command(f"import sys; sys.stdout.write({payload!r}); raise SystemExit(1)")
+    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          start_new_session=True, env={"PATH": "/usr/bin:/bin"}) as process:
+        capture = harness.capture_process(process, prompt=b"", timeout_seconds=5, decoder=harness.ClaudeStreamDecoder())
+    assert capture.execution.kind == kind and capture.execution.reason == reason
+    assert capture.exit_code == 1

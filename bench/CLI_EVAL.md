@@ -46,12 +46,15 @@ H is `c93352002e3855527980dbdba0941c8099143e45`; P is
   immutable attempt keys. Its pure trial disposition selects by ordinal and
   permits at most one explicit transient infrastructure retry. Permission faults
   forbid grading, retries and subsequent admission.
-- `command_policy.py` retains P's complete ordinary toolkit plus jq, exact
+- `command_policy.py` retains P's complete ordinary toolkit plus jq and env, exact
   planned condition names and explicit trusted synthetic argv admission.
   U3 decodes each pinned producer's schema, resolves toolkit targets, and stages
-  the exact binary/stub. U5 still owns actual native containment.
+  the exact binary/stub. It also renders and verifies the native Bash boundary.
+- `claude_shell.py` is the standalone standard-library launcher. It records
+  process-start identities before entering a separate session and the native
+  sandbox. Controller cleanup owns those sessions, including job-control groups.
 
-No Pi/OAI/multifile imports, provider launch branches, competing correctness
+No Pi/OAI/multifile imports, real-provider launch branches, competing correctness
 booleans, quarantine, task generation, historical report policy or saved-run
 dependency remains. Corpus files are retained unchanged.
 
@@ -214,9 +217,59 @@ Missing counts remain null/unavailable. Error outputs are separate. These counts
 are not provider/billed usage or agent savings. No holdout/mutation replay or
 counterfactual reconstructed from untrustworthy agent inputs is performed.
 
-U5 still supplies native containment, actual Claude launch admission and shell
-integration. U6 supplies campaign-owned identity/schedules, resume, reporting and
-CI. A single synthetic attempt's validated specification is not a live grant or
-a finished campaign. Canaries and the first study prefix have zero retries.
-U7/U8 need separate paid-run grants. Live isolation remains unverified; real
-runners remain unavailable in the current synthetic entry point.
+U6 supplies campaign-owned identity/schedules, resume, reporting and CI. A single
+synthetic attempt's specification is not a live grant or a finished campaign.
+Canaries and the first study prefix have zero retries. U7/U8 need separate paid
+grants; real-provider compatibility and holdout contracts remain unverified.
+
+## Native offline integration
+
+`LocalClaudeRunner` admits only the preserved Claude 2.1.272 binary and an explicit
+IPv4 loopback scripted endpoint. It sends a synthetic API key from a cleared
+environment and uses a private empty CLI config. It never copies user credentials
+or repurposes HOME. The default command still runs only the synthetic exercise.
+There is no paid-provider entry point or inherited run grant.
+
+The actual CLI selects `bash-eval-launcher`; each invocation records its identity
+before executing fixed Bash with startup files suppressed. One default-deny macOS
+profile permits only fixtures/scratch/snapshot paths and the shared toolkit plus
+the selected md/stub. It denies outside reads/writes, network, alternative
+executables and signals to other processes. Bash scripts are not security-parsed.
+Registration of the observed CLI task-shell form is an additional conformance
+check, not the security boundary.
+
+Parent and child use the same staged PATH because the CLI writes its parent PATH
+into a sourced shell snapshot. Native tests exercise both md producers through
+that real snapshot path; PATH agreement itself is not the isolation mechanism.
+
+The ordinary toolkit adds `env` in every condition because pinned CLI initialization
+calls it. This is a recorded capability addition, not historical score parity.
+Apple's `dyld-support.sb` supplies process bootstrap rules. The exact
+`hw.pagesize_compat` read is required for Rust stack-guard initialization. OS,
+system-profile, launcher, rendered profile/config, toolkit bytes and modes are
+recorded and checked. The experiment's profile digest names the stable template;
+each attempt separately retains the rendered profile and its exact digest.
+
+Closing shell registration precedes cleanup. Only the owned Claude session and
+registered Bash sessions are stopped. Unproven cleanup raises and leaves the
+private workspace and unfinished start intact; it cannot finalize a success.
+Native workspaces are retained with the attempt, even after successful cleanup.
+
+Native tests run on macOS; portable CI cannot establish this OS boundary. Run
+actual CLI integration separately with explicit pins:
+
+```sh
+MDTOOLS_U3_PIN_ROOT=/absolute/private/u3-pins \
+MDTOOLS_U5_RUNNER=/absolute/private/claude-2.1.272/claude \
+  python -m pytest -q --override-ini 'python_functions=local_test_*' bench/test_claude_containment.py
+```
+
+These tests use real CLI envelopes but scripted model text and usage. They check
+Sonnet 5/adaptive/high and Haiku 4.5/thinking-disabled/no-effort request settings,
+permission denial, selected binaries, forbidden paths, and timeout cleanup.
+Early permission denial stops the CLI before its terminal usage receipt; those
+quantities remain unknown. Offline passing results do not prove provider values,
+actual model quality, user-auth compatibility, or enforcement of live run limits.
+The local one-turn control establishes the CLI's turn-limit receipt/exit behavior;
+it does not establish provider billing limits. Valid operational receipts retain
+their class when the CLI exits nonzero.

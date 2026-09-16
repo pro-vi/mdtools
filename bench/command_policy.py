@@ -17,7 +17,11 @@ import shutil
 import subprocess
 import tarfile
 from typing import Sequence
+from typing import Mapping
+from types import MappingProxyType
 import os
+import platform
+from urllib.parse import urlsplit
 
 from bench.manifest import canonical_json, sha256_file, sha256_text
 
@@ -30,7 +34,8 @@ class CliCondition(str, Enum):
 
 # P's complete ordinary toolkit, with jq equalized across future conditions.
 UNIX_TOOLS = ("cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp")
-ORDINARY_TOOLS = (*UNIX_TOOLS, "jq")
+# Claude's initialization runs `env`; freeze this runtime requirement in all arms.
+ORDINARY_TOOLS = (*UNIX_TOOLS, "jq", "env")
 
 SOURCE_PINS = {
     CliCondition.LEGACY: "4d857d2d8ab39d60613498e4a732c66a4494f4be",
@@ -269,3 +274,176 @@ This validation is not a network or filesystem sandbox.
     if not executable.is_absolute() or not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError("synthetic executable must be an absolute executable file")
     return list(command)
+
+
+CLAUDE_VERSION = "2.1.272"
+CLAUDE_SHA256 = "195e24e8e1f9bf46f1eaee72d434a33e18f9f5796f29a6348a00d16c5f8aee75"
+DYLD_PROFILE = Path("/System/Library/Sandbox/Profiles/dyld-support.sb")
+CLAUDE_FLAGS = (
+    "--print", "--safe-mode", "--restricted", "--tools", "Bash", "--allowedTools", "Bash",
+    "--permission-mode", "dontAsk", "--permission-prompts", "none", "--disable-slash-commands",
+    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--setting-sources", "",
+    "--settings", '{"sandbox":{"enabled":false},"disableAllHooks":true}',
+    "--no-session-persistence", "--no-chrome", "--output-format", "stream-json", "--verbose",
+)
+
+
+@dataclass(frozen=True)
+class LocalClaudeRunner:
+    """Pinned CLI with a caller-owned loopback scripted endpoint, never a model.
+
+This is offline integration configuration, not a paid-run grant. Real provider
+launches remain held; the synthetic key and empty config cannot reuse user auth.
+"""
+    executable: str
+    endpoint: str
+    model: str
+    effort: str | None
+    thinking_policy: str
+    max_turns: int = 30
+    attempt_usd: float = 0.1
+
+    def __post_init__(self) -> None:
+        import math
+        endpoint = urlsplit(self.endpoint)
+        if (endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or
+            endpoint.port is None or endpoint.username is not None or endpoint.password is not None or
+            endpoint.path not in ("", "/") or endpoint.query or endpoint.fragment):
+            raise ValueError("scripted endpoint must be explicit IPv4 loopback HTTP")
+        choices = {"claude-sonnet-5": ("high", "adaptive"),
+                   "claude-haiku-4-5-20251001": (None, "disabled")}
+        if choices.get(self.model) != (self.effort, self.thinking_policy):
+            raise ValueError("unverified model/effort/thinking configuration")
+        if type(self.max_turns) is not int or self.max_turns <= 0:
+            raise ValueError("positive integer turn limit required")
+        if type(self.attempt_usd) not in (int, float) or not math.isfinite(self.attempt_usd) or self.attempt_usd <= 0:
+            raise ValueError("positive finite attempt cap required")
+
+    def verify(self) -> None:
+        if platform.system() != "Darwin":
+            raise ValueError("native runner requires macOS")
+        build_runner_command([self.executable], runner="synthetic")
+        if sha256_file(self.executable) != CLAUDE_SHA256:
+            raise ValueError("preserved Claude binary changed; no fallback")
+        version = subprocess.run([self.executable, "--version"], env={"PATH": "/usr/bin:/bin", "DISABLE_AUTOUPDATER": "1"},
+            capture_output=True, check=True, timeout=10).stdout.decode().strip()
+        if version != CLAUDE_VERSION + " (Claude Code)":
+            raise ValueError("preserved Claude version mismatch")
+
+    def command(self) -> list[str]:
+        argv = [self.executable, *CLAUDE_FLAGS, "--model", self.model,
+                "--max-turns", str(self.max_turns), "--max-budget-usd", str(self.attempt_usd)]
+        if self.effort is not None:
+            argv.extend(["--effort", self.effort])
+        return argv
+
+
+def native_profile(workspace: Path, toolkit: dict[str, str]) -> str:
+    """Render one default-deny Bash profile; no shell-syntax enforcement."""
+    def literal(path: str | Path) -> str:
+        return "(literal " + json.dumps(str(path)) + ")"
+    def subpath(path: str | Path) -> str:
+        return "(subpath " + json.dumps(str(path)) + ")"
+    executables = [*toolkit.values(), str(workspace / "bin/md")]
+    staged_tools = [workspace / "bin" / name for name in toolkit]
+    writable = [workspace / "fixtures", workspace / "scratch", workspace / "control/config/shell-snapshots"]
+    ancestors = {parent for target in [*writable, *(Path(p) for p in executables)] for parent in target.parents}
+    return "\n".join([
+        "(version 1) (deny default)",
+        '(import "/System/Library/Sandbox/Profiles/dyld-support.sb")',
+        # sysconf(_SC_PAGESIZE) returns -1 without this read; Rust then aborts
+        # while mapping its stack guard. Other process/kernel data stays denied.
+        '(allow sysctl-read (sysctl-name "hw.pagesize_compat"))',
+        "(allow process-fork)",
+        "(allow process-exec " + " ".join(map(literal, executables)) + ")",
+        "(allow file-read* " + " ".join(map(subpath, ["/System/Library", "/usr/lib", "/usr/share", *writable])) +
+            " " + " ".join(map(literal, [*executables, *staged_tools, "/dev/null", "/dev/random", "/dev/urandom"])) + ")",
+        "(allow file-read-metadata " + " ".join(map(literal, sorted(ancestors))) + ")",
+        "(allow file-write* " + " ".join(map(subpath, writable)) + ' (literal "/dev/null"))', "",
+    ])
+
+
+@dataclass(frozen=True)
+class NativeBoundary:
+    workspace: Path
+    launcher: Path
+    registry: Path
+    hashes: Mapping[str, str]
+    modes: Mapping[str, int]
+    platform_identity: str
+
+    def __post_init__(self) -> None:
+        if set(self.hashes) != set(self.modes):
+            raise ValueError("boundary hash/mode asset sets differ")
+        object.__setattr__(self, "hashes", MappingProxyType(dict(self.hashes)))
+        object.__setattr__(self, "modes", MappingProxyType(dict(self.modes)))
+
+    def verify(self) -> None:
+        if platform.platform() != self.platform_identity:
+            raise ValueError("native platform identity changed")
+        for name, expected in self.hashes.items():
+            path = Path(name)
+            if (any(part.is_symlink() for part in (path, *path.parents)) or sha256_file(path) != expected or
+                path.stat().st_mode & 0o777 != self.modes[name]):
+                raise ValueError("native boundary asset changed")
+        if not os.access(self.launcher, os.X_OK) or not self.registry.is_dir():
+            raise ValueError("native launcher/registry unavailable")
+
+    def parent_environment(self, runner: LocalClaudeRunner) -> dict[str, str]:
+        # The CLI writes its own PATH into the generated shell snapshot. Parent
+        # and child must agree or sourcing that snapshot silently removes md.
+        env = {"PATH": str(self.workspace / "bin"), "SHELL": "/bin/bash", "LC_ALL": "C",
+            "TMPDIR": str(self.workspace / "scratch"), "CLAUDE_CODE_TMPDIR": str(self.workspace / "scratch"),
+            "CLAUDE_CONFIG_DIR": str(self.workspace / "control/config"), "CLAUDE_CODE_SHELL": str(self.launcher),
+            "ANTHROPIC_BASE_URL": runner.endpoint, "ANTHROPIC_API_KEY": "synthetic-local-only",
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+        if runner.thinking_policy == "disabled":
+            env["MAX_THINKING_TOKENS"] = "0"
+        return env
+
+
+def prepare_native_boundary(workspace: Path, condition: ConditionPin | None,
+                            *, toolkit: dict[str, str]) -> NativeBoundary:
+    """Create controller-private launcher/config and stage only the selected md.
+
+The standalone Python file is a separate boundary because it must run before
+the Bash sandbox without importing agent-writable or third-party Python code.
+"""
+    if platform.system() != "Darwin":
+        raise ValueError("native containment requires macOS")
+    workspace = workspace.resolve(strict=True)
+    if workspace.stat().st_mode & 0o077 or workspace.stat().st_uid != os.getuid():
+        raise ValueError("native workspace must be private and controller-owned")
+    for name in ("fixtures", "scratch"):
+        target = workspace / name
+        if target.is_symlink() or not target.is_dir():
+            raise ValueError("native workspace requires private fixture/scratch directories")
+    if toolkit.get("bash") != "/bin/bash" or toolkit.get("sh") != "/bin/sh":
+        raise ValueError("native launcher requires verified system Bash/sh")
+    stage_condition(condition, workspace / "bin", toolkit=toolkit)
+    control = workspace / "control"
+    control.mkdir(mode=0o700)
+    for name in ("registry", "config", "config/shell-snapshots"):
+        (control / name).mkdir(mode=0o700)
+    _write_pin_file(control / "registry/.lock", b"")
+    source = Path(__file__).with_name("claude_shell.py")
+    launcher = control / "bash-eval-launcher"
+    _write_pin_file(launcher, source.read_bytes())
+    launcher.chmod(0o500)
+    profile = control / "profile.sb"
+    _write_pin_file(profile, native_profile(workspace, toolkit).encode())
+    child_env = {"PATH": str(workspace / "bin"), "SHELL": "/bin/bash", "LC_ALL": "C",
+                 "TMPDIR": str(workspace / "scratch"), "CLAUDE_CODE_TMPDIR": str(workspace / "scratch")}
+    config = control / "shell.json"
+    _write_pin_file(config, canonical_json({"profile": str(profile), "profile_sha256": sha256_file(profile),
+        "registry": str(control / "registry"), "bash": "/bin/bash", "environment": child_env}).encode())
+    assets = [launcher, profile, config, DYLD_PROFILE, Path("/usr/bin/python3"), Path("/usr/bin/sandbox-exec"),
+              workspace / "bin/md", *(Path(p) for p in toolkit.values())]
+    boundary = NativeBoundary(workspace, launcher, control / "registry",
+        {str(path): sha256_file(path) for path in assets},
+        {str(path): path.stat().st_mode & 0o777 for path in assets}, platform.platform())
+    boundary.verify()
+    _write_pin_file(control / "boundary.json", canonical_json({"hashes": dict(boundary.hashes), "modes": dict(boundary.modes),
+        "platform_identity": boundary.platform_identity, "profile_template_sha256":
+        sha256_text(native_profile(Path("/@attempt"), toolkit))}).encode())
+    return boundary
