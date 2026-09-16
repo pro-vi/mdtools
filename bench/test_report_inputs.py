@@ -16,9 +16,9 @@ from bench.command_policy import ClaudeRunner, CliCondition, stage_condition, re
 from bench.harness import (AttemptStore, BenchTask, StructuralDiffPolicy, campaign_attempt_name,
                            freeze_campaign, run_campaign)
 from bench.manifest import CampaignSpec, LiveRunGrant, canonical_json, serial_schedule, sha256_file
-from bench.report import report_campaign
+from bench.report import attempt_report, report_campaign
 from bench.test_command_policy import cli_pins
-from bench.test_trial_records import synthetic_cli_events
+from bench.test_trial_records import synthetic_cli_events, result as synthetic_result
 from bench.trial_records import (AttemptKey, AttemptStart, ExecutionOutcome, Grade, Usage,
                                  RecordIntegrityError, record_dict)
 
@@ -74,6 +74,8 @@ def test_three_condition_subprocess_campaign_report_parity(campaign_case: tuple)
     root, tasks, spec, arguments = campaign_case
     summary = run_campaign(spec, tasks, results_dir=root / "run", **arguments)
     assert summary["complete"] and summary["exit_code"] == 0
+    assert summary["backend"] == "synthetic" and summary["requested_model"] is None
+    assert summary["effort"] is None and summary["thinking_policy"] is None
     assert summary["grade_counts"] == {"pass": 12}
     assert all(cell["successes"] == 4 for cell in summary["cells"].values())
     assert summary == report_campaign((root / "run",))
@@ -84,6 +86,35 @@ def test_three_condition_subprocess_campaign_report_parity(campaign_case: tuple)
     direct = subprocess.run(command, capture_output=True, timeout=30)
     assert direct.returncode == 0 and json.loads(direct.stdout) == summary
     assert all(result["workflow_success_difference"]["estimate"] == 0 for result in summary["comparisons"])
+
+
+def test_attempt_report_scalars_follow_selected_retry_not_input_order() -> None:
+    first = synthetic_result(execution=ExecutionOutcome("infrastructure_error", "transient_transport"))
+    second = synthetic_result(ordinal=1, grade=Grade("pass", "synthetic_match"))
+    starts = [AttemptStart(first.key, "synthetic"), AttemptStart(second.key, "synthetic")]
+    ordered = attempt_report(starts, [first, second])
+    reversed_records = attempt_report(starts[::-1], [second, first])
+    assert reversed_records == ordered
+    assert reversed_records["execution"]["kind"] == "completed"
+    assert reversed_records["grade"]["kind"] == "pass"
+    assert reversed_records["disposition"]["selected"]["ordinal"] == 1
+    with pytest.raises(RecordIntegrityError, match="unfinished"):
+        attempt_report(starts, [first])
+
+
+def test_default_cli_existing_result_is_structured_and_non_destructive(tmp_path: Path) -> None:
+    output = tmp_path.resolve() / "existing"
+    output.mkdir()
+    marker = output / "retained"
+    marker.write_bytes(b"do not overwrite")
+    completed = subprocess.run([sys.executable, "-I", harness.__file__, "--offline-exercise", "--results-dir", str(output)],
+        env={"PATH": "/usr/bin:/bin"}, capture_output=True, timeout=10)
+    assert completed.returncode == 2
+    message = json.loads(completed.stdout)
+    assert message["complete"] is False and message["exit_code"] == 2 and message["comparisons"] == []
+    assert "exists" in message["fault"].lower() and "results-dir" in message["help"]
+    assert b"Traceback" not in completed.stderr
+    assert list(output.iterdir()) == [marker] and marker.read_bytes() == b"do not overwrite"
 
 
 def test_interrupted_resumed_subprocess_campaign_matches_uninterrupted(campaign_case: tuple) -> None:

@@ -99,7 +99,10 @@ def attempt_report(starts: Sequence[AttemptStart], results: Sequence[AttemptResu
     if not starts or not results:
         raise RecordIntegrityError("attempt summary requires records")
     summary = summarize((starts[0].key.trial,), starts, results, retry_allowance=retry_allowance)
-    result = results[-1]
+    selected = summary["trials"][0]["disposition"]["selected"]
+    result = next((result for result in results if record_dict(result.key) == selected), None)
+    if result is None:
+        raise RecordIntegrityError("selected attempt is unfinished; use the campaign report")
     # Stable single-attempt fields retained for existing offline consumers.
     summary.update({"backend": result.backend, "task_id": result.key.task_id,
         "execution": record_dict(result.execution), "grade": record_dict(result.grade),
@@ -137,6 +140,9 @@ def report_campaign(bundles: Sequence[Path]) -> dict[str, object]:
                 "coverage": measurement_coverage(prior_starts, prior_results), "budget_pooled_with_current_campaign": False}
     schedule = tuple((spec.identity, *entry) for entry in spec.schedule)
     summary = summarize(schedule, starts, results, campaign=spec, persisted_faults=faults)
+    configuration = next(iter(spec.members.values()))
+    summary.update({"backend": configuration.backend, "requested_model": configuration.requested_model,
+                    "effort": configuration.effort, "thinking_policy": configuration.thinking_policy})
     summary.update(metadata)
     summary["source_mismatches"] = mismatches
     return summary

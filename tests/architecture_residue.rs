@@ -51,12 +51,27 @@ fn removed_command_modules_and_manual_inventory_are_absent() {
         "src/multifile.rs",
         "src/block_edit.rs",
         "bench/md_inventory_v1.json",
-        "bench/command_policy.py",
     ] {
         assert!(
             !root.join(removed).exists(),
             "removed path remains: {removed}"
         );
+    }
+    // The recovered evaluation policy reads each pinned producer's schema.
+    // Its filename is reusable; the retired manual inventory is not.
+    let policy = root.join("bench/command_policy.py");
+    if policy.exists() {
+        let source = std::fs::read_to_string(policy).unwrap();
+        for removed in [
+            "MD_INVENTORY_PATH",
+            "load_md_inventory",
+            "md_inventory_v1.json",
+        ] {
+            assert!(
+                !source.contains(removed),
+                "retired manual inventory remains: {removed}"
+            );
+        }
     }
 }
 

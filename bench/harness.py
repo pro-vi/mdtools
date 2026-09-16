@@ -1620,7 +1620,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return summary["exit_code"]
     if args.pin_root is not None or args.stop_after is not None:
         parser.error("--pin-root and --stop-after require --offline-campaign")
-    result = offline_exercise(results_dir)
+    try:
+        result = offline_exercise(results_dir)
+    except (RecordIntegrityError, OSError, ValueError) as exc:
+        print(canonical_json({"complete": False, "exit_code": 2, "comparisons": [], "fault": str(exc),
+            "help": "Use a new --results-dir for an offline exercise; existing evidence is not overwritten."}))
+        return 2
     print(canonical_json({"backend": result.backend, "execution": record_dict(result.execution),
         "grade": record_dict(result.grade), "results_dir": str(results_dir)}))
     # A measured task failure is a valid evaluation result, not a controller error.
