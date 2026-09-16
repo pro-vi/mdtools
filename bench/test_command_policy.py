@@ -178,7 +178,7 @@ def test_selected_cli_reaches_actual_synthetic_worker(cli_pins: dict, tmp_path: 
             "Path('input.md').write_bytes(b'after\\n')")
         result = run_agent(task, fixture_root=fixtures, expected_root=expected,
             command=python_command(script), condition=pin, results_dir=root / f"receipt-{index}")
-        assert result.comparison.kind == "pass"
+        assert result.grade.kind == "pass"
         stored = json.loads((root / f"receipt-{index}/experiment.json").read_bytes())
         assert stored["condition_sha256"] == pin.content_identity
         assert set(stored["toolkit_sha256"]) == set((*ORDINARY_TOOLS, "bash", "sh"))

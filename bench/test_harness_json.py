@@ -7,12 +7,17 @@ import json
 from pathlib import Path
 import subprocess
 import shutil
+import os
+import copy
 
 import pytest
 
 from bench import harness, neutral_scorer as scorer
 from bench.test_harness_run_artifacts import python_command, synthetic_task
 from bench.test_neutral_scorer import family_cases, policy
+from bench.test_trial_records import synthetic_cli_events
+from bench.trial_records import (RecordIntegrityError, ToolCall, ToolResult, RunReceipt,
+    ExecutionOutcome, Grade, Usage, event_from_dict, record_dict)
 
 
 @pytest.mark.parametrize("actual,expected,passes", [
@@ -152,8 +157,8 @@ def test_synthetic_subprocess_admitted_families(tmp_path: Path, artifact: str, d
     script += f"sys.stdout.buffer.write({final!r})"
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected_root,
         command=python_command(script), results_dir=root / "receipt")
-    assert result.execution == "completed"
-    assert result.comparison.kind == "pass"
+    assert result.execution.kind == "completed"
+    assert result.grade.kind == "pass"
     if artifact != "file_contents":
         assert (root / "receipt/artifacts/final_submission.bin").read_bytes() == final
 
@@ -165,9 +170,9 @@ def test_intermediate_output_cannot_replace_submission(tmp_path: Path) -> None:
     (expected / "answer.md").write_bytes(b'{"pending":1}')
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=python_command("import sys; sys.stderr.write('{\"pending\":1}'); sys.stdout.write('{\"pending\":0}')"), results_dir=root / "receipt")
-    assert result.execution == "completed"
-    assert result.comparison.kind == "fail"
-    assert result.comparison.reason == "json_mismatch"
+    assert result.execution.kind == "completed"
+    assert result.grade.kind == "fail"
+    assert result.grade.reason == "json_mismatch"
     assert (root / "receipt/artifacts/stderr.bin").read_bytes() == b'{"pending":1}'
     assert (root / "receipt/artifacts/final_submission.bin").read_bytes() == b'{"pending":0}'
 
@@ -180,7 +185,7 @@ def test_stdout_and_file_composition(tmp_path: Path, text: bytes, file_bytes: by
     script = f"from pathlib import Path; import sys; Path('input.md').write_bytes({file_bytes!r}); sys.stdout.buffer.write({text!r})"
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=python_command(script), results_dir=root / "receipt")
-    assert (result.comparison.kind == "pass") is passes
+    assert (result.grade.kind == "pass") is passes
 
 
 def public_task(task_id: str) -> harness.BenchTask:
@@ -219,7 +224,7 @@ def test_public_packaging_preserves_frozen_bytes(tmp_path: Path, task_id: str) -
         script = f"from pathlib import Path; Path({task.input_files[0]!r}).write_bytes({expected!r})"
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected_root,
         command=python_command(script), results_dir=root / "receipt")
-    assert result.comparison.kind == "pass"
+    assert result.grade.kind == "pass"
     assert (repo / task.expected_output).read_bytes() == expected
 
 
@@ -228,7 +233,7 @@ def test_public_packaging_preserves_frozen_bytes(tmp_path: Path, task_id: str) -
 def test_text_adapter_fault_preserves_other_families_stored_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, adapter: str, affected: str, fault: str) -> None:
     root = tmp_path.resolve()
     cases = family_cases()
-    def exercise(directory: Path, family: str, case: dict[str, object]) -> tuple[harness.OfflineResult, dict[str, bytes], str]:
+    def exercise(directory: Path, family: str, case: dict[str, object]) -> tuple[harness.AttemptResult, dict[str, bytes], str]:
         directory.mkdir()
         task, fixtures, expected = synthetic_task(directory)
         task = replace(task, description="Compute the requested result.", expected_artifact=family, scorer=case["policy"], expected_stdout=case.get("expected_stdout", b"").decode() if family == "stdout_and_file" else None)
@@ -242,10 +247,10 @@ def test_text_adapter_fault_preserves_other_families_stored_evidence(tmp_path: P
         evidence = {name: (directory / "receipt" / name).read_bytes() for name in result.artifacts}
         return result, evidence, harness.build_prompt(task)
     before = {family: exercise(root / (family + "_before"), family, case) for family, case in cases.items()}
-    def broken(*args: object) -> scorer.Comparison:
+    def broken(*args: object) -> scorer.Grade:
         if fault == "exception":
             raise RuntimeError("synthetic adapter defect")
-        return scorer.Comparison("fail", "injected_wrong_grade")
+        return scorer.Grade("fail", "injected_wrong_grade")
     monkeypatch.setattr(scorer, adapter, broken)
     for family, case in cases.items():
         result, evidence, prompt = exercise(root / (family + "_after"), family, case)
@@ -253,16 +258,18 @@ def test_text_adapter_fault_preserves_other_families_stored_evidence(tmp_path: P
         assert evidence == original_evidence
         assert result.artifacts == original_result.artifacts
         assert prompt == original_prompt
-        assert result.experiment_id == original_result.experiment_id
+        assert result.key.experiment_id == original_result.key.experiment_id
         if family == affected:
             if fault == "exception":
-                assert result.comparison is None
-                assert result.error == "grader_unavailable"
-                assert result.execution == "completed"
+                assert result.grade.kind in ("not_run", "unavailable")
+                assert result.grade.reason == "grader_unavailable"
+                assert result.execution.kind == "completed"
             else:
-                assert result.comparison.kind == "fail"
+                assert result.grade.kind == "fail"
         else:
-            assert result == original_result
+            assert result.key == original_result.key
+            assert result.grade == original_result.grade
+            assert result.execution == original_result.execution
 
 
 def test_grader_source_digest_changes_synthetic_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -275,9 +282,9 @@ def test_grader_source_digest_changes_synthetic_identity(tmp_path: Path, monkeyp
         return "0" * 64 if Path(path).name == "neutral_scorer.py" else original_hash(path)
     monkeypatch.setattr(harness, "sha256_file", changed_grader)
     after = harness.run_agent(task, fixture_root=fixtures, expected_root=expected, command=command, results_dir=root / "after")
-    assert before.comparison == after.comparison
+    assert before.grade == after.grade
     assert before.artifacts == after.artifacts
-    assert before.experiment_id != after.experiment_id
+    assert before.key.experiment_id != after.key.experiment_id
     before_spec = json.loads((root / "before/experiment.json").read_bytes())
     after_spec = json.loads((root / "after/experiment.json").read_bytes())
     assert before_spec["task_sha256"] == after_spec["task_sha256"]
@@ -313,6 +320,230 @@ def test_missing_submission_is_semantic_failure(tmp_path: Path, artifact: str) -
     (expected / "answer.md").write_bytes(b'{"n":1}' if artifact == "json_envelope" else b"after\n")
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=python_command("from pathlib import Path; Path('input.md').write_bytes(b'after\\n')"), results_dir=root / "receipt")
-    assert result.execution == "completed"
-    assert result.comparison.kind == "fail"
-    assert result.error is None
+    assert result.execution.kind == "completed"
+    assert result.grade.kind == "fail"
+    assert result.execution.reason is None
+
+
+def emit_events(events: list[dict[str, object]]) -> list[str]:
+    encoded = b"".join((json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8") for event in events)
+    return python_command(f"import sys; sys.stdout.buffer.write({encoded!r}); sys.stdout.buffer.flush()")
+
+
+def run_event_fixture(root: Path, events: list[dict[str, object]]) -> harness.AttemptResult:
+    task, fixtures, expected = synthetic_task(root)
+    task = replace(task, expected_artifact="stdout_text")
+    (expected / "answer.md").write_bytes(events[-1].get("result", "after").encode("utf-8"))
+    return harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
+        command=emit_events(events), results_dir=root / "receipt", event_format="claude_stream")
+
+
+@pytest.mark.parametrize("denied", [False, True])
+def test_permission_denial_precedes_grading(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, denied: bool) -> None:
+    calls = []
+    original = harness.grade_submission
+    def spy(*args: object, **kwargs: object) -> Grade:
+        calls.append(kwargs["final_text"])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(harness, "grade_submission", spy)
+    result = run_event_fixture(tmp_path.resolve(), synthetic_cli_events(denied=denied, final_text=" intact\n中文 "))
+    if denied:
+        assert result.execution == ExecutionOutcome("infrastructure_error", "permission_denied")
+        assert result.permission_fault == "permission_denied" and result.grade.kind == "not_run"
+        assert calls == []
+        assert result.usage.estimated_usd == 0.01
+        with pytest.raises(RecordIntegrityError, match="permission_denied"):
+            harness.AttemptStore(tmp_path / "receipt").assert_admission()
+    else:
+        assert result.grade.kind == "pass" and calls == [" intact\n中文 ".encode()]
+    assert harness.AttemptStore(tmp_path / "receipt").load()[1] == result
+
+
+@pytest.mark.parametrize("tool_id", ["call:A", "01", "1", "toolu_local_permission_probe", " Call:中 ", " ", "a", "A"])
+@pytest.mark.parametrize("denied", [False, True])
+def test_tool_use_ids_are_opaque(tool_id: str, denied: bool) -> None:
+    for _ in range(2):  # Reuse in another attempt is independent.
+        decoder = harness.ClaudeStreamDecoder()
+        events = synthetic_cli_events(tool_id=tool_id, denied=denied)
+        for event in events:
+            decoder.accept(event)
+            decoder.accept(copy.deepcopy(event))
+        parsed = decoder.finish()
+        assert len([e for e in parsed.events if isinstance(e, ToolCall)]) == 1
+        assert len([e for e in parsed.events if isinstance(e, ToolResult)]) == 1
+        assert len([e for e in parsed.events if isinstance(e, RunReceipt)]) == 1
+        assert parsed.events[0].tool_use_id == tool_id
+        assert parsed.events[1].tool_use_id == tool_id
+        for normalized in parsed.events:
+            assert event_from_dict(record_dict(normalized)) == normalized
+        assert parsed.receipt.usage.input_tokens == 3
+
+
+@pytest.mark.parametrize("target", ["call", "result", "receipt", "reference", "denial_reference", "denial_input"])
+def test_conflicting_or_uncorrelated_cli_events_are_integrity_errors(target: str) -> None:
+    events = synthetic_cli_events(denied=target.startswith("denial"))
+    decoder = harness.ClaudeStreamDecoder()
+    if target == "call":
+        decoder.accept(events[1])
+        events[1]["message"]["content"][0]["input"]["command"] = "different"
+        bad = events[1]
+    elif target == "result":
+        for event in events[:-1]:
+            decoder.accept(event)
+        events[2]["message"]["content"][0]["content"] = "different"
+        bad = events[2]
+    elif target == "receipt":
+        for event in events:
+            decoder.accept(event)
+        events[-1]["total_cost_usd"] = 0.02
+        bad = events[-1]
+    elif target == "reference":
+        decoder.accept(events[1])
+        events[2]["message"]["content"][0]["tool_use_id"] = "foreign"
+        bad = events[2]
+    else:
+        for event in events[:-1]:
+            decoder.accept(event)
+        if target == "denial_reference":
+            events[-1]["permission_denials"][0]["tool_use_id"] = "foreign"
+        else:
+            events[-1]["permission_denials"][0]["tool_input"] = {"command": "different"}
+        bad = events[-1]
+    with pytest.raises(RecordIntegrityError):
+        decoder.accept(bad)
+    assert decoder.integrity_fault is not None
+
+
+@pytest.mark.parametrize("metadata", ["missing", None, {}, True, "[]", [None], [{}],
+    [{"tool_name": "Bash", "tool_use_id": "", "tool_input": {}}]])
+def test_missing_or_malformed_denials_never_grade(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, metadata: object) -> None:
+    events = synthetic_cli_events()
+    if metadata == "missing":
+        del events[-1]["permission_denials"]
+    else:
+        events[-1]["permission_denials"] = metadata
+    calls = []
+    monkeypatch.setattr(harness, "grade_submission", lambda *a, **kw: calls.append(kw))
+    result = run_event_fixture(tmp_path.resolve(), events)
+    assert result.execution == ExecutionOutcome("infrastructure_error", "receipt_integrity")
+    assert result.grade.kind == "not_run" and calls == []
+    assert not result.evidence_complete
+    assert result.usage.estimated_usd == 0.01 and result.usage.completeness == "partial"
+    with pytest.raises(RecordIntegrityError, match="receipt_integrity"):
+        harness.AttemptStore(tmp_path / "receipt").assert_admission()
+
+
+def test_recovered_tool_error_is_not_infrastructure_error(tmp_path: Path) -> None:
+    result = run_event_fixture(tmp_path.resolve(), synthetic_cli_events(tool_error=True))
+    assert result.execution.kind == "completed" and result.grade.kind == "pass"
+    assert result.permission_fault is None
+
+
+def test_earlier_tool_output_cannot_replace_terminal_text(tmp_path: Path) -> None:
+    events = synthetic_cli_events(final_text="wrong")
+    task, fixtures, expected = synthetic_task(tmp_path.resolve())
+    task = replace(task, expected_artifact="stdout_text")
+    events[2]["message"]["content"][0]["content"] = "after\n"
+    result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected, command=emit_events(events),
+        results_dir=tmp_path / "receipt", event_format="claude_stream")
+    assert result.grade.kind == "fail"
+    assert (tmp_path / "receipt/artifacts/final_submission.bin").read_bytes() == b"wrong"
+
+
+def test_unicode_stream_chunk_boundaries_and_partial_messages() -> None:
+    events = synthetic_cli_events(final_text=" 中文\n intact ")
+    events.insert(1, {"type": "stream_event", "event": {"type": "content_block_start", "content_block": {"type": "tool_use", "id": "partial"}}})
+    encoded = b"".join((json.dumps(e, ensure_ascii=False) + "\n").encode() for e in events)
+    decoder = harness.ClaudeStreamDecoder()
+    for byte in encoded:
+        decoder.feed(bytes([byte]))
+    assert decoder.finish().receipt.final_text == " 中文\n intact "
+    assert len(decoder.parsed.events) == 3
+
+
+@pytest.mark.parametrize("subtype,reason,expected_kind,expected_reason", [
+    ("error_max_turns", "max_turns", "budget_exhausted", "turn_limit"),
+    ("error_max_budget_usd", "max_budget_usd", "budget_exhausted", "cost_limit"),
+    ("error_during_execution", "authentication_error", "infrastructure_error", "authentication_error"),
+    ("error_during_execution", "transport_error", "infrastructure_error", "transient_transport"),
+    ("error_during_execution", "startup_error", "infrastructure_error", "transient_startup"),
+])
+def test_explicitly_synthetic_unobserved_error_variants(subtype: str, reason: str, expected_kind: str, expected_reason: str) -> None:
+    events = synthetic_cli_events()
+    events[-1].update(subtype=subtype, terminal_reason=reason, is_error=True)
+    decoder = harness.ClaudeStreamDecoder()
+    for event in events:
+        decoder.accept(event)
+    assert decoder.finish().receipt.execution == ExecutionOutcome(expected_kind, expected_reason)
+
+
+def test_missing_cache_category_remains_unknown() -> None:
+    events = synthetic_cli_events()
+    del events[-1]["usage"]["cache_read_input_tokens"]
+    decoder = harness.ClaudeStreamDecoder()
+    for event in events:
+        decoder.accept(event)
+    receipt = decoder.finish().receipt
+    assert receipt.usage.cache_read_tokens is None and receipt.usage.estimated_usd == 0.01
+    assert receipt.usage.completeness == "partial"
+
+
+@pytest.mark.parametrize("actual,expected_reason", [(None, "model_identity_unavailable"), ("wrong-model", "model_mismatch"), ("requested-model", None)])
+def test_live_decoder_checks_actual_model_before_grade_eligibility(actual: str | None, expected_reason: str | None) -> None:
+    events = synthetic_cli_events()
+    events[-1]["modelUsage"] = {actual: {}} if actual is not None else {}
+    faults = []
+    decoder = harness.ClaudeStreamDecoder(backend="claude_cli", requested_model="requested-model", on_fault=faults.append)
+    for event in events:
+        decoder.accept(event)
+    receipt = decoder.finish().receipt
+    if expected_reason:
+        assert receipt.execution == ExecutionOutcome("infrastructure_error", expected_reason)
+        assert faults == [expected_reason]
+    else:
+        assert receipt.execution.kind == "completed" and faults == []
+    assert receipt.observed_model == actual
+
+
+def local_test_captured_cli_events_decode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Explicit local-only selection, no portable synthetic fallback.
+
+Run with --override-ini python_functions=local_test_* and the genuine fixture
+    root environment variable. These are actual CLI envelopes with synthetic
+    endpoint values; successful decode does not prove real-provider usage.
+    """
+    source = Path(os.environ["MDTOOLS_U4_CAPTURED_ROOT"])
+    for name, denied in (("bash-granted.events.json", False), ("bash-denied.events.json", True)):
+        original = (source / name).read_bytes()
+        events = json.loads(original)
+        root = tmp_path / ("denied" if denied else "granted")
+        root.mkdir()
+        calls = []
+        actual_grader = harness.grade_submission
+        def spy(*args: object, **kwargs: object) -> Grade:
+            calls.append(kwargs["final_text"])
+            return actual_grader(*args, **kwargs)
+        with monkeypatch.context() as context:
+            context.setattr(harness, "grade_submission", spy)
+            result = run_event_fixture(root, events)
+        assert result.grade.kind == ("not_run" if denied else "pass")
+        assert len(calls) == (0 if denied else 1)
+        assert result.usage.input_tokens == 2 and result.usage.output_tokens == 2
+        assert result.usage.estimated_usd == events[-1]["total_cost_usd"]
+        decoder = harness.ClaudeStreamDecoder()
+        for event in events:
+            decoder.accept(event)
+        parsed = decoder.finish()
+        assert parsed.events[0].tool_use_id == parsed.events[1].tool_use_id == "toolu_local_permission_probe"
+        assert parsed.receipt.final_text == events[-1]["result"]
+        assert (source / name).read_bytes() == original
+        if denied:
+            denial_index = next(i for i, e in enumerate(events) if e.get("type") == "system" and e.get("subtype") == "permission_denied")
+            truncated = events[:denial_index + 1]
+            crash_root = tmp_path / "truncated-genuine-copy"
+            crash_root.mkdir()
+            truncated_result = run_event_fixture(crash_root, truncated)
+            assert truncated_result.permission_fault == "permission_denied" and truncated_result.grade.kind == "not_run"
+            assert not truncated_result.evidence_complete
+            with pytest.raises(RecordIntegrityError, match="permission_denied"):
+                harness.AttemptStore(crash_root / "receipt").assert_admission()

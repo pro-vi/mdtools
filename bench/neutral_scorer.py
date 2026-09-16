@@ -13,6 +13,7 @@ from typing import Literal
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from bench.trial_records import Grade
 
 
 def _render_inline_to_plaintext(children: list[Token] | None) -> str:
@@ -51,12 +52,6 @@ class StructuralDiffPolicy:
     compare_block_text: bool
     json_canonical: bool = False
     json_required_keys: list[str] | None = None
-
-
-@dataclass(frozen=True)
-class Comparison:
-    kind: Literal["pass", "fail"]
-    reason: str
 
 
 def validate_policy(policy: StructuralDiffPolicy, *, artifact: str) -> None:
@@ -305,7 +300,7 @@ def neutral_link_destinations(content: str) -> list[tuple[str, str]]:
     return collect(_tokens(content))
 
 
-def score_task(policy: StructuralDiffPolicy, actual: bytes, expected: bytes) -> Comparison:
+def score_task(policy: StructuralDiffPolicy, actual: bytes, expected: bytes) -> Grade:
     """Compare controller-captured bytes; no binary, harness or subprocess input."""
     validate_policy(policy, artifact="file_contents")
     validate_expected(policy, expected)
@@ -315,7 +310,7 @@ def score_task(policy: StructuralDiffPolicy, actual: bytes, expected: bytes) -> 
         try:
             actual.decode("utf-8")
         except UnicodeDecodeError:
-            return Comparison("fail", "invalid_utf8")
+            return Grade("fail", "invalid_utf8")
     comparisons = []
     for enabled, name, compare in (
         (policy.compare_heading_tree, "heading_tree", neutral_heading_tree),
@@ -327,11 +322,11 @@ def score_task(policy: StructuralDiffPolicy, actual: bytes, expected: bytes) -> 
             comparisons.append((name, compare(actual.decode("utf-8")) == compare(expected.decode("utf-8"))))
     if comparisons:
         mismatches = [name for name, matches in comparisons if not matches]
-        return Comparison("fail", ",".join(mismatches) + "_mismatch") if mismatches else Comparison("pass", "declared_dimensions_match")
-    return Comparison("pass", "file_match") if actual == expected else Comparison("fail", "file_mismatch")
+        return Grade("fail", ",".join(mismatches) + "_mismatch") if mismatches else Grade("pass", "declared_dimensions_match")
+    return Grade("pass", "file_match") if actual == expected else Grade("fail", "file_mismatch")
 
 
-def grade_json(policy: StructuralDiffPolicy, final_text: bytes, expected: bytes) -> Comparison:
+def grade_json(policy: StructuralDiffPolicy, final_text: bytes, expected: bytes) -> Grade:
     validate_expected(policy, expected, artifact="json_envelope")
     expected_value = expected_answer(policy, expected)
     try:
@@ -344,36 +339,36 @@ def grade_json(policy: StructuralDiffPolicy, final_text: bytes, expected: bytes)
         else:
             actual_value = _semantic_answer(policy, actual_value, legacy_expected=False)
     except ValueError as exc:
-        return Comparison("fail", f"invalid_submission:{exc}")
-    return Comparison("pass", "json_match") if _typed_equal(actual_value, expected_value) else Comparison("fail", "json_mismatch")
+        return Grade("fail", f"invalid_submission:{exc}")
+    return Grade("pass", "json_match") if _typed_equal(actual_value, expected_value) else Grade("fail", "json_mismatch")
 
 
-def grade_stdout_text(policy: StructuralDiffPolicy, final_text: bytes, expected: bytes) -> Comparison:
+def grade_stdout_text(policy: StructuralDiffPolicy, final_text: bytes, expected: bytes) -> Grade:
     validate_expected(policy, expected, artifact="stdout_text")
     try:
         final_text.decode("utf-8")
     except UnicodeDecodeError:
-        return Comparison("fail", "invalid_submission_utf8")
-    return Comparison("pass", "stdout_match") if _normalize(final_text, policy) == _normalize(expected, policy) else Comparison("fail", "stdout_mismatch")
+        return Grade("fail", "invalid_submission_utf8")
+    return Grade("pass", "stdout_match") if _normalize(final_text, policy) == _normalize(expected, policy) else Grade("fail", "stdout_mismatch")
 
 
 def grade_stdout_and_file(policy: StructuralDiffPolicy, final_text: bytes, actual_file: bytes,
-                          expected: bytes, expected_stdout: bytes) -> Comparison:
+                          expected: bytes, expected_stdout: bytes) -> Grade:
     validate_expected(policy, expected, artifact="stdout_and_file", expected_stdout=expected_stdout)
     try:
         final_text.decode("utf-8")
     except UnicodeDecodeError:
-        return Comparison("fail", "invalid_submission_utf8")
+        return Grade("fail", "invalid_submission_utf8")
     file_comparison = score_task(policy, actual_file, expected)
     text_matches = _normalize(final_text, policy) == _normalize(expected_stdout, policy)
     if file_comparison.kind == "pass" and text_matches:
-        return Comparison("pass", "stdout_and_file_match")
-    return Comparison("fail", "stdout_and_file_mismatch:" + (file_comparison.reason if file_comparison.kind == "fail" else "stdout_mismatch"))
+        return Grade("pass", "stdout_and_file_match")
+    return Grade("fail", "stdout_and_file_mismatch:" + (file_comparison.reason if file_comparison.kind == "fail" else "stdout_mismatch"))
 
 
 def grade_submission(policy: StructuralDiffPolicy, *, artifact: str, final_text: bytes,
                      actual_file: bytes | None, expected: bytes,
-                     expected_stdout: bytes | None = None) -> Comparison:
+                     expected_stdout: bytes | None = None) -> Grade:
     """Exact-kind dispatcher. Missing file capture is a controller error."""
     validate_expected(policy, expected, artifact=artifact, expected_stdout=expected_stdout)
     if artifact == "json_envelope":

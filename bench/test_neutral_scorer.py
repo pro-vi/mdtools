@@ -10,7 +10,8 @@ import subprocess
 import pytest
 
 from bench import neutral_scorer as scorer
-from bench.neutral_scorer import Comparison, StructuralDiffPolicy
+from bench.neutral_scorer import StructuralDiffPolicy
+from bench.trial_records import Grade
 
 
 def policy(kind: str = "normalized_text", **flags: object) -> StructuralDiffPolicy:
@@ -120,9 +121,9 @@ def test_artifact_kind_dispatch_is_exact(monkeypatch: pytest.MonkeyPatch) -> Non
         calls = []
         with monkeypatch.context() as local:
             for family, name in (("file_contents", "score_task"), ("json_envelope", "grade_json"), ("stdout_text", "grade_stdout_text"), ("stdout_and_file", "grade_stdout_and_file")):
-                def adapter(*args: object, family: str = family) -> Comparison:
+                def adapter(*args: object, family: str = family) -> Grade:
                     calls.append(family)
-                    return Comparison("pass", family)
+                    return Grade("pass", family)
                 local.setattr(scorer, name, adapter)
             assert scorer.grade_submission(**case).reason == artifact
         assert calls == [artifact]
@@ -133,10 +134,10 @@ def test_artifact_kind_dispatch_is_exact(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_text_family_adapters_do_not_interfere(monkeypatch: pytest.MonkeyPatch, adapter: str, affected: str, fault: str) -> None:
     cases = family_cases()
     original = {family: (scorer.answer_instructions(case["policy"], artifact=family), scorer.grade_submission(**case), dict(case)) for family, case in cases.items()}
-    def broken(*args: object) -> Comparison:
+    def broken(*args: object) -> Grade:
         if fault == "exception":
             raise RuntimeError("synthetic adapter defect")
-        return Comparison("fail", "injected_wrong_grade")
+        return Grade("fail", "injected_wrong_grade")
     monkeypatch.setattr(scorer, adapter, broken)
     for family, case in cases.items():
         if family == affected:

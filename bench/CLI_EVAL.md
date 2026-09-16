@@ -23,7 +23,7 @@ python3 -m venv .venv
 Direct script and module entry points select the same offline exercise by default.
 An optional `--results-dir` must name a new controller-owned directory.
 The output identifies its absolute artifact location. Temporary receipts use
-`mdtools.cli-eval.offline/0`; they cannot serve as live-study evidence.
+`mdtools.cli-eval/1` with backend `synthetic`; they cannot serve as live-study evidence.
 
 ## Module owners and sources
 
@@ -39,9 +39,13 @@ H is `c93352002e3855527980dbdba0941c8099143e45`; P is
   independent heading primitives), replacing lossy source extraction and
   treatment diagnostics. It imports no harness or subprocess.
 - `manifest.py` recovers H `v3_manifest.py` hash primitives with canonical
-  serialization and a synthetic-only specification. Separate task, harness and
-  grader SHA256 fields bind definition and implementation content without mixing
-  their meanings. U4 still owns complete experiment identity and validated records.
+  serialization and a validated `ExperimentSpec`. Separate task, input/support,
+  expected, answer-policy, grader/harness, full prompt, runner/configuration,
+  condition, toolkit and dependency identities bind content. Locators are separate.
+- `trial_records.py` owns validated execution, grade, usage, event variants and
+  immutable attempt keys. Its pure trial disposition selects by ordinal and
+  permits at most one explicit transient infrastructure retry. Permission faults
+  forbid grading, retries and subsequent admission.
 - `command_policy.py` retains P's complete ordinary toolkit plus jq, exact
   planned condition names and explicit trusted synthetic argv admission.
   U3 decodes each pinned producer's schema, resolves toolkit targets, and stages
@@ -155,13 +159,37 @@ can affect all 360. Either prevents the complete 24-task comparison.
 
 ## Receipts and remaining work
 
-Private artifacts use files 0600/directories 0700. New result directories are
-exclusive; existing output is never overwritten. Receipts retain stdout/stderr,
-final submissions, declared captured files and hashes; result.json is written
-last. Timeout/nonzero exit has no semantic comparison. Capture/grader errors
-preserve completed execution with unavailable comparison. U4 still owns durable
-starts, fsync, recoverable atomic publication, immutable attempts and runtime
-record checks.
+Private artifacts use files 0600/directories 0700. `started.json` persists before
+spawn; complete raw events flush/fsync as received. `artifact_manifest.json` and
+its files/digests precede exclusive atomic publication of `result.json`. The same
+finalization is idempotent; a conflicting result is rejected. A crash before
+publication leaves an unfinished start. Resume must check its flushed denial trace.
+
+Fresh records use `mdtools.cli-eval/1`. Execution and grade are separate: completed
+answers receive pass/fail; timeout, interruption, infrastructure and limits receive
+not-run. Capture/grader errors preserve completed execution with unavailable grade.
+No compatibility alias or historical result can enter this schema.
+
+The pinned event decoder consumes tool calls/results and one cumulative terminal
+receipt. IDs are opaque strings scoped to an attempt. Only untouched terminal
+result text reaches the grader. Required terminal permission_denials must be a
+valid array; any denial or structured system.permission_denied blocks grading
+and admission synchronously. Ordinary tool errors do not infer this fault.
+Known quantities from invalid receipts remain partial. Input/output/cache-read/
+cache-creation tokens, estimated USD, elapsed seconds and observed tool text bytes
+are separate nullable measurements; unknown is never zero.
+
+Portable tests use declared synthetic shapes and subprocesses. The local genuine
+CLI fixture check has explicit selection, with no synthetic fallback:
+
+```sh
+MDTOOLS_U4_CAPTURED_ROOT=/absolute/private/runner-pins/claude-2.1.272 \
+  python -m pytest -q --override-ini 'python_functions=local_test_*' bench/test_harness_json.py
+```
+
+Those envelopes came from the actual CLI, but endpoint content and usage were
+synthetic. They prove only exercised event shapes. Real-provider values and
+unobserved authentication/transport/limit/cache variants remain unverified.
 
 U3's recipes and build commands are in `cli_eval/tool_reference.md`; its unfrozen
 planning template is `cli_eval/experiment.template.json`, not a final study spec.
@@ -186,8 +214,9 @@ Missing counts remain null/unavailable. Error outputs are separate. These counts
 are not provider/billed usage or agent savings. No holdout/mutation replay or
 counterfactual reconstructed from untrustworthy agent inputs is performed.
 
-U4 supplies provider
-extraction, complete experiment identity and Grade/records. U5 supplies native
-containment and Claude shell integration. U6 supplies resume/campaigns/reporting
-and CI. U7/U8 need separate paid-run grants. Live isolation remains unverified;
-no live action is admitted by U3.
+U5 still supplies native containment, actual Claude launch admission and shell
+integration. U6 supplies campaign-owned identity/schedules, resume, reporting and
+CI. A single synthetic attempt's validated specification is not a live grant or
+a finished campaign. Canaries and the first study prefix have zero retries.
+U7/U8 need separate paid-run grants. Live isolation remains unverified; real
+runners remain unavailable in the current synthetic entry point.

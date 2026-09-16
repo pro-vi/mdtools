@@ -67,7 +67,7 @@ def test_spaces_and_quotes_are_preserved_in_argv(tmp_path: Path) -> None:
     payload = "a b ' c \" d"
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=[*python_command("import sys; print(sys.argv[1])"), payload], results_dir=root / "receipt")
-    assert result.execution == "completed"
+    assert result.execution.kind == "completed"
     assert (root / "receipt/artifacts/stdout.bin").read_text().strip() == payload
 
 
@@ -78,7 +78,7 @@ def test_child_environment_does_not_inherit_user_configuration(tmp_path: Path, m
     script = "import os; assert 'U1_SYNTHETIC_CONFIG_CANARY' not in os.environ; assert 'HOME' not in os.environ; print('clean')"
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=python_command(script), results_dir=root / "receipt")
-    assert result.execution == "completed"
+    assert result.execution.kind == "completed"
     assert (root / "receipt/artifacts/stdout.bin").read_bytes() == b"clean\n"
 
 
@@ -99,7 +99,7 @@ def test_import_and_default_cli_need_no_provider_configuration(tmp_path: Path) -
         env=env, capture_output=True, check=True)
     receipt = json.loads(completed.stdout)
     assert receipt["backend"] == "synthetic"
-    assert receipt["comparison"]["kind"] == "pass"
+    assert receipt["grade"]["kind"] == "pass"
     assert Path(receipt["results_dir"]).is_relative_to(root)
 
 

@@ -26,7 +26,7 @@ def test_expected_answers_never_enter_worker_inputs(tmp_path: Path) -> None:
     script = "from pathlib import Path; import sys; p=sys.stdin.read(); assert 'private-synthetic-canary' not in p; assert sorted(str(x) for x in Path('.').rglob('*')) == ['input.md']; sys.stdout.write('{\"private-synthetic-canary\":1}')"
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=python_command(script), results_dir=root / "receipt")
-    assert result.comparison.kind == "pass"
+    assert result.grade.kind == "pass"
 
 
 @pytest.mark.parametrize("task_id", ["T1", "T2", "T10", "T21"])

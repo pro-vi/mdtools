@@ -33,7 +33,7 @@ def test_nested_multiple_inputs_preserve_paths_and_hide_expected(tmp_path: Path)
     )
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
         command=python_command(script), results_dir=root / "receipt")
-    assert result.comparison.kind == "pass"
+    assert result.grade.kind == "pass"
     assert "after" not in harness.build_prompt(task)
     assert str(expected) not in harness.build_prompt(task)
     assert "before" not in harness.build_prompt(task)
