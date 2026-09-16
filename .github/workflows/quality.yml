@@ -34,7 +34,8 @@ jobs:
           rustup default stable
 
       - name: Install hash-locked Python dependencies
-        run: python -m pip install --require-hashes --only-binary=:all: -r bench/requirements.lock
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r bench/requirements.lock
 
       - name: Run portable synthetic evaluation closure
         env:

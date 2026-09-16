@@ -2,6 +2,19 @@
 use std::process::Command;
 
 #[test]
+fn quality_workflow_is_valid_yaml() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workflow = root.join(".github/workflows/quality.yml");
+    // Published crates include Rust tests but not repository CI configuration.
+    if !root.join(".git").exists() && !workflow.exists() {
+        return;
+    }
+    let source = std::fs::read_to_string(workflow).unwrap();
+    serde_yaml::from_str::<serde_yaml::Value>(&source)
+        .expect("quality workflow must be valid YAML");
+}
+
+#[test]
 fn public_source_has_no_previous_authority_names() {
     fn collect(directory: &std::path::Path, source: &mut String) {
         for entry in std::fs::read_dir(directory).unwrap() {
