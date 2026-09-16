@@ -30,7 +30,7 @@ def test_live_or_unknown_runner_never_launches(tmp_path: Path, monkeypatch: pyte
     assert launches == []
 
 
-@pytest.mark.parametrize("artifact", ["stdout_text", "stdout_and_file", "json_envelope", "multi_file_contents_any", "unknown"])
+@pytest.mark.parametrize("artifact", ["multi_file_contents_any", "unknown"])
 def test_unsupported_artifact_never_launches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, artifact: str) -> None:
     root = tmp_path.resolve()
     task, fixtures, expected = synthetic_task(root)

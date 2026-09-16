@@ -34,6 +34,8 @@ class ExperimentSpec:
     command: tuple[str, ...]
     executable_sha256: str
     dependency_lock_sha256: str
+    harness_sha256: str
+    grader_sha256: str
 
     def __post_init__(self) -> None:
         if self.backend != "synthetic":

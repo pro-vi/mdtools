@@ -27,7 +27,7 @@ if __package__ in (None, ""):
 
 from bench.command_policy import build_runner_command
 from bench.manifest import ExperimentSpec, canonical_json, sha256_file, sha256_text
-from bench.neutral_scorer import FileComparison, StructuralDiffPolicy, score_task, validate_expected, validate_policy
+from bench.neutral_scorer import Comparison, StructuralDiffPolicy, answer_instructions, grade_submission, validate_expected, validate_policy
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class OfflineResult:
     backend: str
     task_id: str
     execution: str
-    comparison: FileComparison | None
+    comparison: Comparison | None
     error: str | None
     exit_code: int | None
     experiment_id: str
@@ -94,7 +94,7 @@ def build_prompt(task: BenchTask) -> str:
     """Task text and relative references only; never preload input or expected bytes."""
     return (f"TASK: {task.description}\nINPUT FILES: {json.dumps(task.input_files)}\n"
             f"SUPPORT FILES: {json.dumps(task.support_files or [])}\n"
-            f"OUTPUT: Modify {json.dumps(task.input_files[0])} in place.\n")
+            f"OUTPUT: {answer_instructions(task.scorer, artifact=task.expected_artifact)}\n")
 
 
 def _validate_task(task: BenchTask) -> None:
@@ -141,17 +141,19 @@ def _stop_owned_group(process: subprocess.Popen[bytes]) -> None:
 def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
               command: Sequence[str], results_dir: Path, runner: str = "synthetic",
               timeout_seconds: float = 10) -> OfflineResult:
-    """Run trusted synthetic argv against fresh input copies and capture one final file.
+    """Run trusted synthetic argv and capture only the declared final artifacts.
 
 References are relative to the supplied roots. The first input is the declared
-file result, matching the historical file_contents path. Other input/support
+file result for file kinds. Entire synthetic stdout is the explicit final text
+for output kinds; no intermediate-answer recovery exists. Other input/support
 files retain their full relative paths. Expected roots must be separate.
     """
     argv = build_runner_command(command, runner=runner)
     _validate_task(task)
     validate_policy(task.scorer, artifact=task.expected_artifact)
-    if task.expected_stdout is not None:
-        raise ValueError("file_contents does not accept expected_stdout")
+    if task.expected_stdout is not None and not isinstance(task.expected_stdout, str):
+        raise ValueError("expected_stdout must be a string or null")
+    expected_stdout = task.expected_stdout.encode("utf-8") if task.expected_stdout is not None else None
     if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
         raise ValueError("timeout must be a positive finite number")
     fixture_root, expected_root, results_dir = map(_root, (fixture_root, expected_root, results_dir))
@@ -165,16 +167,18 @@ files retain their full relative paths. Expected roots must be separate.
         raise ValueError("staging collision")
     sources = {reference: _read_source(fixture_root, reference) for reference in references}
     expected = _read_source(expected_root, task.expected_output)
-    validate_expected(task.scorer, expected)
+    validate_expected(task.scorer, expected, artifact=task.expected_artifact, expected_stdout=expected_stdout)
     expected_stat = (expected_root / task.expected_output).stat()
     if any((fixture_root / reference).stat().st_ino == expected_stat.st_ino and
            (fixture_root / reference).stat().st_dev == expected_stat.st_dev for reference in references):
         raise ValueError("expected source aliases a worker input")
     prompt = build_prompt(task)
+    # U4 extends this temporary synthetic identity with the remaining fields.
     spec = ExperimentSpec("synthetic", sha256_text(canonical_json(asdict(task))),
         sha256_text(prompt), {name: hashlib.sha256(content).hexdigest() for name, content in sources.items()},
         hashlib.sha256(expected).hexdigest(), tuple(argv), sha256_file(argv[0]),
-        sha256_file(Path(__file__).with_name("requirements.lock")))
+        sha256_file(Path(__file__).with_name("requirements.lock")),
+        sha256_file(__file__), sha256_file(Path(__file__).with_name("neutral_scorer.py")))
     # Existing output is never overwritten, including an incomplete prior exercise.
     results_dir.mkdir(parents=True, mode=0o700, exist_ok=False)
     artifacts: dict[str, str] = {}
@@ -216,17 +220,30 @@ files retain their full relative paths. Expected roots must be separate.
         for name, content in (("stdout.bin", stdout), ("stderr.bin", stderr)):
             _write_private(results_dir / "artifacts" / name, content)
             artifacts[f"artifacts/{name}"] = hashlib.sha256(content).hexdigest()
-        try:
-            actual = _read_source(worker, task.input_files[0])
-        except ValueError:
-            if execution == "completed":
-                error = "capture_unavailable"
-        else:
-            final_reference = "artifacts/final/" + task.input_files[0]
-            _write_private(results_dir / final_reference, actual)
-            artifacts[final_reference] = hashlib.sha256(actual).hexdigest()
-            if execution == "completed":
-                comparison = score_task(task.scorer, actual, expected)
+        actual = None
+        if task.expected_artifact in ("file_contents", "stdout_and_file"):
+            try:
+                actual = _read_source(worker, task.input_files[0])
+            except ValueError:
+                if execution == "completed":
+                    error = "capture_unavailable"
+            else:
+                final_reference = "artifacts/final/" + task.input_files[0]
+                _write_private(results_dir / final_reference, actual)
+                artifacts[final_reference] = hashlib.sha256(actual).hexdigest()
+        # The trusted synthetic runner's entire stdout is its explicit final
+        # submission. It has no provider/tool-event decoder or answer fallback.
+        # U4 will feed untouched terminal receipt text into the same grade API.
+        if task.expected_artifact != "file_contents":
+            final_reference = "artifacts/final_submission.bin"
+            _write_private(results_dir / final_reference, stdout)
+            artifacts[final_reference] = hashlib.sha256(stdout).hexdigest()
+        if execution == "completed" and error is None:
+            try:
+                comparison = grade_submission(task.scorer, artifact=task.expected_artifact,
+                    final_text=stdout, actual_file=actual, expected=expected, expected_stdout=expected_stdout)
+            except (ValueError, RuntimeError):
+                error = "grader_unavailable"
     result = OfflineResult("mdtools.cli-eval.offline/0", "synthetic", task.id, execution,
                            comparison, error, exit_code, spec.identity, artifacts)
     write_run_artifacts(results_dir, spec=spec, result=result)

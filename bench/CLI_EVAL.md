@@ -1,113 +1,165 @@
 # Offline CLI evaluation recovery
 
-U1 restores one synthetic task path. No provider runner is implemented; the
-public CLI is synthetic-only. Its default command creates synthetic fixtures and
-runs a trusted Python subprocess that edits one staged file, then captures,
-independently compares, and persists the result. It never opens the task registry.
+U1 restores fresh synthetic execution; U2 adds independent grading and explicit
+final submission. The public CLI stays synthetic-only. Its default command
+creates synthetic fixtures, runs a trusted Python subprocess that edits one file,
+then captures, grades and persists the result. It never opens the task registry.
 
 ## Install and verify
 
 The inspected interpreter is Python 3.9.6 on macOS. The lock pins exact PyPI
-pure-Python wheel hashes for markdown-it-py, mdurl, pytest, and every pytest
-dependency on Python 3.9. This is an initial lock of installed versions. The
-portable offline subprocess implementation requires POSIX process groups.
+pure-Python wheel hashes for markdown-it-py, mdurl, pytest and every pytest
+dependency on Python 3.9. This is an initial lock of inspected versions. Portable
+offline execution requires POSIX process groups. Public-fixture tests require jq.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install --require-hashes --only-binary=:all: -r bench/requirements.lock
-.venv/bin/python -m pytest -q bench/test_harness_run_artifacts.py bench/test_harness_task_split.py bench/test_native_runner.py
+.venv/bin/python -m pytest -q bench/test_harness_run_artifacts.py bench/test_harness_task_split.py bench/test_native_runner.py bench/test_harness_json.py bench/test_neutral_scorer.py bench/test_prompt_neutrality.py
 .venv/bin/python -I bench/harness.py --offline-exercise
 ```
 
-`python3 -m bench.harness` and `python3 bench/harness.py` select the same offline
-exercise by default. An optional `--results-dir` must name a new controller-owned
-directory. The JSON output identifies its absolute artifact location. Synthetic
-results use `mdtools.cli-eval.offline/0`; they cannot serve as live-study evidence.
-This temporary receipt will be replaced by U4's shared validated attempt records.
+Direct script and module entry points select the same offline exercise by default.
+An optional `--results-dir` must name a new controller-owned directory.
+The output identifies its absolute artifact location. Temporary receipts use
+`mdtools.cli-eval.offline/0`; they cannot serve as live-study evidence.
 
-## Module owners and recovery sources
+## Module owners and sources
 
-- `harness.py` selectively recovers H's task fields, fresh staging/subprocess
-  mechanics, final-file capture, and artifact-writing intent. H is
-  `c93352002e3855527980dbdba0941c8099143e45`, especially harness lines 1227,
-  1398, and 1683. Relative staging is repaired to keep the full path below the
-  supplied fixture root, rather than flattening to the last directory.
-- `neutral_scorer.py` retains H's independent heading parser primitive and moves
-  `StructuralDiffPolicy` here from H's harness. U1's file comparison recovers
-  the independent raw/text comparison branch, without treatment diagnostics.
-  The heading parser is available and smoke-tested, but structural grading is
-  not admitted yet. H's lossy block-text primitive is deliberately omitted.
-- `manifest.py` recovers H's SHA256 primitives from `v3_manifest.py`; canonical
-  serialization and a synthetic-only `ExperimentSpec` replace its historical
-  configuration. Old manifest thresholds, headline checks and quarantine rules
-  are omitted. U3/U4 must complete experiment identity before live use.
-- `command_policy.py` retains the complete ordinary toolkit from P,
-  `c8e081301fe845d1d8b9bd9ac125d1dbf7c86fa7`, equalizes jq for later conditions,
-  and gives the three planned conditions exact names. It admits only explicit
-  trusted synthetic argv. P's eager inventory load and shell-language guard are
-  omitted; U3/U5 own binary schemas and actual containment.
-- The three test files adapt H's artifact, task-selection/staging and runner
-  admission intent using synthetic packages only. Historical provider imports,
-  archived bundles and holdout-opening tests are not recovered.
+H is `c93352002e3855527980dbdba0941c8099143e45`; P is
+`c8e081301fe845d1d8b9bd9ac125d1dbf7c86fa7`.
 
-No Pi/OAI/multifile imports, provider launch branches, dual correctness booleans,
-quarantine overrides, automatic task generation, historical report policies, or
-saved-run dependencies remain in the restored execution path. The corpus is not
-a recovery target and is unchanged.
+- `harness.py` retains H task fields, staging/subprocess mechanics, capture and
+  artifact-writing intent (H lines 1227, 1398, 1683). Relative paths retain the
+  complete path below the supplied root. U2 captures explicit final submissions
+  and dispatches independent grading only after normal completion.
+- `neutral_scorer.py` owns `StructuralDiffPolicy`, independent comparisons
+  and shared answer contracts. It adapts H scoring intent (lines 485, 668 and
+  independent heading primitives), replacing lossy source extraction and
+  treatment diagnostics. It imports no harness or subprocess.
+- `manifest.py` recovers H `v3_manifest.py` hash primitives with canonical
+  serialization and a synthetic-only specification. Separate task, harness and
+  grader SHA256 fields bind definition and implementation content without mixing
+  their meanings. U4 still owns complete experiment identity and validated records.
+- `command_policy.py` retains P's complete ordinary toolkit plus jq, exact
+  planned condition names and explicit trusted synthetic argv admission.
+  U3/U5 still own schemas and actual containment.
 
-## U1 task and filesystem contract
+No Pi/OAI/multifile imports, provider launch branches, competing correctness
+booleans, quarantine, task generation, historical report policy or saved-run
+dependency remains. Corpus files are retained unchanged.
 
-`run_agent` receives `BenchTask`, disjoint fixture/expected/controller roots,
-explicit synthetic argv and a positive finite deadline. Input and support paths
-are canonical relative POSIX paths. The first input is the declared final file;
-other inputs/support files are staged with their full relative paths. Reject
-traversal, duplicates, file/directory collisions, missing/nonregular objects,
-symlink components, expected-file hardlink aliases and overlapping roots before
-spawn. Supplied roots must not contain symlink components; callers can use the
-OS-resolved temporary-directory path when system temporary paths are aliases.
+## Task and filesystem contract
 
-Only `file_contents` with `raw_bytes` or `normalized_text`, and optional declared
-line-ending/trailing-whitespace normalization, is admitted in U1. Structural,
-JSON and combined/text output families, or any unused comparison flags, fail
-preflight until U2. The grader takes captured bytes and the policy, and accepts
-no treatment executable. Earlier stdout cannot replace the final file.
-An invalid UTF-8 expected artifact under `normalized_text` fails before spawn;
-invalid actual text fails the completed submission. `raw_bytes` accepts binary.
+`run_agent` receives a task, disjoint fixture/expected/controller roots,
+explicit synthetic argv and a positive finite deadline. Input/support references
+are canonical relative POSIX paths. The first input is the final file for file
+kinds; multiple inputs retain distinct relative paths for extraction. Traversal,
+duplicates, staging collisions, missing/nonregular sources, symlink components,
+expected-file hardlink aliases and overlapping roots reject before spawn.
 
-Line-ending normalization changes CRLF to LF. Trailing-whitespace normalization
-removes ASCII spaces/tabs at each line tail while preserving final newlines and
-non-ASCII whitespace. H's branch additionally used unrestricted `rstrip()` and
-discarded final newlines. U1 intentionally does not reproduce that extra loss;
-U2 must check the original public policies before admitting real tasks under a
-completed grading contract. No claim of unchanged historical grading semantics
-or completed real-task compatibility is made here.
+The worker receives copied inputs/support files, prompt references and a fixed
+nonsecret environment. Input/expected bytes are not preloaded in prompts.
+Expected files and receipts are controller-only, separate from staging.
+Trusted synthetic subprocesses are not sandboxed; these tests do not prove
+adversarial answer isolation. Native containment remains U5/U7 work.
 
-The worker gets only copied inputs/support files, prompt references and a fixed
-nonsecret environment. Input/expected bytes are not preloaded in the prompt.
-Expected sources and receipts are controller-only directories, not worker
-inputs. U1's trusted synthetic subprocess is not sandboxed: directory staging
-and environment clearing do not establish adversarial answer isolation. Native
-containment and actual Claude Bash proof remain U5/U7 obligations.
+Synthetic children start in a fresh process group. Timeout/interruption stops and
+reaps that owned group, including descendants retaining pipes. Remaining group
+members are stopped after normal parent exit. Synthetic fixtures must not detach
+into separate sessions; U5 will register detached Claude/Bash groups. Cleanup
+never matches process names.
 
-The synthetic executable starts in a fresh session/process group. Timeout or
-interruption stops and reaps that owned group, including ordinary descendants
-that inherited pipes. Background group members are stopped after normal parent
-completion. A synthetic command must not detach into a separate session; U5 will
-register and clean up separately detached Claude/Bash groups. No process-name
-matching is used.
+## Independent grading and final submission
+
+| Artifact | Admitted policy | Final evidence |
+|---|---|---|
+| `file_contents` | `raw_bytes` with normalization only; `normalized_text` with optional heading/block-order/link/source-block flags; `structural` with at least one such flag | Captured first input file |
+| `json_envelope` | `structural`, either canonical JSON or exactly one heading/frontmatter/link projection | Strict final JSON |
+| `stdout_text` | `raw_bytes` or `normalized_text`, normalization only | Requested UTF-8 final text |
+| `stdout_and_file` | File policy above, plus literal `expected_stdout` | Both requested UTF-8 final text and first input file |
+
+Synthetic stdout is the entire explicit final submission. It must contain only
+the answer; stderr may carry diagnostics. The controller stores stdout unchanged
+as `artifacts/final_submission.bin` for output kinds. It does not strip fences,
+guess an answer family, parse provider/tool events, or recover earlier output.
+A correct synthetic stderr observation followed by wrong final stdout fails.
+U4 must extract untouched terminal receipt text for the same grader API.
+
+Only declared dimensions are compared. Heading-only comparison preserves ordered
+rendered levels/text while permitting markup/body differences. Source blocks
+preserve fence markers, language, indentation, list/quote markers and line endings.
+Block order compares token kinds and nesting. CR/LF define parser line boundaries;
+Unicode separators remain within the physical line.
+
+Declared line normalization changes CRLF to LF. Declared trailing-whitespace
+normalization removes ASCII space/tab tails, preserving final newlines and
+non-ASCII whitespace. H's unrestricted rstrip also discarded those source facts.
+Public T2 requires exact inserted content; T10 requires one selected task change.
+Their unchanged expected bytes pass packaging checks with the more conservative
+normalization. This is not a claim of identical historical grading behavior.
+
+Invalid expected JSON/text rejects before launch. Malformed completed submissions
+fail grading. File raw-byte comparisons retain binary capability. Missing required
+file capture is unavailable, not semantic failure. The two pure text adapters
+never call each other. Synthetic exception/wrong-grade injection proves identical
+prompts, grades and stored artifact bytes/hashes for every other family. Changes
+to either adapter source still change the whole experiment identity.
+
+## Shared JSON answer shapes
+
+Output instructions take only policy and artifact kind; no expected values.
+Only the controller projects frozen legacy expectations. Submitted legacy
+envelopes do not become fresh-record authority.
+
+- Headings: ordered `[{"level": 1, "text": "heading"}]`; level must be an
+  integer from 1 through 6. No headings is explicitly `[]`.
+- Frontmatter: `{"present": true, "format": "Yaml", "value": {...}}`.
+  Format and parsed payload are required. T21 explicitly requires both;
+  absent frontmatter requires false/null/null.
+- Links: ordered `[{"kind": "link", "destination": "..."}]`, preserving the
+  declared kind/destination collection.
+- Canonical JSON: preserve the original object/array, fields and meaningful
+  array order. Nonempty `json_required_keys` projects every result object,
+  requiring each key. `[]` means no projection. Empty-string keys are valid;
+  duplicate/non-string configured keys reject.
+
+Strict JSON rejects duplicate keys, nonfinite constants, missing required fields
+and booleans as numbers. Decimal parsing preserves exact finite numeric values:
+1 and 1.0 are equivalent JSON numbers; 1.0000000000000001 differs from 1.0.
+Heading-level integers have their own strict schema. Object-key order is
+immaterial; array order remains meaningful. Prose and code fences fail JSON
+submission validation.
+
+## Unsupported combinations and evidence limits
+
+Preflight rejects unknown kinds, `multi_file_contents_any`, file-frontmatter
+JSON (no independent YAML parser in the locked closure), raw bytes with structural
+flags, JSON block/source flags, mixed semantic projections, mixed canonical and
+semantic JSON flags, structural policies without dimensions and stdout-text
+structural flags. Unused JSON flags on file/text kinds also reject.
+These combinations are absent from inspected public policy metadata.
+This does not prove sealed core policy compatibility; U8 preflight still owns it.
+
+Public T1/T2/T10/T21 fixtures preserve descriptions, input/expected bytes and
+registry contents. Deterministic subprocesses prove packaging; synthetic goldens
+prove negative controls. No actual model output was sampled.
+Real T14/T23 text-family contracts remain sealed and unvalidated.
+Synthetic coverage does not close that gap. Isolated defects in both adapters
+can directly invalidate up to 30/360 planned grades; shared or unknown defects
+can affect all 360. Either prevents the complete 24-task comparison.
 
 ## Receipts and remaining work
 
-Receipts contain captured stdout/stderr, final first-input bytes when available,
-artifact hashes, a synthetic spec, an offline summary, and `result.json` written
-last. Files use mode 0600 and controller/artifact directories mode 0700. Existing
-result directories are never overwritten. A timeout/nonzero subprocess exit has
-no semantic comparison. Missing or symlinked final capture records a capture
-error, rather than a semantic failure. U4 still owns durable starts, flush/fsync,
-recoverable atomic finalization, immutable attempt keys and runtime record checks.
+Private artifacts use files 0600/directories 0700. New result directories are
+exclusive; existing output is never overwritten. Receipts retain stdout/stderr,
+final submissions, declared captured files and hashes; result.json is written
+last. Timeout/nonzero exit has no semantic comparison. Capture/grader errors
+preserve completed execution with unavailable comparison. U4 still owns durable
+starts, fsync, recoverable atomic publication, immutable attempts and runtime
+record checks.
 
-U2 completes independent grading/final-submission families. U3 supplies pinned
-binary/schema references, executable examples and output replay. U4 supplies the
-shared records/events/identity. U5 supplies native containment and Claude shell
-integration. U6 supplies resume, campaigns, unified reports/statistics and CI.
-U7/U8 require separate paid-run grants; no such grant is implied by U1.
+U3 supplies pinned binary references/examples/replay. U4 supplies provider
+extraction, complete experiment identity and Grade/records. U5 supplies native
+containment and Claude shell integration. U6 supplies resume/campaigns/reporting
+and CI. U7/U8 need separate paid-run grants. None is admitted by U2.
