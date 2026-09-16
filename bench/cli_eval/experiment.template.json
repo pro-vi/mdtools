@@ -1,0 +1,23 @@
+{
+  "template_schema": "mdtools.cli-eval.template/1",
+  "frozen": false,
+  "run_grant": null,
+  "backend": "synthetic",
+  "conditions": [
+    {"condition": "no-md", "executable": null, "source_sha256": null, "build_sha256": null, "binary_sha256": null, "schema_path": null, "schema_sha256": null, "source_commit": null},
+    {"condition": "legacy", "executable": null, "source_sha256": null, "build_sha256": null, "binary_sha256": null, "schema_path": null, "schema_sha256": null, "source_commit": "4d857d2d8ab39d60613498e4a732c66a4494f4be"},
+    {"condition": "current-compact", "executable": null, "source_sha256": null, "build_sha256": null, "binary_sha256": null, "schema_path": null, "schema_sha256": null, "source_commit": "6daa2d8f87497928cabd2b4f895b0b64d6b458f7"}
+  ],
+  "ordinary_tools": ["cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp", "jq"],
+  "runner_provenance": {
+    "executable": "/Users/provi/Development/_projs/mdtools/bench/results/cli-eval/runner-pins/claude-2.1.272/claude",
+    "source_installation": "/Users/provi/.local/share/claude/versions/2.1.272",
+    "sha256": "195e24e8e1f9bf46f1eaee72d434a33e18f9f5796f29a6348a00d16c5f8aee75",
+    "version": "2.1.272",
+    "model": null,
+    "effort": null
+  },
+  "live_isolation_verified": false,
+  "study_evidence": false,
+  "note": "Planning template only. U4 validates final experiment records; U5 supplies native containment; U7/U8 require separate grants. Runner source path is provenance, never a fallback."
+}

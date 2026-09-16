@@ -1,7 +1,8 @@
 # Offline CLI evaluation recovery
 
 U1 restores fresh synthetic execution; U2 adds independent grading and explicit
-final submission. The public CLI stays synthetic-only. Its default command
+final submission; U3 supplies pinned CLI conditions, executable recipes and
+direct compact/full replay. The public CLI stays synthetic-only. Its default command
 creates synthetic fixtures, runs a trusted Python subprocess that edits one file,
 then captures, grades and persists the result. It never opens the task registry.
 
@@ -15,7 +16,7 @@ offline execution requires POSIX process groups. Public-fixture tests require jq
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install --require-hashes --only-binary=:all: -r bench/requirements.lock
-.venv/bin/python -m pytest -q bench/test_harness_run_artifacts.py bench/test_harness_task_split.py bench/test_native_runner.py bench/test_harness_json.py bench/test_neutral_scorer.py bench/test_prompt_neutrality.py
+.venv/bin/python -m pytest -q bench/test_harness_run_artifacts.py bench/test_harness_task_split.py bench/test_native_runner.py bench/test_harness_json.py bench/test_neutral_scorer.py bench/test_prompt_neutrality.py bench/test_command_policy.py bench/test_manifest.py
 .venv/bin/python -I bench/harness.py --offline-exercise
 ```
 
@@ -43,7 +44,8 @@ H is `c93352002e3855527980dbdba0941c8099143e45`; P is
   their meanings. U4 still owns complete experiment identity and validated records.
 - `command_policy.py` retains P's complete ordinary toolkit plus jq, exact
   planned condition names and explicit trusted synthetic argv admission.
-  U3/U5 still own schemas and actual containment.
+  U3 decodes each pinned producer's schema, resolves toolkit targets, and stages
+  the exact binary/stub. U5 still owns actual native containment.
 
 No Pi/OAI/multifile imports, provider launch branches, competing correctness
 booleans, quarantine, task generation, historical report policy or saved-run
@@ -115,7 +117,9 @@ envelopes do not become fresh-record authority.
 - Headings: ordered `[{"level": 1, "text": "heading"}]`; level must be an
   integer from 1 through 6. No headings is explicitly `[]`.
 - Frontmatter: `{"present": true, "format": "Yaml", "value": {...}}`.
-  Format and parsed payload are required. T21 explicitly requires both;
+  Format and parsed payload are required. Known yaml/toml labels compare without
+  case sensitivity because the pinned producers emit Yaml versus yaml; YAML and
+  TOML remain distinct. Other strings are not normalized. T21 requires both;
   absent frontmatter requires false/null/null.
 - Links: ordered `[{"kind": "link", "destination": "..."}]`, preserving the
   declared kind/destination collection.
@@ -159,7 +163,31 @@ preserve completed execution with unavailable comparison. U4 still owns durable
 starts, fsync, recoverable atomic publication, immutable attempts and runtime
 record checks.
 
-U3 supplies pinned binary references/examples/replay. U4 supplies provider
+U3's recipes and build commands are in `cli_eval/tool_reference.md`; its unfrozen
+planning template is `cli_eval/experiment.template.json`, not a final study spec.
+Source pins are legacy 4d857d2 (0.2.0) and current 6daa2d8 (0.4.1). Builds use
+fresh Git exports and locked Cargo dependencies; they never switch/reset this
+checkout or substitute installed md. Integration tests build both pins, or
+verify preserved receipts under explicit `MDTOOLS_U3_PIN_ROOT` (legacy/current
+directories). There is no fourth or forced-full agent condition.
+
+Each condition receives the identical ordinary toolkit and shared task/output
+contract. References derive from each executable's schema/help. Source/build,
+binary/schema, complete prompt and toolkit bytes bind synthetic identity;
+condition executable/schema paths are recorded locators outside content identity.
+The unavailable stub exits 1 normally; it is not a Claude permission denial.
+Bare macOS mktemp ignores TMPDIR; use an explicit scratch template as documented.
+PATH staging alone does not prove cross-condition or answer isolation.
+
+Direct replay runs one current binary on identical frozen synthetic/public bytes
+and identical map/query/read argv/stdin, inserting only global --json. It retains
+actual stdout/stderr, exits, byte/hash measures and named-tokenizer receipts.
+Missing counts remain null/unavailable. Error outputs are separate. These counts
+are not provider/billed usage or agent savings. No holdout/mutation replay or
+counterfactual reconstructed from untrustworthy agent inputs is performed.
+
+U4 supplies provider
 extraction, complete experiment identity and Grade/records. U5 supplies native
 containment and Claude shell integration. U6 supplies resume/campaigns/reporting
-and CI. U7/U8 need separate paid-run grants. None is admitted by U2.
+and CI. U7/U8 need separate paid-run grants. Live isolation remains unverified;
+no live action is admitted by U3.

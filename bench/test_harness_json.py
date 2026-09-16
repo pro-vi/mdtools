@@ -78,7 +78,13 @@ def test_frontmatter_payload_presence_and_format_are_required() -> None:
     expected = b'{"present":true,"frontmatter":{"format":"Yaml","data":{"n":1}}}'
     actual = b'{"present":true,"format":"Yaml","value":{"n":1}}'
     assert scorer.grade_json(declared, actual, expected).kind == "pass"
-    for bad in (actual.replace(b"Yaml", b"Toml"), actual.replace(b'"n":1', b'"n":true'), b'{"present":true,"value":{"n":1}}', b'{"present":1,"format":"Yaml","value":{"n":1}}'):
+    for expected_format in (b"Yaml", b"yaml", b"YAML"):
+        for actual_format in (b"Yaml", b"yaml", b"YAML"):
+            assert scorer.grade_json(declared, actual.replace(b"Yaml", actual_format),
+                expected.replace(b"Yaml", expected_format)).kind == "pass"
+    assert scorer.grade_json(declared, actual.replace(b"Yaml", b"Custom"), expected.replace(b"Yaml", b"custom")).kind == "fail"
+    assert scorer.grade_json(declared, actual.replace(b"Yaml", b" YAML "), expected).kind == "fail"
+    for bad in (actual.replace(b"Yaml", b"Toml"), actual.replace(b"Yaml", b"toml"), actual.replace(b'"n":1', b'"n":true'), b'{"present":true,"value":{"n":1}}', b'{"present":1,"format":"Yaml","value":{"n":1}}'):
         assert scorer.grade_json(declared, bad, expected).kind == "fail"
     absent = b'{"present":false,"format":null,"value":null}'
     assert scorer.grade_json(declared, absent, b'{"present":false,"frontmatter":null}').kind == "pass"

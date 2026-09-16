@@ -11,6 +11,8 @@ from bench import harness, neutral_scorer as scorer
 from bench.test_harness_json import public_task
 from bench.test_harness_run_artifacts import python_command, synthetic_task
 from bench.test_neutral_scorer import family_cases, policy
+from bench.test_command_policy import cli_pins
+from bench.command_policy import resolve_toolkit, stage_condition
 
 
 def test_expected_answers_never_enter_worker_inputs(tmp_path: Path) -> None:
@@ -46,9 +48,12 @@ def test_task_contract_preserves_frozen_corpus() -> None:
     subprocess.run(["git", "diff", "--exit-code", "c933520", "--", "bench/tasks", "bench/inputs", "bench/expected"], cwd=repo, check=True, capture_output=True)
 
 
-def test_all_conditions_receive_same_answer_contract() -> None:
+def test_all_conditions_receive_same_answer_contract(cli_pins: dict, tmp_path: Path) -> None:
+    stub = stage_condition(None, tmp_path.resolve() / "stub", toolkit=resolve_toolkit())
     for family, case in family_cases().items():
         task = harness.BenchTask("synthetic", "Compute the requested result.", ["input.md"], "expected", family, "synthetic", case["policy"], expected_stdout="text\n" if family == "stdout_and_file" else None)
-        prompts = [harness.build_prompt(task) for condition in ("no-md", "legacy", "current-compact")]
-        assert len(set(prompts)) == 1
+        prompts = [harness.build_prompt(task, condition=condition) for condition in (stub, *cli_pins.values())]
+        contracts = [prompt.split("\nTOOLS:\n")[0] for prompt in prompts]
+        assert len(set(contracts)) == 1
+        assert contracts[0] == harness.build_prompt(task)
         assert scorer.grade_submission(**case).kind == "pass"

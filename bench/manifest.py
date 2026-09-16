@@ -6,7 +6,7 @@ This synthetic specification is a U1 mechanism receipt, not a frozen study spec.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import hashlib
 import json
 from pathlib import Path
@@ -36,6 +36,8 @@ class ExperimentSpec:
     dependency_lock_sha256: str
     harness_sha256: str
     grader_sha256: str
+    condition_sha256: str | None = None
+    toolkit_sha256: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.backend != "synthetic":

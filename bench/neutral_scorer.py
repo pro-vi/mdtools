@@ -169,7 +169,7 @@ def answer_instructions(policy: StructuralDiffPolicy, *, artifact: str) -> str:
     if policy.compare_heading_tree:
         return 'Submit an ordered JSON array of headings: [{"level": integer 1 through 6, "text": string}]. Use [] for no headings. No prose or code fences.'
     if policy.compare_frontmatter_json:
-        return 'Submit JSON {"present": boolean, "format": string or null, "value": parsed JSON payload or null}. Preserve the frontmatter format. Absent frontmatter requires false/null/null. No prose or code fences.'
+        return 'Submit JSON {"present": boolean, "format": string or null, "value": parsed JSON payload or null}. Preserve the frontmatter format: yaml/toml labels are case-insensitive; YAML and TOML remain distinct. Absent frontmatter requires false/null/null. No prose or code fences.'
     return 'Submit an ordered JSON array of links: [{"kind": string, "destination": string}]. Use [] for no links. No prose or code fences.'
 
 
@@ -208,6 +208,11 @@ def _semantic_answer(policy: StructuralDiffPolicy, answer: object, *, legacy_exp
         if answer["present"]:
             if type(answer["format"]) is not str or not answer["format"]:
                 raise ValueError("invalid_frontmatter_format")
+            # Both pinned producers describe the same format with different
+            # enum spelling. Normalize only the two known semantic labels, on
+            # expected and submitted projections; preserve all raw evidence.
+            if answer["format"].lower() in ("yaml", "toml"):
+                answer = {**answer, "format": answer["format"].lower()}
         elif answer["format"] is not None or answer["value"] is not None:
             raise ValueError("unexpected_absent_frontmatter")
     else:
