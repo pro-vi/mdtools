@@ -235,7 +235,7 @@ def test_live_parent_preserves_invented_normal_auth_but_child_cannot_read_it(tmp
 
 
 @contextmanager
-def scripted_provider(command: str) -> Iterator[tuple[str, list[dict[str, object]]]]:
+def scripted_provider(command: str | None) -> Iterator[tuple[str, list[dict[str, object]]]]:
     observations: list[dict[str, object]] = []
 
     class Provider(BaseHTTPRequestHandler):
@@ -252,15 +252,16 @@ def scripted_provider(command: str) -> Iterator[tuple[str, list[dict[str, object
             observations.append({"model": request.get("model"), "thinking": request.get("thinking"),
                 "output_config": request.get("output_config"), "tools": [tool["name"] for tool in request.get("tools", [])],
                 "tool_errors": [block.get("is_error", False) for block in results]})
-            block = ({"type": "text", "text": "synthetic complete"} if results else
+            finished = command is None or bool(results)
+            block = ({"type": "text", "text": "synthetic complete"} if finished else
                      {"type": "tool_use", "id": "opaque:local_probe", "name": "Bash",
                       "input": {"command": command, "description": "Synthetic native boundary control"}})
             model = request["model"]
-            reason = "end_turn" if results else "tool_use"
+            reason = "end_turn" if finished else "tool_use"
             usage = {"input_tokens": 1, "output_tokens": 1}
             if request.get("stream"):
-                start_block = {"type": "text", "text": ""} if results else {"type": "tool_use", "id": block["id"], "name": "Bash", "input": {}}
-                delta = {"type": "text_delta", "text": block["text"]} if results else {"type": "input_json_delta", "partial_json": json.dumps(block["input"])}
+                start_block = {"type": "text", "text": ""} if finished else {"type": "tool_use", "id": block["id"], "name": "Bash", "input": {}}
+                delta = {"type": "text_delta", "text": block["text"]} if finished else {"type": "input_json_delta", "partial_json": json.dumps(block["input"])}
                 events = [
                     ("message_start", {"type": "message_start", "message": {"id": "msg_synthetic", "type": "message", "role": "assistant", "model": model,
                         "content": [], "stop_reason": None, "stop_sequence": None, "usage": usage}}),
@@ -289,6 +290,25 @@ def scripted_provider(command: str) -> Iterator[tuple[str, list[dict[str, object
         finally:
             server.shutdown()
             thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("expected_bytes,grade", [(b"before\n", "pass"), (b"after\n", "fail")])
+def local_test_actual_cli_no_tool_response_is_graded(tmp_path: Path, expected_bytes: bytes, grade: str) -> None:
+    executable = os.environ.get("MDTOOLS_U5_RUNNER")
+    assert executable, "explicit preserved runner required; no PATH fallback"
+    root = tmp_path.resolve()
+    task, inputs, expected = synthetic_task(root)
+    (expected / "answer.md").write_bytes(expected_bytes)
+    with scripted_provider(None) as (endpoint, observations):
+        runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
+        result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[],
+            claude=runner, results_dir=root / "result", timeout_seconds=20)
+    assert result.execution.kind == "completed", record_dict(result)
+    assert result.grade.kind == grade and result.evidence_complete
+    assert result.usage.tool_output_bytes == 0 and result.usage.input_tokens is not None
+    assert observations and all(row["tools"] == ["Bash"] and row["tool_errors"] == [] for row in observations)
+    assert (root / "result/artifacts/final/input.md").read_bytes() == b"before\n"
+    assert harness.AttemptStore(root / "result").load()[1] == result
 
 
 @pytest.mark.parametrize("model,effort,thinking", [("claude-sonnet-5", "high", "adaptive"), ("claude-haiku-4-5-20251001", None, "disabled")])

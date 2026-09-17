@@ -347,6 +347,11 @@ executables and signals to other processes. Bash scripts are not security-parsed
 Registration of the observed CLI task-shell form is an additional conformance
 check, not the security boundary.
 
+A permission-conforming completed response with no tool calls is graded normally,
+including against unchanged files. The CLI initializes its shell lazily, so only
+responses that call Bash require the shell-startup probe. Every actual Bash call
+still requires matching launcher evidence; no tool use does not imply a pass.
+
 Parent and child use the same staged PATH because the CLI writes its parent PATH
 into a sourced shell snapshot. Native tests exercise both md producers through
 that real snapshot path; PATH agreement itself is not the isolation mechanism.

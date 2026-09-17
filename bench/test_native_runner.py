@@ -17,6 +17,45 @@ from bench import harness
 from bench.command_policy import build_runner_command
 from bench.test_harness_run_artifacts import python_command, synthetic_task
 from bench.test_trial_records import synthetic_cli_events
+from bench.trial_records import ToolCall
+
+
+def test_no_tool_response_does_not_require_shell_startup() -> None:
+    assert harness._native_shell_conforms(initial=[{"tools": ["Bash"], "permissionMode": "dontAsk"}],
+        tool_calls=[], registrations=[], profile_sha256="a" * 64)
+
+
+@pytest.mark.parametrize("fault", ["missing_init", "extra_tool", "wrong_permission", "wrong_profile", "unreported_shell"])
+def test_no_tool_response_still_checks_native_configuration(fault: str) -> None:
+    initial = [{"tools": ["Bash"], "permissionMode": "dontAsk"}]
+    registrations = [{"argv": ["-c", "env"], "profile_sha256": "a" * 64}]
+    if fault == "missing_init":
+        initial = []
+    elif fault == "extra_tool":
+        initial[0]["tools"] = ["Bash", "Read"]
+    elif fault == "wrong_permission":
+        initial[0]["permissionMode"] = "default"
+    elif fault == "wrong_profile":
+        registrations[0]["profile_sha256"] = "b" * 64
+    else:
+        registrations.append({"argv": ["-c", "true && eval 'echo unreported'"], "profile_sha256": "a" * 64})
+    assert not harness._native_shell_conforms(initial=initial, tool_calls=[],
+        registrations=registrations, profile_sha256="a" * 64)
+
+
+@pytest.mark.parametrize("fault", [None, "missing_probe", "missing_task", "wrong_tool", "wrong_profile"])
+def test_called_bash_requires_startup_and_task_evidence(fault: str | None) -> None:
+    calls = [ToolCall("synthetic-call", "Read" if fault == "wrong_tool" else "Bash", '{"command":"true"}')]
+    registrations = [{"argv": ["-c", "env"], "profile_sha256": "a" * 64},
+                     {"argv": ["-c", "true && eval 'true'"], "profile_sha256": "a" * 64}]
+    if fault == "missing_probe":
+        registrations = registrations[1:]
+    elif fault == "missing_task":
+        registrations = registrations[:1]
+    elif fault == "wrong_profile":
+        registrations[1]["profile_sha256"] = "b" * 64
+    assert harness._native_shell_conforms(initial=[{"tools": ["Bash"], "permissionMode": "dontAsk"}],
+        tool_calls=calls, registrations=registrations, profile_sha256="a" * 64) is (fault is None)
 
 
 @pytest.mark.parametrize("runner", ["claude_cli", "claude-cli", "pi-json", "oai-loop", "unknown"])

@@ -1063,6 +1063,21 @@ def prepare_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
                          prompt, toolkit, results_dir)
 
 
+def _native_shell_conforms(*, initial: Sequence[dict[str, object]], tool_calls: Sequence[ToolCall],
+                           registrations: Sequence[dict[str, object]], profile_sha256: str) -> bool:
+    """Check shell evidence after OwnedShells validated registration ownership.
+
+    Receipt permission/model validation and task grading remain separate owners.
+    Claude starts the shell lazily, so a no-tool answer need not have an env probe.
+    """
+    return (len(initial) == 1 and initial[0].get("tools") == ["Bash"] and
+        initial[0].get("permissionMode") == "dontAsk" and
+        all(event.tool_name == "Bash" for event in tool_calls) and
+        all(raw["profile_sha256"] == profile_sha256 for raw in registrations) and
+        sum(any("&& eval " in arg for arg in raw["argv"]) for raw in registrations) == len(tool_calls) and
+        (not tool_calls or any(raw["argv"] == ["-c", "env"] for raw in registrations)))
+
+
 def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
               command: Sequence[str], results_dir: Path, runner: str = "synthetic",
               timeout_seconds: float = 10, condition: ConditionPin | None = None,
@@ -1207,12 +1222,8 @@ def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
                     tool_calls = [event for event in decoder.parsed.events if isinstance(event, ToolCall)]
                     raw_events = [decode_record_json(line) for line in (results_dir / "events.jsonl").read_bytes().splitlines()]
                     initial = [event for event in raw_events if event.get("type") == "system" and event.get("subtype") == "init"]
-                    conforming = (len(initial) == 1 and initial[0].get("tools") == ["Bash"] and
-                        initial[0].get("permissionMode") == "dontAsk" and
-                        all(event.tool_name == "Bash" for event in tool_calls) and
-                        all(raw["profile_sha256"] == boundary.hashes[str(workspace / "control/profile.sb")] for raw in registrations) and
-                        sum(any("&& eval " in arg for arg in raw["argv"]) for raw in registrations) == len(tool_calls) and
-                        any(raw["argv"] == ["-c", "env"] for raw in registrations))
+                    conforming = _native_shell_conforms(initial=initial, tool_calls=tool_calls,
+                        registrations=registrations, profile_sha256=boundary.hashes[str(workspace / "control/profile.sb")])
                     if execution.kind == "completed" and (not conforming or decoder.receipt.observed_model != claude.model):
                         execution = ExecutionOutcome("infrastructure_error", "configuration_error")
                     for path in boundary.registry.iterdir():
