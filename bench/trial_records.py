@@ -409,8 +409,12 @@ class AttemptResult:
 
     @property
     def live_study_evidence(self) -> bool:
+        # A supported terminal limit is a workflow outcome, not a semantic grade.
+        terminal = ((self.execution.kind == "completed" and self.grade.kind in ("pass", "fail")) or
+                    (self.execution.kind == "budget_exhausted" and self.grade.kind == "not_run" and
+                     self.usage.completeness == "complete" and self.usage.estimated_usd is not None))
         return (self.backend == "claude_cli" and self.evidence_complete and
-                self.execution.kind == "completed" and self.grade.kind in ("pass", "fail") and
+                terminal and
                 self.permission_fault is None and self.requested_model is not None and
                 self.observed_model == self.requested_model and self.usage.source == "claude_terminal")
 

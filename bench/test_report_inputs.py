@@ -586,7 +586,8 @@ def test_live_grant_closed_core_scope_and_contract_acknowledgment(live_case: tup
         replace(core_grant, task_ids=("T1", "T2", "T10"), core_contract_risk_acknowledged=True).assert_scope(spec)
 
 
-def test_synthetic_live_shape_core_selection_retains_retry_cost(live_case: tuple) -> None:
+@pytest.mark.parametrize("limited", [False, True])
+def test_synthetic_live_shape_core_selection_retains_retry_cost(live_case: tuple, limited: bool) -> None:
     """Invented live-shaped records test selection only, not provider evidence."""
     root, tasks, _, arguments, _ = live_case
     core_tasks = [replace(tasks[0], id=f"T{n}") for n in range(1, 25)]
@@ -603,10 +604,54 @@ def test_synthetic_live_shape_core_selection_retains_retry_cost(live_case: tuple
                      grade=Grade("not_run", "transient_transport"))
     results[6] = failed
     results.append(replace(selected, key=replace(selected.key, ordinal=1)))
+    if limited:
+        results[7] = replace(results[7], execution=ExecutionOutcome("budget_exhausted", "turn_limit"),
+            grade=Grade("not_run", "turn_limit"))
     starts = [AttemptStart(result.key, result.backend, reservation_usd=0.1, requested_model=result.requested_model) for result in results]
     summary = summarize(tuple((spec.identity, *entry) for entry in spec.schedule), starts, results, campaign=spec)
-    assert summary["core_study_complete"] and summary["grade_counts"] == {"pass": 360, "not_run": 1}
+    assert summary["core_study_complete"]
+    assert summary["grade_counts"] == {"pass": 359 if limited else 360, "not_run": 2 if limited else 1}
     assert summary["coverage"]["estimated_usd"]["total"] == pytest.approx(3.61)
+
+
+@pytest.mark.parametrize("fault", [None, "unknown_cost", "incomplete", "wrong_model", "synthetic"])
+def test_core_prerequisite_accepts_accounted_pilot_turn_limit_only(live_case: tuple, monkeypatch: pytest.MonkeyPatch, fault: str | None) -> None:
+    root, tasks, _, arguments, grant = live_case
+    pilot_tasks = [replace(tasks[0], id=name) for name in ("T1", "T2", "T10")]
+    pilot = freeze_campaign(pilot_tasks, results_dir=root / "pilot", repetitions=1,
+        retry_allowance=0, grant_usd=0.9, reservation_usd=0.1, **arguments)
+    pilot_grant = replace(grant, experiment_id=pilot.identity, phase="public_pilot",
+        task_ids=("T1", "T2", "T10"), max_attempts=9, campaign_usd=0.9, prerequisite_experiment_id="0" * 64)
+    core_tasks = [replace(tasks[0], id=f"T{n}") for n in range(1, 25)]
+    core = freeze_campaign(core_tasks, results_dir=root / "core", core_study=True,
+        grant_usd=40, reservation_usd=0.1, **arguments)
+    core_grant = replace(grant, experiment_id=core.identity, phase="core_study",
+        task_ids=tuple(f"T{n}" for n in range(1, 25)), repetitions=tuple(range(5)),
+        max_attempts=360, campaign_usd=40, core_contract_risk_acknowledged=True,
+        prerequisite_experiment_id=pilot.identity)
+    results = [replace(synthetic_result(), key=AttemptKey(pilot.identity, *entry, 0),
+        backend="claude_cli", requested_model="claude-sonnet-5", observed_model="claude-sonnet-5",
+        usage=Usage(1, 1, 0, 0, 0.01, 1, 0, "claude_terminal", "complete")) for entry in pilot.schedule]
+    limited = replace(results[0], execution=ExecutionOutcome("budget_exhausted", "turn_limit"),
+        grade=Grade("not_run", "turn_limit"))
+    if fault == "unknown_cost":
+        limited = replace(limited, usage=Usage())
+    elif fault == "incomplete":
+        limited = replace(limited, evidence_complete=False)
+    elif fault == "wrong_model":
+        limited = replace(limited, observed_model="different-model")
+    elif fault == "synthetic":
+        limited = replace(limited, backend="synthetic", usage=replace(limited.usage, source="synthetic_receipt"))
+    results[0] = limited
+    starts = [AttemptStart(r.key, r.backend, reservation_usd=0.1, requested_model=r.requested_model) for r in results]
+    # Only record loading is substituted; the prerequisite decision runs unchanged.
+    monkeypatch.setattr(harness, "load_campaign_bundles", lambda bundles: (pilot, starts, results, []))
+    monkeypatch.setattr(harness, "load_authorization_evidence", lambda directory, spec: (pilot_grant, None))
+    if fault is None:
+        harness._assert_live_prerequisite(core_grant, root, core)
+    else:
+        with pytest.raises(RecordIntegrityError):
+            harness._assert_live_prerequisite(core_grant, root, core)
 
 
 def test_grant_artifact_has_closed_identity_and_is_not_resume_authority(live_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -184,6 +184,20 @@ def test_usage_missingness_neighbors() -> None:
         Usage(estimated_usd=0)
 
 
+@pytest.mark.parametrize("reason", ["turn_limit", "cost_limit"])
+def test_accounted_live_limit_is_study_evidence_without_semantic_grade(reason: str) -> None:
+    limited = replace(result(execution=ExecutionOutcome("budget_exhausted", reason)),
+        backend="claude_cli", requested_model="synthetic-model", observed_model="synthetic-model",
+        usage=Usage(1, 1, 0, 0, 0.01, 1, 0, "claude_terminal", "complete"))
+    assert limited.live_study_evidence
+    assert limited.grade.kind == "not_run"
+    assert not replace(limited, evidence_complete=False).live_study_evidence
+    assert not replace(limited, observed_model=None).live_study_evidence
+    assert not replace(limited, usage=Usage()).live_study_evidence
+    assert not replace(limited, execution=ExecutionOutcome("infrastructure_error", "transient_transport"),
+        grade=Grade("not_run", "transient_transport")).live_study_evidence
+
+
 def test_synthetic_records_never_qualify_as_live_evidence() -> None:
     assert not result().live_study_evidence
     with pytest.raises(RecordIntegrityError):

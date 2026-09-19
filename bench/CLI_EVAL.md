@@ -318,11 +318,19 @@ complete comparison. Retry attempts count toward the explicit attempt cap.
 A public pilot requires a separately granted canary bundle with three matching
 native successes, complete traces and known estimated cost. A core study requires
 the separately granted nine-trial public pilot with complete matching native
-receipts and known costs; pilot semantic failures remain valid evidence. Synthetic
+receipts and known costs; pilot semantic failures and fully accounted terminal
+turn/cost limits remain valid workflow evidence. Limits retain `not_run` grades,
+count as unsuccessful workflows, and do not earn retries. Incomplete receipts,
+unknown cost, permission faults, and mismatched models cannot qualify. Synthetic
 receipts cannot supply either prerequisite. Model/configuration/condition/source
 changes invalidate the prerequisite. A failed live canary stops further launches.
 Phase budgets remain separate; reports show prerequisite cost coverage without
 pooling its grant with the current campaign.
+
+The initial sealed-contract block has a separate requirement: completed, graded
+answers must exercise its previously unvalidated adapters. A terminal limit in
+that block still holds subsequent launches because the contract proof is missing;
+it does not become a semantic failure or disappear from the recorded outcomes.
 
 Before the first real spawn the controller writes private immutable
 `authorization-evidence.json`, including the complete admitted grant, its content

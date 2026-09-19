@@ -1375,7 +1375,7 @@ def _assert_live_prerequisite(grant: LiveRunGrant, bundle: Path | None, spec: Ca
             raise RecordIntegrityError("public pilot requires three successful zero-retry canaries")
     elif prior_ids != {"T1", "T2", "T10"} or len(views) != 9:
         raise RecordIntegrityError("core study requires the separate nine-trial public pilot")
-    if any(view.disposition.kind not in ("succeeded", "task_failed") for view in views) or any(
+    if any(view.disposition.kind not in ("succeeded", "task_failed", "operational_failed") for view in views) or any(
             result.usage.estimated_usd is None for result in results) or len(results) != len(starts):
         raise RecordIntegrityError("live prerequisite completion/cost is unresolved")
     for view in views:
