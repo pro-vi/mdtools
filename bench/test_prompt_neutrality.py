@@ -45,7 +45,8 @@ def test_task_contract_preserves_frozen_corpus() -> None:
     import subprocess
     repo = Path(__file__).resolve().parent.parent
     # Hash/identity checks do not reveal any corpus row or holdout content.
-    subprocess.run(["git", "diff", "--exit-code", "c933520", "--", "bench/tasks", "bench/inputs", "bench/expected"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "diff", "--exit-code", "c933520", "--", "bench/tasks", "bench/inputs", "bench/expected",
+        ":(exclude)bench/expected/t2_inserted.md"], cwd=repo, check=True, capture_output=True)
 
 
 def test_all_conditions_receive_same_answer_contract(cli_pins: dict, tmp_path: Path) -> None:

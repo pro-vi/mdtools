@@ -404,6 +404,22 @@ def test_core_prefix_holds_before_next_spawn(campaign_case: tuple, failure: str)
     assert len(calls) == 1
 
 
+def test_ordinary_campaign_records_turn_limits_without_retry_or_hold(campaign_case: tuple) -> None:
+    root, tasks, spec, arguments = campaign_case
+    calls = []
+    def execute(key, prior, path):
+        calls.append(key)
+        return publish_synthetic(spec, key, path, execution=ExecutionOutcome("budget_exhausted", "turn_limit"))
+    summary = run_campaign(spec, tasks, results_dir=root / "run", _executor=execute, **arguments)
+    assert len(calls) == len(spec.schedule) and all(key.ordinal == 0 for key in calls)
+    assert summary["complete"] and not summary["faults"]
+    assert summary["grade_counts"] == {"not_run": len(spec.schedule)}
+    assert all(row["disposition"]["kind"] == "operational_failed" for row in summary["trials"])
+    assert summary == report_campaign((root / "run",))
+    run_campaign(spec, tasks, results_dir=root / "run", _executor=execute, **arguments)
+    assert len(calls) == len(spec.schedule)
+
+
 def test_incomplete_first_prefix_execution_holds_even_with_complete_evidence(campaign_case: tuple) -> None:
     root, tasks, spec, arguments = campaign_case
     spec = replace(spec, prefix_length=6)

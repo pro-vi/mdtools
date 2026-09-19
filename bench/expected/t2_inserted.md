@@ -3,14 +3,14 @@
 ## v3.0
 
 Major rewrite of the authentication system.
-## v2.5
-
-Hotfix release for auth regression.
-
 
 ## v2.0
 
 Added pagination and search endpoints.
+
+## v2.5
+
+Hotfix release for auth regression.
 
 ## v1.0
 

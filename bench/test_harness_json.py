@@ -202,6 +202,24 @@ def public_task(task_id: str) -> harness.BenchTask:
     return harness.BenchTask(**record)
 
 
+def test_section_insertion_expectation_matches_instruction() -> None:
+    repo = Path(__file__).resolve().parent.parent
+    task = public_task("T2")
+    anchor = "Added pagination and search endpoints."
+    assert f"immediately after the paragraph that ends '{anchor}'" in task.description
+    fragment = task.description.split("The new section content is exactly:\n", 1)[1].encode()
+    original = (repo / task.input_files[0]).read_bytes()
+    boundary = (anchor + "\n").encode()
+    assert original.count(boundary) == 1
+    correct = original.replace(boundary, boundary + b"\n" + fragment, 1)
+    expected = (repo / task.expected_output).read_bytes()
+    assert expected == correct
+    assert scorer.score_task(task.scorer, correct, expected).kind == "pass"
+    historical = subprocess.run(["git", "show", f"c933520:{task.expected_output}"],
+        cwd=repo, check=True, capture_output=True).stdout
+    assert scorer.score_task(task.scorer, historical, expected).kind == "fail"
+
+
 @pytest.mark.parametrize("task_id", ["T1", "T2", "T10", "T21"])
 def test_public_packaging_preserves_frozen_bytes(tmp_path: Path, task_id: str) -> None:
     root, repo = tmp_path.resolve(), Path(__file__).resolve().parent.parent
@@ -216,7 +234,10 @@ def test_public_packaging_preserves_frozen_bytes(tmp_path: Path, task_id: str) -
     target.parent.mkdir(parents=True)
     target.write_bytes(expected)
     historical = subprocess.run(["git", "show", f"c933520:{task.expected_output}"], cwd=repo, check=True, capture_output=True).stdout
-    assert historical == expected
+    if task_id == "T2":
+        assert historical != expected
+    else:
+        assert historical == expected
     if task.expected_artifact == "json_envelope":
         answer = json.dumps(scorer.expected_answer(task.scorer, expected), ensure_ascii=False).encode()
         script = f"import sys; sys.stdout.buffer.write({answer!r})"

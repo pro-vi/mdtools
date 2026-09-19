@@ -56,7 +56,8 @@ H is `c93352002e3855527980dbdba0941c8099143e45`; P is
 
 No Pi/OAI/multifile imports, real-provider launch branches, competing correctness
 booleans, quarantine, task generation, historical report policy or saved-run
-dependency remains. Corpus files are retained unchanged.
+dependency remains. Corpus files are retained except for the corrected public
+section-insertion expectation described below.
 
 ## Task and filesystem contract
 
@@ -105,7 +106,7 @@ Declared line normalization changes CRLF to LF. Declared trailing-whitespace
 normalization removes ASCII space/tab tails, preserving final newlines and
 non-ASCII whitespace. H's unrestricted rstrip also discarded those source facts.
 Public T2 requires exact inserted content; T10 requires one selected task change.
-Their unchanged expected bytes pass packaging checks with the more conservative
+Their expected bytes pass packaging checks with the more conservative
 normalization. This is not a claim of identical historical grading behavior.
 
 Invalid expected JSON/text rejects before launch. Malformed completed submissions
@@ -152,9 +153,16 @@ structural flags. Unused JSON flags on file/text kinds also reject.
 These combinations are absent from inspected public policy metadata.
 This does not prove sealed core policy compatibility; U8 preflight still owns it.
 
-Public T1/T2/T10/T21 fixtures preserve descriptions, input/expected bytes and
-registry contents. Deterministic subprocesses prove packaging; synthetic goldens
-prove negative controls. No actual model output was sampled.
+Public T1/T2/T10/T21 fixtures preserve descriptions, input bytes and registry
+contents. T2's expected file is the sole historical corpus correction: the
+instruction inserts `v2.5` after the pagination paragraph under `v2.0`, while the
+historical expectation inserted it before `v2.0`. The regression constructs the
+edit from the instruction, accepts that edit, and rejects the historical placement.
+Expected bytes for other tasks remain unchanged. New experiments bind the
+corrected expected-file digest; prior attempts and their recorded grades are not
+rewritten or pooled with corrected experiments. Deterministic subprocesses prove
+packaging; synthetic goldens prove negative controls. A stopped public pilot
+exposed this expectation defect; it does not establish a tool-performance result.
 Real T14/T23 text-family contracts remain sealed and unvalidated.
 Synthetic coverage does not close that gap. Isolated defects in both adapters
 can directly invalidate up to 30/360 planned grades; shared or unknown defects
