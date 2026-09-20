@@ -429,13 +429,16 @@ def local_test_actual_cli_selected_md_and_forbidden_access(tmp_path: Path, cli_p
     task, inputs, expected = synthetic_task(root)
     forbidden = expected / "answer.md"
     other = next(pin for name, pin in cli_pins.items() if name != condition)
+    help_command = command_policy.verify_condition(cli_pins[condition])[0].name
     command = (f"if cat '{forbidden}'; then exit 90; fi; "
                f"if '{other.executable}' --version; then exit 91; fi; "
+               f"md --help > /dev/null && md {help_command} --help > /dev/null && "
                "md --version | grep '^md ' && printf 'after\\n' > input.md")
     with scripted_provider(command) as (endpoint, observations):
         runner = ClaudeRunner(executable, endpoint, "claude-sonnet-5", "high", "adaptive")
         result = harness.run_agent(task, fixture_root=inputs, expected_root=expected, command=[], condition=cli_pins[condition],
-            claude=runner, results_dir=root / "result", timeout_seconds=20)
+            claude=runner, results_dir=root / "result", timeout_seconds=20,
+            guidance=command_policy.ToolGuidance.DISCOVERY)
     assert result.execution.kind == "completed" and result.grade.kind == "pass", record_dict(result)
     assert observations[-1]["tool_errors"] == [False]
     assert forbidden.read_bytes() == b"after\n"

@@ -32,9 +32,9 @@ if __package__ in (None, ""):
 
 from bench.command_policy import (CliCondition, ConditionPin, ClaudeRunner, CLAUDE_SHA256,
     CLAUDE_VERSION, DYLD_PROFILE, build_runner_command, native_profile, prepare_native_boundary,
-    resolve_toolkit, stage_condition, tool_reference, verify_condition)
+    resolve_toolkit, stage_condition, tool_reference, verify_condition, ToolGuidance)
 from bench.claude_shell import ContainmentError, OwnedShells, process_state
-from bench.manifest import CampaignSpec, ExperimentSpec, LiveRunGrant, canonical_json, sha256_file, sha256_text, serial_schedule
+from bench.manifest import CampaignConfig, CampaignSpec, ExperimentSpec, LiveRunGrant, canonical_json, sha256_file, sha256_text, serial_schedule
 from bench.neutral_scorer import StructuralDiffPolicy, answer_instructions, grade_submission, validate_expected, validate_policy
 from bench.trial_records import (SCHEMA, AttemptKey, AttemptStart, AttemptResult,
     ClaudeEvent, ExecutionOutcome, Grade, PermissionDenial, RecordIntegrityError,
@@ -53,6 +53,22 @@ class BenchTask:
     scorer: StructuralDiffPolicy
     expected_stdout: str | None = None
     support_files: list[str] | None = None
+
+
+def public_task(task_id: str) -> BenchTask:
+    """Project only the requested public row; no holdout rows enter Python."""
+    if task_id not in ("T1", "T2", "T10", "T21"):
+        raise ValueError("public packaging fixture is not allowlisted")
+    import shutil
+    jq = shutil.which("jq")
+    if jq is None:
+        raise RuntimeError("public-fixture projection requires jq")
+    projected = subprocess.run([jq, "--arg", "id", task_id,
+        '.[] | select(.id == $id) | {id,description,input_files,expected_output,expected_artifact,difficulty,scorer,expected_stdout,support_files}',
+        str(Path(__file__).resolve().parent / "tasks/tasks.json")], check=True, capture_output=True)
+    record = decode_record_json(projected.stdout)
+    record["scorer"] = StructuralDiffPolicy(**record["scorer"])
+    return BenchTask(**record)
 
 
 @dataclass(frozen=True)
@@ -328,12 +344,14 @@ def _overlaps(left: Path, right: Path) -> bool:
     return left == right or left in right.parents or right in left.parents
 
 
-def build_prompt(task: BenchTask, *, condition: ConditionPin | None = None) -> str:
+def build_prompt(task: BenchTask, *, condition: ConditionPin | None = None,
+                 guidance: ToolGuidance = ToolGuidance.FULL_HELP) -> str:
     """Task text and relative references only; never preload input or expected bytes."""
+    guidance = ToolGuidance(guidance)
     contract = (f"TASK: {task.description}\nINPUT FILES: {json.dumps(task.input_files)}\n"
             f"SUPPORT FILES: {json.dumps(task.support_files or [])}\n"
             f"OUTPUT: {answer_instructions(task.scorer, artifact=task.expected_artifact)}\n")
-    return contract if condition is None else contract + "\nTOOLS:\n" + tool_reference(condition) + "\n"
+    return contract if condition is None else contract + "\nTOOLS:\n" + tool_reference(condition, guidance=guidance) + "\n"
 
 
 @dataclass(frozen=True)
@@ -996,8 +1014,10 @@ def prepare_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
               timeout_seconds: float = 10, condition: ConditionPin | None = None,
               event_format: str = "text",
               retry_allowance: int = 1,
-              claude: ClaudeRunner | None = None) -> PreparedAgent:
+              claude: ClaudeRunner | None = None,
+              guidance: ToolGuidance = ToolGuidance.FULL_HELP) -> PreparedAgent:
     """Validate and hash every behavior input without creating state or spawning."""
+    guidance = ToolGuidance(guidance)
     if claude is not None:
         if not isinstance(claude, ClaudeRunner) or command or runner != "synthetic":
             raise ValueError("configured Claude requires no competing argv")
@@ -1031,7 +1051,7 @@ def prepare_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
            (fixture_root / reference).stat().st_dev == expected_stat.st_dev for reference in references):
         raise ValueError("expected source aliases a worker input")
     toolkit = resolve_toolkit() if condition is not None or claude is not None else {}
-    prompt = build_prompt(task, condition=condition)
+    prompt = build_prompt(task, condition=condition, guidance=guidance)
     spec = ExperimentSpec(claude.backend if claude else "synthetic", sha256_text(canonical_json(asdict(task))),
         sha256_text(prompt), {name: hashlib.sha256(sources[name]).hexdigest() for name in task.input_files},
         hashlib.sha256(expected).hexdigest(), tuple(argv), sha256_file(argv[0]),
@@ -1136,7 +1156,8 @@ def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
               campaign: CampaignSpec | None = None,
               _campaign_lock: BinaryIO | None = None,
               live_grant: LiveRunGrant | None = None,
-              prerequisite_bundle: Path | None = None) -> AttemptResult:
+              prerequisite_bundle: Path | None = None,
+              guidance: ToolGuidance = ToolGuidance.FULL_HELP) -> AttemptResult:
     """Run checked synthetic argv, retaining final evidence and immutable records.
 
     Campaign keys are admitted only after their constituent content identity
@@ -1145,7 +1166,7 @@ def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
     prepared = prepare_agent(task, fixture_root=fixture_root, expected_root=expected_root,
         command=command, results_dir=results_dir, runner=runner, timeout_seconds=timeout_seconds,
         condition=condition, event_format=event_format, retry_allowance=retry_allowance,
-        claude=claude)
+        claude=claude, guidance=guidance)
     spec, argv, sources, expected, expected_stdout, prompt, toolkit, results_dir = (
         prepared.spec, prepared.argv, prepared.sources, prepared.expected, prepared.expected_stdout,
         prepared.prompt, prepared.toolkit, prepared.results_dir)
@@ -1313,7 +1334,8 @@ def freeze_campaign(tasks: Sequence[BenchTask], *, fixture_root: Path, expected_
                     event_format: str = "text", timeout_seconds: float = 10,
                     retry_allowance: int = 1, grant_usd: float | None = None,
                     reservation_usd: float | None = None,
-                    claude: ClaudeRunner | None = None) -> CampaignSpec:
+                    claude: ClaudeRunner | None = None,
+                    guidance: ToolGuidance = ToolGuidance.FULL_HELP) -> CampaignSpec:
     """Freeze trusted synthetic task content and exact condition/schedule inputs.
 
     No corpus discovery, provider call or launch authority is provided here.
@@ -1330,7 +1352,7 @@ def freeze_campaign(tasks: Sequence[BenchTask], *, fixture_root: Path, expected_
         for condition, pin in conditions.items():
             prepared = prepare_agent(task, fixture_root=fixture_root, expected_root=expected_root,
                 command=command, results_dir=results_dir, condition=pin, event_format=event_format,
-                timeout_seconds=timeout_seconds, retry_allowance=retry_allowance, claude=claude)
+                timeout_seconds=timeout_seconds, retry_allowance=retry_allowance, claude=claude, guidance=guidance)
             members[CampaignSpec.member_name(task.id, condition)] = prepared.spec
     return CampaignSpec(members, schedule, 6 if core_study else 0, grant_usd, reservation_usd, core_study)
 
@@ -1390,19 +1412,28 @@ def load_campaign_bundles(bundles: Sequence[Path]) -> tuple[CampaignSpec, list[A
 
 def _assert_live_prerequisite(grant: LiveRunGrant, bundle: Path | None, spec: CampaignSpec) -> None:
     """A later grant cannot convert failed canaries into task-launch authority."""
-    if grant.phase == "canary":
+    assert_prerequisite(spec, phase=grant.phase, bundle=bundle,
+        prerequisite_experiment_id=grant.prerequisite_experiment_id)
+
+
+def assert_prerequisite(spec: CampaignSpec, *, phase: str, bundle: Path | None,
+                        prerequisite_experiment_id: str | None) -> None:
+    """Validate evidence without constructing or supplying launch authority."""
+    if phase not in ("canary", "public_pilot", "core_study", "prompt_comparison"):
+        raise RecordIntegrityError("unknown prerequisite phase")
+    if phase == "canary":
         if bundle is not None:
             raise RecordIntegrityError("canary phase cannot inherit another experiment")
         return
     if bundle is None:
         raise RecordIntegrityError("live phase requires independently reloaded prerequisite evidence")
     prior, starts, results, faults = load_campaign_bundles((bundle,))
-    if prior.identity != grant.prerequisite_experiment_id or faults:
+    if prior.identity != prerequisite_experiment_id or faults:
         raise RecordIntegrityError("live prerequisite identity/fault mismatch")
     from bench.report import trial_views
     views = trial_views(tuple((prior.identity, *entry) for entry in prior.schedule), starts, results, campaign=prior)
     prior_ids = {entry[0] for entry in prior.schedule}
-    if grant.phase == "public_pilot":
+    if phase in ("public_pilot", "prompt_comparison"):
         if len(prior_ids) != 1 or prior_ids & {f"T{n}" for n in range(1, 25)} or len(views) != 3 or len(starts) != 3 or any(
                 member.retry_allowance != 0 for member in prior.members.values()) or any(not view.workflow_success for view in views):
             raise RecordIntegrityError("public pilot requires three successful zero-retry canaries")
@@ -1423,7 +1454,7 @@ def _assert_live_prerequisite(grant: LiveRunGrant, bundle: Path | None, spec: Ca
             if getattr(previous, field) != getattr(current, field):
                 raise RecordIntegrityError("live prerequisite runner/model/condition content mismatch")
     prior_grant, _ = load_authorization_evidence(_root(bundle), prior)
-    if prior_grant.phase != ("canary" if grant.phase == "public_pilot" else "public_pilot"):
+    if prior_grant.phase != ("canary" if phase in ("public_pilot", "prompt_comparison") else "public_pilot"):
         raise RecordIntegrityError("live prerequisite requires its admitted phase grant")
     from bench.agg_util import can_reserve_estimated_usd, estimated_usd_total
     if len(starts) > prior_grant.max_attempts or not can_reserve_estimated_usd(float(estimated_usd_total(results)), 0, prior_grant.campaign_usd) or any(
@@ -1455,6 +1486,7 @@ def run_campaign(spec: CampaignSpec, tasks: Sequence[BenchTask], *, fixture_root
                  claude: ClaudeRunner | None = None,
                  live_grant: LiveRunGrant | None = None,
                  prerequisite_bundle: Path | None = None,
+                 guidance: ToolGuidance = ToolGuidance.FULL_HELP,
                  _executor: Callable[[AttemptKey, Sequence[tuple[AttemptStart, AttemptResult]], Path], AttemptResult] | None = None) -> dict[str, object]:
     """Serial campaign under one whole-run filesystem lock and explicit admission.
 
@@ -1521,7 +1553,7 @@ def run_campaign(spec: CampaignSpec, tasks: Sequence[BenchTask], *, fixture_root
                 raise RecordIntegrityError("campaign condition pin changed")
             prepared = prepare_agent(by_task[task_id], fixture_root=fixture_root, expected_root=expected_root,
                 command=command, results_dir=directory, condition=pin, event_format=event_format,
-                timeout_seconds=timeout_seconds, retry_allowance=member.retry_allowance, claude=claude)
+                timeout_seconds=timeout_seconds, retry_allowance=member.retry_allowance, claude=claude, guidance=guidance)
             spec.assert_member(AttemptKey(spec.identity, *entry, 0), prepared.spec)
         from bench.report import report_campaign
         launched = 0
@@ -1543,7 +1575,8 @@ def run_campaign(spec: CampaignSpec, tasks: Sequence[BenchTask], *, fixture_root
                     command=command, results_dir=path, condition=conditions[key.condition],
                     event_format=event_format, timeout_seconds=timeout_seconds,
                     retry_allowance=member.retry_allowance, attempt_key=key, prior_attempts=prior, campaign=spec,
-                    _campaign_lock=lock, claude=claude, live_grant=live_grant, prerequisite_bundle=prerequisite_bundle)
+                    _campaign_lock=lock, claude=claude, live_grant=live_grant, prerequisite_bundle=prerequisite_bundle,
+                    guidance=guidance)
             else:
                 _executor(key, prior, path)
             launched += 1
@@ -1605,16 +1638,124 @@ def offline_campaign(results_dir: Path, pin_root: Path, *, stop_after: int | Non
         return run_campaign(spec, tasks, stop_after=stop_after, **args)
 
 
+def prepare_campaign_config(config: CampaignConfig) -> tuple[CampaignSpec, list[BenchTask], dict[str, ConditionPin], ClaudeRunner | None]:
+    """Package declared public inputs and freeze a proposal; never launch a model."""
+    root, source = _root(Path(config.output_root)), _root(Path(config.source_root))
+    fixtures, expected = root / "inputs", root / "expected"
+    if config.task_ids == ("cli-canary",):
+        tasks = [BenchTask("cli-canary", "Replace input.md with exactly: ready followed by a newline.",
+            ["input.md"], "answer.md", "file_contents", "synthetic",
+            StructuralDiffPolicy("raw_bytes", False, False, False, False, False, False, False))]
+        packaged = {fixtures / "input.md": b"before\n", expected / "answer.md": b"ready\n"}
+    else:
+        tasks = [public_task(name) for name in config.task_ids]
+        if any(_overlaps(root, source / reference) for task in tasks
+               for reference in [*task.input_files, *(task.support_files or []), task.expected_output]):
+            raise RecordIntegrityError("operator output overlaps a task source")
+        packaged = {fixtures / reference: _read_source(source, reference)
+            for task in tasks for reference in [*task.input_files, *(task.support_files or [])]}
+        packaged.update({expected / task.expected_output: _read_source(source, task.expected_output) for task in tasks})
+    for path, content in packaged.items():
+        if path.exists():
+            if _read_source(path.parent, path.name) != content:
+                raise RecordIntegrityError("changed packaged task bytes; new output directory required")
+        else:
+            _write_private(path, content)
+    conditions = {}
+    for name, condition in (("legacy", CliCondition.LEGACY), ("current", CliCondition.CURRENT_COMPACT)):
+        raw = decode_record_json(_read_source(_root(Path(config.pin_root)), name + "/pin.json"))
+        if type(raw) is not dict:
+            raise RecordIntegrityError("invalid configured pin")
+        raw["condition"] = CliCondition(raw["condition"])
+        pin = ConditionPin(**raw)
+        verify_condition(pin)
+        if pin.condition != condition:
+            raise RecordIntegrityError("configured pin condition mismatch")
+        conditions[condition.value] = pin
+    stub = root / "stub"
+    if not stub.exists():
+        conditions["no-md"] = stage_condition(None, stub, toolkit=resolve_toolkit())
+    else:
+        digest = sha256_file(stub / "md")
+        conditions["no-md"] = ConditionPin(CliCondition.NO_MD, str(stub / "md"), None, digest, digest, digest, None, None)
+        verify_condition(conditions["no-md"])
+    runner = None if config.claude_executable is None else ClaudeRunner(config.claude_executable,
+        config.endpoint, config.model, config.effort, config.thinking_policy, config.max_turns, config.attempt_usd)
+    spec = freeze_campaign(tasks, fixture_root=fixtures, expected_root=expected, command=config.command,
+        results_dir=root / "campaign", conditions=conditions, repetitions=config.repetitions, seed=config.seed,
+        timeout_seconds=config.timeout_seconds, retry_allowance=config.retry_allowance,
+        grant_usd=config.campaign_usd if runner else None, reservation_usd=config.attempt_usd if runner else None,
+        claude=runner, guidance=ToolGuidance(config.guidance))
+    return spec, tasks, conditions, runner
+
+
+def configured_campaign(config: CampaignConfig, *, prepare_only: bool = False,
+                        live_grant: LiveRunGrant | None = None, prerequisite_bundle: Path | None = None,
+                        stop_after: int | None = None) -> dict[str, object]:
+    """One maintained operator route; saved proposals never supply permission."""
+    if not prepare_only and config.claude_executable is not None and config.endpoint is None and live_grant is None:
+        raise RecordIntegrityError("live run requires an explicitly supplied grant")
+    spec, tasks, conditions, runner = prepare_campaign_config(config)
+    if prepare_only and prerequisite_bundle is not None:
+        prior = _load_campaign(_root(prerequisite_bundle))
+        assert_prerequisite(spec, phase="canary" if config.task_ids == ("cli-canary",) else "public_pilot",
+            bundle=prerequisite_bundle, prerequisite_experiment_id=prior.identity)
+    root = _root(Path(config.output_root))
+    proposal_path = root / "proposal.json"
+    proposal = {"authorization": "not granted", "identity": spec.identity, "spec": record_dict(spec)}
+    if proposal_path.exists():
+        saved = decode_record_json(_read_source(root, "proposal.json"))
+        if type(saved) is not dict or set(saved) != set(proposal) or saved["identity"] != spec.identity or CampaignSpec.from_dict(saved["spec"]).identity != spec.identity:
+            raise RecordIntegrityError("configured campaign differs from frozen proposal")
+    elif prepare_only:
+        _write_private(proposal_path, (canonical_json(proposal) + "\n").encode())
+    else:
+        raise RecordIntegrityError("prepare a frozen proposal before running")
+    if prepare_only:
+        return proposal
+    if runner is not None and runner.backend == "claude_cli":
+        auth = subprocess.run([runner.executable, "auth", "status", "--json"],
+            capture_output=True, check=True, timeout=15)
+        state = decode_record_json(auth.stdout)
+        if type(state) is not dict or not (state.get("loggedIn") is True and state.get("authMethod") == "claude.ai" and state.get("subscriptionType") == "max"):
+            raise RecordIntegrityError("configured live route requires Max subscription authentication")
+    return run_campaign(spec, tasks, fixture_root=root / "inputs", expected_root=root / "expected",
+        command=config.command, conditions=conditions, results_dir=root / "campaign", claude=runner,
+        timeout_seconds=config.timeout_seconds, guidance=ToolGuidance(config.guidance),
+        live_grant=live_grant, prerequisite_bundle=prerequisite_bundle, stop_after=stop_after)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Offline synthetic CLI; the real API requires an explicit scoped grant.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--offline-exercise", action="store_true", help="Explicitly select the default synthetic exercise")
     mode.add_argument("--offline-campaign", action="store_true", help="Serial synthetic comparison with explicit verified pins")
     mode.add_argument("--report-bundle", action="append", type=Path, help="Regenerate an offline campaign report without launching")
+    mode.add_argument("--prepare-config", type=Path, help="Freeze a campaign proposal without provider calls")
+    mode.add_argument("--run-config", type=Path, help="Run/resume a prepared campaign; live runs require --grant")
+    parser.add_argument("--grant", type=Path, help="Explicit scoped launch consent, never loaded from a result bundle")
+    parser.add_argument("--prerequisite-bundle", type=Path, help="Independently checked earlier campaign")
     parser.add_argument("--pin-root", type=Path, help="Explicit legacy/current pin receipts; no installed md fallback")
     parser.add_argument("--stop-after", type=int, help="Stop synthetic campaign after this many new trials; resume with identical inputs")
     parser.add_argument("--results-dir", type=Path, help="New controller-owned result directory")
     args = parser.parse_args(argv)
+    if args.prepare_config or args.run_config:
+        if args.results_dir is not None or args.pin_root is not None or (args.prepare_config and (args.grant or args.stop_after is not None)):
+            parser.error("configured modes use only declared paths; prepare cannot consume a grant or stop count")
+        try:
+            path = args.prepare_config or args.run_config
+            config = CampaignConfig.from_dict(decode_record_json(_read_source(_root(path.parent), path.name)))
+            grant = None if args.grant is None else LiveRunGrant.from_dict(decode_record_json(
+                _read_source(_root(args.grant.parent), args.grant.name)))
+            summary = configured_campaign(config, prepare_only=args.prepare_config is not None,
+                live_grant=grant, prerequisite_bundle=args.prerequisite_bundle, stop_after=args.stop_after)
+        except (RecordIntegrityError, OSError, ValueError, TypeError, KeyError) as exc:
+            print(canonical_json({"complete": False, "exit_code": 2, "fault": str(exc)}))
+            return 2
+        print(canonical_json(summary))
+        return summary.get("exit_code", 0)
+    if args.grant is not None or args.prerequisite_bundle is not None:
+        parser.error("grant and prerequisite require a configured campaign")
     if args.report_bundle:
         from bench.report import main as report_main
         return report_main([str(path) for path in args.report_bundle])

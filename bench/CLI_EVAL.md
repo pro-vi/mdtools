@@ -409,3 +409,37 @@ actual model quality, user-auth compatibility, or enforcement of live run limits
 The local one-turn control establishes the CLI's turn-limit receipt/exit behavior;
 it does not establish provider billing limits. Valid operational receipts retain
 their class when the CLI exits nonzero.
+
+## Configured preparation and execution
+
+Copy `cli_eval/experiment.template.json` and set its absolute paths. The config
+contains public task IDs, producer pins, runner settings and limits, not answers
+or credentials. Only T1, T2, T10, T21 and the separate synthetic `cli-canary`
+are supported. Undeclared scopes fail before task content is read.
+
+```sh
+python -m bench.harness --prepare-config /absolute/config.json
+python -m bench.harness --run-config /absolute/config.json \
+  --grant /absolute/explicit-grant.json --prerequisite-bundle /absolute/canary
+```
+
+Preparation packages only the declared inputs and expected files, then freezes
+`proposal.json`. It does not contact a model or create a grant. Supplying
+`--prerequisite-bundle` during preparation checks earlier evidence without
+granting launch permission. Run mode regenerates the proposal identity and calls
+the existing campaign controller. Resume requires the same config and an explicit
+matching grant; saved authorization evidence is audit data, never fresh consent.
+The maintained live route checks Max subscription authentication. Confirm extra
+usage is off separately before granting a quota-only experiment.
+
+For local tests, supply an explicit synthetic argv with all Claude fields null,
+or use the pinned Claude executable with an explicit loopback scripted endpoint.
+Neither mode accepts live grants. The `cli-canary` task asks for a fixed file
+mutation and uses the same three tool conditions as public trials.
+
+`guidance` has two values. `full_help` remains the default and reproduces the
+previous prompt bytes. `discovery` retains the task, strict answer format, file
+references and ordinary toolkit but supplies only help-discovery instructions for
+md. The no-md prompt is identical in both profiles. Prompt hashes bind this
+choice without changing historical experiment or attempt record formats.
+Smaller initial prompts are not evidence of better model outcomes.

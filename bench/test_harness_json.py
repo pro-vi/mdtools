@@ -189,17 +189,7 @@ def test_stdout_and_file_composition(tmp_path: Path, text: bytes, file_bytes: by
 
 
 def public_task(task_id: str) -> harness.BenchTask:
-    """Explicit allowlisted jq projection: never load holdout rows into Python."""
-    if task_id not in ("T1", "T2", "T10", "T21"):
-        raise ValueError("public packaging fixture is not allowlisted")
-    repo = Path(__file__).resolve().parent.parent
-    jq = shutil.which("jq")
-    if jq is None:
-        raise RuntimeError("public-fixture projection requires jq")
-    projected = subprocess.run([jq, "--arg", "id", task_id, '.[] | select(.id == $id) | {id,description,input_files,expected_output,expected_artifact,difficulty,scorer,expected_stdout,support_files}', str(repo / "bench/tasks/tasks.json")], check=True, capture_output=True)
-    record = json.loads(projected.stdout)
-    record["scorer"] = scorer.StructuralDiffPolicy(**record["scorer"])
-    return harness.BenchTask(**record)
+    return harness.public_task(task_id)
 
 
 def test_section_insertion_expectation_matches_instruction() -> None:

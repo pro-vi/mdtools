@@ -33,6 +33,75 @@ def canonical_json(value: object) -> str:
 
 
 @dataclass(frozen=True)
+class CampaignConfig:
+    """Operator inputs, not frozen evidence or permission to contact a provider."""
+    task_ids: tuple[str, ...]
+    pin_root: str
+    source_root: str
+    output_root: str
+    command: tuple[str, ...]
+    claude_executable: str | None
+    endpoint: str | None
+    model: str | None
+    effort: str | None
+    thinking_policy: str | None
+    guidance: str
+    repetitions: int
+    seed: int
+    timeout_seconds: float
+    max_turns: int
+    retry_allowance: int
+    attempt_usd: float
+    campaign_usd: float
+
+    def __post_init__(self) -> None:
+        from bench.command_policy import ClaudeRunner, ToolGuidance
+        ToolGuidance(self.guidance)
+        if (type(self.task_ids) is not tuple or not self.task_ids or
+            any(type(task) is not str or task not in ("T1", "T2", "T10", "T21", "cli-canary") for task in self.task_ids) or
+            len(set(self.task_ids)) != len(self.task_ids) or
+            ("cli-canary" in self.task_ids and self.task_ids != ("cli-canary",))):
+            raise RecordIntegrityError("unsupported configured task scope")
+        for name in ("pin_root", "source_root", "output_root"):
+            value = getattr(self, name)
+            require_text(value, name)
+            if not Path(value).is_absolute():
+                raise RecordIntegrityError("config paths must be absolute")
+        for name in ("repetitions", "seed", "timeout_seconds", "max_turns", "attempt_usd", "campaign_usd", "retry_allowance"):
+            value = getattr(self, name)
+            require_quantity(value, name, integral=name in ("repetitions", "seed", "max_turns", "retry_allowance"))
+            if value is None or (name not in ("seed", "retry_allowance") and value <= 0):
+                raise RecordIntegrityError("invalid configuration quantity")
+        if self.retry_allowance not in (0, 1) or self.attempt_usd > self.campaign_usd:
+            raise RecordIntegrityError("invalid retry or cost configuration")
+        if type(self.command) is not tuple:
+            raise RecordIntegrityError("command requires an argv tuple")
+        if self.claude_executable is None:
+            if not self.command or any(value is not None for value in (self.endpoint, self.model, self.effort, self.thinking_policy)):
+                raise RecordIntegrityError("synthetic argv cannot contain Claude configuration")
+            for argument in self.command:
+                require_text(argument, "command argument", nonempty=False)
+                if "\0" in argument:
+                    raise RecordIntegrityError("NUL in command")
+        else:
+            if self.command or type(self.claude_executable) is not str or not Path(self.claude_executable).is_absolute():
+                raise RecordIntegrityError("Claude config requires an explicit executable and no argv")
+            ClaudeRunner(self.claude_executable, self.endpoint, self.model, self.effort,
+                self.thinking_policy, self.max_turns, self.attempt_usd)
+
+    @classmethod
+    def from_dict(cls, raw: object) -> CampaignConfig:
+        if type(raw) is not dict or set(raw) != {entry.name for entry in fields(cls)}:
+            raise RecordIntegrityError("missing/unknown campaign config fields")
+        payload = dict(raw)
+        for name in ("task_ids", "command"):
+            if type(payload[name]) is not list:
+                raise RecordIntegrityError("config scope and argv must be arrays")
+            payload[name] = tuple(payload[name])
+        return cls(**payload)
+
+
+@dataclass(frozen=True)
 class ExperimentSpec:
     backend: str
     task_sha256: str

@@ -58,3 +58,61 @@ def test_all_conditions_receive_same_answer_contract(cli_pins: dict, tmp_path: P
         assert len(set(contracts)) == 1
         assert contracts[0] == harness.build_prompt(task)
         assert scorer.grade_submission(**case).kind == "pass"
+
+
+def test_discovery_guidance_preserves_contract_and_avoids_eager_help(cli_pins: dict, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from bench import command_policy
+    calls = []
+    original = command_policy.subprocess.run
+    def observe(argv, *args, **kwargs):
+        calls.append(argv)
+        return original(argv, *args, **kwargs)
+    monkeypatch.setattr(command_policy.subprocess, "run", observe)
+    task = public_task("T1")
+    for pin in cli_pins.values():
+        calls.clear()
+        prompt = harness.build_prompt(task, condition=pin, guidance=command_policy.ToolGuidance.DISCOVERY)
+        assert prompt.split("\nTOOLS:\n")[0] == harness.build_prompt(task)
+        assert "md --help" in prompt and "md <command> --help" in prompt
+        assert "No prose or code fences." in prompt and "$TMPDIR" in prompt
+        assert all("--help" not in argv for argv in calls)
+        assert len(prompt) < len(harness.build_prompt(task, condition=pin))
+    stub = stage_condition(None, tmp_path / "stub", toolkit=resolve_toolkit())
+    assert harness.build_prompt(task, condition=stub, guidance=command_policy.ToolGuidance.DISCOVERY) == harness.build_prompt(task, condition=stub)
+
+
+def test_unknown_guidance_is_rejected_before_execution(tmp_path: Path) -> None:
+    task, fixtures, expected = synthetic_task(tmp_path.resolve())
+    with pytest.raises(ValueError):
+        harness.prepare_agent(task, fixture_root=fixtures, expected_root=expected,
+            command=python_command("raise SystemExit(99)"), results_dir=tmp_path / "receipt", guidance="unknown")
+    assert not (tmp_path / "receipt").exists()
+
+
+def test_guidance_is_bound_by_prompt_identity(cli_pins: dict, tmp_path: Path) -> None:
+    from bench.command_policy import ToolGuidance
+    from bench.trial_records import RecordIntegrityError
+
+    task, fixtures, expected = synthetic_task(tmp_path.resolve())
+    stub = stage_condition(None, tmp_path / "stub", toolkit=resolve_toolkit())
+    conditions = {pin.condition.value: pin for pin in (stub, *cli_pins.values())}
+    arguments = dict(fixture_root=fixtures, expected_root=expected,
+        command=python_command("raise SystemExit(99)"), conditions=conditions,
+        results_dir=tmp_path / "campaign")
+    control = harness.freeze_campaign([task], repetitions=1, **arguments)
+    treatment = harness.freeze_campaign([task], repetitions=1,
+        guidance=ToolGuidance.DISCOVERY, **arguments)
+    assert control.identity != treatment.identity
+    for name, member in control.members.items():
+        other = treatment.members[name]
+        if name.endswith("no-md"):
+            assert member.identity == other.identity
+        else:
+            assert member.prompt_sha256 != other.prompt_sha256
+            assert replace(member, prompt_sha256=other.prompt_sha256).identity == other.identity
+    with pytest.raises(RecordIntegrityError, match="changed experiment content"):
+        harness.run_campaign(treatment, [task], **arguments)
+    assert not tuple((tmp_path / "campaign" / "attempts").iterdir())
+    summary = harness.run_campaign(treatment, [task], stop_after=0,
+        guidance=ToolGuidance.DISCOVERY, **arguments)
+    assert summary["admission_hold"] == "operator_stop"

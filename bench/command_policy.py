@@ -32,6 +32,11 @@ class CliCondition(str, Enum):
     CURRENT_COMPACT = "current-compact"
 
 
+class ToolGuidance(str, Enum):
+    FULL_HELP = "full_help"
+    DISCOVERY = "discovery"
+
+
 # P's complete ordinary toolkit, with jq equalized across future conditions.
 UNIX_TOOLS = ("cat", "grep", "sed", "awk", "head", "tail", "wc", "tee", "mv", "cp", "mktemp")
 # Claude's initialization runs `env`; freeze this runtime requirement in all arms.
@@ -230,12 +235,15 @@ def stage_condition(pin: ConditionPin | None, output: Path, *, toolkit: dict[str
         pin.build_sha256, pin.binary_sha256, pin.schema_sha256, pin.schema_path)
 
 
-def tool_reference(pin: ConditionPin) -> str:
+def tool_reference(pin: ConditionPin, *, guidance: ToolGuidance = ToolGuidance.FULL_HELP) -> str:
+    guidance = ToolGuidance(guidance)
     commands = verify_condition(pin)
     lines = ["Ordinary tools: " + ", ".join(ORDINARY_TOOLS) + ". Bash builtins are available."]
     lines.append('Use mktemp "$TMPDIR/example.XXXXXX" to create temporary files inside scratch.')
     if pin.condition == CliCondition.NO_MD:
         return "\n".join([*lines, "md is unavailable; its stub exits 1. Use ordinary tools."])
+    if guidance == ToolGuidance.DISCOVERY:
+        return "\n".join([*lines, "md is available. Discover its commands with md --help and md <command> --help."])
     lines.append(f"CLI condition: {pin.condition.value}; explicit --json is available.")
     for command in commands:
         help_output = subprocess.run([pin.executable, command.name, "--help"], capture_output=True,
