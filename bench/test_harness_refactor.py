@@ -11,10 +11,6 @@ import tarfile
 
 import pytest
 
-if __name__ != "__main__":
-    from bench.test_command_policy import cli_pins
-
-
 BASELINE = "572abb0a42c81f3382036a3bd58220def40ffb51"
 REPO = Path(__file__).resolve().parent.parent
 

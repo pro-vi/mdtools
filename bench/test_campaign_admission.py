@@ -7,7 +7,6 @@ import pytest
 
 from bench import harness
 from bench.test_report_inputs import campaign_case
-from bench.test_command_policy import cli_pins
 from bench.test_trial_records import result as result_shape
 from bench.trial_records import AttemptKey, AttemptStart, ExecutionOutcome, Grade, RecordIntegrityError
 

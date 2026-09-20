@@ -14,7 +14,6 @@ import pytest
 from bench import harness
 from bench.command_policy import ToolGuidance
 from bench.manifest import PromptComparisonSpec, canonical_json
-from bench.test_command_policy import cli_pins
 from bench.test_report_inputs import campaign_case, live_case
 from bench.test_campaign_config import config
 from bench.trial_records import RecordIntegrityError, record_dict

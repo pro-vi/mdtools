@@ -25,7 +25,6 @@ from bench import harness, command_policy
 from bench.claude_shell import ContainmentError, OwnedShells, process_state
 from bench.command_policy import (CliCondition, ClaudeRunner, NativeBoundary,
     prepare_native_boundary, resolve_toolkit, CLAUDE_FLAGS, CLAUDE_SHA256, CLAUDE_VERSION)
-from bench.test_command_policy import cli_pins
 from bench.test_harness_run_artifacts import synthetic_task
 from bench.trial_records import record_dict
 

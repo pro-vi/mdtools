@@ -11,7 +11,6 @@ from bench import harness, neutral_scorer as scorer
 from bench.test_harness_json import public_task
 from bench.test_harness_run_artifacts import python_command, synthetic_task
 from bench.test_neutral_scorer import family_cases, policy
-from bench.test_command_policy import cli_pins
 from bench.command_policy import resolve_toolkit, stage_condition
 
 

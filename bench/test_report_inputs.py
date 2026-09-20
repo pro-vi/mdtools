@@ -17,7 +17,6 @@ from bench.harness import (AttemptStore, BenchTask, StructuralDiffPolicy, campai
                            freeze_campaign, run_campaign)
 from bench.manifest import CampaignSpec, LiveRunGrant, canonical_json, serial_schedule, sha256_file
 from bench.report import attempt_report, report_campaign
-from bench.test_command_policy import cli_pins
 from bench.test_trial_records import synthetic_cli_events, result as synthetic_result
 from bench.trial_records import (AttemptKey, AttemptStart, ExecutionOutcome, Grade, Usage,
                                  RecordIntegrityError, record_dict)

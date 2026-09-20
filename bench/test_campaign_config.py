@@ -14,7 +14,6 @@ import pytest
 from bench import harness
 from bench.command_policy import CliCondition
 from bench.manifest import CampaignConfig
-from bench.test_command_policy import cli_pins
 from bench.trial_records import RecordIntegrityError, decode_record_json, record_dict
 
 
