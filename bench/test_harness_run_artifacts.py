@@ -348,16 +348,18 @@ def test_timeout_keeps_partial_evidence_and_rejects_late_result(tmp_path: Path) 
 def test_interrupt_preserves_attempt_and_stops_next_launch(tmp_path: Path) -> None:
     task, fixtures, expected = synthetic_task(tmp_path.resolve())
     repo = str(Path(__file__).resolve().parent.parent)
-    child = python_command("import time; print('started',flush=True); time.sleep(30)")
+    event = json.dumps({"type": "system", "subtype": "init"})
+    child = python_command(f"import time; print({event!r},flush=True); time.sleep(30)")
     script = (f"import sys; sys.path.insert(0,{repo!r}); from pathlib import Path; from bench.harness import *; "
-        f"task={task!r}; result=run_agent(task, fixture_root=Path({str(fixtures)!r}), expected_root=Path({str(expected)!r}), command={child!r}, results_dir=Path({str(tmp_path / 'receipt')!r})); "
+        f"task={task!r}; result=run_agent(task, fixture_root=Path({str(fixtures)!r}), expected_root=Path({str(expected)!r}), command={child!r}, event_format='claude_stream', results_dir=Path({str(tmp_path / 'receipt')!r})); "
         "print(result.execution.kind)")
     with subprocess.Popen([sys.executable, "-I", "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as controller:
         deadline = time.monotonic() + 5
-        while not (tmp_path / "receipt/started.json").exists() and time.monotonic() < deadline:
+        trace = tmp_path / "receipt/events.jsonl"
+        while (not trace.exists() or trace.stat().st_size == 0) and time.monotonic() < deadline:
             time.sleep(0.01)
-        # Give the real capture loop time to enter its signal-handling boundary.
-        time.sleep(0.15)
+        # A persisted event proves capture is inside its interrupt boundary.
+        assert trace.exists() and trace.stat().st_size > 0
         controller.send_signal(signal.SIGINT)
         stdout, stderr = controller.communicate(timeout=5)
     assert controller.returncode == 0, stderr
