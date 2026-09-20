@@ -9,7 +9,8 @@ use crate::target::{
 };
 
 pub const MAP_SUMMARY: &str = "List exact targets; --json includes full snapshots";
-pub const READ_SUMMARY: &str = "Read exact target content; --json includes its typed view";
+pub const READ_SUMMARY: &str =
+    "Read a document or selected content; --json includes its typed view";
 pub const QUERY_SUMMARY: &str = "Discover targets and search evidence with compact results";
 pub const PATCH_SUMMARY: &str = "Apply one guarded patch to a Markdown document";
 pub const SCHEMA_SUMMARY: &str = "Print the generated mdtools protocol schema";
@@ -34,14 +35,14 @@ pub const CLI_COMMANDS: &[CliCommandMetadata] = &[
     CliCommandMetadata {
         name: "read",
         summary: READ_SUMMARY,
-        input: "TargetAddress (--address/--from) or TargetQuery (--query, exactly one match)",
+        input: "file (whole document by default); optional --section HEADING, TargetAddress (--address/--from), or TargetQuery (--query, exactly one match)",
         output: "Markdown or FrontmatterFieldValue; --json: TargetRead",
         mutating: false,
     },
     CliCommandMetadata {
         name: "query",
         summary: QUERY_SUMMARY,
-        input: "TargetQuery",
+        input: "--kind KIND or TargetQuery (--query/--from)",
         output: "QueryOverview[]; --json: QueryResult[]",
         mutating: false,
     },

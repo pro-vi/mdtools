@@ -483,6 +483,518 @@ fn query_read_selects_one_target_and_rejects_zero_multiple_and_search_matches() 
 }
 
 #[test]
+fn read_shortcuts_preserve_source_and_typed_views() {
+    let directory = unique_directory("read-shortcuts");
+    let path = directory.join("SKILL.md");
+    let cases = [
+        ("", None),
+        ("plain text without a final newline", None),
+        (
+            "---\nname: casting\n---\n\npreamble\n\n# Casting Skill\n\nbody\n\n## Child\n\nmore",
+            Some("Casting Skill"),
+        ),
+        ("Title\r\n=====\r\n\r\n文字\r\n", Some("Title")),
+        ("# **文字** with `code`\n\nbody", Some("文字 with code")),
+        ("#\n\nempty heading\n", Some("")),
+        ("---\na: [\n---\n\n# H\n\nbody\n", Some("H")),
+    ];
+    for (source, heading) in cases {
+        std::fs::write(&path, source).unwrap();
+        for json in [false, true] {
+            let mut bare = md();
+            bare.args(["read", path.to_str().unwrap()]);
+            let mut explicit = md();
+            explicit.args([
+                "read",
+                path.to_str().unwrap(),
+                "--address",
+                r#"{"kind":"document"}"#,
+            ]);
+            if json {
+                bare.arg("--json");
+                explicit.arg("--json");
+            }
+            let expected = explicit.output().unwrap();
+            assert!(expected.status.success());
+            let actual = bare.output().unwrap();
+            assert!(actual.status.success(), "{:?}", actual);
+            assert!(actual.stderr.is_empty());
+            assert_eq!(actual.stdout, expected.stdout);
+            if !json {
+                assert_eq!(actual.stdout, source.as_bytes());
+            }
+            if let Some(heading) = heading {
+                let query = serde_json::json!({
+                    "type": "section", "text": heading, "match_mode": "exact"
+                })
+                .to_string();
+                let mut shortcut = md();
+                shortcut.args(["read", path.to_str().unwrap(), "--section", heading]);
+                let mut explicit = md();
+                explicit.args(["read", path.to_str().unwrap(), "--query", &query]);
+                if json {
+                    shortcut.arg("--json");
+                    explicit.arg("--json");
+                }
+                let expected = explicit.output().unwrap();
+                assert!(expected.status.success(), "{:?}", expected);
+                let actual = shortcut.output().unwrap();
+                assert!(actual.status.success(), "{:?}", actual);
+                assert_eq!(actual.stdout, expected.stdout);
+                assert!(actual.stderr.is_empty());
+            }
+        }
+    }
+}
+
+#[test]
+fn section_shortcut_preserves_missing_and_duplicate_selection() {
+    let directory = unique_directory("section-shortcut-errors");
+    let path = directory.join("SKILL.md");
+    std::fs::write(&path, "# Skill\n\n## Same\n\none\n\n## Same\n\ntwo\n").unwrap();
+    for (heading, exit) in [("skill", 1), ("Absent", 1), ("Same", 4)] {
+        let query = serde_json::json!({
+            "type": "section", "text": heading, "match_mode": "exact"
+        })
+        .to_string();
+        let explicit = md()
+            .args(["read", path.to_str().unwrap(), "--query", &query, "--json"])
+            .output()
+            .unwrap();
+        assert_eq!(explicit.status.code(), Some(exit));
+        let shortcut = md()
+            .args([
+                "read",
+                path.to_str().unwrap(),
+                "--section",
+                heading,
+                "--json",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(shortcut.status.code(), Some(exit));
+        assert_eq!(shortcut.stdout, explicit.stdout);
+        assert_eq!(shortcut.stderr, explicit.stderr);
+    }
+}
+
+fn assert_argument_error_before_stdin(arguments: &[&str]) -> String {
+    let mut child = md()
+        .args(arguments)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        if let Some(exit) = child.try_wait().unwrap() {
+            assert_eq!(exit.code(), Some(2), "{arguments:?}");
+            return String::from_utf8(child.wait_with_output().unwrap().stderr).unwrap();
+        }
+        if std::time::Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("argument validation waited for stdin: {arguments:?}");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+#[test]
+fn read_selector_inputs_are_exclusive() {
+    let directory = unique_directory("read-selector-conflicts");
+    let missing = directory.join("absent.md");
+    let selectors = [
+        ["--section", "Heading"],
+        ["--address", r#"{"kind":"document"}"#],
+        ["--query", r#"{"type":"kind","kind":"section"}"#],
+        ["--from", "-"],
+    ];
+    for (index, first) in selectors.iter().enumerate() {
+        for second in &selectors[index..] {
+            let error = assert_argument_error_before_stdin(&[
+                "read",
+                missing.to_str().unwrap(),
+                first[0],
+                first[1],
+                second[0],
+                second[1],
+            ]);
+            assert!(error.contains("cannot be used"), "{error}");
+        }
+    }
+}
+
+#[test]
+fn kind_shortcut_matches_every_schema_kind() {
+    let directory = unique_directory("kind-shortcut");
+    let path = directory.join("SKILL.md");
+    let schema = mdtools::protocol::protocol_schema();
+    let kinds = schema["target_query"]["$defs"]["TargetKind"]["enum"]
+        .as_array()
+        .unwrap();
+    for source in [
+        "---\nname: skill\n---\n\nintro\n\n# Skill\n\n- [ ] task\n\n## Same\n\n[link](file.md)\n\n## Same\n\n| A |\n|---|\n| B |\n",
+        "body without headings",
+        "---\nname: [\n---\n\n# Heading\n",
+    ] {
+        std::fs::write(&path, source).unwrap();
+        for kind in kinds {
+            let kind = kind.as_str().unwrap();
+            for json in [false, true] {
+                let query = serde_json::json!({"type":"kind", "kind":kind}).to_string();
+                let mut explicit = md();
+                explicit.args(["query", path.to_str().unwrap(), "--query", &query]);
+                let mut shortcut = md();
+                shortcut.args(["query", path.to_str().unwrap(), "--kind", kind]);
+                if json {
+                    explicit.arg("--json");
+                    shortcut.arg("--json");
+                }
+                let expected = explicit.output().unwrap();
+                let actual = shortcut.output().unwrap();
+                assert_eq!(actual.status.code(), expected.status.code(), "{kind}");
+                assert_eq!(actual.stdout, expected.stdout, "{kind}");
+                assert_eq!(actual.stderr, expected.stderr, "{kind}");
+            }
+        }
+    }
+    let empty = md()
+        .args(["query", path.to_str().unwrap(), "--kind", "link"])
+        .output()
+        .unwrap();
+    assert!(empty.status.success());
+    assert_eq!(empty.stdout, b"[]\n");
+}
+
+#[test]
+fn query_kind_validation_precedes_file_and_stdin_reads() {
+    let directory = unique_directory("query-kind-errors");
+    let missing = directory.join("absent.md");
+    let file = missing.to_str().unwrap();
+    for kind in ["table", "Section", "frontmatter field", ""] {
+        let result = md()
+            .args(["query", file, "--kind", kind, "--json"])
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(2));
+        assert!(result.stdout.is_empty());
+        let message = String::from_utf8(result.stderr).unwrap();
+        assert!(message.contains("section"), "{message}");
+        assert!(message.contains("table_row"), "{message}");
+        assert!(!message.contains("No such file"));
+    }
+    for args in [vec!["query", file], vec!["query", file, "--kind"]] {
+        assert_argument_error_before_stdin(&args);
+    }
+    let selectors = [
+        ["--kind", "section"],
+        ["--query", r#"{"type":"kind","kind":"section"}"#],
+        ["--from", "-"],
+    ];
+    for (index, first) in selectors.iter().enumerate() {
+        for second in &selectors[index..] {
+            let error = assert_argument_error_before_stdin(&[
+                "query", file, first[0], first[1], second[0], second[1],
+            ]);
+            assert!(error.contains("cannot be used"), "{error}");
+        }
+    }
+}
+
+#[test]
+fn reading_shortcuts_preserve_usage_classification() {
+    let directory = unique_directory("shortcut-usage");
+    let path = directory.join("private-skill.md");
+    let source = "# Private Heading\n\nprivate body\n";
+    std::fs::write(&path, source).unwrap();
+    for (name, args, query_kind) in [
+        ("document", vec!["read", path.to_str().unwrap()], None),
+        (
+            "section",
+            vec![
+                "read",
+                path.to_str().unwrap(),
+                "--section",
+                "Private Heading",
+            ],
+            Some("section"),
+        ),
+        (
+            "kind",
+            vec!["query", path.to_str().unwrap(), "--kind", "section"],
+            Some("kind"),
+        ),
+    ] {
+        let log = directory.join(format!("{name}.jsonl"));
+        let result = md().env("MD_USAGE_LOG", &log).args(&args).output().unwrap();
+        assert!(result.status.success());
+        let bytes = std::fs::read_to_string(log).unwrap();
+        let record: serde_json::Value = serde_json::from_str(&bytes).unwrap();
+        assert_eq!(record["query_kind"], serde_json::json!(query_kind));
+        assert_eq!(record["stdout"]["bytes"], result.stdout.len());
+        assert!(!bytes.contains("private-skill"));
+        assert!(!bytes.contains("Private Heading"));
+        assert!(!bytes.contains("private body"));
+        let baseline = md().args(&args).output().unwrap();
+        assert_eq!(result.stdout, baseline.stdout);
+        assert_eq!(result.stderr, baseline.stderr);
+    }
+}
+
+#[test]
+fn section_failures_offer_bounded_discovery_and_exact_address_recovery() {
+    let directory = unique_directory("section-recovery");
+    let path = directory.join("SKILL.md");
+    std::fs::write(&path, "# Skill\n\n## Same\n\none\n\n## Same\n\ntwo\n").unwrap();
+    for (heading, exit, code) in [("Missing", 1, "not_found"), ("Same", 4, "conflict")] {
+        for (mode, label) in [
+            ("exact", "exact"),
+            ("exact_ignore_case", "case-insensitive exact"),
+            ("contains", "substring"),
+            ("contains_ignore_case", "case-insensitive substring"),
+        ] {
+            let query = serde_json::json!({
+                "type":"section", "text":heading, "match_mode":mode
+            })
+            .to_string();
+            let result = md()
+                .args(["read", path.to_str().unwrap(), "--query", &query, "--json"])
+                .output()
+                .unwrap();
+            assert_eq!(result.status.code(), Some(exit));
+            let error: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+            assert_eq!(error["error"], code);
+            assert_eq!(error["exit_code"], exit);
+            let message = error["message"].as_str().unwrap();
+            assert!(message.contains(heading));
+            assert!(message.contains(label), "{message}");
+            assert!(!message.contains("Section {"));
+            let hint = error["hint"].as_str().unwrap();
+            assert!(hint.contains("md query --kind section -- "));
+            if exit == 4 {
+                assert!(hint.contains("md read --address"));
+            }
+            let plain = md()
+                .args(["read", path.to_str().unwrap(), "--query", &query])
+                .output()
+                .unwrap();
+            assert_eq!(plain.status, result.status);
+            assert!(plain.stdout.is_empty());
+            assert_eq!(plain.stderr, result.stderr);
+        }
+    }
+    let discover = md()
+        .args(["query", path.to_str().unwrap(), "--kind", "section"])
+        .output()
+        .unwrap();
+    let targets: serde_json::Value = serde_json::from_slice(&discover.stdout).unwrap();
+    let address = serde_json::to_vec(&targets[2]["target"]["address"]).unwrap();
+    let mut child = md()
+        .args(["read", path.to_str().unwrap(), "--from", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(&address).unwrap();
+    let result = child.wait_with_output().unwrap();
+    assert!(result.status.success());
+    assert_eq!(result.stdout, b"## Same\n\ntwo\n");
+
+    let mut diagnostics = Vec::new();
+    for source in [
+        "# Skill\n\nbody\n".to_string(),
+        "# Other\n\nsecret body\n".repeat(100),
+    ] {
+        std::fs::write(&path, source).unwrap();
+        diagnostics.push(
+            md().args(["read", path.to_str().unwrap(), "--section", "Missing"])
+                .output()
+                .unwrap(),
+        );
+    }
+    assert_eq!(diagnostics[0].stderr, diagnostics[1].stderr);
+    let non_section = md()
+        .args([
+            "read",
+            path.to_str().unwrap(),
+            "--query",
+            r#"{"type":"kind","kind":"task"}"#,
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(non_section.status.code(), Some(1));
+    assert!(!String::from_utf8_lossy(&non_section.stderr).contains("--kind section"));
+    let missing_file = md()
+        .args([
+            "read",
+            directory.join("absent.md").to_str().unwrap(),
+            "--section",
+            "Missing",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(missing_file.status.code(), Some(5));
+    assert!(!String::from_utf8_lossy(&missing_file.stderr).contains("--kind section"));
+}
+
+#[cfg(unix)]
+#[test]
+fn section_recovery_commands_preserve_shell_paths() {
+    let directory = unique_directory("quoted-recovery");
+    let names = [
+        "plain.md",
+        "space and 'quote'.md",
+        "$(touch injected) `touch injected` $MD_HINT_PROBE.md",
+        "two\nlines.md",
+        "-leading-option.md",
+    ];
+    for name in names {
+        std::fs::write(directory.join(name), "# Actual heading\n\ninstructions\n").unwrap();
+        let failure = md()
+            .current_dir(&directory)
+            .args(["read", "--section", "Guessed", "--json", "--", name])
+            .output()
+            .unwrap();
+        assert_eq!(failure.status.code(), Some(1));
+        let error: serde_json::Value = serde_json::from_slice(&failure.stdout).unwrap();
+        let hint = error["hint"].as_str().unwrap();
+        let script = format!("md() {{ \"$MD_TEST_EXECUTABLE\" \"$@\"; }}\n{hint}");
+        let discovered = Command::new("/bin/sh")
+            .current_dir(&directory)
+            .env("MD_TEST_EXECUTABLE", env!("CARGO_BIN_EXE_md"))
+            .env("MD_HINT_PROBE", "wrong-file")
+            .env_remove("MD_USAGE_LOG")
+            .args(["-c", &script])
+            .output()
+            .unwrap();
+        assert!(discovered.status.success(), "{name:?}: {discovered:?}");
+        assert!(discovered.stderr.is_empty());
+        let targets: serde_json::Value = serde_json::from_slice(&discovered.stdout).unwrap();
+        assert_eq!(targets[0]["target"]["summary"]["heading"], "Actual heading");
+        assert!(!directory.join("injected").exists());
+    }
+}
+
+#[test]
+fn skill_reading_workflows_preserve_all_instructions_and_recover_guessed_titles() {
+    let directory = unique_directory("skill-workflows");
+    for (name, guessed, actual) in [
+        ("casting", "Casting", "Casting Skill"),
+        ("overbuild", "Overbuild Review", "Overbuild"),
+        ("svelte", "Svelte", "Svelte Skill"),
+        ("failure-mode", "Failure-Mode Test Review", "Failure-Mode"),
+    ] {
+        let skill = directory.join(name);
+        std::fs::create_dir_all(&skill).unwrap();
+        let path = skill.join("SKILL.md");
+        let source = format!("---\nname: {name}\n---\n\nPreamble instructions.\n\n# {actual}\n\nRead before acting.\n\n## Details\n\n- [ ] Check the input.\n\n[Reference](reference.md)\n");
+        std::fs::write(&path, &source).unwrap();
+        let whole = md()
+            .args(["read", path.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(whole.status.success());
+        assert_eq!(whole.stdout, source.as_bytes());
+        let wrong = md()
+            .args([
+                "read",
+                path.to_str().unwrap(),
+                "--section",
+                guessed,
+                "--json",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(wrong.status.code(), Some(1));
+        let error: serde_json::Value = serde_json::from_slice(&wrong.stdout).unwrap();
+        assert!(error["hint"].as_str().unwrap().contains("--kind section"));
+        let discovered = md()
+            .args(["query", path.to_str().unwrap(), "--kind", "section"])
+            .output()
+            .unwrap();
+        assert!(discovered.status.success());
+        let results: serde_json::Value = serde_json::from_slice(&discovered.stdout).unwrap();
+        let results = results.as_array().unwrap();
+        assert_eq!(results.len(), 2);
+        for result in results {
+            let target = result["target"].as_object().unwrap();
+            assert_eq!(target.len(), 2);
+            assert!(target.contains_key("address"));
+            assert_eq!(target["summary"]["type"], "section");
+        }
+        let title = results[0]["target"]["summary"]["heading"].as_str().unwrap();
+        assert_eq!(title, actual);
+        let read = md()
+            .args(["read", path.to_str().unwrap(), "--section", title])
+            .output()
+            .unwrap();
+        assert!(read.status.success());
+        let start = source.find(&format!("# {actual}")).unwrap();
+        assert_eq!(read.stdout, &source.as_bytes()[start..]);
+        let mapped = md().args(["map", path.to_str().unwrap()]).output().unwrap();
+        assert!(mapped.status.success());
+        assert!(discovered.stdout.len() < mapped.stdout.len());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn read_and_query_help_examples_execute() {
+    let directory = unique_directory("help-examples");
+    std::fs::write(
+        directory.join("README.md"),
+        "# Example\n\n## Install\n\n- [ ] install\n",
+    )
+    .unwrap();
+    for command in ["read", "query"] {
+        let help = md().args([command, "--help"]).output().unwrap();
+        assert!(help.status.success());
+        let help = String::from_utf8(help.stdout).unwrap();
+        let examples: Vec<_> = help
+            .lines()
+            .filter_map(|line| line.strip_prefix("  md "))
+            .collect();
+        assert!(!examples.is_empty());
+        for example in examples {
+            let script = format!("\"$MD_TEST_EXECUTABLE\" {example}");
+            let result = Command::new("/bin/sh")
+                .current_dir(&directory)
+                .env("MD_TEST_EXECUTABLE", env!("CARGO_BIN_EXE_md"))
+                .env_remove("MD_USAGE_LOG")
+                .args(["-c", &script])
+                .output()
+                .unwrap();
+            assert!(result.status.success(), "{example}: {result:?}");
+            assert!(result.stderr.is_empty());
+        }
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+#[test]
+fn section_recovery_marks_non_utf8_paths_as_placeholders() {
+    use std::os::unix::ffi::OsStringExt;
+    let directory = unique_directory("non-utf8-recovery");
+    let name = std::ffi::OsString::from_vec(b"skill-\xff.md".to_vec());
+    let path = directory.join(name);
+    std::fs::write(&path, "# Actual\n").unwrap();
+    let output = md()
+        .arg("read")
+        .arg(&path)
+        .args(["--section", "Missing", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let error: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let hint = error["hint"].as_str().unwrap();
+    assert!(hint.contains("non-UTF-8"));
+    assert!(hint.contains("replace FILE"));
+    assert!(!hint.contains('\u{fffd}'));
+}
+
+#[test]
 fn query_read_preserves_frontmatter_selection_and_parse_policy() {
     let directory = unique_directory("query-frontmatter");
     let path = directory.join("doc.md");

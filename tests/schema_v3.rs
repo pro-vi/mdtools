@@ -76,6 +76,18 @@ fn five_command_metadata_is_unique_and_protocol_named() {
     names.sort_unstable();
     names.dedup();
     assert_eq!(names.len(), CLI_COMMANDS.len());
+
+    let read = CLI_COMMANDS
+        .iter()
+        .find(|command| command.name == "read")
+        .unwrap();
+    assert!(read.input.contains("whole document by default"));
+    assert!(read.input.contains("--section"));
+    let query = CLI_COMMANDS
+        .iter()
+        .find(|command| command.name == "query")
+        .unwrap();
+    assert!(query.input.contains("--kind"));
 }
 
 #[test]

@@ -22,14 +22,16 @@ The public binary has exactly five commands:
 
 ```text
 md map <FILE>
-md read <FILE> --address <JSON> | --from <PATH|-> | --query <JSON>
-md query <FILE> --query <JSON> | --from <PATH|->
+md read <FILE> [--section <HEADING> | --address <JSON> | --from <PATH|-> | --query <JSON>]
+md query <FILE> --kind <KIND> | --query <JSON> | --from <PATH|->
 md patch <FILE> --patch <JSON> | --from <PATH|-> [--in-place]
 md schema
 ```
 
 CLI code may decode inputs, call library operations, and render outputs. It may
-not contain Markdown traversal or mutation semantics.
+not contain Markdown traversal or mutation semantics. Read without a selector
+uses `TargetAddress::Document`; `--section` and `--kind` construct existing
+`TargetQuery` values. Kind spellings come from `TargetKind`'s Serde decoder.
 
 Default `map` and `query` output is compact discovery JSON. Default `read`
 output is original content (or `{present, value}` for frontmatter fields).

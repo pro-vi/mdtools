@@ -14,6 +14,9 @@ The binary exposes five commands:
 
 ```text
 md map <FILE>
+md read <FILE>
+md read <FILE> --section <HEADING>
+md query <FILE> --kind <KIND>
 md read <FILE> --address <TARGET_ADDRESS_JSON>
 md read <FILE> --query <TARGET_QUERY_JSON>
 md query <FILE> --query <TARGET_QUERY_JSON>
@@ -37,6 +40,18 @@ emits a structured preview containing source and receipts.
 
 Use `-` with `--from` to read JSON from stdin. No command prompts.
 
+`read FILE` returns the whole document, including frontmatter and preamble.
+Use it when loading all instructions from a skill or another Markdown file.
+For a particular section, discover its visible heading with
+`md query FILE --kind section`, then use `md read FILE --section "Heading"`.
+Section matching is exact and case-sensitive, includes descendants, and must
+select exactly one section. A missing or ambiguous heading returns a discovery
+command; duplicates can be selected by a returned address.
+
+`--kind` accepts the existing protocol kind names, including `table_row` and
+`frontmatter_field`. Query input remains required. Explicit selectors are mutually
+exclusive; a failed explicit read never falls back to the whole document.
+
 `read --query` uses the existing query type and requires exactly one target.
 Zero matches fail with exit 1; multiple matches fail with exit 4. Search evidence
 cannot be read this way. `read --from` remains address-only. A missing frontmatter
@@ -45,7 +60,11 @@ field query has no match, while its exact address can report `present: false`.
 ## Examples
 
 ```sh
-md query README.md --query '{"type":"kind","kind":"section"}'
+md read README.md
+
+md query README.md --kind section
+
+md read README.md --section Install
 
 md read README.md --address '{"kind":"preamble"}'
 

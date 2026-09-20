@@ -1,9 +1,11 @@
 use clap::{ArgGroup, Args};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::errors::{CommandError, DiagnosticCode};
 use crate::output;
+use mdtools::core_error::CoreError;
 use mdtools::target::{TargetAddress, TargetKind, TargetQuery};
+use mdtools::HeadingMatchMode;
 
 #[derive(Args)]
 #[command(
@@ -14,9 +16,9 @@ pub struct MapArgs {
 }
 
 #[derive(Args)]
-#[command(group = ArgGroup::new("address_input").required(true).args(["address", "from", "query"]))]
+#[command(group = ArgGroup::new("address_input").args(["address", "from", "query", "section"]))]
 #[command(
-    after_help = "Examples:\n  md read README.md --address '{\"kind\":\"preamble\"}'\n  md read README.md --query '{\"type\":\"section\",\"text\":\"Install\",\"match_mode\":\"exact\"}'\n\nReads return original content. Use --json for the typed view and snapshot.\n--query must match exactly one target; search evidence is not a read target.\n--from accepts TargetAddress JSON only."
+    after_help = "Examples:\n  md read README.md\n  md read README.md --section Install\n  md read README.md --address '{\"kind\":\"preamble\"}'\n\nWithout a selector, reads the whole document. Reads return original content.\nUse --json for the typed view and snapshot.\n--section matches visible heading text exactly, including case, and includes descendants.\n--section and --query must match exactly one target; search evidence is not a read target.\n--from accepts TargetAddress JSON only."
 )]
 pub struct ReadTargetArgs {
     pub file: PathBuf,
@@ -29,12 +31,15 @@ pub struct ReadTargetArgs {
     /// Inline TargetQuery JSON selecting exactly one target.
     #[arg(long, value_name = "JSON")]
     pub query: Option<String>,
+    /// Read one section by its exact visible heading text.
+    #[arg(long, value_name = "HEADING")]
+    pub section: Option<String>,
 }
 
 #[derive(Args)]
-#[command(group = ArgGroup::new("query_input").required(true).args(["query", "from"]))]
+#[command(group = ArgGroup::new("query_input").required(true).args(["query", "from", "kind"]))]
 #[command(
-    after_help = "Example: md query README.md --query '{\"type\":\"kind\",\"kind\":\"section\"}'\n\nResults contain compact addresses and summaries. Pass an address to `md read`.\nUse --json only when full snapshots or evidence metadata are needed."
+    after_help = "Examples:\n  md query README.md --kind section\n  md query README.md --query '{\"type\":\"task\",\"status\":\"pending\",\"contains\":null}'\n\nDiscover headings before selecting an unfamiliar section.\nResults contain compact addresses and summaries. Pass an address to `md read`.\n--kind uses protocol names, such as section, task, and table_row.\nUse --json only when full snapshots or evidence metadata are needed."
 )]
 pub struct QueryTargetsArgs {
     pub file: PathBuf,
@@ -44,6 +49,13 @@ pub struct QueryTargetsArgs {
     /// Read TargetQuery JSON from a file, or '-' for stdin.
     #[arg(long, value_name = "PATH")]
     pub from: Option<PathBuf>,
+    /// Discover targets of one kind, such as section or task.
+    #[arg(long, value_name = "KIND", value_parser = parse_target_kind)]
+    pub kind: Option<TargetKind>,
+}
+
+fn parse_target_kind(value: &str) -> Result<TargetKind, serde::de::value::Error> {
+    serde::Deserialize::deserialize(serde::de::value::StrDeserializer::new(value))
 }
 
 #[derive(Args)]
@@ -92,20 +104,30 @@ pub fn run_read(
 ) -> Result<(), CommandError> {
     output.protect_inputs(&arguments.file, arguments.from.as_deref());
     output.format(if json { "full_json" } else { "content" });
-    let query: Option<TargetQuery> = arguments
-        .query
-        .as_deref()
-        .map(|query| decode_json(Some(query), None, "TargetQuery"))
-        .transpose()?;
+    let query: Option<TargetQuery> = match &arguments.section {
+        Some(text) => Some(TargetQuery::Section {
+            text: text.clone(),
+            match_mode: HeadingMatchMode::Exact,
+        }),
+        None => arguments
+            .query
+            .as_deref()
+            .map(|query| decode_json(Some(query), None, "TargetQuery"))
+            .transpose()?,
+    };
     if let Some(query) = &query {
         output.query_kind(query);
     }
     let address: Option<TargetAddress> = if query.is_none() {
-        Some(decode_json(
-            arguments.address.as_deref(),
-            arguments.from.as_deref(),
-            "TargetAddress",
-        )?)
+        Some(if arguments.address.is_none() && arguments.from.is_none() {
+            TargetAddress::Document
+        } else {
+            decode_json(
+                arguments.address.as_deref(),
+                arguments.from.as_deref(),
+                "TargetAddress",
+            )?
+        })
     } else {
         None
     };
@@ -123,28 +145,61 @@ pub fn run_read(
     }
     .map_err(output::persistence_error)?;
     let resolved = match (&query, &address) {
-        (Some(query), None) => loaded.document().query_one(query).map_err(|error| {
-            let ambiguous = matches!(
-                error,
-                mdtools::core_error::CoreError::AmbiguousTargetQuery { .. }
-            );
-            let error = CommandError::from(error);
-            if ambiguous {
-                error.with_hint(
-                    "use `md query` to discover matches, then `md read --address` to select one",
-                )
-            } else {
-                error
-            }
-        })?,
+        (Some(query), None) => loaded
+            .document()
+            .query_one(query)
+            .map_err(|error| read_query_error(error, query, &arguments.file))?,
         (None, Some(address)) => loaded.document().resolve(address)?,
-        _ => unreachable!("clap requires exactly one read input"),
+        _ => unreachable!("read selects either an address or a query"),
     };
     let read = resolved.read(loaded.document())?;
     if json {
         output.json(&read)
     } else {
         output.read(&read)
+    }
+}
+
+fn read_query_error(error: CoreError, query: &TargetQuery, file: &Path) -> CommandError {
+    let ambiguous = matches!(error, CoreError::AmbiguousTargetQuery { .. });
+    if let TargetQuery::Section { text, match_mode } = query {
+        let matches = match &error {
+            CoreError::TargetNotFound { .. } => Some(0),
+            CoreError::AmbiguousTargetQuery { count } => Some(*count),
+            _ => None,
+        };
+        if let Some(count) = matches {
+            let mode = match match_mode {
+                HeadingMatchMode::Exact => "exact",
+                HeadingMatchMode::ExactIgnoreCase => "case-insensitive exact",
+                HeadingMatchMode::Contains => "substring",
+                HeadingMatchMode::ContainsIgnoreCase => "case-insensitive substring",
+            };
+            let mut error = CommandError::from(error);
+            error.message = if count == 0 {
+                format!("no section matches {text:?} ({mode} match)")
+            } else {
+                format!("section {text:?} matched {count} sections ({mode} match)")
+            };
+            let mut hint = match file.to_str() {
+                Some(file) => format!(
+                    "md query --kind section -- '{}'",
+                    file.replace('\'', "'\\''")
+                ),
+                None => "non-UTF-8 path: run `md query --kind section -- FILE`; replace FILE with the original path".into(),
+            };
+            if ambiguous {
+                hint.push_str("\nThen use `md read --address` with one returned exact address.");
+            }
+            return error.with_hint(hint);
+        }
+    }
+    let error = CommandError::from(error);
+    if ambiguous {
+        error
+            .with_hint("use `md query` to discover matches, then `md read --address` to select one")
+    } else {
+        error
     }
 }
 
@@ -169,11 +224,14 @@ pub fn run_query(
 ) -> Result<(), CommandError> {
     output.protect_inputs(&arguments.file, arguments.from.as_deref());
     output.format(if json { "full_json" } else { "compact_json" });
-    let query: mdtools::target::TargetQuery = decode_json(
-        arguments.query.as_deref(),
-        arguments.from.as_deref(),
-        "TargetQuery",
-    )?;
+    let query = match arguments.kind {
+        Some(kind) => TargetQuery::Kind { kind },
+        None => decode_json(
+            arguments.query.as_deref(),
+            arguments.from.as_deref(),
+            "TargetQuery",
+        )?,
+    };
     output.query_kind(&query);
     let loaded = mdtools::file::load(&arguments.file).map_err(output::persistence_error)?;
     let results = loaded.document().query(&query)?;
@@ -266,4 +324,30 @@ fn bounded_diagnostic(message: &str) -> String {
         end -= 1;
     }
     format!("{}…", &message[..end])
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::ffi::OsStringExt;
+
+    #[test]
+    fn section_recovery_preserves_non_utf8_path_uncertainty() {
+        let file = PathBuf::from(std::ffi::OsString::from_vec(b"skill-\xff.md".to_vec()));
+        let query = TargetQuery::Section {
+            text: "Missing".into(),
+            match_mode: HeadingMatchMode::Exact,
+        };
+        let error = read_query_error(
+            CoreError::TargetNotFound {
+                target: "section".into(),
+            },
+            &query,
+            &file,
+        );
+        let hint = error.hint.unwrap();
+        assert!(hint.contains("non-UTF-8"));
+        assert!(hint.contains("replace FILE"));
+        assert!(!hint.contains('\u{fffd}'));
+    }
 }
