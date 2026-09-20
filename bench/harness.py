@@ -1130,6 +1130,9 @@ def campaign_admission(spec: CampaignSpec, starts: Sequence[AttemptStart], resul
         return CampaignAdmission("hold", reason="canary_failed")
     if any(view.disposition.kind not in ("succeeded", "task_failed", "pending") for view in views[:spec.prefix_length]):
         return CampaignAdmission("hold", reason="incomplete_contract_prefix")
+    budget = measurement_coverage(starts, results)["budget"]
+    if spec.grant_usd is not None and budget["unresolved_attempts"]:
+        return CampaignAdmission("hold", reason="unknown_estimated_cost")
     pending = next((view for view in views if view.disposition.kind in ("pending", "retry_pending")), None)
     if pending is None:
         return CampaignAdmission("finished")
@@ -1138,10 +1141,7 @@ def campaign_admission(spec: CampaignSpec, starts: Sequence[AttemptStart], resul
     if live_grant is not None and (len(starts) >= live_grant.max_attempts or any(
             result.usage.estimated_usd is not None and result.usage.estimated_usd > live_grant.attempt_usd for result in results)):
         return CampaignAdmission("hold", reason="live_attempt_limit")
-    budget = measurement_coverage(starts, results)["budget"]
     if spec.grant_usd is not None:
-        if budget["unresolved_attempts"]:
-            return CampaignAdmission("hold", reason="unknown_estimated_cost")
         if not can_reserve_estimated_usd(budget["known_estimated_usd"], spec.reservation_usd, spec.grant_usd):
             return CampaignAdmission("hold", reason="grant_exhausted")
     return CampaignAdmission("launch", key=AttemptKey(*pending.trial, pending.disposition.next_ordinal))

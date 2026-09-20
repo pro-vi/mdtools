@@ -312,6 +312,25 @@ def test_budget_hold_precedes_effect_and_retains_unknown_reservation(campaign_ca
         assert summary["coverage"]["estimated_usd"]["total"] == 0.02
 
 
+@pytest.mark.parametrize("missing_at", [0, 11])
+def test_unknown_cost_withholds_report_even_on_final_trial(campaign_case: tuple, missing_at: int) -> None:
+    root, tasks, spec, arguments = campaign_case
+    spec = replace(spec, grant_usd=1.0, reservation_usd=0.01)
+    calls = []
+    def execute(key, prior, path):
+        cost = None if len(calls) == missing_at else 0.01
+        calls.append(key)
+        return publish_synthetic(spec, key, path, cost=cost)
+    summary = run_campaign(spec, tasks, results_dir=root / "run", _executor=execute, **arguments)
+    assert not summary["complete"]
+    assert summary["admission_hold"] == "unknown_estimated_cost"
+    independent = report_campaign((root / "run",))
+    assert not independent["complete"] and independent["comparisons"] == []
+    assert independent["coverage"]["budget"]["unresolved_attempts"] == 1
+    assert independent["coverage"]["estimated_usd"]["known_total"] == pytest.approx(missing_at * 0.01)
+    assert len(calls) == missing_at + 1
+
+
 def test_exact_decimal_budget_admits_last_authorized_reservation(campaign_case: tuple) -> None:
     root, tasks, spec, arguments = campaign_case
     spec = replace(spec, grant_usd=0.3, reservation_usd=0.1)

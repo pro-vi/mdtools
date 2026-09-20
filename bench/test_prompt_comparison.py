@@ -14,7 +14,7 @@ import pytest
 from bench import harness
 from bench.command_policy import ToolGuidance
 from bench.manifest import PromptComparisonSpec, canonical_json
-from bench.test_report_inputs import campaign_case, live_case
+from bench.test_report_inputs import campaign_case, live_case, publish_synthetic
 from bench.test_campaign_config import config
 from bench.trial_records import RecordIntegrityError, record_dict
 
@@ -122,6 +122,27 @@ def test_changed_source_withholds_comparison(comparison_case: tuple, monkeypatch
     report = report_comparison(root)
     assert not report["complete"] and report["success_difference"] is None
     assert report["faults"] == ["changed_reporting_source"]
+
+
+def test_unknown_final_cost_withholds_paired_result(comparison_case: tuple) -> None:
+    from bench.prompt_comparison import report_comparison
+    root, tasks, arguments, original = comparison_case
+    children = {profile: replace(child, grant_usd=1.0, reservation_usd=0.01)
+                for profile, child in original.campaigns.items()}
+    spec = PromptComparisonSpec.create(children, seed=original.seed)
+    harness._write_private(root / "comparison.json", canonical_json(record_dict(spec)).encode())
+    for profile, child in children.items():
+        def execute(key, prior, path):
+            last = (profile, key.task_id, key.condition, key.repetition) == spec.schedule[-1]
+            return publish_synthetic(child, key, path, cost=None if last else 0.01)
+        harness.run_campaign(child, tasks, results_dir=root / profile / "campaign",
+            guidance=ToolGuidance(profile), _executor=execute, **arguments)
+    report = report_comparison(root)
+    assert not report["complete"] and report["success_difference"] is None
+    assert report["successful_intersection"] is None
+    invalid = report["profiles"][spec.schedule[-1][0]]["campaign_report"]
+    assert "unknown_estimated_cost" in invalid["faults"]
+    assert invalid["coverage"]["estimated_usd"]["known_total"] == pytest.approx(0.08)
 
 
 def test_comparison_phase_is_separate_and_zero_retry(live_case: tuple) -> None:

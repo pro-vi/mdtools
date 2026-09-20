@@ -56,3 +56,17 @@ def test_contract_prefix_and_ordinary_limit_are_distinct(campaign_case: tuple) -
     prefix_key = replace(key, experiment_id=prefix.identity)
     assert harness.campaign_admission(prefix, [replace(starts[0], key=prefix_key)],
         [replace(limited, key=prefix_key)], []).reason == "incomplete_contract_prefix"
+
+
+def test_final_unknown_cost_cannot_finish_budgeted_campaign(campaign_case: tuple) -> None:
+    _, _, original, _ = campaign_case
+    spec = replace(original, grant_usd=1.0, reservation_usd=0.01)
+    starts, results = [], []
+    for entry in spec.schedule:
+        key = AttemptKey(spec.identity, *entry, 0)
+        starts.append(AttemptStart(key, "synthetic", reservation_usd=0.01))
+        results.append(replace(result_shape(), key=key))
+    results[-1] = replace(results[-1], usage=replace(results[-1].usage,
+        estimated_usd=None, completeness="partial"))
+    action = harness.campaign_admission(spec, starts, results, [])
+    assert (action.kind, action.reason) == ("hold", "unknown_estimated_cost")

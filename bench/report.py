@@ -50,7 +50,10 @@ def summarize(schedule: Sequence[tuple[str, str, str, int]], starts: Sequence[At
               results: Sequence[AttemptResult], *, campaign: CampaignSpec | None = None,
               persisted_faults: Sequence[str] = (), retry_allowance: int = 1) -> dict[str, object]:
     views = trial_views(schedule, starts, results, campaign=campaign, retry_allowance=retry_allowance)
+    coverage = measurement_coverage(starts, results)
     faults = sorted(set(persisted_faults) | {fault for result in results if (fault := admission_fault(result))})
+    if campaign and campaign.grant_usd is not None and coverage["budget"]["unresolved_attempts"]:
+        faults = sorted(set(faults) | {"unknown_estimated_cost"})
     if campaign and any(view.disposition.kind not in ("pending", "succeeded", "task_failed")
                         for view in views[:campaign.prefix_length]):
         faults = sorted(set(faults) | {"incomplete_contract_prefix"})
@@ -77,7 +80,6 @@ def summarize(schedule: Sequence[tuple[str, str, str, int]], starts: Sequence[At
                 "workflow_success_difference": asdict(hierarchical_bootstrap_ci(
                     [view for view in views if view.trial[2] == a], [view for view in views if view.trial[2] == b], **settings)),
                 "successful_intersection_cost": intersection_cost(views, a, b)})
-    coverage = measurement_coverage(starts, results)
     return {"schema": "mdtools.cli-eval/1", "record": "campaign_report", "experiment_id": schedule[0][0] if schedule else None,
         "complete": complete, "exit_code": 0 if complete else 1,
         "comparative_performance_eligible": complete and bool(comparisons),
