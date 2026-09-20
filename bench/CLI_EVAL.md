@@ -476,7 +476,65 @@ invalid evidence withholds the full comparison while retaining available costs.
 Three public tasks cannot establish general superiority; the report does not
 adopt discovery, tune the prompt or authorize additional trials.
 
-The 18-trial design is selected, not authorized to run. Candidate canaries and
-the diagnostic require a separate quota-only grant and confirmation that extra
+Each live run requires a separate quota-only grant and confirmation that extra
 usage is off. No live calls are needed for the maintained-command tests: their
 real Claude CLI talks only to a scripted loopback endpoint.
+
+### Haiku diagnostic result — 2026-09-20
+
+This small run is inconclusive. Discovery reduced aggregate token use but did
+not establish a better quality/cost trade-off. Full-help remains the default.
+
+The approved run used `claude-haiku-4-5-20251001`, thinking disabled, on source
+revision `884960bba3e5ee77dfe989aeb08b5ba29dd76c8d`. Three canaries passed before
+the 18 trials on public T1/T2/T10. Each profile had one trial per task and tool
+condition. Order was balanced within each condition with seed 1729. No retries,
+prompt tuning, grader changes, or additional trials occurred.
+
+| Measurement, all nine trials per profile | Full-help | Discovery |
+|---|---:|---:|
+| Workflow passes | 6/9 | 5/9 |
+| Uncached input tokens | 241 | 228 |
+| Cache-creation tokens | 57,429 | 21,941 |
+| Cache-read tokens | 498,560 | 374,596 |
+| Output tokens | 7,821 | 5,900 |
+| Total tokens, including both cache categories | 564,051 | 402,665 |
+| Bash tool calls / errors | 42 / 9 | 40 / 5 |
+| Tool-output bytes | 74,602 | 11,788 |
+| Sum of trial elapsed seconds | 109.56 | 81.87 |
+| Reported USD equivalent, not verified cash spend | $0.16098825 | $0.09461385 |
+
+Discovery used 28.6% fewer total tokens across all trials. On the four pairs
+where both profiles passed, it used 270,271 tokens versus 263,913: 2.4% more.
+The aggregate reduction therefore does not establish cheaper successful work.
+
+| Tool condition | Full-help passes | Discovery passes |
+|---|---:|---:|
+| No md | 3/3 | 2/3 |
+| Legacy md | 2/3 | 1/3 |
+| Current compact md | 1/3 | 2/3 |
+
+Both profiles passed three of their six md-enabled trials. The aggregate
+one-pass difference came from the no-md control, whose task prompts were
+identical. There were two full-help-only passes, one discovery-only pass, four
+shared passes and two shared failures. Three tasks and one repetition cannot
+separate a stable treatment effect from this variation. Cache state was observed,
+not controlled.
+
+Five T1 answers failed raw-JSON packaging because they included prose or code
+fences. Discovery also failed T2 with legacy md on block text. Full-help reached
+the 12-turn limit on T2 with current md; that trial stayed unsuccessful and
+ungraded. None of these outcomes was removed or repaired after the run.
+
+The regenerated report matched the saved report byte for byte. All 21 attempts
+had complete usage, the requested model, Bash-only initialization, and no API-key
+source. There were no permission faults or remaining owned processes. Canary
+usage was $0.02482345 equivalent; all 21 attempts totaled $0.28042555 equivalent,
+below the approved $4.80 ceiling. Actual billing remains unverified.
+
+Comparison identity:
+`b3906b1b40bb8ea95e5027c9ac9b8092f4d8032ffcd9b9cc3572b7523ebbb290`.
+Canary identity:
+`00141f92dd97d52bf8cd20154403b8a6a2d32fef1a244b223b401c0e457a9eae`.
+Raw receipts remain private and unchanged. Further trials or default adoption
+require a new explicit decision.
