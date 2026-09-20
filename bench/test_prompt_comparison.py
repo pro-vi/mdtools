@@ -34,6 +34,9 @@ def test_paired_schedule_and_closed_roundtrip(comparison_case: tuple) -> None:
     assert len(spec.schedule) == 18
     assert PromptComparisonSpec.from_dict(record_dict(spec)).identity == spec.identity
     assert sum(entry[0] == "full_help" for entry in spec.schedule[::2]) in (4, 5)
+    for condition in ("no-md", "legacy", "current-compact"):
+        leading = [entry[0] for entry in spec.schedule[::2] if entry[2] == condition]
+        assert leading.count("full_help") in (1, 2)
     for index in range(0, 18, 2):
         left, right = spec.schedule[index:index + 2]
         assert left[1:] == right[1:] and left[0] != right[0]

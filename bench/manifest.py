@@ -461,9 +461,16 @@ def paired_prompt_schedule(campaign: CampaignSpec, seed: int) -> tuple[tuple[str
     if type(seed) is not int or seed < 0:
         raise RecordIntegrityError("invalid comparison seed")
     rng = random.Random(seed)
+    conditions = list(CONDITIONS)
+    rng.shuffle(conditions)
     offset = rng.randrange(2)
-    first = [(index + offset) % 2 for index in range(len(campaign.schedule))]
-    rng.shuffle(first)
+    first = [0] * len(campaign.schedule)
+    for condition_index, condition in enumerate(conditions):
+        positions = [index for index, entry in enumerate(campaign.schedule) if entry[1] == condition]
+        order = [(index + offset + condition_index) % 2 for index in range(len(positions))]
+        rng.shuffle(order)
+        for index, leading in zip(positions, order):
+            first[index] = leading
     profiles = ("full_help", "discovery")
     return tuple((profiles[side], *entry) for entry, leading in zip(campaign.schedule, first)
                  for side in (leading, 1 - leading))
