@@ -42,6 +42,8 @@ def test_attempt_behavior_matches_baseline(baseline_source: Path, tmp_path: Path
     after = source_probe(REPO, tmp_path / "after", "attempt", case)
     assert after == before
     assert after["grade"]["kind"] == ("pass" if case in ("pass", "duplicate") else "fail" if case in ("wrong", "no-tool") else "not_run")
+    if case == "denied":
+        assert after["exit_code"] == -9
 
 
 def test_full_help_prompt_matches_baseline(baseline_source: Path, tmp_path: Path, cli_pins: dict) -> None:
@@ -116,7 +118,10 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
     elif payload == "duplicate":
         events.append(events[-1])
     script = ("from pathlib import Path; " + ("Path('input.md').write_bytes(b'after\\n'); " if payload in ("pass", "duplicate") else "") +
-              "print(" + repr("\n".join(json.dumps(event) for event in events)) + ")")
+              "print(" + repr("\n".join(json.dumps(event) for event in events)) + ", flush=True)")
+    if payload == "denied":
+        # A denial must exercise controller cleanup, not race natural child exit.
+        script += "; import signal; signal.pause()"
     command = [str(Path(sys.executable).resolve()), "-I", "-c", script]
     if campaign is not None:
         conditions = {"no-md": stage_condition(None, output / "stub", toolkit=resolve_toolkit())}
