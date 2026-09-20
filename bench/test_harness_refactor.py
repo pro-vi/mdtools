@@ -70,6 +70,15 @@ def test_archived_record_identity_round_trip(baseline_source: Path, tmp_path: Pa
     assert start.key.experiment_id == spec.identity and result.grade.kind == "pass"
 
 
+@pytest.mark.parametrize("case", ["pass", "wrong", "limit", "denied", "truncated"])
+def test_campaign_behavior_matches_baseline(baseline_source: Path, tmp_path: Path, cli_pins: dict, case: str) -> None:
+    from bench.trial_records import record_dict
+    payload = {"case": case, "pins": [record_dict(pin) for pin in cli_pins.values()]}
+    before = source_probe(baseline_source, tmp_path / "before", "campaign", payload)
+    after = source_probe(REPO, tmp_path / "after", "campaign", payload)
+    assert after == before
+
+
 def local_test_baseline_native_suite(baseline_source: Path) -> None:
     """Run preserved-CLI lifecycle controls against the archived implementation."""
     runner = os.environ.get("MDTOOLS_U5_RUNNER")
@@ -85,7 +94,7 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
     # This subprocess imports exactly one source tree; no module-cache sharing.
     sys.path.insert(0, str(source))
     from bench import harness
-    from bench.command_policy import CliCondition, ConditionPin
+    from bench.command_policy import CliCondition, ConditionPin, resolve_toolkit, stage_condition
     from bench.test_trial_records import synthetic_cli_events
     from bench.trial_records import record_dict
     policy = harness.StructuralDiffPolicy("raw_bytes", False, False, False, False, False, False, False)
@@ -93,6 +102,9 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
     if mode == "prompt":
         payload["condition"] = CliCondition(payload["condition"])
         return harness.build_prompt(task, condition=ConditionPin(**payload))
+    campaign = payload if mode == "campaign" else None
+    if campaign is not None:
+        payload = campaign["case"]
     fixtures, expected = output / "fixtures", output / "expected"
     fixtures.mkdir(parents=True)
     expected.mkdir()
@@ -109,8 +121,26 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
         events.append(events[-1])
     script = ("from pathlib import Path; " + ("Path('input.md').write_bytes(b'after\\n'); " if payload in ("pass", "duplicate") else "") +
               "print(" + repr("\n".join(json.dumps(event) for event in events)) + ")")
+    command = [str(Path(sys.executable).resolve()), "-I", "-c", script]
+    if campaign is not None:
+        conditions = {"no-md": stage_condition(None, output / "stub", toolkit=resolve_toolkit())}
+        for raw in campaign["pins"]:
+            raw["condition"] = CliCondition(raw["condition"])
+            pin = ConditionPin(**raw)
+            conditions[pin.condition.value] = pin
+        arguments = dict(fixture_root=fixtures, expected_root=expected, command=command,
+            results_dir=output / "campaign", conditions=conditions, event_format="claude_stream")
+        spec = harness.freeze_campaign([task], repetitions=1, retry_allowance=0, **arguments)
+        report = harness.run_campaign(spec, [task], **arguments)
+        def normalized(value):
+            if isinstance(value, dict):
+                return {key: normalized(item) for key, item in value.items() if key not in ("experiment_id", "elapsed_seconds")}
+            if isinstance(value, list):
+                return [normalized(item) for item in value]
+            return value
+        return normalized(report)
     result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
-        command=[str(Path(sys.executable).resolve()), "-I", "-c", script], results_dir=output / "receipt", event_format="claude_stream")
+        command=command, results_dir=output / "receipt", event_format="claude_stream")
     usage = record_dict(result.usage)
     usage.pop("elapsed_seconds")
     return {"execution": record_dict(result.execution), "grade": record_dict(result.grade),

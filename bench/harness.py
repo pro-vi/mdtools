@@ -25,7 +25,7 @@ import sys
 import tempfile
 import time
 import uuid
-from typing import BinaryIO, Callable, Mapping, Sequence, TypedDict
+from typing import BinaryIO, Callable, Literal, Mapping, Sequence, TypedDict
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -1078,6 +1078,54 @@ def _native_shell_conforms(*, initial: Sequence[dict[str, object]], tool_calls: 
         (not tool_calls or any(raw["argv"] == ["-c", "env"] for raw in registrations)))
 
 
+@dataclass(frozen=True)
+class CampaignAdmission:
+    kind: Literal["launch", "finished", "hold"]
+    key: AttemptKey | None = None
+    reason: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.kind not in ("launch", "finished", "hold") or
+            (self.kind == "launch") != isinstance(self.key, AttemptKey) or
+            (self.kind != "launch" and self.key is not None) or
+            (self.kind == "hold") != (isinstance(self.reason, str) and bool(self.reason)) or
+            (self.kind != "hold" and self.reason is not None)):
+            raise RecordIntegrityError("incoherent campaign admission")
+
+
+def campaign_admission(spec: CampaignSpec, starts: Sequence[AttemptStart], results: Sequence[AttemptResult],
+                       faults: Sequence[str], *, live_grant: LiveRunGrant | None = None,
+                       operator_stop: bool = False) -> CampaignAdmission:
+    """Derive a decision from fresh checked records; this is not launch authority."""
+    from bench.report import trial_views
+    from bench.agg_util import can_reserve_estimated_usd, measurement_coverage
+    views = trial_views(tuple((spec.identity, *entry) for entry in spec.schedule), starts, results, campaign=spec)
+    reasons = sorted(set(faults) | {fault for result in results if (fault := admission_fault(result))})
+    if reasons:
+        return CampaignAdmission("hold", reason=reasons[0])
+    if any(view.disposition.kind == "running" for view in views):
+        return CampaignAdmission("hold", reason="unfinished_attempt")
+    if live_grant is not None and live_grant.phase == "canary" and any(result.grade.kind == "fail" for result in results):
+        return CampaignAdmission("hold", reason="canary_failed")
+    if any(view.disposition.kind not in ("succeeded", "task_failed", "pending") for view in views[:spec.prefix_length]):
+        return CampaignAdmission("hold", reason="incomplete_contract_prefix")
+    pending = next((view for view in views if view.disposition.kind in ("pending", "retry_pending")), None)
+    if pending is None:
+        return CampaignAdmission("finished")
+    if operator_stop:
+        return CampaignAdmission("hold", reason="operator_stop")
+    if live_grant is not None and (len(starts) >= live_grant.max_attempts or any(
+            result.usage.estimated_usd is not None and result.usage.estimated_usd > live_grant.attempt_usd for result in results)):
+        return CampaignAdmission("hold", reason="live_attempt_limit")
+    budget = measurement_coverage(starts, results)["budget"]
+    if spec.grant_usd is not None:
+        if budget["unresolved_attempts"]:
+            return CampaignAdmission("hold", reason="unknown_estimated_cost")
+        if not can_reserve_estimated_usd(budget["known_estimated_usd"], spec.reservation_usd, spec.grant_usd):
+            return CampaignAdmission("hold", reason="grant_exhausted")
+    return CampaignAdmission("launch", key=AttemptKey(*pending.trial, pending.disposition.next_ordinal))
+
+
 def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
               command: Sequence[str], results_dir: Path, runner: str = "synthetic",
               timeout_seconds: float = 10, condition: ConditionPin | None = None,
@@ -1123,26 +1171,11 @@ def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
             raise RecordIntegrityError("foreign campaign lock")
         fcntl.flock(_campaign_lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         saved, all_starts, all_results, faults = load_campaign_bundles((campaign_directory,))
-        if saved.identity != campaign.identity or faults or any(start.key not in {result.key for result in all_results} for start in all_starts):
+        if saved.identity != campaign.identity:
             raise RecordIntegrityError("campaign records forbid further admission")
-        from bench.report import trial_views
-        views = trial_views(tuple((campaign.identity, *entry) for entry in campaign.schedule), all_starts, all_results, campaign=campaign)
-        next_view = next((view for view in views if view.disposition.kind in ("pending", "retry_pending")), None)
-        if next_view is None or next_view.trial != key.trial or next_view.disposition.next_ordinal != key.ordinal:
-            raise RecordIntegrityError("campaign frozen order forbids this launch")
-        if any(view.disposition.kind not in ("succeeded", "task_failed", "pending")
-               for view in views[:campaign.prefix_length]):
-            raise RecordIntegrityError("incomplete campaign contract prefix")
-        from bench.agg_util import can_reserve_estimated_usd, measurement_coverage
-        budget = measurement_coverage(all_starts, all_results)["budget"]
-        if campaign.grant_usd is not None and (budget["unresolved_attempts"] or
-                not can_reserve_estimated_usd(budget["known_estimated_usd"], campaign.reservation_usd, campaign.grant_usd)):
-            raise RecordIntegrityError("campaign budget forbids this launch")
-        if live_grant is not None and (len(all_starts) >= live_grant.max_attempts or any(
-                result.usage.estimated_usd is not None and result.usage.estimated_usd > live_grant.attempt_usd for result in all_results)):
-            raise RecordIntegrityError("explicit live attempt limit forbids this launch")
-        if live_grant is not None and live_grant.phase == "canary" and any(result.grade.kind == "fail" for result in all_results):
-            raise RecordIntegrityError("failed live canary forbids further launches")
+        action = campaign_admission(campaign, all_starts, all_results, faults, live_grant=live_grant)
+        if action.kind != "launch" or action.key != key:
+            raise RecordIntegrityError("campaign admission forbids this launch: " + (action.reason or "frozen_order"))
         effective_retry = campaign.retry_allowance(key.trial)
     else:
         if key.experiment_id != spec.identity:
@@ -1490,46 +1523,17 @@ def run_campaign(spec: CampaignSpec, tasks: Sequence[BenchTask], *, fixture_root
                 command=command, results_dir=directory, condition=pin, event_format=event_format,
                 timeout_seconds=timeout_seconds, retry_allowance=member.retry_allowance, claude=claude)
             spec.assert_member(AttemptKey(spec.identity, *entry, 0), prepared.spec)
-        from bench.report import report_campaign, trial_views
+        from bench.report import report_campaign
         launched = 0
         hold = None
         while True:
             _, starts, results, faults = load_campaign_bundles((directory,))
-            views = trial_views(tuple((spec.identity, *entry) for entry in spec.schedule), starts, results, campaign=spec)
-            if faults:
-                hold = sorted(set(faults))[0]
+            action = campaign_admission(spec, starts, results, faults, live_grant=live_grant,
+                operator_stop=stop_after is not None and launched >= stop_after)
+            if action.kind != "launch":
+                hold = action.reason
                 break
-            unfinished = next((view for view in views if view.disposition.kind == "running"), None)
-            if unfinished:
-                hold = "unfinished_attempt"
-                break
-            if live_grant is not None and live_grant.phase == "canary" and any(result.grade.kind == "fail" for result in results):
-                hold = "canary_failed"
-                break
-            if any(view.disposition.kind not in ("succeeded", "task_failed", "pending")
-                   for view in views[:spec.prefix_length]):
-                hold = "incomplete_contract_prefix"
-                break
-            if stop_after is not None and launched >= stop_after:
-                hold = "operator_stop" if any(view.disposition.kind in ("pending", "retry_pending") for view in views) else None
-                break
-            pending = next((view for view in views if view.disposition.kind in ("pending", "retry_pending")), None)
-            if pending is None:
-                break
-            if live_grant is not None and (len(starts) >= live_grant.max_attempts or any(
-                    result.usage.estimated_usd is not None and result.usage.estimated_usd > live_grant.attempt_usd for result in results)):
-                hold = "live_attempt_limit"
-                break
-            from bench.agg_util import can_reserve_estimated_usd, measurement_coverage
-            budget = measurement_coverage(starts, results)["budget"]
-            if spec.grant_usd is not None:
-                if budget["unresolved_attempts"]:
-                    hold = "unknown_estimated_cost"
-                    break
-                if not can_reserve_estimated_usd(budget["known_estimated_usd"], spec.reservation_usd, spec.grant_usd):
-                    hold = "grant_exhausted"
-                    break
-            key = AttemptKey(*pending.trial, pending.disposition.next_ordinal)
+            key = action.key
             path = directory / "attempts" / campaign_attempt_name(key)
             prior = [(start, result) for start in starts for result in results
                      if start.key == result.key and start.key.trial == key.trial]
