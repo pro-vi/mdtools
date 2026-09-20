@@ -443,3 +443,40 @@ references and ordinary toolkit but supplies only help-discovery instructions fo
 md. The no-md prompt is identical in both profiles. Prompt hashes bind this
 choice without changing historical experiment or attempt record formats.
 Smaller initial prompts are not evidence of better model outcomes.
+
+## Paired prompt diagnostic
+
+Use the same config template with exactly T1/T2/T10, one repetition and zero
+retries. The comparison command creates two ordinary campaigns under `full_help`
+and `discovery`, with identical non-prompt settings. It freezes 18 trials as nine
+adjacent pairs. A seeded balanced order determines which profile runs first.
+
+```sh
+python -m bench.harness --prepare-comparison /absolute/config.json
+python -m bench.harness --run-comparison /absolute/config.json \
+  --grant /absolute/two-profile-grants.json --prerequisite-bundle /absolute/canary
+python -m bench.harness --report-comparison /absolute/comparison-root
+```
+
+The grant file is a closed object keyed by `full_help` and `discovery`, each
+containing a separately approved `LiveRunGrant` with phase `prompt_comparison`.
+Preparation never generates this file. Both grants must match their campaign and
+the same successful candidate-source three-condition canary before public work
+starts. A comparison lock serializes dispatch; the existing campaign locks and
+admission checks still own each launch. Resume derives progress from receipts,
+including a stop between the two halves of a pair. `--stop-after` is an explicit
+operator interruption, not a score-based stopping rule.
+
+The independent report preserves each campaign identity. It reports all nine
+planned pairs, success differences, discordant outcomes, per-task/condition
+counts, four separate token categories and their sum, tool bytes/calls/errors,
+elapsed time and nominal USD equivalents. Failed and limited trials stay in the
+denominator. Successful-intersection costs have their own denominator. Missing or
+invalid evidence withholds the full comparison while retaining available costs.
+Three public tasks cannot establish general superiority; the report does not
+adopt discovery, tune the prompt or authorize additional trials.
+
+The 18-trial design is selected, not authorized to run. Candidate canaries and
+the diagnostic require a separate quota-only grant and confirmation that extra
+usage is off. No live calls are needed for the maintained-command tests: their
+real Claude CLI talks only to a scripted loopback endpoint.

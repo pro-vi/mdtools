@@ -7,7 +7,7 @@ specification does not supply a live run grant or prove native containment.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields, field
+from dataclasses import dataclass, fields, field, replace
 from functools import cached_property
 import hashlib
 import json
@@ -384,7 +384,7 @@ class LiveRunGrant:
         require_text(self.thinking_policy, "granted thinking policy")
         if self.effort is not None:
             require_text(self.effort, "granted effort")
-        if self.phase not in ("canary", "public_pilot", "core_study"):
+        if self.phase not in ("canary", "public_pilot", "core_study", "prompt_comparison"):
             raise RecordIntegrityError("unknown live phase")
         if type(self.task_ids) is not tuple or not self.task_ids or any(type(task) is not str for task in self.task_ids) or len(set(self.task_ids)) != len(self.task_ids):
             raise RecordIntegrityError("explicit granted task IDs required")
@@ -429,9 +429,11 @@ class LiveRunGrant:
         if self.phase == "canary":
             if len(self.task_ids) != 1 or set(self.task_ids) & core_ids or self.repetitions != (0,) or self.max_attempts != 3 or spec.core_study or any(member.retry_allowance != 0 for member in spec.members.values()):
                 raise RecordIntegrityError("canary grant requires three synthetic trials and zero retries")
-        elif self.phase == "public_pilot":
+        elif self.phase in ("public_pilot", "prompt_comparison"):
             if set(self.task_ids) != {"T1", "T2", "T10"} or self.repetitions != (0,) or spec.core_study:
                 raise RecordIntegrityError("public pilot grant requires exactly nine T1/T2/T10 trials")
+            if self.phase == "prompt_comparison" and (self.max_attempts != 9 or any(member.retry_allowance != 0 for member in spec.members.values())):
+                raise RecordIntegrityError("prompt comparison requires nine trials and zero retries per profile")
         elif not spec.core_study or set(self.task_ids) != core_ids or self.repetitions != tuple(range(5)) or not self.core_contract_risk_acknowledged:
             raise RecordIntegrityError("core grant requires 360 trials and explicit T14/T23 contract-risk acknowledgment")
         maximum = len(spec.schedule) + sum(spec.retry_allowance((spec.identity, *entry)) for entry in spec.schedule)
@@ -452,3 +454,75 @@ class LiveRunGrant:
                 raise RecordIntegrityError("malformed live grant scope evidence")
             payload[name] = tuple(payload[name])
         return cls(**payload)
+
+
+def paired_prompt_schedule(campaign: CampaignSpec, seed: int) -> tuple[tuple[str, str, str, int], ...]:
+    """Keep child order intact and counterbalance adjacent profile pairs."""
+    if type(seed) is not int or seed < 0:
+        raise RecordIntegrityError("invalid comparison seed")
+    rng = random.Random(seed)
+    offset = rng.randrange(2)
+    first = [(index + offset) % 2 for index in range(len(campaign.schedule))]
+    rng.shuffle(first)
+    profiles = ("full_help", "discovery")
+    return tuple((profiles[side], *entry) for entry, leading in zip(campaign.schedule, first)
+                 for side in (leading, 1 - leading))
+
+
+@dataclass(frozen=True)
+class PromptComparisonSpec:
+    """A public diagnostic links campaigns; it never merges their identities."""
+    campaigns: Mapping[str, CampaignSpec]
+    seed: int
+    schedule: tuple[tuple[str, str, str, int], ...]
+    analysis: str = "paired-public-diagnostic/1"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.campaigns, Mapping) or set(self.campaigns) != {"full_help", "discovery"} or any(
+                not isinstance(child, CampaignSpec) for child in self.campaigns.values()):
+            raise RecordIntegrityError("comparison requires exactly two profile campaigns")
+        if type(self.schedule) is not tuple or any(type(entry) is not tuple or len(entry) != 4 for entry in self.schedule):
+            raise RecordIntegrityError("invalid paired schedule shape")
+        for profile, task, condition, repetition in self.schedule:
+            if profile not in self.campaigns:
+                raise RecordIntegrityError("unknown scheduled profile")
+            AttemptKey(self.campaigns[profile].identity, task, condition, repetition, 0)
+        left, right = self.campaigns["full_help"], self.campaigns["discovery"]
+        required = {(task, condition, 0) for task in ("T1", "T2", "T10") for condition in CONDITIONS}
+        if any(child.core_study or child.prefix_length != 0 or set(child.schedule) != required or
+               any(member.retry_allowance != 0 for member in child.members.values()) for child in (left, right)):
+            raise RecordIntegrityError("comparison requires nine public zero-retry trials per profile")
+        if (left.schedule, left.grant_usd, left.reservation_usd) != (right.schedule, right.grant_usd, right.reservation_usd):
+            raise RecordIntegrityError("non-prompt campaign differences")
+        for name, member in left.members.items():
+            other = right.members[name]
+            if replace(member, prompt_sha256=other.prompt_sha256).identity != other.identity:
+                raise RecordIntegrityError("non-prompt member differences")
+            if name.endswith("/no-md"):
+                if member.prompt_sha256 != other.prompt_sha256:
+                    raise RecordIntegrityError("no-md control prompts differ")
+            elif member.prompt_sha256 == other.prompt_sha256:
+                raise RecordIntegrityError("md guidance treatment is absent")
+        if self.analysis != "paired-public-diagnostic/1" or self.schedule != paired_prompt_schedule(left, self.seed):
+            raise RecordIntegrityError("changed comparison schedule or analysis")
+        object.__setattr__(self, "campaigns", MappingProxyType(dict(self.campaigns)))
+
+    @classmethod
+    def create(cls, campaigns: Mapping[str, CampaignSpec], *, seed: int) -> PromptComparisonSpec:
+        if "full_help" not in campaigns:
+            raise RecordIntegrityError("missing full-help control")
+        return cls(campaigns, seed, paired_prompt_schedule(campaigns["full_help"], seed))
+
+    @property
+    def identity(self) -> str:
+        return sha256_text(canonical_json({"campaigns": {name: child.identity for name, child in self.campaigns.items()},
+            "seed": self.seed, "schedule": self.schedule, "analysis": self.analysis}))
+
+    @classmethod
+    def from_dict(cls, raw: object) -> PromptComparisonSpec:
+        if type(raw) is not dict or set(raw) != {entry.name for entry in fields(cls)} or type(raw["campaigns"]) is not dict or type(raw["schedule"]) is not list:
+            raise RecordIntegrityError("missing/unknown comparison fields")
+        if any(type(entry) is not list for entry in raw["schedule"]):
+            raise RecordIntegrityError("invalid comparison schedule entries")
+        return cls({name: CampaignSpec.from_dict(child) for name, child in raw["campaigns"].items()},
+            raw["seed"], tuple(tuple(entry) for entry in raw["schedule"]), raw["analysis"])

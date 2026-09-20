@@ -1006,7 +1006,8 @@ class PreparedAgent:
 def harness_source_identity() -> str:
     root = Path(__file__).resolve().parent
     return sha256_text(canonical_json({name: sha256_file(root / name) for name in (
-        "harness.py", "manifest.py", "trial_records.py", "agg_util.py", "stats.py", "report.py", "command_policy.py")}))
+        "harness.py", "manifest.py", "trial_records.py", "agg_util.py", "stats.py", "report.py", "command_policy.py",
+        "prompt_comparison.py")}))
 
 
 def prepare_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
@@ -1608,8 +1609,8 @@ def offline_exercise(results_dir: Path) -> AttemptResult:
             command=[str(Path(sys.executable).resolve()), "-I", "-c", script], results_dir=results_dir)
 
 
-def offline_campaign(results_dir: Path, pin_root: Path, *, stop_after: int | None = None) -> dict[str, object]:
-    """Disposable synthetic tasks and explicit verified pins; no corpus access."""
+def load_condition_pins(pin_root: Path) -> dict[str, ConditionPin]:
+    """Load both explicit producer receipts; never fall back to installed md."""
     conditions = {}
     for name, condition in (("legacy", CliCondition.LEGACY), ("current", CliCondition.CURRENT_COMPACT)):
         payload = decode_record_json(_read_source(_root(pin_root), name + "/pin.json"))
@@ -1621,6 +1622,12 @@ def offline_campaign(results_dir: Path, pin_root: Path, *, stop_after: int | Non
         if pin.condition != condition:
             raise RecordIntegrityError("wrong explicit condition pin")
         conditions[condition.value] = pin
+    return conditions
+
+
+def offline_campaign(results_dir: Path, pin_root: Path, *, stop_after: int | None = None) -> dict[str, object]:
+    """Disposable synthetic tasks and explicit verified pins; no corpus access."""
+    conditions = load_condition_pins(pin_root)
     with tempfile.TemporaryDirectory(prefix="mdtools_synthetic_campaign_") as temporary:
         root = Path(temporary).resolve()
         fixtures, expected = root / "fixtures", root / "expected"
@@ -1661,17 +1668,7 @@ def prepare_campaign_config(config: CampaignConfig) -> tuple[CampaignSpec, list[
                 raise RecordIntegrityError("changed packaged task bytes; new output directory required")
         else:
             _write_private(path, content)
-    conditions = {}
-    for name, condition in (("legacy", CliCondition.LEGACY), ("current", CliCondition.CURRENT_COMPACT)):
-        raw = decode_record_json(_read_source(_root(Path(config.pin_root)), name + "/pin.json"))
-        if type(raw) is not dict:
-            raise RecordIntegrityError("invalid configured pin")
-        raw["condition"] = CliCondition(raw["condition"])
-        pin = ConditionPin(**raw)
-        verify_condition(pin)
-        if pin.condition != condition:
-            raise RecordIntegrityError("configured pin condition mismatch")
-        conditions[condition.value] = pin
+    conditions = load_condition_pins(Path(config.pin_root))
     stub = root / "stub"
     if not stub.exists():
         conditions["no-md"] = stage_condition(None, stub, toolkit=resolve_toolkit())
@@ -1705,7 +1702,7 @@ def configured_campaign(config: CampaignConfig, *, prepare_only: bool = False,
     proposal = {"authorization": "not granted", "identity": spec.identity, "spec": record_dict(spec)}
     if proposal_path.exists():
         saved = decode_record_json(_read_source(root, "proposal.json"))
-        if type(saved) is not dict or set(saved) != set(proposal) or saved["identity"] != spec.identity or CampaignSpec.from_dict(saved["spec"]).identity != spec.identity:
+        if type(saved) is not dict or set(saved) != set(proposal) or saved["authorization"] != "not granted" or saved["identity"] != spec.identity or CampaignSpec.from_dict(saved["spec"]).identity != spec.identity:
             raise RecordIntegrityError("configured campaign differs from frozen proposal")
     elif prepare_only:
         _write_private(proposal_path, (canonical_json(proposal) + "\n").encode())
@@ -1714,6 +1711,10 @@ def configured_campaign(config: CampaignConfig, *, prepare_only: bool = False,
     if prepare_only:
         return proposal
     if runner is not None and runner.backend == "claude_cli":
+        if not isinstance(live_grant, LiveRunGrant):
+            raise RecordIntegrityError("explicit scoped live grant required")
+        live_grant.assert_scope(spec)
+        _assert_live_prerequisite(live_grant, prerequisite_bundle, spec)
         auth = subprocess.run([runner.executable, "auth", "status", "--json"],
             capture_output=True, check=True, timeout=15)
         state = decode_record_json(auth.stdout)
@@ -1733,12 +1734,43 @@ def main(argv: Sequence[str] | None = None) -> int:
     mode.add_argument("--report-bundle", action="append", type=Path, help="Regenerate an offline campaign report without launching")
     mode.add_argument("--prepare-config", type=Path, help="Freeze a campaign proposal without provider calls")
     mode.add_argument("--run-config", type=Path, help="Run/resume a prepared campaign; live runs require --grant")
+    mode.add_argument("--prepare-comparison", type=Path, help="Freeze the 18-trial public prompt comparison")
+    mode.add_argument("--run-comparison", type=Path, help="Run/resume the frozen paired comparison")
+    mode.add_argument("--report-comparison", type=Path, help="Regenerate a paired report without launching")
     parser.add_argument("--grant", type=Path, help="Explicit scoped launch consent, never loaded from a result bundle")
     parser.add_argument("--prerequisite-bundle", type=Path, help="Independently checked earlier campaign")
     parser.add_argument("--pin-root", type=Path, help="Explicit legacy/current pin receipts; no installed md fallback")
     parser.add_argument("--stop-after", type=int, help="Stop synthetic campaign after this many new trials; resume with identical inputs")
     parser.add_argument("--results-dir", type=Path, help="New controller-owned result directory")
     args = parser.parse_args(argv)
+    if args.prepare_comparison or args.run_comparison or args.report_comparison:
+        from bench.prompt_comparison import prepare_comparison, run_comparison, report_comparison
+        if args.results_dir is not None or args.pin_root is not None or ((args.prepare_comparison or args.report_comparison) and
+                (args.grant is not None or args.prerequisite_bundle is not None or args.stop_after is not None)):
+            parser.error("comparison paths come from config; only run accepts grants, prerequisite or stop count")
+        try:
+            if args.report_comparison:
+                summary = report_comparison(args.report_comparison)
+            else:
+                path = args.prepare_comparison or args.run_comparison
+                config = CampaignConfig.from_dict(decode_record_json(_read_source(_root(path.parent), path.name)))
+                if args.prepare_comparison:
+                    spec = prepare_comparison(config)
+                    summary = {"authorization": "not granted", "comparison_id": spec.identity, "trials": len(spec.schedule)}
+                else:
+                    grants = None
+                    if args.grant:
+                        raw = decode_record_json(_read_source(_root(args.grant.parent), args.grant.name))
+                        if type(raw) is not dict or set(raw) != {"full_help", "discovery"}:
+                            raise RecordIntegrityError("expected explicit grants keyed by both profiles")
+                        grants = {name: LiveRunGrant.from_dict(record) for name, record in raw.items()}
+                    summary = run_comparison(config, grants=grants,
+                        prerequisite_bundle=args.prerequisite_bundle, stop_after=args.stop_after)
+        except (RecordIntegrityError, OSError, ValueError, TypeError, KeyError) as exc:
+            print(canonical_json({"complete": False, "exit_code": 2, "fault": str(exc)}))
+            return 2
+        print(canonical_json(summary))
+        return summary.get("exit_code", 0)
     if args.prepare_config or args.run_config:
         if args.results_dir is not None or args.pin_root is not None or (args.prepare_config and (args.grant or args.stop_after is not None)):
             parser.error("configured modes use only declared paths; prepare cannot consume a grant or stop count")

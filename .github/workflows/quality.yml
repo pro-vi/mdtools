@@ -47,7 +47,9 @@ jobs:
             bench/test_neutral_scorer.py bench/test_prompt_neutrality.py \
             bench/test_command_policy.py bench/test_manifest.py bench/test_trial_records.py \
             bench/test_agg_util.py bench/test_stats.py bench/test_report_inputs.py \
-            bench/test_claude_containment.py
+            bench/test_claude_containment.py bench/test_harness_refactor.py \
+            bench/test_campaign_admission.py bench/test_campaign_config.py \
+            bench/test_prompt_comparison.py
 
       - name: Run isolated default synthetic entry point
         run: python -I bench/harness.py --offline-exercise
