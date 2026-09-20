@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import replace
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -11,6 +12,7 @@ import sys
 import pytest
 
 from bench import harness
+from bench.command_policy import CliCondition
 from bench.manifest import CampaignConfig
 from bench.test_command_policy import cli_pins
 from bench.trial_records import RecordIntegrityError, decode_record_json, record_dict
@@ -18,8 +20,12 @@ from bench.trial_records import RecordIntegrityError, decode_record_json, record
 
 @pytest.fixture
 def config(tmp_path: Path, cli_pins: dict) -> CampaignConfig:
-    pin_root = str(Path(next(iter(cli_pins.values())).executable).parent.parent)
-    return CampaignConfig(task_ids=("T1",), pin_root=pin_root,
+    pin_root = tmp_path.resolve() / "condition-receipts"
+    for name, condition in (("legacy", CliCondition.LEGACY), ("current", CliCondition.CURRENT_COMPACT)):
+        directory = pin_root / name
+        directory.mkdir(parents=True)
+        (directory / "pin.json").write_text(json.dumps(record_dict(cli_pins[condition])))
+    return CampaignConfig(task_ids=("T1",), pin_root=str(pin_root),
         source_root=str(Path(harness.__file__).resolve().parent.parent),
         output_root=str(tmp_path.resolve() / "operator"),
         command=(str(Path(sys.executable).resolve()), "-I", "-c", "print('[]')"),
@@ -72,6 +78,21 @@ def test_live_config_without_grant_does_not_read_or_create(config: CampaignConfi
     with pytest.raises(RecordIntegrityError, match="explicitly supplied grant"):
         harness.configured_campaign(live)
     assert not Path(config.output_root).exists()
+
+
+def test_config_fixture_does_not_assume_producer_directory_names(tmp_path: Path, cli_pins: dict) -> None:
+    replicas = {}
+    for condition, pin in cli_pins.items():
+        directory = tmp_path / "fresh-builds" / condition.value
+        directory.mkdir(parents=True)
+        executable = directory / "md"
+        shutil.copy2(pin.executable, executable)
+        replica = replace(pin, executable=str(executable))
+        (directory / "pin.json").write_text(json.dumps(record_dict(replica)))
+        replicas[condition] = replica
+    configured = config.__wrapped__(tmp_path / "consumer", replicas)
+    proposal = harness.configured_campaign(configured, prepare_only=True)
+    assert proposal["authorization"] == "not granted"
 
 
 def local_test_configured_native_canary(config: CampaignConfig, tmp_path: Path) -> None:
