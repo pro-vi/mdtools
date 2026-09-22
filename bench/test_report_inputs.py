@@ -16,10 +16,37 @@ from bench.command_policy import ClaudeRunner, CliCondition, stage_condition, re
 from bench.harness import (AttemptStore, BenchTask, StructuralDiffPolicy, campaign_attempt_name,
                            freeze_campaign, run_campaign)
 from bench.manifest import CampaignSpec, LiveRunGrant, canonical_json, serial_schedule, sha256_file
-from bench.report import attempt_report, report_campaign
+from bench.report import attempt_report, report_campaign, summarize
 from bench.test_trial_records import synthetic_cli_events, result as synthetic_result
 from bench.trial_records import (AttemptKey, AttemptStart, ExecutionOutcome, Grade, Usage,
                                  RecordIntegrityError, record_dict)
+
+
+def test_condition_measurement_totals_include_failures_and_retries() -> None:
+    first = synthetic_result(execution=ExecutionOutcome("infrastructure_error", "transient_transport"),
+        usage=Usage(input_tokens=2, output_tokens=3, cache_read_tokens=4, cache_creation_tokens=5,
+            estimated_usd=0.1, elapsed_seconds=1, tool_output_bytes=2, source="synthetic_receipt", completeness="complete"))
+    retried = synthetic_result(ordinal=1, grade=Grade("fail", "wrong"), usage=replace(first.usage, estimated_usd=0.2))
+    legacy = replace(synthetic_result(usage=replace(first.usage, estimated_usd=0.4)),
+        key=replace(first.key, condition="legacy"))
+    results = [first, retried, legacy]
+    summary = summarize((first.key.trial, legacy.key.trial),
+        [AttemptStart(result.key, result.backend) for result in results], results)
+    no_md = summary["cells"]["no-md"]
+    assert no_md["coverage"]["estimated_usd"]["total"] == 0.3
+    assert no_md["coverage"]["input_tokens"]["total"] == 4
+    assert no_md["total_tokens"] == 28
+    assert no_md["semantic_pass_rate"] == 0 and no_md["graded_trials"] == 1
+    assert summary["cells"]["legacy"]["coverage"]["estimated_usd"]["total"] == 0.4
+
+
+def test_unknown_condition_measurement_remains_unknown() -> None:
+    result = synthetic_result(usage=Usage(input_tokens=0, source="synthetic_receipt", completeness="partial"))
+    summary = summarize((result.key.trial,), [AttemptStart(result.key, result.backend)], [result])
+    cell = summary["cells"]["no-md"]
+    assert cell["coverage"]["input_tokens"]["total"] == 0
+    assert cell["coverage"]["output_tokens"]["total"] is None
+    assert cell["total_tokens"] is None
 
 
 @pytest.fixture
@@ -62,8 +89,18 @@ def publish_synthetic(spec: CampaignSpec, key: AttemptKey, path: Path, *,
     for name in ("stdout.bin", "stderr.bin", "final_submission.bin"):
         harness._write_private(path / "artifacts" / name, b"synthetic")
         artifacts["artifacts/" + name] = sha256_file(path / "artifacts" / name)
+    effective_grade = grade or (Grade("pass", "synthetic_match") if execution.kind == "completed" else Grade("not_run", execution.reason))
+    if effective_grade.kind in ("pass", "fail") and not denied:
+        from bench.neutral_scorer import SubmissionFormat, GRADER_VERSION
+        member = spec.members[spec.member_name(key.task_id, key.condition)]
+        if member.grader_version == GRADER_VERSION:
+            policy = StructuralDiffPolicy("raw_bytes", False, False, False, False, False, False, False)
+            observation = SubmissionFormat.observe(policy, "file_contents", b"")
+            reference = "artifacts/submission_format.json"
+            harness._write_private(path / reference, (canonical_json(record_dict(observation)) + "\n").encode())
+            artifacts[reference] = sha256_file(path / reference)
     return store.finalize(execution=execution,
-        grade=grade or (Grade("pass", "synthetic_match") if execution.kind == "completed" else Grade("not_run", execution.reason)),
+        grade=effective_grade,
         usage=Usage(estimated_usd=cost, source="synthetic_receipt" if cost is not None else "unavailable",
                     completeness="partial" if cost is not None else "unknown"),
         artifacts=artifacts, evidence_complete=True)
@@ -81,6 +118,7 @@ def test_three_condition_subprocess_campaign_report_parity(campaign_case: tuple)
     assert summary == json.loads((root / "run/report.json").read_bytes())
     assert summary["coverage"]["estimated_usd"]["total"] == pytest.approx(0.12)
     assert len(summary["comparisons"]) == 3 and not summary["core_study_complete"]
+    assert summary["submission_formats"]["no-md"]["file_contents"] == {"pass": 4}
     command = [sys.executable, "-I", str(Path(harness.__file__).with_name("report.py")), str(root / "run")]
     direct = subprocess.run(command, capture_output=True, timeout=30)
     assert direct.returncode == 0 and json.loads(direct.stdout) == summary
@@ -124,6 +162,12 @@ def test_interrupted_resumed_subprocess_campaign_matches_uninterrupted(campaign_
     resumed = run_campaign(spec, tasks, results_dir=root / "run", **arguments)
     assert all(path.read_bytes() == content for path, content in before.items())
     uninterrupted = run_campaign(spec, tasks, results_dir=root / "uninterrupted", **arguments)
+    for summary in (resumed, uninterrupted):
+        for cell in summary["cells"].values():
+            assert cell["coverage"]["elapsed_seconds"]["total"] > 0
+            cell["coverage"].pop("elapsed_seconds")
+        for comparison in summary["comparisons"]:
+            comparison["successful_intersection_measurements"].pop("elapsed_seconds")
     for key in ("cells", "execution_counts", "grade_counts", "comparisons", "failures", "trials"):
         assert resumed[key] == uninterrupted[key]
     for measurement in ("estimated_usd", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "tool_output_bytes"):

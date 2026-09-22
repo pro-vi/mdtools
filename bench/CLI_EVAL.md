@@ -72,7 +72,8 @@ The worker receives copied inputs/support files, prompt references and a fixed
 nonsecret environment. Input/expected bytes are not preloaded in prompts.
 Expected files and receipts are controller-only, separate from staging.
 Trusted synthetic subprocesses are not sandboxed; these tests do not prove
-adversarial answer isolation. Native containment remains U5/U7 work.
+adversarial answer isolation. Native containment is checked separately through
+the scripted CLI and the authorized live canaries.
 
 Synthetic children start in a fresh process group. Timeout/interruption stops and
 reaps that owned group, including descendants retaining pipes. Remaining group
@@ -96,7 +97,7 @@ JSON or one complete three-backtick fence with an optional lowercase `json`
 label. Only JSON whitespace may surround the answer. It never searches prose,
 selects an answer from earlier tool output, or changes stored bytes.
 A correct synthetic stderr observation followed by wrong final stdout fails.
-U4 must extract untouched terminal receipt text for the same grader API.
+The CLI decoder extracts untouched terminal receipt text for the same grader API.
 
 Only declared dimensions are compared. Heading-only comparison preserves ordered
 rendered levels/text while permitting markup/body differences. Source blocks
@@ -280,6 +281,27 @@ indices, seed 1729 and 10000 replicates. Reports retain per-task failures, paire
 workflow-success contrasts and costs on paired successful trial intersections.
 Total usage coverage still includes failed attempts and retries.
 
+Each condition cell also reports its own measurement coverage, the four token
+categories and their complete-coverage sum, and semantic pass rate among graded
+trials with that denominator. Every attempted retry/failure contributes to its
+condition's costs. The three paired comparisons retain their existing success
+intervals and add successful-intersection summaries for each measured unit.
+Failures include their recorded execution and grade reasons.
+
+`submission_formats` counts verified artifact-family/format/grade combinations.
+For JSON, `raw:fail` and `fenced:fail` mean parseable answers with wrong semantics;
+`invalid:fail` means invalid wrapping or JSON syntax. Non-JSON families have no
+JSON-form judgment. Old records without this evidence are explicitly unavailable.
+Source-mismatched records remain descriptive only. No old grade is recomputed.
+
+To reproduce a report, use the recorded implementation revision and dependency
+lock in a separate source export, then run `python -I bench/report.py CAMPAIGN`.
+Preserve the campaign, attempts, pinned binaries, and its prerequisite bundles;
+update only their verified locator paths when relocating. The report does not
+contact a provider or open the task corpus. Its source checks must remain
+enabled. A different revision may inspect recorded counts but cannot certify
+the original comparison.
+
 ```sh
 python -I bench/harness.py --offline-campaign --pin-root /absolute/verified/u3-pins \
   --results-dir /absolute/private/synthetic-campaign --stop-after 3
@@ -447,8 +469,8 @@ or use the pinned Claude executable with an explicit loopback scripted endpoint.
 Neither mode accepts live grants. The `cli-canary` task asks for a fixed file
 mutation and uses the same three tool conditions as public trials.
 
-`guidance` has two values. `full_help` remains the default and reproduces the
-previous prompt bytes. `discovery` retains the task, strict answer format, file
+`guidance` has two values. `full_help` remains the default and includes each
+producer's complete help. `discovery` retains the task, shared answer format, file
 references and ordinary toolkit but supplies only help-discovery instructions for
 md. The no-md prompt is identical in both profiles. Prompt hashes bind this
 choice without changing historical experiment or attempt record formats.

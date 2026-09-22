@@ -727,11 +727,17 @@ The atomic publication is an exclusive hard link to a flushed candidate. Its
         if reference not in artifacts:
             raise RecordIntegrityError("graded attempt lacks submission format")
         try:
-            observed = SubmissionFormat.from_dict(decode_record_json(self._read_evidence(reference)))
+            payload = self._read_evidence(reference)
+            if hashlib.sha256(payload).hexdigest() != artifacts[reference]:
+                raise ValueError("submission format artifact digest mismatch")
+            observed = SubmissionFormat.from_dict(decode_record_json(payload))
             if sha256_text(canonical_json(observed.answer_policy)) != spec.answer_policy_sha256:
                 raise ValueError("submission policy contradicts experiment")
             final_text = (self._read_evidence("artifacts/final_submission.bin")
                 if observed.answer_policy["artifact"] != "file_contents" else b"")
+            if (observed.answer_policy["artifact"] != "file_contents" and
+                hashlib.sha256(final_text).hexdigest() != artifacts.get("artifacts/final_submission.bin")):
+                raise ValueError("final submission artifact digest mismatch")
             observed.assert_matches(final_text)
         except ValueError as exc:
             raise RecordIntegrityError(str(exc)) from exc

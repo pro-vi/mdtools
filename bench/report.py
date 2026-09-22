@@ -11,7 +11,7 @@ from typing import Sequence
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bench.agg_util import (TrialView, can_reserve_estimated_usd, estimated_usd_total, intersection_cost,
+from bench.agg_util import (MEASUREMENTS, TrialView, can_reserve_estimated_usd, estimated_usd_total, intersection_cost,
                             measurement_coverage, pass_at_1_mean)
 from bench.manifest import CampaignSpec, canonical_json, sha256_file
 from bench.stats import hierarchical_bootstrap_ci
@@ -67,11 +67,21 @@ def summarize(schedule: Sequence[tuple[str, str, str, int]], starts: Sequence[At
     missing = [list(view.trial[1:]) for view in views if view.disposition.kind not in terminal]
     complete = not missing and not faults
     cells = {}
+    result_by_key = {result.key: result for result in results}
     for condition in CONDITIONS:
         cell = [view for view in views if view.trial[2] == condition]
+        selected = [result_by_key[view.disposition.selected] for view in cell if view.disposition.selected in result_by_key]
+        graded = [result for result in selected if result.grade.kind in ("pass", "fail")]
+        measurements = measurement_coverage([start for start in starts if start.key.condition == condition],
+            [result for result in results if result.key.condition == condition])
+        tokens = [measurements[name]["total"] for name in
+                  ("input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens")]
         cells[condition] = {"requested_trials": len(cell), "successes": sum(view.workflow_success for view in cell),
             "dispositions": dict(Counter(view.disposition.kind for view in cell)),
-            "pass_at_1_mean": pass_at_1_mean(cell) if complete else None}
+            "pass_at_1_mean": pass_at_1_mean(cell) if complete else None,
+            "graded_trials": len(graded),
+            "semantic_pass_rate": sum(result.grade.kind == "pass" for result in graded) / len(graded) if graded else None,
+            "coverage": measurements, "total_tokens": sum(tokens) if all(value is not None for value in tokens) else None}
     comparisons = []
     if complete and all(cells[condition]["requested_trials"] for condition in CONDITIONS):
         for a, b in (("legacy", "no-md"), ("current-compact", "no-md"), ("current-compact", "legacy")):
@@ -79,7 +89,9 @@ def summarize(schedule: Sequence[tuple[str, str, str, int]], starts: Sequence[At
             comparisons.append({"condition_a": a, "condition_b": b,
                 "workflow_success_difference": asdict(hierarchical_bootstrap_ci(
                     [view for view in views if view.trial[2] == a], [view for view in views if view.trial[2] == b], **settings)),
-                "successful_intersection_cost": intersection_cost(views, a, b)})
+                "successful_intersection_cost": intersection_cost(views, a, b),
+                "successful_intersection_measurements": {name: intersection_cost(views, a, b, measurement=name)
+                    for name in MEASUREMENTS}})
     return {"schema": "mdtools.cli-eval/1", "record": "campaign_report", "experiment_id": schedule[0][0] if schedule else None,
         "complete": complete, "exit_code": 0 if complete else 1,
         "comparative_performance_eligible": complete and bool(comparisons),
@@ -89,7 +101,9 @@ def summarize(schedule: Sequence[tuple[str, str, str, int]], starts: Sequence[At
         "execution_counts": dict(Counter(result.execution.kind for result in results)),
         "grade_counts": dict(Counter(result.grade.kind for result in results)),
         "coverage": coverage, "comparisons": comparisons,
-        "failures": [{"trial": list(view.trial[1:]), "disposition": record_dict(view.disposition)} for view in views
+        "failures": [{"trial": list(view.trial[1:]), "disposition": record_dict(view.disposition),
+            "attempts": [{"ordinal": result.key.ordinal, "execution": record_dict(result.execution),
+                          "grade": record_dict(result.grade)} for result in view.attempts]} for view in views
                      if view.disposition.kind in ("task_failed", "operational_failed", "ungradeable")],
         "trials": [{"trial": list(view.trial[1:]), "disposition": record_dict(view.disposition)} for view in views],
         "limits": ["Provider-reported estimated USD is not an invoice.",
@@ -114,7 +128,7 @@ def attempt_report(starts: Sequence[AttemptStart], results: Sequence[AttemptResu
 
 def report_campaign(bundles: Sequence[Path]) -> dict[str, object]:
     from bench.harness import (load_campaign_bundles, load_authorization_evidence, harness_source_identity,
-                              _root, _assert_live_prerequisite)
+                              _root, _assert_live_prerequisite, AttemptStore, campaign_attempt_name)
     spec, starts, results, faults = load_campaign_bundles(bundles)
     current_sources = harness_source_identity()
     current_grader = sha256_file(Path(__file__).with_name("neutral_scorer.py"))
@@ -147,6 +161,20 @@ def report_campaign(bundles: Sequence[Path]) -> dict[str, object]:
                     "effort": configuration.effort, "thinking_policy": configuration.thinking_policy})
     summary.update(metadata)
     summary["source_mismatches"] = mismatches
+    formats = {condition: {} for condition in CONDITIONS}
+    by_name = {campaign_attempt_name(result.key): result for result in results}
+    for bundle in bundles:
+        for path in (_root(bundle) / "attempts").iterdir():
+            if path.name not in by_name:
+                continue
+            result = by_name[path.name]
+            observed = AttemptStore(path).submission_format(result.grade, result.artifacts)
+            family = observed.answer_policy["artifact"] if observed is not None else "unavailable"
+            verdict = (f"{observed.json_form}:{result.grade.kind}" if observed is not None and observed.json_form is not None
+                else result.grade.kind)
+            cell = formats[result.key.condition].setdefault(family, {})
+            cell[verdict] = cell.get(verdict, 0) + 1
+    summary["submission_formats"] = formats
     return summary
 
 

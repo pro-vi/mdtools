@@ -142,6 +142,17 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
             results_dir=output / "campaign", conditions=conditions, event_format="claude_stream")
         spec = harness.freeze_campaign([task], repetitions=1, retry_allowance=0, **arguments)
         report = harness.run_campaign(spec, [task], **arguments)
+        # The old controller has no condition measurements or format evidence.
+        # Compare the original outcome/total-coverage contract here; dedicated
+        # report tests exercise each new field and its evidence binding.
+        report.pop("submission_formats", None)
+        for cell in report["cells"].values():
+            for name in ("graded_trials", "semantic_pass_rate", "coverage", "total_tokens"):
+                cell.pop(name, None)
+        for comparison in report["comparisons"]:
+            comparison.pop("successful_intersection_measurements", None)
+        for failure in report["failures"]:
+            failure.pop("attempts", None)
         def normalized(value):
             if isinstance(value, dict):
                 return {key: normalized(item) for key, item in value.items() if key not in ("experiment_id", "elapsed_seconds")}

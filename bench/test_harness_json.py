@@ -99,8 +99,10 @@ def test_submission_format_rejects_forged_family_and_missing_evidence(tmp_path: 
     raw["answer_policy"] = scorer.answer_policy_snapshot(policy("structural", json_canonical=True), "json_envelope")
     raw["json_form"] = "raw"
     (receipt / reference).write_text(json.dumps(raw))
+    changed = dict(result.artifacts)
+    changed[reference] = harness.sha256_file(receipt / reference)
     with pytest.raises(RecordIntegrityError, match="policy contradicts"):
-        store.submission_format(result.grade, result.artifacts)
+        store.submission_format(result.grade, changed)
 
 
 def test_json_required_key_projection_preserves_array_order_and_facts() -> None:
