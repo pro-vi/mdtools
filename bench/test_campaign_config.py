@@ -201,6 +201,24 @@ def test_core_worker_cannot_receive_another_tasks_expected_file(core_case: tuple
     assert not Path(core.output_root).exists()
 
 
+def test_invalid_core_policy_identifies_task_without_content(core_case: tuple) -> None:
+    core, consent = core_case
+    source = Path(core.source_root)
+    registry = source / "bench/tasks/tasks.json"
+    rows = json.loads(registry.read_bytes())
+    rows[0]["description"] = "PRIVATE_SYNTHETIC_TASK_TEXT"
+    rows[0]["scorer"]["kind"] = "PRIVATE_SYNTHETIC_POLICY_VALUE"
+    registry.write_text(json.dumps(rows))
+    revision = commit_synthetic_corpus(source)
+    objects = {path: subprocess.run(["git", "rev-parse", f"{revision}:{path}"],
+        cwd=source, capture_output=True, check=True).stdout.decode().strip() for path in CORPUS_PATHS}
+    consent = replace(consent, source_commit=revision, corpus_objects=objects)
+    with pytest.raises(RecordIntegrityError) as failure:
+        harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+    assert "T1" in str(failure.value) and "answer_policy" in str(failure.value)
+    assert "PRIVATE_SYNTHETIC" not in str(failure.value)
+
+
 def test_core_prepare_validates_public_pilot_phase(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
     core, consent = core_case
     proposal = harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)

@@ -1725,33 +1725,39 @@ def _core_tasks(config: CampaignConfig, consent: CorePreparationConsent | None) 
         if _core_git(source, "rev-parse", f"{consent.source_commit}:{path}").decode().strip() != oid:
             raise RecordIntegrityError("core corpus identity contradicts consent")
     _core_git(source, "diff", "--quiet", consent.source_commit, "--", *CORPUS_PATHS)
+    context = "registry"
     try:
         rows = decode_record_json(_read_core_source(source, consent, "bench/tasks/tasks.json"))
         if type(rows) is not list:
             raise ValueError("registry is not an array")
         tasks = {}
         for row in rows:
+            context = "registry"
             if type(row) is not dict or type(row.get("id")) is not str:
                 raise ValueError("invalid task identity")
             if row["id"] not in CORE_TASK_IDS:
                 continue
+            context = row["id"] + ": task_shape"
             if row["id"] in tasks:
                 raise ValueError("duplicate task")
             selected = dict(row)
             selected["scorer"] = StructuralDiffPolicy(**selected["scorer"])
             task = BenchTask(**selected)
             _validate_task(task)
+            context = task.id + ": answer_policy"
             validate_policy(task.scorer, artifact=task.expected_artifact)
             tasks[task.id] = task
+        context = "registry: task_inventory"
         if set(tasks) != set(CORE_TASK_IDS):
             raise ValueError("incomplete core corpus")
         expected_paths = {task.expected_output for task in tasks.values()}
-        if any(reference in expected_paths for task in tasks.values()
-               for reference in [*task.input_files, *(task.support_files or [])]):
-            raise ValueError("worker reference aliases expected answer")
+        for task in tasks.values():
+            context = task.id + ": worker_references"
+            if any(reference in expected_paths for reference in [*task.input_files, *(task.support_files or [])]):
+                raise ValueError("worker reference aliases expected answer")
     except (ValueError, TypeError, KeyError, RecordIntegrityError):
         # Task text and expected values must never escape via parser errors.
-        raise RecordIntegrityError("invalid or unsupported core task contract") from None
+        raise RecordIntegrityError("invalid or unsupported core task contract (" + context + ")") from None
     return [tasks[task_id] for task_id in config.task_ids]
 
 
