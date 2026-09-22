@@ -73,7 +73,7 @@ def test_discovery_guidance_preserves_contract_and_avoids_eager_help(cli_pins: d
         prompt = harness.build_prompt(task, condition=pin, guidance=command_policy.ToolGuidance.DISCOVERY)
         assert prompt.split("\nTOOLS:\n")[0] == harness.build_prompt(task)
         assert "md --help" in prompt and "md <command> --help" in prompt
-        assert "No prose or code fences." in prompt and "$TMPDIR" in prompt
+        assert "Use raw JSON or one complete ```json fence; no prose." in prompt and "$TMPDIR" in prompt
         assert all("--help" not in argv for argv in calls)
         assert len(prompt) < len(harness.build_prompt(task, condition=pin))
     stub = stage_condition(None, tmp_path / "stub", toolkit=resolve_toolkit())

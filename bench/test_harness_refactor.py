@@ -147,7 +147,7 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
     return {"execution": record_dict(result.execution), "grade": record_dict(result.grade),
             "usage": usage, "permission_fault": result.permission_fault, "evidence_complete": result.evidence_complete,
             "exit_code": result.exit_code, "artifacts": {name: (output / "receipt" / name).read_bytes().hex()
-                for name in result.artifacts if name.startswith("artifacts/")}}
+                for name in result.artifacts if name.startswith("artifacts/") and name != "artifacts/submission_format.json"}}
 
 
 if __name__ == "__main__":

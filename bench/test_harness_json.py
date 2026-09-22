@@ -33,7 +33,7 @@ from bench.trial_records import (RecordIntegrityError, ToolCall, ToolResult, Run
     (b'[]', b'[]', True),
     (b'[1,2]', b'[2,1]', False),
     (b'{"a":{"n":true}}', b'{"a":{"n":1}}', False),
-    (b'```json\n{"pending":1}\n```', b'{"pending":1}', False),
+    (b'```json\n{"pending":1}\n```', b'{"pending":1}', True),
     (b'correct: {"pending":1}', b'{"pending":1}', False),
     (b'', b'{"pending":1}', False),
     (b'\xff', b'{"pending":1}', False),
@@ -41,6 +41,66 @@ from bench.trial_records import (RecordIntegrityError, ToolCall, ToolResult, Run
 def test_json_types_and_required_fields(actual: bytes, expected: bytes, passes: bool) -> None:
     comparison = scorer.grade_json(policy("structural", json_canonical=True), actual, expected)
     assert (comparison.kind == "pass") is passes
+
+
+@pytest.mark.parametrize("wrapper", [b"%s", b"```json\n%s\n```", b"```\r\n%s\r\n```", b" \t\n```json\n%s\n```\r\n"])
+def test_terminal_json_raw_and_single_fence_equivalence(wrapper: bytes) -> None:
+    payload = b'{"text":"```", "values":[]}'
+    declared = policy("structural", json_canonical=True)
+    assert scorer.grade_json(declared, wrapper % payload, payload).kind == "pass"
+    assert scorer.grade_json(declared, wrapper % b'{"text":"wrong", "values":[]}', payload).kind == "fail"
+
+
+@pytest.mark.parametrize("answer", [b'prose {"n":1}', b'```JSON\n{"n":1}\n```',
+    b'```python\n{"n":1}\n```', b'~~~json\n{"n":1}\n~~~', b'````json\n{"n":1}\n````',
+    b'```json\n{"n":1}\n``` trailing', b'```json\n{"n":1}\n```\n```json\n{"n":1}\n```',
+    b'```json\n{"n":1}', b'```json {"n":1}\n```', b'{"n":1} {"n":1}',
+    b'```json\n{"n":1,"n":1}\n```', b'```json\n{"n":NaN}\n```', b'```json\n{"n":true}\n```'])
+def test_terminal_json_wrapper_rejects_ambiguity_and_wrong_values(answer: bytes) -> None:
+    assert scorer.grade_json(policy("structural", json_canonical=True), answer, b'{"n":1}').kind == "fail"
+
+
+def test_submission_format_matches_recorded_terminal_answer(tmp_path: Path) -> None:
+    task, fixtures, expected = synthetic_task(tmp_path.resolve())
+    task = replace(task, expected_artifact="json_envelope", scorer=policy("structural", json_canonical=True))
+    (expected / "answer.md").write_bytes(b'{"n":1}')
+    answer = b'```json\n{"n":1}\n```'
+    receipt = tmp_path.resolve() / "receipt"
+    result = harness.run_agent(task, fixture_root=fixtures, expected_root=expected,
+        command=python_command(f"import sys; sys.stdout.buffer.write({answer!r})"), results_dir=receipt)
+    assert result.grade.kind == "pass"
+    assert (receipt / "artifacts/final_submission.bin").read_bytes() == answer
+    observed = json.loads((receipt / "artifacts/submission_format.json").read_bytes())
+    assert observed["json_form"] == "fenced"
+    assert observed["answer_policy"]["artifact"] == "json_envelope"
+    assert "artifacts/submission_format.json" in result.artifacts
+
+
+@pytest.mark.parametrize("value", [b'[]', b'{}', b'{"n":1}', b'```\n{}\n```', b'```json\r\n[]\r\n```'])
+def test_submission_format_roundtrip_and_policy_binding(value: bytes) -> None:
+    declared = policy("structural", json_canonical=True)
+    observation = scorer.SubmissionFormat.observe(declared, "json_envelope", value)
+    raw = harness.asdict(observation)
+    assert scorer.SubmissionFormat.from_dict(raw) == observation
+    observation.assert_matches(value)
+    raw["json_form"] = None
+    with pytest.raises(ValueError, match="artifact family"):
+        scorer.SubmissionFormat.from_dict(raw)
+
+
+def test_submission_format_rejects_forged_family_and_missing_evidence(tmp_path: Path) -> None:
+    receipt = tmp_path.resolve() / "receipt"
+    result = harness.offline_exercise(receipt)
+    store = harness.AttemptStore(receipt)
+    with pytest.raises(RecordIntegrityError, match="lacks submission format"):
+        store.submission_format(result.grade, {})
+    reference = "artifacts/submission_format.json"
+    raw = json.loads((receipt / reference).read_bytes())
+    raw["answer_policy"] = scorer.answer_policy_snapshot(policy("structural", json_canonical=True), "json_envelope")
+    raw["json_form"] = "raw"
+    (receipt / reference).write_text(json.dumps(raw))
+    with pytest.raises(RecordIntegrityError, match="policy contradicts"):
+        store.submission_format(result.grade, result.artifacts)
 
 
 def test_json_required_key_projection_preserves_array_order_and_facts() -> None:
@@ -266,8 +326,15 @@ def test_text_adapter_fault_preserves_other_families_stored_evidence(tmp_path: P
     for family, case in cases.items():
         result, evidence, prompt = exercise(root / (family + "_after"), family, case)
         original_result, original_evidence, original_prompt = before[family]
+        if family == affected and fault == "exception":
+            assert "artifacts/submission_format.json" not in evidence
+            original_evidence = {key: value for key, value in original_evidence.items()
+                if key != "artifacts/submission_format.json"}
         assert evidence == original_evidence
-        assert result.artifacts == original_result.artifacts
+        expected_artifacts = dict(original_result.artifacts)
+        if family == affected and fault == "exception":
+            expected_artifacts.pop("artifacts/submission_format.json")
+        assert result.artifacts == expected_artifacts
         assert prompt == original_prompt
         assert result.key.experiment_id == original_result.key.experiment_id
         if family == affected:

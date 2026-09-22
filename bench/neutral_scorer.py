@@ -5,7 +5,7 @@ Task-owned answer contracts and source views never invoke the treatment binary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
 from decimal import Decimal, InvalidOperation
 import json
 import re
@@ -14,6 +14,58 @@ from typing import Literal
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from bench.trial_records import Grade
+
+GRADER_VERSION = "independent-source/2"
+SUBMISSION_RULE = "terminal-json-or-fence/1"
+
+
+def answer_policy_snapshot(policy: StructuralDiffPolicy, artifact: str) -> dict[str, object]:
+    validate_policy(policy, artifact=artifact)
+    return {"artifact": artifact, "scorer": asdict(policy), "submission_rule": SUBMISSION_RULE}
+
+
+@dataclass(frozen=True)
+class SubmissionFormat:
+    """Syntax evidence bound to the frozen answer policy, never a grade."""
+
+    answer_policy: dict[str, object]
+    json_form: Literal["raw", "fenced", "invalid"] | None
+    schema: str = "mdtools.submission-format/1"
+
+    def __post_init__(self) -> None:
+        snapshot = self.answer_policy
+        if (self.schema != "mdtools.submission-format/1" or type(snapshot) is not dict or
+            set(snapshot) != {"artifact", "scorer", "submission_rule"} or
+            snapshot["submission_rule"] != SUBMISSION_RULE or type(snapshot["scorer"]) is not dict or
+            set(snapshot["scorer"]) != {entry.name for entry in fields(StructuralDiffPolicy)}):
+            raise ValueError("invalid submission format policy")
+        policy = StructuralDiffPolicy(**snapshot["scorer"])
+        validate_policy(policy, artifact=snapshot["artifact"])
+        if ((snapshot["artifact"] == "json_envelope" and self.json_form not in ("raw", "fenced", "invalid")) or
+            (snapshot["artifact"] != "json_envelope" and self.json_form is not None)):
+            raise ValueError("submission format contradicts artifact family")
+        object.__setattr__(self, "answer_policy", answer_policy_snapshot(policy, snapshot["artifact"]))
+
+    @classmethod
+    def observe(cls, policy: StructuralDiffPolicy, artifact: str, final_text: bytes) -> SubmissionFormat:
+        form = None
+        if artifact == "json_envelope":
+            try:
+                _, form = parse_json_submission(final_text)
+            except ValueError:
+                form = "invalid"
+        return cls(answer_policy_snapshot(policy, artifact), form)
+
+    @classmethod
+    def from_dict(cls, raw: object) -> SubmissionFormat:
+        if type(raw) is not dict or set(raw) != {entry.name for entry in fields(cls)}:
+            raise ValueError("invalid submission format record")
+        return cls(**raw)
+
+    def assert_matches(self, final_text: bytes) -> None:
+        policy = StructuralDiffPolicy(**self.answer_policy["scorer"])
+        if self != self.observe(policy, self.answer_policy["artifact"], final_text):
+            raise ValueError("submission format contradicts final answer")
 
 
 def _render_inline_to_plaintext(children: list[Token] | None) -> str:
@@ -127,6 +179,21 @@ def _decode_json(content: bytes) -> object:
         raise ValueError("invalid_json") from exc
 
 
+def parse_json_submission(final_text: bytes) -> tuple[object, Literal["raw", "fenced"]]:
+    """Recognize one complete terminal value; never search a transcript."""
+    content = final_text.strip(b" \t\r\n")
+    form: Literal["raw", "fenced"] = "raw"
+    if content.startswith(b"```"):
+        wrapper = re.fullmatch(rb"```(?:json)?\r?\n(.*)\r?\n```", content, re.DOTALL)
+        if wrapper is None:
+            raise ValueError("invalid_json_wrapper")
+        content, form = wrapper.group(1), "fenced"
+    value = _decode_json(content)
+    if not isinstance(value, (dict, list)):
+        raise ValueError("json_requires_object_or_array")
+    return value, form
+
+
 def _typed_equal(actual: object, expected: object) -> bool:
     # JSON has one numeric value domain. Booleans are a separate domain even
     # though Python's bool is an int subclass. Decimal avoids float rounding.
@@ -160,12 +227,12 @@ def answer_instructions(policy: StructuralDiffPolicy, *, artifact: str) -> str:
         return "Submit the requested final text verbatim."
     if policy.json_canonical:
         keys = f" Required keys in every result object: {json.dumps(policy.json_required_keys)}." if policy.json_required_keys else ""
-        return "Submit the task's declared JSON object or array, preserving its fields and meaningful array order." + keys + " No prose or code fences."
+        return "Submit the task's declared JSON object or array, preserving its fields and meaningful array order." + keys + " Use raw JSON or one complete ```json fence; no prose."
     if policy.compare_heading_tree:
-        return 'Submit an ordered JSON array of headings: [{"level": integer 1 through 6, "text": string}]. Use [] for no headings. No prose or code fences.'
+        return 'Submit an ordered JSON array of headings: [{"level": integer 1 through 6, "text": string}]. Use [] for no headings. Use raw JSON or one complete ```json fence; no prose.'
     if policy.compare_frontmatter_json:
-        return 'Submit JSON {"present": boolean, "format": string or null, "value": parsed JSON payload or null}. Preserve the frontmatter format: yaml/toml labels are case-insensitive; YAML and TOML remain distinct. Absent frontmatter requires false/null/null. No prose or code fences.'
-    return 'Submit an ordered JSON array of links: [{"kind": string, "destination": string}]. Use [] for no links. No prose or code fences.'
+        return 'Submit JSON {"present": boolean, "format": string or null, "value": parsed JSON payload or null}. Preserve the frontmatter format: yaml/toml labels are case-insensitive; YAML and TOML remain distinct. Absent frontmatter requires false/null/null. Use raw JSON or one complete ```json fence; no prose.'
+    return 'Submit an ordered JSON array of links: [{"kind": string, "destination": string}]. Use [] for no links. Use raw JSON or one complete ```json fence; no prose.'
 
 
 def _semantic_answer(policy: StructuralDiffPolicy, answer: object, *, legacy_expected: bool) -> object:
@@ -330,7 +397,7 @@ def grade_json(policy: StructuralDiffPolicy, final_text: bytes, expected: bytes)
     validate_expected(policy, expected, artifact="json_envelope")
     expected_value = expected_answer(policy, expected)
     try:
-        actual_value = _decode_json(final_text)
+        actual_value, _ = parse_json_submission(final_text)
         if policy.json_canonical:
             if not isinstance(actual_value, (dict, list)):
                 raise ValueError("canonical_json_requires_object_or_array")

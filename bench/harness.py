@@ -35,7 +35,8 @@ from bench.command_policy import (CliCondition, ConditionPin, ClaudeRunner, CLAU
     resolve_toolkit, stage_condition, tool_reference, verify_condition, ToolGuidance)
 from bench.claude_shell import ContainmentError, OwnedShells, process_state
 from bench.manifest import CampaignConfig, CampaignSpec, ExperimentSpec, LiveRunGrant, canonical_json, sha256_file, sha256_text, serial_schedule
-from bench.neutral_scorer import StructuralDiffPolicy, answer_instructions, grade_submission, validate_expected, validate_policy
+from bench.neutral_scorer import (GRADER_VERSION, SubmissionFormat, StructuralDiffPolicy,
+    answer_instructions, answer_policy_snapshot, grade_submission, validate_expected, validate_policy)
 from bench.trial_records import (SCHEMA, AttemptKey, AttemptStart, AttemptResult,
     ClaudeEvent, ExecutionOutcome, Grade, PermissionDenial, RecordIntegrityError,
     RunReceipt, ToolCall, ToolResult, Usage, admission_fault, decode_record_json,
@@ -707,6 +708,34 @@ The atomic publication is an exclusive hard link to a flushed candidate. Its
             if hashlib.sha256(self._read_evidence(reference)).hexdigest() != digest:
                 raise RecordIntegrityError("artifact digest mismatch")
 
+    def submission_format(self, grade: Grade, artifacts: Mapping[str, str]) -> SubmissionFormat | None:
+        """Verify the policy and syntax evidence without regrading saved work."""
+        reference = "artifacts/submission_format.json"
+        # Older low-level synthetic records did not require experiment.json.
+        if not (self.directory / "experiment.json").exists():
+            if reference in artifacts:
+                raise RecordIntegrityError("submission format lacks frozen experiment")
+            return None
+        spec = ExperimentSpec.from_dict(decode_record_json(self._read_evidence("experiment.json")))
+        if spec.grader_version != GRADER_VERSION:
+            return None
+        if grade.kind not in ("pass", "fail"):
+            if reference in artifacts:
+                raise RecordIntegrityError("ungraded attempt has submission format")
+            return None
+        if reference not in artifacts:
+            raise RecordIntegrityError("graded attempt lacks submission format")
+        try:
+            observed = SubmissionFormat.from_dict(decode_record_json(self._read_evidence(reference)))
+            if sha256_text(canonical_json(observed.answer_policy)) != spec.answer_policy_sha256:
+                raise ValueError("submission policy contradicts experiment")
+            final_text = (self._read_evidence("artifacts/final_submission.bin")
+                if observed.answer_policy["artifact"] != "file_contents" else b"")
+            observed.assert_matches(final_text)
+        except ValueError as exc:
+            raise RecordIntegrityError(str(exc)) from exc
+        return observed
+
     def _assert_trace(self, start: AttemptStart, execution: ExecutionOutcome,
                       grade: Grade, permission_reason: str | None, usage: Usage,
                       observed_model: str | None, artifacts: dict[str, str]) -> None:
@@ -761,6 +790,7 @@ The atomic publication is an exclusive hard link to a flushed candidate. Its
                         "artifacts": dict(result.artifacts), "evidence_complete": result.evidence_complete}:
             raise RecordIntegrityError("artifact manifest contradicts result")
         self._assert_artifacts(dict(result.artifacts))
+        self.submission_format(result.grade, result.artifacts)
         self._assert_trace(start, result.execution, result.grade, result.permission_fault,
                            result.usage, result.observed_model, dict(result.artifacts))
         if self.persisted_fault() == "permission_denied" and result.permission_fault != "permission_denied":
@@ -789,6 +819,7 @@ The atomic publication is an exclusive hard link to a flushed candidate. Its
             recorded = dict(artifacts)
             recorded["events.jsonl"] = sha256_file(self.directory / "events.jsonl")
             self._assert_artifacts(recorded)
+            self.submission_format(grade, recorded)
             self._assert_trace(start, execution, grade, permission_fault, usage, observed_model, recorded)
             manifest_bytes = (canonical_json({"schema": SCHEMA, "record": "artifact_manifest",
                 "key": record_dict(start.key), "artifacts": recorded,
@@ -1062,7 +1093,8 @@ def prepare_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
         {name: sha256_file(path) for name, path in toolkit.items()},
         support_sha256={name: hashlib.sha256(sources[name]).hexdigest() for name in task.support_files or []},
         expected_stdout_sha256=hashlib.sha256(expected_stdout).hexdigest() if expected_stdout is not None else None,
-        answer_policy_sha256=sha256_text(canonical_json({"artifact": task.expected_artifact, "scorer": asdict(task.scorer)})),
+        answer_policy_sha256=sha256_text(canonical_json(answer_policy_snapshot(task.scorer, task.expected_artifact))),
+        grader_version=GRADER_VERSION,
         requested_model=claude.model if claude else None,
         effort=claude.effort if claude else None,
         thinking_policy=claude.thinking_policy if claude else None,
@@ -1315,6 +1347,12 @@ def run_agent(task: BenchTask, *, fixture_root: Path, expected_root: Path,
                 grade = Grade("unavailable", "grader_unavailable")
         elif execution.kind != "completed":
             grade = Grade("not_run", execution.reason)
+        if grade.kind in ("pass", "fail"):
+            observed = SubmissionFormat.observe(task.scorer, task.expected_artifact, final_text)
+            reference = "artifacts/submission_format.json"
+            payload = (canonical_json(asdict(observed)) + "\n").encode()
+            _write_private(results_dir / reference, payload)
+            artifacts[reference] = hashlib.sha256(payload).hexdigest()
     result = store.finalize(execution=execution, grade=grade, usage=usage, artifacts=artifacts,
         evidence_complete=evidence_complete, permission_fault=decoder.permission_fault if decoder else None,
         observed_model=decoder.receipt.observed_model if decoder and decoder.receipt else None, exit_code=exit_code)

@@ -85,14 +85,16 @@ never matches process names.
 | Artifact | Admitted policy | Final evidence |
 |---|---|---|
 | `file_contents` | `raw_bytes` with normalization only; `normalized_text` with optional heading/block-order/link/source-block flags; `structural` with at least one such flag | Captured first input file |
-| `json_envelope` | `structural`, either canonical JSON or exactly one heading/frontmatter/link projection | Strict final JSON |
+| `json_envelope` | `structural`, either canonical JSON or exactly one heading/frontmatter/link projection | Final JSON, raw or inside one complete JSON fence |
 | `stdout_text` | `raw_bytes` or `normalized_text`, normalization only | Requested UTF-8 final text |
 | `stdout_and_file` | File policy above, plus literal `expected_stdout` | Both requested UTF-8 final text and first input file |
 
 Synthetic stdout is the entire explicit final submission. It must contain only
 the answer; stderr may carry diagnostics. The controller stores stdout unchanged
-as `artifacts/final_submission.bin` for output kinds. It does not strip fences,
-guess an answer family, parse provider/tool events, or recover earlier output.
+as `artifacts/final_submission.bin` for output kinds. The JSON grader accepts raw
+JSON or one complete three-backtick fence with an optional lowercase `json`
+label. Only JSON whitespace may surround the answer. It never searches prose,
+selects an answer from earlier tool output, or changes stored bytes.
 A correct synthetic stderr observation followed by wrong final stdout fails.
 U4 must extract untouched terminal receipt text for the same grader API.
 
@@ -140,8 +142,14 @@ Strict JSON rejects duplicate keys, nonfinite constants, missing required fields
 and booleans as numbers. Decimal parsing preserves exact finite numeric values:
 1 and 1.0 are equivalent JSON numbers; 1.0000000000000001 differs from 1.0.
 Heading-level integers have their own strict schema. Object-key order is
-immaterial; array order remains meaningful. Prose and code fences fail JSON
-submission validation.
+immaterial; array order remains meaningful. Prose, multiple answers and malformed
+wrappers fail JSON submission validation. One complete JSON fence is accepted
+under `independent-source/2`. Previous receipts retain their original contract
+and grades; this rule starts a new experiment. Each authoritative grade has a
+hashed `submission_format.json` artifact binding the answer-policy snapshot and
+observed raw/fenced/invalid JSON form. Other artifact families have null JSON
+form; ungraded executions have no format verdict. Syntax evidence never
+determines semantic correctness.
 
 ## Unsupported combinations and evidence limits
 
