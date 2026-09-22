@@ -13,6 +13,9 @@ fn protocol_schema_covers_every_authoritative_surface() {
         "query_result",
         "target_snapshot",
         "target_read",
+        "target_overview",
+        "query_overview",
+        "frontmatter_field_value",
         "patch",
         "patch_receipt",
         "error_envelope",
@@ -73,6 +76,18 @@ fn five_command_metadata_is_unique_and_protocol_named() {
     names.sort_unstable();
     names.dedup();
     assert_eq!(names.len(), CLI_COMMANDS.len());
+
+    let read = CLI_COMMANDS
+        .iter()
+        .find(|command| command.name == "read")
+        .unwrap();
+    assert!(read.input.contains("whole document by default"));
+    assert!(read.input.contains("--section"));
+    let query = CLI_COMMANDS
+        .iter()
+        .find(|command| command.name == "query")
+        .unwrap();
+    assert!(query.input.contains("--kind"));
 }
 
 #[test]

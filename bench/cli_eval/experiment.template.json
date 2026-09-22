@@ -1,0 +1,24 @@
+{
+  "task_ids": [
+    "T1",
+    "T2",
+    "T10"
+  ],
+  "pin_root": "/absolute/path/to/producer-pins",
+  "source_root": "/absolute/path/to/mdtools",
+  "output_root": "/absolute/path/to/new-experiment",
+  "command": [],
+  "claude_executable": "/absolute/path/to/preserved/claude",
+  "endpoint": null,
+  "model": "claude-haiku-4-5-20251001",
+  "effort": null,
+  "thinking_policy": "disabled",
+  "guidance": "full_help",
+  "repetitions": 1,
+  "seed": 1729,
+  "timeout_seconds": 180,
+  "max_turns": 30,
+  "retry_allowance": 0,
+  "attempt_usd": 0.25,
+  "campaign_usd": 2.25
+}

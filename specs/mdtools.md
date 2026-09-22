@@ -79,3 +79,34 @@ schema
 
 CLI code only decodes protocol JSON, calls library operations, and renders
 typed results or candidate source.
+
+`map` and `query` default to compact JSON views derived from the same targets:
+addresses and summaries for discovery, previews and spans for search evidence.
+These views carry no revision, etag, or guard. Source evidence remains tagged
+and targetless. `read` defaults to original selected content, preserving source
+bytes without a wrapper or duplicate section fragment. Frontmatter fields emit
+`{present, value}` to distinguish an absent field from JSON null.
+
+`--json` selects the full `TargetSnapshot`, `QueryResult`, and `TargetRead`
+protocol outputs used for patch preparation. Existing scripts that parse full
+results must select this mode explicitly. The generated schema describes both
+the compact views and full protocol types. Input addresses, query semantics,
+patch guards, patch previews, and receipts are unchanged.
+
+`read --query` selects exactly one target using `Document::query_one`.
+`--address`, `--from`, and `--query` are mutually exclusive; `--from` remains
+address-only. Search evidence is not a read selector. Frontmatter-directed
+queries use the same strict read policy as exact frontmatter addresses, before
+resolution; other queries keep the existing lenient structural policy. Query
+enumeration may return no missing-field target even when its exact address can
+represent an absent value. Resolution and reading use one document instance.
+
+Invalid inputs retain the authoritative typed-deserialization error and exit
+status. Short examples are serialized from existing protocol types; the raw
+input's discriminator may choose guidance only after decoding fails. Examples
+are not automatically executed repairs. Patch guidance requires observed guards.
+
+Optional CLI usage measurements describe output streams, not protocol authority
+or provider billing. Measurement failures cannot change command results, and a
+committed patch remains successful if writing its receipt fails. No document
+payloads or file identities are persisted in CLI measurements.

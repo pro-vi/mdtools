@@ -14,6 +14,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cli-evaluation-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source and historical producer pins
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Python 3.9
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.9'
+
+      - name: Install Rust for explicit offline producer builds
+        run: |
+          rustup toolchain install stable
+          rustup default stable
+
+      - name: Install hash-locked Python dependencies
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r bench/requirements.lock
+
+      - name: Run portable synthetic evaluation closure
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: |
+          python -m pytest -q --strict-markers \
+            bench/test_harness_run_artifacts.py bench/test_harness_task_split.py \
+            bench/test_native_runner.py bench/test_harness_json.py \
+            bench/test_neutral_scorer.py bench/test_prompt_neutrality.py \
+            bench/test_command_policy.py bench/test_manifest.py bench/test_trial_records.py \
+            bench/test_agg_util.py bench/test_stats.py bench/test_report_inputs.py \
+            bench/test_claude_containment.py bench/test_harness_refactor.py \
+            bench/test_campaign_admission.py bench/test_campaign_config.py \
+            bench/test_prompt_comparison.py
+
+      - name: Run isolated default synthetic entry point
+        run: python -I bench/harness.py --offline-exercise
+
+      - name: Record offline evidence limits
+        if: ${{ always() }}
+        run: |
+          echo 'This job runs synthetic subprocesses and explicit producer builds. It has no model credentials, model calls, holdout-content reads, or raw-trace uploads. macOS native containment and local Claude fixture checks are not exercised on Linux.' >> "$GITHUB_STEP_SUMMARY"
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30

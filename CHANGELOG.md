@@ -15,6 +15,27 @@ and error-envelope outputs identify that version explicitly. It moves
 independently of the crate version. Before 1.0, a breaking library change bumps
 the minor.
 
+## v0.4.1 — Unreleased
+
+This preserves the Rust library API and the full `mdtools.v3` JSON protocol.
+The default CLI presentation changes: scripts consuming full `map`, `query`,
+or `read` results must pass `--json`.
+
+- Default discovery returns compact addresses and summaries; default reads
+  return original content once. Frontmatter fields distinguish absent values
+  from present JSON null.
+- `read --query` resolves exactly one target with the existing query type,
+  preserving strict frontmatter reads and refusing ambiguous/search selections.
+- Invalid protocol input includes a short typed example and scoped schema
+  guidance instead of requiring the full schema for routine corrections.
+- Opt-in Unix usage logging records actual stream byte counts and named
+  tokenizer counts without persisting document text, argument values, or paths.
+  Unsafe aliases, unresolved inputs, and logging failures cannot change the
+  command outcome. Token counts are not provider billing.
+- CLI regression coverage confirms the already-correct last task-item span
+  stops before trailing prose and its guard stays stable when that prose changes.
+  This covers the reported issue #42 for LF and CRLF input.
+
 ## v0.4.0 — 2026-09-01
 
 This is a breaking library and wire release.

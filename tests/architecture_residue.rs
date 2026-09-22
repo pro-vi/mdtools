@@ -2,6 +2,19 @@
 use std::process::Command;
 
 #[test]
+fn quality_workflow_is_valid_yaml() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workflow = root.join(".github/workflows/quality.yml");
+    // Published crates include Rust tests but not repository CI configuration.
+    if !root.join(".git").exists() && !workflow.exists() {
+        return;
+    }
+    let source = std::fs::read_to_string(workflow).unwrap();
+    serde_yaml::from_str::<serde_yaml::Value>(&source)
+        .expect("quality workflow must be valid YAML");
+}
+
+#[test]
 fn public_source_has_no_previous_authority_names() {
     fn collect(directory: &std::path::Path, source: &mut String) {
         for entry in std::fs::read_dir(directory).unwrap() {
@@ -51,12 +64,27 @@ fn removed_command_modules_and_manual_inventory_are_absent() {
         "src/multifile.rs",
         "src/block_edit.rs",
         "bench/md_inventory_v1.json",
-        "bench/command_policy.py",
     ] {
         assert!(
             !root.join(removed).exists(),
             "removed path remains: {removed}"
         );
+    }
+    // The recovered evaluation policy reads each pinned producer's schema.
+    // Its filename is reusable; the retired manual inventory is not.
+    let policy = root.join("bench/command_policy.py");
+    if policy.exists() {
+        let source = std::fs::read_to_string(policy).unwrap();
+        for removed in [
+            "MD_INVENTORY_PATH",
+            "load_md_inventory",
+            "md_inventory_v1.json",
+        ] {
+            assert!(
+                !source.contains(removed),
+                "retired manual inventory remains: {removed}"
+            );
+        }
     }
 }
 
