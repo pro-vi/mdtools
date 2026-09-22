@@ -6,7 +6,7 @@ controller recipes, not another command inventory. Shared task facts and
 `answer_instructions` precede that reference identically in every condition.
 
 All conditions receive cat, grep, sed, awk, head, tail, wc, tee, mv, cp, mktemp
-and jq. Bash builtins remain available. Use an explicit scratch template with
+and jq and env. Bash builtins remain available. Use an explicit scratch template with
 mktemp (`mktemp "$TMPDIR/example.XXXXXX"`); bare macOS mktemp does not use TMPDIR.
 Actual symlink targets and executable bytes must be frozen before containment.
 Staging PATH does not prevent access to a host binary; U5/U7 must prove that.
@@ -16,6 +16,12 @@ Staging PATH does not prevent access to a host binary; U5/U7 must prove that.
 The following controller invocation builds from the exact source pins in fresh
 Git exports and executes every recipe in `exercise_cli_examples`. It requires
 cargo; there is no installed-md fallback. Choose a new private output root.
+
+The legacy-interface reference is source `4d857d2`; compact is `3853f02`,
+including whole-document and exact-heading reads. The historical July benchmark
+recorded only a binary path, without an executable hash or source revision.
+The legacy reference is reproducible, but is not a proven reconstruction of
+that historical executable. Both interfaces are evaluated afresh.
 
 ```python
 from pathlib import Path

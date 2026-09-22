@@ -212,7 +212,7 @@ unobserved authentication/transport/limit/cache variants remain unverified.
 
 U3's recipes and build commands are in `cli_eval/tool_reference.md`; its unfrozen
 planning template is `cli_eval/experiment.template.json`, not a final study spec.
-Source pins are legacy 4d857d2 (0.2.0) and current 6daa2d8 (0.4.1). Builds use
+Source pins are legacy 4d857d2 (0.2.0) and current 3853f02 (0.4.1). Builds use
 fresh Git exports and locked Cargo dependencies; they never switch/reset this
 checkout or substitute installed md. Integration tests build both pins, or
 verify preserved receipts under explicit `MDTOOLS_U3_PIN_ROOT` (legacy/current

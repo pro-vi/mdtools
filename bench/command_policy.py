@@ -44,7 +44,7 @@ ORDINARY_TOOLS = (*UNIX_TOOLS, "jq", "env")
 
 SOURCE_PINS = {
     CliCondition.LEGACY: "4d857d2d8ab39d60613498e4a732c66a4494f4be",
-    CliCondition.CURRENT_COMPACT: "6daa2d8f87497928cabd2b4f895b0b64d6b458f7",
+    CliCondition.CURRENT_COMPACT: "3853f024eaebe5957c4f4ca60ddc109076dcd8c8",
 }
 UNAVAILABLE_MD = b'#!/bin/sh\nprintf "%s\\n" "md: unavailable here; use standard unix tools." >&2\nexit 1\n'
 

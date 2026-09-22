@@ -92,9 +92,18 @@ def probe(source: Path, output: Path, mode: str, payload: object) -> object:
     # This subprocess imports exactly one source tree; no module-cache sharing.
     sys.path.insert(0, str(source))
     from bench import harness
+    from bench import command_policy
     from bench.command_policy import CliCondition, ConditionPin, resolve_toolkit, stage_condition
     from bench.test_trial_records import synthetic_cli_events
     from bench.trial_records import record_dict
+    # Compare controller behavior with the same verified producers. This is
+    # deliberately not a replay of the historical campaign's identity.
+    pins = payload.get("pins", []) if isinstance(payload, dict) else []
+    if mode == "prompt":
+        pins = [payload]
+    for pin in pins:
+        if pin["source_commit"] is not None:
+            command_policy.SOURCE_PINS[CliCondition(pin["condition"])] = pin["source_commit"]
     policy = harness.StructuralDiffPolicy("raw_bytes", False, False, False, False, False, False, False)
     task = harness.BenchTask("synthetic", "Write after.", ["input.md"], "answer.md", "file_contents", "synthetic", policy)
     if mode == "prompt":
