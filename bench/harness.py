@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import ExitStack, nullcontext
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
 import fcntl
 import hashlib
 import json
@@ -1740,7 +1740,7 @@ def _core_tasks(config: CampaignConfig, consent: CorePreparationConsent | None) 
             context = row["id"] + ": task_shape"
             if row["id"] in tasks:
                 raise ValueError("duplicate task")
-            selected = dict(row)
+            selected = {field.name: row[field.name] for field in fields(BenchTask) if field.name in row}
             selected["scorer"] = StructuralDiffPolicy(**selected["scorer"])
             task = BenchTask(**selected)
             _validate_task(task)

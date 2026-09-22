@@ -99,7 +99,8 @@ def core_case(config: CampaignConfig, tmp_path: Path) -> tuple[CampaignConfig, C
         task = harness.BenchTask(task_id, "Write after and submit [].", ["bench/inputs/input.md"],
             "bench/expected/text.md" if artifact == "stdout_text" else "bench/expected/file.md",
             artifact, "synthetic", policy, expected_stdout="[]\n" if artifact == "stdout_and_file" else None)
-        rows.append(asdict(task))
+        # Registry provenance is audit metadata, not part of the agent task.
+        rows.append({**asdict(task), "provenance": {"source": "synthetic fixture"}})
     (source / "bench/tasks/tasks.json").write_text(json.dumps(rows))
     (source / "bench/inputs/input.md").write_bytes(b"before\n")
     (source / "bench/expected/file.md").write_bytes(b"after\n")
