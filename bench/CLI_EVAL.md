@@ -421,9 +421,11 @@ their class when the CLI exits nonzero.
 ## Configured preparation and execution
 
 Copy `cli_eval/experiment.template.json` and set its absolute paths. The config
-contains public task IDs, producer pins, runner settings and limits, not answers
-or credentials. Only T1, T2, T10, T21 and the separate synthetic `cli-canary`
-are supported. Undeclared scopes fail before task content is read.
+contains task IDs, producer pins, runner settings and limits, not answers or
+credentials. Public preparation supports T1, T2, T10, T21 and the separate
+synthetic `cli-canary`. Core preparation requires the complete T1–T24 set,
+five repetitions, and separately supplied controller-read permission.
+Undeclared scopes fail before task content is read.
 
 ```sh
 python -m bench.harness --prepare-config /absolute/config.json
@@ -451,6 +453,33 @@ references and ordinary toolkit but supplies only help-discovery instructions fo
 md. The no-md prompt is identical in both profiles. Prompt hashes bind this
 choice without changing historical experiment or attempt record formats.
 Smaller initial prompts are not evidence of better model outcomes.
+
+### Core preparation permission
+
+Both `--prepare-config` and `--run-config` require `--preparation-consent FILE`
+for the core corpus. This closed `CorePreparationConsent` JSON records the exact
+approval quotation, action `prepare_core_corpus`, schema
+`mdtools.core-preparation-consent/1`, absolute source root, full source commit,
+Git object IDs for `bench/tasks`, `bench/inputs`, `bench/expected`, `bench/holdout`,
+all 24 task IDs, explicit private output roots, and acknowledgment of prior
+exposure. Field names and validation are defined in `bench/manifest.py`.
+Consent must be explicitly granted; neither a config nor a saved audit file
+supplies it. No template manufactures approval.
+
+Consent is checked before core task projection or source reads. Every input,
+support and expected file must be inside the consented corpus and match its
+committed blob. Changed corpus bytes, unsafe paths and mismatched destinations
+reject; parser failures do not print task or answer contents. A real core
+configuration also requires its matching model's completed public pilot before
+preparation. Synthetic tests use a disposable committed corpus, not real sealed
+tasks.
+
+Preparation writes a private immutable consent audit and a frozen 360-trial
+proposal. It does not contact a provider. Launch separately requires an
+identity-bound `LiveRunGrant` and matching pilot; the original consent must be
+supplied again on resume because preparation rechecks source content. Public
+and prompt-comparison entry points cannot acquire core access from this flag.
+Reports reload already captured receipts without opening the task corpus.
 
 ## Paired prompt diagnostic
 

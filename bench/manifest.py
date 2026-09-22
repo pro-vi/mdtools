@@ -19,6 +19,9 @@ from typing import Mapping
 from bench.trial_records import (BACKENDS, CONDITIONS, SCHEMA, AttemptKey, RecordIntegrityError,
     record_dict, require_digest, require_artifact_path, require_quantity, require_text)
 
+CORE_TASK_IDS = tuple(f"T{n}" for n in range(1, 25))
+CORPUS_PATHS = ("bench/tasks", "bench/inputs", "bench/expected", "bench/holdout")
+
 
 def sha256_file(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -58,9 +61,11 @@ class CampaignConfig:
         from bench.command_policy import ClaudeRunner, ToolGuidance
         ToolGuidance(self.guidance)
         if (type(self.task_ids) is not tuple or not self.task_ids or
-            any(type(task) is not str or task not in ("T1", "T2", "T10", "T21", "cli-canary") for task in self.task_ids) or
+            any(type(task) is not str for task in self.task_ids) or
             len(set(self.task_ids)) != len(self.task_ids) or
-            ("cli-canary" in self.task_ids and self.task_ids != ("cli-canary",))):
+            (not self.core_study and any(task not in ("T1", "T2", "T10", "T21", "cli-canary") for task in self.task_ids)) or
+            ("cli-canary" in self.task_ids and self.task_ids != ("cli-canary",)) or
+            (self.core_study and (type(self.repetitions) is not int or self.repetitions != 5))):
             raise RecordIntegrityError("unsupported configured task scope")
         for name in ("pin_root", "source_root", "output_root"):
             value = getattr(self, name)
@@ -98,6 +103,65 @@ class CampaignConfig:
             if type(payload[name]) is not list:
                 raise RecordIntegrityError("config scope and argv must be arrays")
             payload[name] = tuple(payload[name])
+        return cls(**payload)
+
+    @property
+    def core_study(self) -> bool:
+        return (type(self.task_ids) is tuple and all(type(task) is str for task in self.task_ids)
+                and set(self.task_ids) == set(CORE_TASK_IDS))
+
+
+@dataclass(frozen=True)
+class CorePreparationConsent:
+    """Explicit controller-read permission; never permission to launch a model."""
+
+    approval_quote: str
+    source_root: str
+    source_commit: str
+    corpus_objects: Mapping[str, str]
+    task_ids: tuple[str, ...]
+    output_roots: tuple[str, ...]
+    prior_exposure_acknowledged: bool
+    action: str = "prepare_core_corpus"
+    schema: str = "mdtools.core-preparation-consent/1"
+
+    def __post_init__(self) -> None:
+        require_text(self.approval_quote, "explicit preparation approval quote")
+        if self.action != "prepare_core_corpus" or self.schema != "mdtools.core-preparation-consent/1":
+            raise RecordIntegrityError("unknown preparation consent")
+        if (type(self.task_ids) is not tuple or any(type(task) is not str for task in self.task_ids) or
+            len(self.task_ids) != len(CORE_TASK_IDS) or set(self.task_ids) != set(CORE_TASK_IDS) or
+            self.prior_exposure_acknowledged is not True):
+            raise RecordIntegrityError("core preparation requires exact scope and exposure acknowledgment")
+        if (not isinstance(self.corpus_objects, Mapping) or set(self.corpus_objects) != set(CORPUS_PATHS)):
+            raise RecordIntegrityError("explicit corpus object identities required")
+        for revision in (self.source_commit, *self.corpus_objects.values()):
+            if type(revision) is not str or len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision):
+                raise RecordIntegrityError("full Git object identity required")
+        if type(self.output_roots) is not tuple or not self.output_roots:
+            raise RecordIntegrityError("explicit private preparation destinations required")
+        for location in (self.source_root, *self.output_roots):
+            require_text(location, "preparation location")
+            if not Path(location).is_absolute() or ".." in Path(location).parts or location == "/":
+                raise RecordIntegrityError("invalid preparation location")
+        if len(set(self.output_roots)) != len(self.output_roots):
+            raise RecordIntegrityError("duplicate preparation destination")
+        object.__setattr__(self, "corpus_objects", MappingProxyType(dict(self.corpus_objects)))
+
+    def assert_scope(self, config: CampaignConfig) -> None:
+        if (not config.core_study or config.source_root != self.source_root or
+                config.output_root not in self.output_roots or set(config.task_ids) != set(self.task_ids)):
+            raise RecordIntegrityError("preparation consent does not match source, scope or destination")
+
+    @classmethod
+    def from_dict(cls, raw: object) -> CorePreparationConsent:
+        if type(raw) is not dict or set(raw) != {entry.name for entry in fields(cls)}:
+            raise RecordIntegrityError("missing/unknown preparation consent fields")
+        payload = dict(raw)
+        for field_name in ("task_ids", "output_roots"):
+            if type(payload[field_name]) is not list:
+                raise RecordIntegrityError("invalid preparation consent list")
+            payload[field_name] = tuple(payload[field_name])
         return cls(**payload)
 
 
@@ -285,7 +349,7 @@ class CampaignSpec:
         if (self.grant_usd is None) != (self.reservation_usd is None):
             raise RecordIntegrityError("budget requires grant and per-attempt reservation")
         if self.core_study:
-            expected = {(f"T{n}", condition, repetition) for n in range(1, 25)
+            expected = {(task, condition, repetition) for task in CORE_TASK_IDS
                         for condition in CONDITIONS for repetition in range(5)}
             prefix = {(task, condition, 0) for task in ("T14", "T23") for condition in CONDITIONS}
             if set(self.schedule) != expected or self.prefix_length != 6 or set(self.schedule[:6]) != prefix:
@@ -341,7 +405,7 @@ def serial_schedule(task_ids: tuple[str, ...], *, repetitions: int = 5,
         require_artifact_path(task_id)
     blocks = [(task, repetition) for repetition in range(repetitions) for task in task_ids]
     if core_study:
-        if set(task_ids) != {f"T{n}" for n in range(1, 25)} or repetitions != 5:
+        if set(task_ids) != set(CORE_TASK_IDS) or repetitions != 5:
             raise RecordIntegrityError("core study needs 24 tasks and five repetitions")
         prefix = [("T14", 0), ("T23", 0)]
         blocks = prefix + [block for block in blocks if block not in prefix]
@@ -425,7 +489,7 @@ class LiveRunGrant:
                     for condition in self.conditions for repetition in self.repetitions}
         if set(spec.schedule) != schedule:
             raise RecordIntegrityError("live grant trial scope mismatch")
-        core_ids = {f"T{n}" for n in range(1, 25)}
+        core_ids = set(CORE_TASK_IDS)
         if self.phase == "canary":
             if len(self.task_ids) != 1 or set(self.task_ids) & core_ids or self.repetitions != (0,) or self.max_attempts != 3 or spec.core_study or any(member.retry_allowance != 0 for member in spec.members.values()):
                 raise RecordIntegrityError("canary grant requires three synthetic trials and zero retries")

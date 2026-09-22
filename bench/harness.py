@@ -34,7 +34,8 @@ from bench.command_policy import (CliCondition, ConditionPin, ClaudeRunner, CLAU
     CLAUDE_VERSION, DYLD_PROFILE, build_runner_command, native_profile, prepare_native_boundary,
     resolve_toolkit, stage_condition, tool_reference, verify_condition, ToolGuidance)
 from bench.claude_shell import ContainmentError, OwnedShells, process_state
-from bench.manifest import CampaignConfig, CampaignSpec, ExperimentSpec, LiveRunGrant, canonical_json, sha256_file, sha256_text, serial_schedule
+from bench.manifest import (CORE_TASK_IDS, CORPUS_PATHS, CampaignConfig, CampaignSpec,
+    CorePreparationConsent, ExperimentSpec, LiveRunGrant, canonical_json, sha256_file, sha256_text, serial_schedule)
 from bench.neutral_scorer import (GRADER_VERSION, SubmissionFormat, StructuralDiffPolicy,
     answer_instructions, answer_policy_snapshot, grade_submission, validate_expected, validate_policy)
 from bench.trial_records import (SCHEMA, AttemptKey, AttemptStart, AttemptResult,
@@ -1473,7 +1474,7 @@ def assert_prerequisite(spec: CampaignSpec, *, phase: str, bundle: Path | None,
     views = trial_views(tuple((prior.identity, *entry) for entry in prior.schedule), starts, results, campaign=prior)
     prior_ids = {entry[0] for entry in prior.schedule}
     if phase in ("public_pilot", "prompt_comparison"):
-        if len(prior_ids) != 1 or prior_ids & {f"T{n}" for n in range(1, 25)} or len(views) != 3 or len(starts) != 3 or any(
+        if len(prior_ids) != 1 or prior_ids & set(CORE_TASK_IDS) or len(views) != 3 or len(starts) != 3 or any(
                 member.retry_allowance != 0 for member in prior.members.values()) or any(not view.workflow_success for view in views):
             raise RecordIntegrityError("public pilot requires three successful zero-retry canaries")
     elif prior_ids != {"T1", "T2", "T10"} or len(views) != 9:
@@ -1683,8 +1684,74 @@ def offline_campaign(results_dir: Path, pin_root: Path, *, stop_after: int | Non
         return run_campaign(spec, tasks, stop_after=stop_after, **args)
 
 
-def prepare_campaign_config(config: CampaignConfig) -> tuple[CampaignSpec, list[BenchTask], dict[str, ConditionPin], ClaudeRunner | None]:
-    """Package declared public inputs and freeze a proposal; never launch a model."""
+def _core_git(source: Path, *arguments: str) -> bytes:
+    completed = subprocess.run(["git", *arguments], cwd=source, capture_output=True, timeout=30)
+    if completed.returncode != 0:
+        raise RecordIntegrityError("core source Git identity check failed")
+    return completed.stdout
+
+
+def _read_core_source(source: Path, consent: CorePreparationConsent, reference: str) -> bytes:
+    relative = _relative_path(reference)
+    if not any(Path(prefix) in relative.parents for prefix in CORPUS_PATHS):
+        raise RecordIntegrityError("core reference outside consented corpus")
+    # Git blobs, not the index or a timestamp, bind each read to the consent.
+    oid = _core_git(source, "rev-parse", f"{consent.source_commit}:{reference}").decode().strip()
+    content = _read_source(source, reference)
+    blob = b"blob " + str(len(content)).encode() + b"\0" + content
+    if hashlib.sha1(blob).hexdigest() != oid:
+        raise RecordIntegrityError("core source bytes changed after consent")
+    return content
+
+
+def _core_tasks(config: CampaignConfig, consent: CorePreparationConsent | None) -> list[BenchTask]:
+    if not isinstance(consent, CorePreparationConsent):
+        raise RecordIntegrityError("core preparation requires explicit controller-read consent")
+    consent.assert_scope(config)
+    source, output = _root(Path(config.source_root)), _root(Path(config.output_root))
+    if output == source or output in source.parents or any(_overlaps(output, source / path) for path in CORPUS_PATHS):
+        raise RecordIntegrityError("core destination overlaps consented source")
+    if _core_git(source, "rev-parse", "--show-toplevel").decode().strip() != str(source):
+        raise RecordIntegrityError("core source must be its repository root")
+    for path, oid in consent.corpus_objects.items():
+        if _core_git(source, "rev-parse", f"{consent.source_commit}:{path}").decode().strip() != oid:
+            raise RecordIntegrityError("core corpus identity contradicts consent")
+    _core_git(source, "diff", "--quiet", consent.source_commit, "--", *CORPUS_PATHS)
+    try:
+        rows = decode_record_json(_read_core_source(source, consent, "bench/tasks/tasks.json"))
+        if type(rows) is not list:
+            raise ValueError("registry is not an array")
+        tasks = {}
+        for row in rows:
+            if type(row) is not dict or type(row.get("id")) is not str:
+                raise ValueError("invalid task identity")
+            if row["id"] not in CORE_TASK_IDS:
+                continue
+            if row["id"] in tasks:
+                raise ValueError("duplicate task")
+            selected = dict(row)
+            selected["scorer"] = StructuralDiffPolicy(**selected["scorer"])
+            task = BenchTask(**selected)
+            _validate_task(task)
+            validate_policy(task.scorer, artifact=task.expected_artifact)
+            tasks[task.id] = task
+        if set(tasks) != set(CORE_TASK_IDS):
+            raise ValueError("incomplete core corpus")
+        expected_paths = {task.expected_output for task in tasks.values()}
+        if any(reference in expected_paths for task in tasks.values()
+               for reference in [*task.input_files, *(task.support_files or [])]):
+            raise ValueError("worker reference aliases expected answer")
+    except (ValueError, TypeError, KeyError, RecordIntegrityError):
+        # Task text and expected values must never escape via parser errors.
+        raise RecordIntegrityError("invalid or unsupported core task contract") from None
+    return [tasks[task_id] for task_id in config.task_ids]
+
+
+def prepare_campaign_config(config: CampaignConfig, *, preparation_consent: CorePreparationConsent | None = None) -> tuple[CampaignSpec, list[BenchTask], dict[str, ConditionPin], ClaudeRunner | None]:
+    """Package authorized inputs and freeze a proposal; never launch a model."""
+    core_tasks = _core_tasks(config, preparation_consent) if config.core_study else None
+    if not config.core_study and preparation_consent is not None:
+        raise RecordIntegrityError("core consent cannot change public preparation scope")
     root, source = _root(Path(config.output_root)), _root(Path(config.source_root))
     fixtures, expected = root / "inputs", root / "expected"
     if config.task_ids == ("cli-canary",):
@@ -1693,13 +1760,24 @@ def prepare_campaign_config(config: CampaignConfig) -> tuple[CampaignSpec, list[
             StructuralDiffPolicy("raw_bytes", False, False, False, False, False, False, False))]
         packaged = {fixtures / "input.md": b"before\n", expected / "answer.md": b"ready\n"}
     else:
-        tasks = [public_task(name) for name in config.task_ids]
+        tasks = core_tasks if core_tasks is not None else [public_task(name) for name in config.task_ids]
         if any(_overlaps(root, source / reference) for task in tasks
                for reference in [*task.input_files, *(task.support_files or []), task.expected_output]):
             raise RecordIntegrityError("operator output overlaps a task source")
-        packaged = {fixtures / reference: _read_source(source, reference)
+        def read(reference: str) -> bytes:
+            return (_read_core_source(source, preparation_consent, reference) if core_tasks is not None
+                    else _read_source(source, reference))
+        packaged = {fixtures / reference: read(reference)
             for task in tasks for reference in [*task.input_files, *(task.support_files or [])]}
-        packaged.update({expected / task.expected_output: _read_source(source, task.expected_output) for task in tasks})
+        packaged.update({expected / task.expected_output: read(task.expected_output) for task in tasks})
+    if preparation_consent is not None:
+        consent_path = root / "core-preparation-consent.json"
+        content = (canonical_json(record_dict(preparation_consent)) + "\n").encode()
+        if consent_path.exists():
+            if _read_source(root, consent_path.name) != content:
+                raise RecordIntegrityError("changed core preparation consent")
+        else:
+            _write_private(consent_path, content)
     for path, content in packaged.items():
         if path.exists():
             if _read_source(path.parent, path.name) != content:
@@ -1718,6 +1796,7 @@ def prepare_campaign_config(config: CampaignConfig) -> tuple[CampaignSpec, list[
         config.endpoint, config.model, config.effort, config.thinking_policy, config.max_turns, config.attempt_usd)
     spec = freeze_campaign(tasks, fixture_root=fixtures, expected_root=expected, command=config.command,
         results_dir=root / "campaign", conditions=conditions, repetitions=config.repetitions, seed=config.seed,
+        core_study=config.core_study,
         timeout_seconds=config.timeout_seconds, retry_allowance=config.retry_allowance,
         grant_usd=config.campaign_usd if runner else None, reservation_usd=config.attempt_usd if runner else None,
         claude=runner, guidance=ToolGuidance(config.guidance))
@@ -1726,14 +1805,30 @@ def prepare_campaign_config(config: CampaignConfig) -> tuple[CampaignSpec, list[
 
 def configured_campaign(config: CampaignConfig, *, prepare_only: bool = False,
                         live_grant: LiveRunGrant | None = None, prerequisite_bundle: Path | None = None,
+                        preparation_consent: CorePreparationConsent | None = None,
                         stop_after: int | None = None) -> dict[str, object]:
     """One maintained operator route; saved proposals never supply permission."""
     if not prepare_only and config.claude_executable is not None and config.endpoint is None and live_grant is None:
         raise RecordIntegrityError("live run requires an explicitly supplied grant")
-    spec, tasks, conditions, runner = prepare_campaign_config(config)
+    if config.core_study and config.claude_executable is not None and config.endpoint is None:
+        if not isinstance(preparation_consent, CorePreparationConsent):
+            raise RecordIntegrityError("core preparation requires explicit controller-read consent")
+        preparation_consent.assert_scope(config)
+        if prerequisite_bundle is None:
+            raise RecordIntegrityError("live core preparation requires its public pilot prerequisite")
+        prior = _load_campaign(_root(prerequisite_bundle))
+        assert_prerequisite(prior, phase="core_study", bundle=prerequisite_bundle,
+            prerequisite_experiment_id=prior.identity)
+        for member in prior.members.values():
+            if ((member.requested_model, member.effort, member.thinking_policy) !=
+                (config.model, config.effort, config.thinking_policy) or
+                member.harness_sha256 != harness_source_identity() or
+                member.grader_sha256 != sha256_file(Path(__file__).with_name("neutral_scorer.py"))):
+                raise RecordIntegrityError("core preparation pilot model/source mismatch")
+    spec, tasks, conditions, runner = prepare_campaign_config(config, preparation_consent=preparation_consent)
     if prepare_only and prerequisite_bundle is not None:
         prior = _load_campaign(_root(prerequisite_bundle))
-        assert_prerequisite(spec, phase="canary" if config.task_ids == ("cli-canary",) else "public_pilot",
+        assert_prerequisite(spec, phase="core_study" if config.core_study else "canary" if config.task_ids == ("cli-canary",) else "public_pilot",
             bundle=prerequisite_bundle, prerequisite_experiment_id=prior.identity)
     root = _root(Path(config.output_root))
     proposal_path = root / "proposal.json"
@@ -1776,6 +1871,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     mode.add_argument("--run-comparison", type=Path, help="Run/resume the frozen paired comparison")
     mode.add_argument("--report-comparison", type=Path, help="Regenerate a paired report without launching")
     parser.add_argument("--grant", type=Path, help="Explicit scoped launch consent, never loaded from a result bundle")
+    parser.add_argument("--preparation-consent", type=Path, help="Explicit controller-read permission for the complete core corpus; never launch permission")
     parser.add_argument("--prerequisite-bundle", type=Path, help="Independently checked earlier campaign")
     parser.add_argument("--pin-root", type=Path, help="Explicit legacy/current pin receipts; no installed md fallback")
     parser.add_argument("--stop-after", type=int, help="Stop synthetic campaign after this many new trials; resume with identical inputs")
@@ -1783,7 +1879,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.prepare_comparison or args.run_comparison or args.report_comparison:
         from bench.prompt_comparison import prepare_comparison, run_comparison, report_comparison
-        if args.results_dir is not None or args.pin_root is not None or ((args.prepare_comparison or args.report_comparison) and
+        if args.preparation_consent is not None or args.results_dir is not None or args.pin_root is not None or ((args.prepare_comparison or args.report_comparison) and
                 (args.grant is not None or args.prerequisite_bundle is not None or args.stop_after is not None)):
             parser.error("comparison paths come from config; only run accepts grants, prerequisite or stop count")
         try:
@@ -1817,14 +1913,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             config = CampaignConfig.from_dict(decode_record_json(_read_source(_root(path.parent), path.name)))
             grant = None if args.grant is None else LiveRunGrant.from_dict(decode_record_json(
                 _read_source(_root(args.grant.parent), args.grant.name)))
+            consent = None if args.preparation_consent is None else CorePreparationConsent.from_dict(decode_record_json(
+                _read_source(_root(args.preparation_consent.parent), args.preparation_consent.name)))
             summary = configured_campaign(config, prepare_only=args.prepare_config is not None,
-                live_grant=grant, prerequisite_bundle=args.prerequisite_bundle, stop_after=args.stop_after)
+                live_grant=grant, prerequisite_bundle=args.prerequisite_bundle, stop_after=args.stop_after,
+                preparation_consent=consent)
         except (RecordIntegrityError, OSError, ValueError, TypeError, KeyError) as exc:
             print(canonical_json({"complete": False, "exit_code": 2, "fault": str(exc)}))
             return 2
         print(canonical_json(summary))
         return summary.get("exit_code", 0)
-    if args.grant is not None or args.prerequisite_bundle is not None:
+    if args.grant is not None or args.prerequisite_bundle is not None or args.preparation_consent is not None:
         parser.error("grant and prerequisite require a configured campaign")
     if args.report_bundle:
         from bench.report import main as report_main

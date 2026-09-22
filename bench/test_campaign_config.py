@@ -1,7 +1,7 @@
 """Maintained operator entry points, using public fixtures and synthetic argv only."""
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict, replace
 import json
 import os
 import shutil
@@ -13,7 +13,7 @@ import pytest
 
 from bench import harness
 from bench.command_policy import CliCondition
-from bench.manifest import CampaignConfig
+from bench.manifest import CORE_TASK_IDS, CORPUS_PATHS, CampaignConfig, CorePreparationConsent
 from bench.trial_records import RecordIntegrityError, decode_record_json, record_dict
 
 
@@ -60,6 +60,182 @@ def test_config_rejects_invalid_input_before_reads(config: CampaignConfig, field
     with pytest.raises((ValueError, RecordIntegrityError)):
         CampaignConfig.from_dict(raw)
     assert not Path(config.output_root).exists()
+
+
+def test_core_config_accepts_only_complete_scope(config: CampaignConfig) -> None:
+    core = replace(config, task_ids=tuple(f"T{n}" for n in range(1, 25)), repetitions=5)
+    assert core.core_study
+    assert CampaignConfig.from_dict(record_dict(core)) == core
+    with pytest.raises(RecordIntegrityError):
+        replace(core, task_ids=core.task_ids[:-1])
+    with pytest.raises(RecordIntegrityError):
+        replace(core, repetitions=1)
+
+
+@pytest.fixture
+def core_case(config: CampaignConfig, tmp_path: Path) -> tuple[CampaignConfig, CorePreparationConsent]:
+    source = tmp_path.resolve() / "synthetic-source"
+    for name in CORPUS_PATHS:
+        (source / name).mkdir(parents=True)
+    policy = harness.StructuralDiffPolicy("raw_bytes", False, False, False, False, False, False, False)
+    rows = []
+    for task_id in CORE_TASK_IDS:
+        artifact = "stdout_and_file" if task_id == "T14" else "stdout_text" if task_id == "T23" else "file_contents"
+        task = harness.BenchTask(task_id, "Write after and submit [].", ["bench/inputs/input.md"],
+            "bench/expected/text.md" if artifact == "stdout_text" else "bench/expected/file.md",
+            artifact, "synthetic", policy, expected_stdout="[]\n" if artifact == "stdout_and_file" else None)
+        rows.append(asdict(task))
+    (source / "bench/tasks/tasks.json").write_text(json.dumps(rows))
+    (source / "bench/inputs/input.md").write_bytes(b"before\n")
+    (source / "bench/expected/file.md").write_bytes(b"after\n")
+    (source / "bench/expected/text.md").write_bytes(b"[]\n")
+    (source / "bench/holdout/task_ids.json").write_text('["T14", "T23"]')
+    def git(*argv: str) -> str:
+        return subprocess.run(["git", *argv], cwd=source, capture_output=True, check=True).stdout.decode().strip()
+    git("init", "-q")
+    git("add", "bench")
+    git("-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-qm", "Synthetic corpus fixture")
+    revision = git("rev-parse", "HEAD")
+    core = replace(config, task_ids=CORE_TASK_IDS, repetitions=5, source_root=str(source),
+        command=(str(Path(sys.executable).resolve()), "-I", "-c",
+            "from pathlib import Path; Path('bench/inputs/input.md').write_bytes(b'after\\n'); print('[]')"))
+    consent = CorePreparationConsent("Synthetic permission fixture; no real corpus authorized.", str(source), revision,
+        {path: git("rev-parse", f"{revision}:{path}") for path in CORPUS_PATHS},
+        CORE_TASK_IDS, (core.output_root,), True)
+    return core, consent
+
+
+def test_core_preparation_denied_before_source_read(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
+    core, consent = core_case
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("source read occurred without matching consent")
+    monkeypatch.setattr(harness, "_read_source", forbidden)
+    for authority in (None, replace(consent, output_roots=(str(Path(core.output_root).parent / "other"),))):
+        with pytest.raises(RecordIntegrityError, match="consent"):
+            harness.configured_campaign(core, prepare_only=True, preparation_consent=authority)
+    assert not Path(core.output_root).exists()
+
+
+def test_core_preparation_preserves_full_schedule_and_prefix(core_case: tuple) -> None:
+    core, consent = core_case
+    assert CorePreparationConsent.from_dict(record_dict(consent)) == consent
+    proposal = harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+    spec = harness.CampaignSpec.from_dict(proposal["spec"])
+    assert spec.core_study and len(set(spec.schedule)) == 360 and spec.prefix_length == 6
+    assert {entry[0] for entry in spec.schedule[:6]} == {"T14", "T23"}
+    assert not (Path(core.output_root) / "campaign/attempts").exists()
+    assert harness.configured_campaign(core, prepare_only=True, preparation_consent=consent) == proposal
+    with pytest.raises(RecordIntegrityError, match="explicit controller-read consent"):
+        harness.configured_campaign(core, prepare_only=True)
+
+
+def test_core_preparation_rejects_changed_corpus_before_output(core_case: tuple) -> None:
+    core, consent = core_case
+    (Path(core.source_root) / "bench/expected/file.md").write_text("changed")
+    with pytest.raises(RecordIntegrityError, match="identity check failed"):
+        harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+    assert not Path(core.output_root).exists()
+
+
+def test_preparation_consent_never_authorizes_launch(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
+    core, consent = core_case
+    live = replace(core, command=(), claude_executable="/missing/claude",
+        model="claude-haiku-4-5-20251001", thinking_policy="disabled")
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("preparation or spawn occurred without launch grant")
+    monkeypatch.setattr(harness, "prepare_campaign_config", forbidden)
+    with pytest.raises(RecordIntegrityError, match="explicitly supplied grant"):
+        harness.configured_campaign(live, preparation_consent=consent)
+
+
+def test_live_core_preparation_requires_pilot_before_reads(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
+    core, consent = core_case
+    live = replace(core, command=(), claude_executable="/missing/claude",
+        model="claude-haiku-4-5-20251001", thinking_policy="disabled")
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("core read occurred before pilot validation")
+    monkeypatch.setattr(harness, "_read_source", forbidden)
+    with pytest.raises(RecordIntegrityError, match="public pilot prerequisite"):
+        harness.configured_campaign(live, prepare_only=True, preparation_consent=consent)
+
+
+def test_core_worker_cannot_receive_another_tasks_expected_file(core_case: tuple) -> None:
+    core, consent = core_case
+    source = Path(core.source_root)
+    registry = source / "bench/tasks/tasks.json"
+    rows = json.loads(registry.read_bytes())
+    rows[0]["support_files"] = ["bench/expected/text.md"]
+    registry.write_text(json.dumps(rows))
+    def git(*argv: str) -> str:
+        return subprocess.run(["git", *argv], cwd=source, capture_output=True, check=True).stdout.decode().strip()
+    git("add", "bench/tasks/tasks.json")
+    git("-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-qm", "Synthetic invalid task reference")
+    revision = git("rev-parse", "HEAD")
+    consent = replace(consent, source_commit=revision,
+        corpus_objects={path: git("rev-parse", f"{revision}:{path}") for path in CORPUS_PATHS})
+    with pytest.raises(RecordIntegrityError, match="unsupported core task contract"):
+        harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+    assert not Path(core.output_root).exists()
+
+
+def test_core_prepare_validates_public_pilot_phase(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
+    core, consent = core_case
+    proposal = harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+    spec = harness.CampaignSpec.from_dict(proposal["spec"])
+    monkeypatch.setattr(harness, "_load_campaign", lambda root: spec)
+    phases = []
+    monkeypatch.setattr(harness, "assert_prerequisite", lambda spec, **kwargs: phases.append(kwargs["phase"]))
+    harness.configured_campaign(core, prepare_only=True, preparation_consent=consent,
+        prerequisite_bundle=Path(core.output_root))
+    assert phases == ["core_study"]
+
+
+def local_test_core_config_resume_and_independent_report(core_case: tuple, tmp_path: Path) -> None:
+    core, consent = core_case
+    config_path, consent_path = tmp_path / "core-config.json", tmp_path / "read-consent.json"
+    config_path.write_text(json.dumps(record_dict(core)))
+    consent_path.write_text(json.dumps(record_dict(consent)))
+    entry = [sys.executable, "-I", harness.__file__]
+    def call(mode: str, *extra: str) -> dict:
+        completed = subprocess.run([*entry, mode, str(config_path), "--preparation-consent", str(consent_path), *extra],
+            capture_output=True, timeout=1200)
+        assert completed.returncode in (0, 1), completed.stdout.decode() + completed.stderr.decode()
+        return decode_record_json(completed.stdout)
+    proposal = call("--prepare-config")
+    assert len(proposal["spec"]["schedule"]) == 360
+    partial = call("--run-config", "--stop-after", "6")
+    assert not partial["complete"]
+    finished = call("--run-config")
+    assert finished["complete"] and not finished["core_study_complete"]  # Synthetic evidence only.
+    assert finished["grade_counts"] == {"pass": 360}
+    attempts = Path(core.output_root) / "campaign/attempts"
+    assert len(list(attempts.iterdir())) == 360
+    assert call("--run-config") == finished
+    regenerated = subprocess.run([*entry, "--report-bundle", str(Path(core.output_root) / "campaign")],
+        capture_output=True, timeout=60)
+    assert regenerated.returncode == 0, regenerated.stdout.decode() + regenerated.stderr.decode()
+    assert decode_record_json(regenerated.stdout) == finished
+
+
+def test_core_config_resume_preserves_prefix(core_case: tuple) -> None:
+    core, consent = core_case
+    harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+    partial = harness.configured_campaign(core, preparation_consent=consent, stop_after=6)
+    assert not partial["complete"] and partial["grade_counts"] == {"pass": 6}
+    continued = harness.configured_campaign(core, preparation_consent=consent, stop_after=1)
+    assert continued["grade_counts"] == {"pass": 7}
+    spec, starts, results, faults = harness.load_campaign_bundles((Path(core.output_root) / "campaign",))
+    assert len(starts) == len(results) == 7 and not faults
+    assert len({start.key for start in starts}) == 7
+    assert {entry[0] for entry in spec.schedule[:6]} == {"T14", "T23"}
+
+
+@pytest.mark.parametrize("field,value", [("prior_exposure_acknowledged", False), ("action", "launch"),
+    ("source_commit", "HEAD"), ("task_ids", ("T14",)), ("approval_quote", ""), ("corpus_objects", {})])
+def test_preparation_consent_rejects_incomplete_authority(core_case: tuple, field: str, value: object) -> None:
+    _, consent = core_case
+    with pytest.raises(RecordIntegrityError):
+        replace(consent, **{field: value})
 
 
 def test_config_cannot_supply_or_recover_consent(config: CampaignConfig) -> None:

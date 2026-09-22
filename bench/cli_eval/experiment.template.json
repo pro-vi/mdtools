@@ -16,8 +16,8 @@
   "guidance": "full_help",
   "repetitions": 1,
   "seed": 1729,
-  "timeout_seconds": 120,
-  "max_turns": 12,
+  "timeout_seconds": 180,
+  "max_turns": 30,
   "retry_allowance": 0,
   "attempt_usd": 0.25,
   "campaign_usd": 2.25
