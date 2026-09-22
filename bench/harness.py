@@ -1719,6 +1719,8 @@ def _core_tasks(config: CampaignConfig, consent: CorePreparationConsent | None) 
         raise RecordIntegrityError("core destination overlaps consented source")
     if _core_git(source, "rev-parse", "--show-toplevel").decode().strip() != str(source):
         raise RecordIntegrityError("core source must be its repository root")
+    if _core_git(source, "rev-parse", f"{consent.source_commit}^{{commit}}").decode().strip() != consent.source_commit:
+        raise RecordIntegrityError("core source identity must name a commit")
     for path, oid in consent.corpus_objects.items():
         if _core_git(source, "rev-parse", f"{consent.source_commit}:{path}").decode().strip() != oid:
             raise RecordIntegrityError("core corpus identity contradicts consent")

@@ -17,6 +17,21 @@ from bench.manifest import CORE_TASK_IDS, CORPUS_PATHS, CampaignConfig, CorePrep
 from bench.trial_records import RecordIntegrityError, decode_record_json, record_dict
 
 
+def commit_synthetic_corpus(source: Path) -> str:
+    """Construct test Git objects without requiring a runner's author config."""
+    def git(*argv: str, payload: bytes | None = None) -> str:
+        return subprocess.run(["git", *argv], cwd=source, input=payload,
+            capture_output=True, check=True).stdout.decode().strip()
+    git("add", "bench")
+    tree = git("write-tree")
+    # These identities are fixture data, not authorship of a project commit.
+    commit = (f"tree {tree}\nauthor Fixture <fixture@example.invalid> 0 +0000\n"
+        "committer Fixture <fixture@example.invalid> 0 +0000\n\nSynthetic corpus\n").encode()
+    revision = git("hash-object", "-t", "commit", "-w", "--stdin", payload=commit)
+    git("update-ref", "HEAD", revision)
+    return revision
+
+
 @pytest.fixture
 def config(tmp_path: Path, cli_pins: dict) -> CampaignConfig:
     pin_root = tmp_path.resolve() / "condition-receipts"
@@ -93,9 +108,7 @@ def core_case(config: CampaignConfig, tmp_path: Path) -> tuple[CampaignConfig, C
     def git(*argv: str) -> str:
         return subprocess.run(["git", *argv], cwd=source, capture_output=True, check=True).stdout.decode().strip()
     git("init", "-q")
-    git("add", "bench")
-    git("-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-qm", "Synthetic corpus fixture")
-    revision = git("rev-parse", "HEAD")
+    revision = commit_synthetic_corpus(source)
     core = replace(config, task_ids=CORE_TASK_IDS, repetitions=5, source_root=str(source),
         command=(str(Path(sys.executable).resolve()), "-I", "-c",
             "from pathlib import Path; Path('bench/inputs/input.md').write_bytes(b'after\\n'); print('[]')"))
@@ -137,6 +150,18 @@ def test_core_preparation_rejects_changed_corpus_before_output(core_case: tuple)
     assert not Path(core.output_root).exists()
 
 
+def test_core_consent_rejects_tree_as_source_commit(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
+    core, consent = core_case
+    tree = subprocess.run(["git", "rev-parse", consent.source_commit + "^{tree}"],
+        cwd=core.source_root, capture_output=True, check=True).stdout.decode().strip()
+    consent = replace(consent, source_commit=tree)
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("tree identity reached a corpus read")
+    monkeypatch.setattr(harness, "_read_source", forbidden)
+    with pytest.raises(RecordIntegrityError, match="Git identity check failed"):
+        harness.configured_campaign(core, prepare_only=True, preparation_consent=consent)
+
+
 def test_preparation_consent_never_authorizes_launch(core_case: tuple, monkeypatch: pytest.MonkeyPatch) -> None:
     core, consent = core_case
     live = replace(core, command=(), claude_executable="/missing/claude",
@@ -168,9 +193,7 @@ def test_core_worker_cannot_receive_another_tasks_expected_file(core_case: tuple
     registry.write_text(json.dumps(rows))
     def git(*argv: str) -> str:
         return subprocess.run(["git", *argv], cwd=source, capture_output=True, check=True).stdout.decode().strip()
-    git("add", "bench/tasks/tasks.json")
-    git("-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-qm", "Synthetic invalid task reference")
-    revision = git("rev-parse", "HEAD")
+    revision = commit_synthetic_corpus(source)
     consent = replace(consent, source_commit=revision,
         corpus_objects={path: git("rev-parse", f"{revision}:{path}") for path in CORPUS_PATHS})
     with pytest.raises(RecordIntegrityError, match="unsupported core task contract"):
